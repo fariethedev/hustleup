@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ListingDto {
@@ -40,11 +41,21 @@ public class ListingDto {
                 .negotiable(listing.isNegotiable())
                 .locationCity(listing.getLocationCity())
                 .meta(listing.getMeta())
-                .mediaUrls(listing.getMediaUrls() != null ?
-                        Arrays.asList(listing.getMediaUrls().split(",")) :
-                        List.of())
+                .mediaUrls(parseMediaUrls(listing.getMediaUrls()))
                 .status(listing.getStatus().name())
                 .createdAt(listing.getCreatedAt())
                 .build();
+    }
+
+    private static List<String> parseMediaUrls(String mediaUrls) {
+        if (mediaUrls == null || mediaUrls.isBlank()) {
+            return List.of();
+        }
+
+        return Arrays.stream(mediaUrls.split(","))
+                .map(String::trim)
+                .map(value -> value.replace("[", "").replace("]", "").replace("\"", ""))
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toList());
     }
 }

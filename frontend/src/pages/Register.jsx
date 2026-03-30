@@ -24,7 +24,7 @@ export default function Register() {
     
     const resultAction = await dispatch(registerUser(form));
     if (registerUser.fulfilled.match(resultAction)) {
-      navigate('/dashboard');
+      navigate('/onboarding');
     }
   };
 
@@ -39,7 +39,7 @@ export default function Register() {
       >
         <div className="text-center mb-10">
           <Link to="/" className="inline-flex items-center gap-2 mb-6 group">
-            <div className="w-12 h-12 rounded-2xl bg-black border border-[#CDFF00]/30 flex items-center justify-center text-[#CDFF00] font-heading font-extrabold text-2xl group-hover:bg-[#CDFF00] group-hover:text-black transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-[#CDFF00] border border-[#CDFF00] flex items-center justify-center text-[#CDFF00] font-heading font-extrabold text-2xl group-hover:bg-[#CDFF00] group-hover:text-white transition-all">
               H
             </div>
           </Link>
@@ -47,9 +47,9 @@ export default function Register() {
           <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Create your account</p>
         </div>
 
-        <div className="glass rounded-3xl p-8 border border-white/5">
+        <div className="glass bg-black/40 border border-white/10 rounded-3xl p-8 border border-white/5 shadow-xl shadow-black/5">
           {displayError && (
-            <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2">
+            <div className="mb-6 p-4 rounded-xl bg-[#CDFF00] border border-[#CDFF00] text-[#CDFF00] text-sm font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2">
               <X className="w-4 h-4" /> {displayError}
             </div>
           )}
@@ -57,18 +57,18 @@ export default function Register() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Role Selection */}
             <div className="mb-8">
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-3">I want to</label>
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">I want to</label>
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
                   onClick={() => setForm({ ...form, role: 'BUYER' })}
                   className={`p-4 rounded-xl border text-center transition-all flex flex-col items-center gap-2 outline-none ${
                     form.role === 'BUYER'
-                      ? 'border-[#CDFF00] bg-[#CDFF00]/10 text-[#CDFF00] shadow-[0_0_15px_rgba(205,255,0,0.1)]'
-                      : 'border-white/10 bg-black/50 text-gray-400 hover:border-white/30 hover:text-white'
+                      ? 'border-[#CDFF00] bg-[#CDFF00] text-black shadow-[0_0_15px_rgba(139,92,246,0.1)]'
+                      : 'border-white/10 bg-[#121212] text-gray-400 hover:border-gray-300 hover:text-gray-600'
                   }`}
                 >
-                  <ShoppingBag className={`w-6 h-6 ${form.role === 'BUYER' ? 'text-[#CDFF00]' : 'text-gray-500'}`} />
+                  <ShoppingBag className={`w-6 h-6 ${form.role === 'BUYER' ? 'text-[#CDFF00]' : 'text-gray-400'}`} />
                   <span className="text-[10px] font-black uppercase tracking-widest">Buy & Hire</span>
                 </button>
                 <button
@@ -76,48 +76,48 @@ export default function Register() {
                   onClick={() => setForm({ ...form, role: 'SELLER' })}
                   className={`p-4 rounded-xl border text-center transition-all flex flex-col items-center gap-2 outline-none ${
                     form.role === 'SELLER'
-                      ? 'border-[#CDFF00] bg-[#CDFF00]/10 text-[#CDFF00] shadow-[0_0_15px_rgba(205,255,0,0.1)]'
-                      : 'border-white/10 bg-black/50 text-gray-400 hover:border-white/30 hover:text-white'
+                      ? 'border-[#CDFF00] bg-[#CDFF00] text-black shadow-[0_0_15px_rgba(139,92,246,0.1)]'
+                      : 'border-white/10 bg-[#121212] text-gray-400 hover:border-gray-300 hover:text-gray-600'
                   }`}
                 >
-                  <Briefcase className={`w-6 h-6 ${form.role === 'SELLER' ? 'text-[#CDFF00]' : 'text-gray-500'}`} />
+                  <Briefcase className={`w-6 h-6 ${form.role === 'SELLER' ? 'text-[#CDFF00]' : 'text-gray-400'}`} />
                   <span className="text-[10px] font-black uppercase tracking-widest">Sell & Offer</span>
                 </button>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Full Name</label>
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Full Name</label>
               <input
                 type="text"
                 required
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                className="w-full px-5 py-4 rounded-xl bg-black border border-white/10 text-white placeholder-gray-600 focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-bold"
+                className="w-full px-5 py-4 rounded-xl bg-[#121212] border border-white/10 text-white placeholder-gray-400 focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-medium"
                 placeholder="Your name"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Email</label>
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Email</label>
               <input
                 type="email"
                 required
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-5 py-4 rounded-xl bg-black border border-white/10 text-white placeholder-gray-600 focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-bold"
+                className="w-full px-5 py-4 rounded-xl bg-[#121212] border border-white/10 text-white placeholder-gray-400 focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-medium"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Password</label>
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Password</label>
               <input
                 type="password"
                 required
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full px-5 py-4 rounded-xl bg-black border border-white/10 text-white placeholder-gray-600 focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-bold"
+                className="w-full px-5 py-4 rounded-xl bg-[#121212] border border-white/10 text-white placeholder-gray-400 focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-medium"
                 placeholder="At least 6 characters"
               />
             </div>
@@ -125,15 +125,15 @@ export default function Register() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:bg-[#E0FF4D] disabled:opacity-50 transition-all shadow-lg hover:shadow-[#CDFF00]/20 flex items-center justify-center gap-2 outline-none mt-4"
+              className="w-full py-4 rounded-xl bg-[#CDFF00] text-white font-black uppercase tracking-widest hover:bg-[#CDFF00] disabled:opacity-50 transition-all shadow-lg shadow-[#CDFF00]/20 flex items-center justify-center gap-2 outline-none mt-4"
             >
               {loading ? 'Creating account...' : <><UserPlus className="w-5 h-5" /> Create Account</>}
             </button>
           </form>
 
-          <p className="text-center mt-8 text-xs font-bold text-gray-500 uppercase tracking-widest">
+          <p className="text-center mt-8 text-xs font-bold text-gray-400 uppercase tracking-widest">
             Already have an account?{' '}
-            <Link to="/login" className="text-[#CDFF00] hover:text-[#E0FF4D] inline-flex items-center gap-1">
+            <Link to="/login" className="text-[#CDFF00] hover:text-[#CDFF00] inline-flex items-center gap-1">
               Sign in <ArrowRight className="w-3 h-3" />
             </Link>
           </p>

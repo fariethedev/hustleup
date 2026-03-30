@@ -65,4 +65,8 @@ public class User {
     @Column(name = "updated_at")
     @Builder.Default
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @Column(name = "last_active")
+    @Builder.Default
+    private LocalDateTime lastActive = LocalDateTime.now();
 }

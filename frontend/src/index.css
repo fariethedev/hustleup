@@ -4,28 +4,29 @@
   --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
   --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
 
-  /* Brand colors — Black, White, Lime/Neon Green */
-  --color-brand-lime: #CDFF00;
-  --color-brand-lime-light: #E0FF4D;
-  --color-brand-lime-dark: #A8D600;
+  /* Brand colors — White base with colorful accents */
+  --color-brand-coral: #FF4D6A;
+  --color-brand-purple: #8B5CF6;
+  --color-brand-yellow: #FBBF24;
+  --color-brand-teal: #14B8A6;
 
-  --color-primary-50: #f7ffe0;
-  --color-primary-100: #eeffb3;
-  --color-primary-200: #e0ff4d;
-  --color-primary-300: #CDFF00;
-  --color-primary-400: #b8e600;
-  --color-primary-500: #a3cc00;
-  --color-primary-600: #8ab300;
-  --color-primary-700: #709900;
-  --color-primary-800: #577a00;
-  --color-primary-900: #3d5c00;
+  --color-primary-50: #F5F3FF;
+  --color-primary-100: #EDE9FE;
+  --color-primary-200: #DDD6FE;
+  --color-primary-300: #C4B5FD;
+  --color-primary-400: #A78BFA;
+  --color-primary-500: #8B5CF6;
+  --color-primary-600: #7C3AED;
+  --color-primary-700: #6D28D9;
+  --color-primary-800: #5B21B6;
+  --color-primary-900: #4C1D95;
 
-  --color-surface-50: #252525;
-  --color-surface-100: #1e1e1e;
-  --color-surface-200: #171717;
-  --color-surface-300: #111111;
-  --color-surface-400: #0a0a0a;
-  --color-surface-500: #000000;
+  --color-surface-50: #F8F9FA;
+  --color-surface-100: #F1F3F5;
+  --color-surface-200: #E9ECEF;
+  --color-surface-300: #DEE2E6;
+  --color-surface-400: #CED4DA;
+  --color-surface-500: #ADB5BD;
 
   --color-amber-400: #fbbf24;
   --color-amber-500: #f59e0b;
@@ -40,22 +41,10 @@
 @layer base {
   body {
     font-family: var(--font-body);
-    background: #000000;
-    color: #f3f4f6;
+    background: #0A0A0A;
+    color: #FFFFFF;
     min-height: 100vh;
     overflow-x: hidden;
-  }
-
-  /* Subtle ambient glow */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background:
-      radial-gradient(ellipse 60% 40% at 30% 10%, rgba(205, 255, 0, 0.03), transparent),
-      radial-gradient(ellipse 50% 30% at 70% 90%, rgba(205, 255, 0, 0.02), transparent);
-    pointer-events: none;
-    z-index: 0;
   }
 
   #root {
@@ -67,50 +56,54 @@
   }
 
   ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #000; }
-  ::-webkit-scrollbar-thumb { background: #252525; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #CDFF00; }
+  ::-webkit-scrollbar-track { background: #F8F9FA; }
+  ::-webkit-scrollbar-thumb { background: #CED4DA; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #8B5CF6; }
 }
 
 /* Custom utilities */
+@utility card-white {
+  background: #FFFFFF;
+  border: 1px solid #E9ECEF;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+
+
 @utility glass {
-  background: rgba(20, 20, 20, 0.6);
+  background: rgba(18, 18, 18, 0.65);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 @utility glass-strong {
-  background: rgba(10, 10, 10, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-@utility glow-lime {
-  box-shadow: 0 0 30px rgba(205, 255, 0, 0.08);
+@utility glow-purple {
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.12);
 }
 
-@utility glow-lime-strong {
-  box-shadow: 0 0 60px rgba(205, 255, 0, 0.15);
+@utility glow-purple-strong {
+  box-shadow: 0 0 60px rgba(139, 92, 246, 0.2);
 }
 
 @utility text-gradient-brand {
-  background: linear-gradient(135deg, #CDFF00, #E0FF4D);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #CDFF00;
 }
 
-@utility text-gradient-white {
-  background: linear-gradient(180deg, #ffffff, #a0a0a0);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+@utility text-gradient-warm {
+  color: #CDFF00;
 }
 
 @utility bg-gradient-hero {
-  background: linear-gradient(135deg, #000000 0%, #111111 50%, #0a0a0a 100%);
+  background: radial-gradient(circle at center, rgba(205, 255, 0, 0.15) 0%, #0A0A0A 60%);
 }
 
 @utility animate-float {
@@ -122,7 +115,6 @@
   animation: gradient-shift 8s ease infinite;
 }
 
-/* Featured shops slider */
 @utility animate-slide {
   animation: slide 30s linear infinite;
 }

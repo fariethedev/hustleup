@@ -34,13 +34,22 @@ public class DirectMessageController {
         List<Map<String, String>> partners = new ArrayList<>();
         
         for (String pid : partnerIds) {
-            userRepo.findById(java.util.UUID.fromString(pid)).ifPresent(user -> {
-                partners.add(Map.of(
-                    "id", user.getId().toString(),
-                    "name", user.getFullName(),
-                    "verified", String.valueOf(user.isIdVerified())
-                ));
-            });
+            try {
+                userRepo.findById(java.util.UUID.fromString(pid)).ifPresent(user -> {
+                    boolean isOnline = false;
+                    if (user.getLastActive() != null) {
+                        isOnline = user.getLastActive().isAfter(java.time.LocalDateTime.now().minusMinutes(5));
+                    }
+                    partners.add(Map.of(
+                        "id", user.getId().toString(),
+                        "name", user.getFullName(),
+                        "verified", String.valueOf(user.isIdVerified()),
+                        "online", String.valueOf(isOnline)
+                    ));
+                });
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid mock partner IDs from before wipe
+            }
         }
         return ResponseEntity.ok(partners);
     }

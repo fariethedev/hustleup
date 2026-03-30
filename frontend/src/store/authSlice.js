@@ -1,10 +1,11 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { authApi } from '../api/client';
+import { mergeUserWithOnboarding, persistOnboarding } from '../utils/onboardingStorage';
 
 // Initial state checks localStorage
 const token = localStorage.getItem('hustleup_token');
 const userStr = localStorage.getItem('hustleup_user');
-const user = userStr ? JSON.parse(userStr) : null;
+const user = userStr ? mergeUserWithOnboarding(JSON.parse(userStr)) : null;
 
 const initialState = {
   user,
@@ -21,7 +22,7 @@ export const loginUser = createAsyncThunk('auth/login', async (credentials, { re
     localStorage.setItem('hustleup_token', accessToken);
     localStorage.setItem('hustleup_refresh', refreshToken);
     
-    const userData = { id: userId, email: credentials.email, fullName, role };
+    const userData = mergeUserWithOnboarding({ id: userId, email: credentials.email, fullName, role });
     localStorage.setItem('hustleup_user', JSON.stringify(userData));
     return userData;
   } catch (err) {
@@ -36,7 +37,7 @@ export const registerUser = createAsyncThunk('auth/register', async (data, { rej
     localStorage.setItem('hustleup_token', accessToken);
     localStorage.setItem('hustleup_refresh', refreshToken);
     
-    const userData = { id: userId, email: data.email, fullName, role };
+    const userData = mergeUserWithOnboarding({ id: userId, email: data.email, fullName, role });
     localStorage.setItem('hustleup_user', JSON.stringify(userData));
     return userData;
   } catch (err) {
@@ -47,8 +48,9 @@ export const registerUser = createAsyncThunk('auth/register', async (data, { rej
 export const loadUserProfile = createAsyncThunk('auth/loadProfile', async (_, { rejectWithValue }) => {
   try {
     const res = await authApi.me();
-    localStorage.setItem('hustleup_user', JSON.stringify(res.data));
-    return res.data;
+    const userData = mergeUserWithOnboarding(res.data);
+    localStorage.setItem('hustleup_user', JSON.stringify(userData));
+    return userData;
   } catch (err) {
     return rejectWithValue('Failed to load profile');
   }
@@ -68,6 +70,19 @@ const authSlice = createSlice({
     },
     clearError(state) {
       state.error = null;
+    },
+    completeOnboarding(state, action) {
+      const nextUser = mergeUserWithOnboarding({
+        ...state.user,
+        ...action.payload.profile,
+      });
+      const onboarding = persistOnboarding(nextUser.id, action.payload.onboarding);
+      state.user = {
+        ...nextUser,
+        onboarding,
+        onboardingCompleted: true,
+      };
+      localStorage.setItem('hustleup_user', JSON.stringify(state.user));
     }
   },
   extraReducers: (builder) => {
@@ -101,12 +116,13 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError } = authSlice.actions;
+export const { logout, clearError, completeOnboarding } = authSlice.actions;
 
 // Selectors
 export const selectAuth = (state) => state.auth;
 export const selectUser = (state) => state.auth.user;
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 export const selectIsSeller = (state) => state.auth.user?.role === 'SELLER';
+export const selectHasCompletedOnboarding = (state) => Boolean(state.auth.user?.onboardingCompleted);
 
 export default authSlice.reducer;

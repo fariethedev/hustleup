@@ -19,8 +19,18 @@ public class UserDto {
     private boolean idVerified;
     private int vouchCount;
     private double avgRating;
+    private int followersCount;
+    private int followingCount;
+    private int activeListingsCount;
+    private boolean following;
+    private boolean online;
 
     public static UserDto fromEntity(User user) {
+        boolean online = false;
+        if (user.getLastActive() != null) {
+            online = user.getLastActive().isAfter(java.time.LocalDateTime.now().minusMinutes(5));
+        }
+
         return UserDto.builder()
                 .id(user.getId())
                 .email(user.getEmail())
@@ -35,6 +45,7 @@ public class UserDto {
                 .phoneVerified(user.isPhoneVerified())
                 .idVerified(user.isIdVerified())
                 .vouchCount(user.getVouchCount())
+                .online(online)
                 .build();
     }
 }

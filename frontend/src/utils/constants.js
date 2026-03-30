@@ -11,11 +11,11 @@ export const LISTING_TYPES = [
 
 export const BOOKING_STATUS_MAP = {
   POSTED: { label: 'Posted', color: 'bg-sky-500/15 text-sky-400' },
-  INQUIRED: { label: 'Inquired', color: 'bg-amber-500/15 text-amber-400' },
-  NEGOTIATING: { label: 'Negotiating', color: 'bg-purple-500/15 text-purple-400' },
+  INQUIRED: { label: 'Inquired', color: 'bg-[#CDFF00]/15 text-[#CDFF00]' },
+  NEGOTIATING: { label: 'Negotiating', color: 'bg-[#CDFF00]/15 text-[#CDFF00]' },
   BOOKED: { label: 'Booked', color: 'bg-emerald-500/15 text-emerald-400' },
   COMPLETED: { label: 'Completed', color: 'bg-green-500/15 text-green-400' },
-  CANCELLED: { label: 'Cancelled', color: 'bg-rose-500/15 text-rose-400' },
+  CANCELLED: { label: 'Cancelled', color: 'bg-[#CDFF00]/15 text-[#CDFF00]' },
 };
 
 export const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP'];

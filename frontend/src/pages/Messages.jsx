@@ -5,7 +5,7 @@ import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { bookingsApi, messagesApi } from '../api/client';
 import { Client } from '@stomp/stompjs';
-import { MessageSquareOff, Send, User } from 'lucide-react';
+import { MessageSquareOff, Send, User, ArrowLeft } from 'lucide-react';
 
 export default function Messages() {
   const { bookingId } = useParams();
@@ -81,7 +81,7 @@ export default function Messages() {
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="h-[calc(100vh-160px)]">
         <div className="flex h-full gap-6">
           {/* Sidebar: Booking threads */}
-          <div className="w-80 shrink-0 hidden lg:flex flex-col glass rounded-3xl overflow-hidden border border-white/5">
+          <div className={`w-full lg:w-80 shrink-0 flex-col glass rounded-3xl overflow-hidden border border-white/5 ${activeBooking ? 'hidden lg:flex' : 'flex'}`}>
             <div className="p-6 border-b border-white/5">
               <h2 className="text-xl font-heading font-black text-white uppercase tracking-wider">Messages</h2>
             </div>
@@ -101,7 +101,7 @@ export default function Messages() {
                       className={`w-full text-left p-4 rounded-2xl transition-all border outline-none ${
                         isActive 
                           ? 'bg-[#CDFF00]/10 border-[#CDFF00]/30 shadow-[0_0_15px_rgba(205,255,0,0.05)]' 
-                          : 'bg-black/40 border-transparent hover:bg-white/5 hover:border-white/10'
+                          : 'bg-black/40 border-transparent hover:glass bg-black/40 border border-white/10 hover:border-white/10'
                       }`}
                     >
                       <div className="flex items-center gap-4">
@@ -123,12 +123,15 @@ export default function Messages() {
           </div>
 
           {/* Chat area */}
-          <div className="flex-1 flex flex-col glass rounded-3xl overflow-hidden border border-white/5">
+          <div className={`flex-1 flex-col glass rounded-3xl overflow-hidden border border-white/5 ${activeBooking ? 'flex' : 'hidden lg:flex'}`}>
             {activeBooking ? (
               <>
                 {/* Header */}
                 <div className="p-6 border-b border-white/5 flex items-center gap-4 bg-black/40">
-                  <div className="w-12 h-12 rounded-xl bg-black border border-[#CDFF00]/50 flex items-center justify-center text-[#CDFF00] font-black text-lg">
+                  <button onClick={() => setActiveBooking(null)} className="lg:hidden p-2 -ml-2 rounded-xl hover:glass bg-black/40 border border-white/10 text-white transition-colors">
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  <div className="w-12 h-12 rounded-xl bg-black border border-[#CDFF00]/50 flex items-center justify-center text-[#CDFF00] font-black text-lg shrink-0">
                     {(user?.id === activeBk?.buyerId ? activeBk?.sellerName : activeBk?.buyerName)?.[0] || <User className="w-5 h-5" />}
                   </div>
                   <div>
@@ -143,7 +146,7 @@ export default function Messages() {
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                   {messages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-center text-gray-500 gap-4">
-                      <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-full glass bg-black/40 border border-white/10 flex items-center justify-center">
                         <User className="w-8 h-8 opacity-50" />
                       </div>
                       <p className="text-sm font-bold uppercase tracking-widest">No messages yet, say hello!</p>

@@ -13,6 +13,8 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
 
     List<Listing> findBySellerId(UUID sellerId);
 
+    int countBySellerIdAndStatus(UUID sellerId, ListingStatus status);
+
     @Query("SELECT l FROM Listing l WHERE l.status = 'ACTIVE' " +
            "AND (:type IS NULL OR l.listingType = :type) " +
            "AND (:city IS NULL OR LOWER(l.locationCity) LIKE LOWER(CONCAT('%', :city, '%'))) " +

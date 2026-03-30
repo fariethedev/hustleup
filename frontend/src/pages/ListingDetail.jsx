@@ -131,7 +131,7 @@ export default function ListingDetail() {
           <div className="border-t border-white/10 pt-10">
             <h2 className="text-2xl font-heading font-black text-white uppercase tracking-wide mb-8 flex items-center justify-between">
               Seller Reviews 
-              <span className="text-sm font-bold text-gray-500 bg-white/5 px-3 py-1 rounded-full">{reviews.length}</span>
+              <span className="text-sm font-bold text-gray-500 glass bg-black/40 border border-white/10 px-3 py-1 rounded-full">{reviews.length}</span>
             </h2>
             
             {reviews.length > 0 ? (
@@ -206,7 +206,7 @@ export default function ListingDetail() {
                         </button>
                         <button
                           onClick={() => setShowBooking(false)}
-                          className="w-full py-4 rounded-xl text-gray-400 font-bold uppercase tracking-widest hover:text-white hover:bg-white/5 transition-all outline-none"
+                          className="w-full py-4 rounded-xl text-gray-400 font-bold uppercase tracking-widest hover:text-white hover:glass bg-black/40 border border-white/10 transition-all outline-none"
                         >
                           Cancel
                         </button>
@@ -222,7 +222,7 @@ export default function ListingDetail() {
                   </>
                 )}
                 {isOwner && (
-                  <Link to="/dashboard" className="block w-full py-4 rounded-xl bg-white/10 text-center text-white font-black uppercase tracking-widest hover:bg-white/20 transition-all">
+                  <Link to="/dashboard" className="block w-full py-4 rounded-xl glass bg-black/40 border border-white/10 text-center text-white font-black uppercase tracking-widest hover:glass bg-black/40 border border-white/10 transition-all">
                     Manage Listing
                   </Link>
                 )}

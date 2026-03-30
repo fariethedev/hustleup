@@ -78,7 +78,7 @@ export default function Dashboard() {
                 <Plus className="w-4 h-4" /> Post
               </Link>
             )}
-            <Link to={`/profile/${user?.id}`} className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold uppercase tracking-widest text-xs hover:bg-white/10 transition-all">
+            <Link to={`/profile/${user?.id}`} className="inline-flex items-center gap-2 px-6 py-3 rounded-xl glass bg-black/40 border border-white/10 border border-white/10 text-white font-bold uppercase tracking-widest text-xs hover:glass bg-black/40 border border-white/10 transition-all">
               <Settings2 className="w-4 h-4" /> Profile
             </Link>
           </div>
@@ -131,7 +131,7 @@ export default function Dashboard() {
                   <EmptyState icon={Inbox} title="No Orders Yet" desc="Your active purchasing or service bookings will appear here." />
                 ) : (
                   bookings.map((booking) => {
-                    const status = BOOKING_STATUS_MAP[booking.status] || { label: booking.status, color: 'bg-gray-500/15 text-gray-400' };
+                    const status = BOOKING_STATUS_MAP[booking.status] || { label: booking.status, color: 'bg-[#121212]0/15 text-gray-400' };
                     const isBuyer = user?.id === booking.buyerId;
 
                     return (
@@ -161,7 +161,7 @@ export default function Dashboard() {
 
                         {/* Actions */}
                         <div className="flex items-center gap-2 shrink-0 border-t border-white/5 pt-4 md:border-none md:pt-0">
-                          <Link to={`/messages/${booking.id}`} className="px-5 py-2.5 rounded-lg bg-white/10 text-white font-bold uppercase text-[10px] tracking-widest hover:bg-white/20 transition-all flex items-center gap-2">
+                          <Link to={`/messages/${booking.id}`} className="px-5 py-2.5 rounded-lg glass bg-black/40 border border-white/10 text-white font-bold uppercase text-[10px] tracking-widest hover:glass bg-black/40 border border-white/10 transition-all flex items-center gap-2">
                             <MessageSquare className="w-3.5 h-3.5" /> Chat
                           </Link>
                           
@@ -181,7 +181,7 @@ export default function Dashboard() {
                             </button>
                           )}
                           {['INQUIRED', 'NEGOTIATING', 'BOOKED'].includes(booking.status) && (
-                            <button onClick={() => handleBookingAction(booking.id, 'cancel')} className="px-4 py-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 font-bold uppercase text-[10px] tracking-widest hover:bg-rose-500/20 transition-all text-center">
+                            <button onClick={() => handleBookingAction(booking.id, 'cancel')} className="px-4 py-2.5 rounded-lg bg-[#CDFF00]/10 border border-[#CDFF00]/30 text-[#CDFF00] font-bold uppercase text-[10px] tracking-widest hover:bg-[#CDFF00]/20 transition-all text-center">
                               Cancel
                             </button>
                           )}
@@ -211,7 +211,7 @@ export default function Dashboard() {
                           <h3 className="text-lg font-bold text-white group-hover:text-[#CDFF00] transition-colors truncate mb-1">{listing.title}</h3>
                           <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-gray-500">
                             <span>{typeInfo.label}</span>
-                            <span className="w-1 h-1 rounded-full bg-white/20" />
+                            <span className="w-1 h-1 rounded-full glass bg-black/40 border border-white/10" />
                             <span className="text-gray-300">{formatPrice(listing.price, listing.currency)}</span>
                           </div>
                         </div>
@@ -237,7 +237,7 @@ export default function Dashboard() {
                     <div
                       key={notif.id}
                       onClick={() => markNotifRead(notif.id)}
-                      className={`glass rounded-2xl p-6 cursor-pointer border transition-all ${!notif.read ? 'border-l-4 border-l-[#CDFF00] border-white/10 bg-[#CDFF00]/5' : 'border-transparent border-b-white/5 hover:bg-white/5'}`}
+                      className={`glass rounded-2xl p-6 cursor-pointer border transition-all ${!notif.read ? 'border-l-4 border-l-[#CDFF00] border-white/10 bg-[#CDFF00]/5' : 'border-transparent border-b-white/5 hover:glass bg-black/40 border border-white/10'}`}
                     >
                       <div className="flex gap-4">
                         <div className={`mt-1 flex-1`}>

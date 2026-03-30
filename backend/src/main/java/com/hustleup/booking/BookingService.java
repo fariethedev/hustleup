@@ -44,7 +44,7 @@ public class BookingService {
                 .offeredPrice(offeredPrice != null ? offeredPrice : listing.getPrice())
                 .currency(listing.getCurrency())
                 .scheduledAt(scheduledAt)
-                .status(BookingStatus.POSTED)
+                .status(BookingStatus.INQUIRED)
                 .build();
 
         return enrichDto(bookingRepository.save(booking));

@@ -107,6 +107,21 @@ public class ListingService {
                 .map(this::enrichDto).collect(Collectors.toList());
     }
 
+    public void delete(UUID id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User seller = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        Listing listing = listingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Listing not found"));
+
+        if (!listing.getSellerId().equals(seller.getId())) {
+            throw new RuntimeException("You don't own this listing");
+        }
+
+        listingRepository.deleteById(id);
+    }
+
     private ListingDto enrichDto(Listing listing) {
         ListingDto dto = ListingDto.fromEntity(listing);
         userRepository.findById(listing.getSellerId()).ifPresent(seller -> {

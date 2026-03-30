@@ -37,8 +37,12 @@ public class NotificationController {
 
     @PatchMapping("/{id}/read")
     public ResponseEntity<?> markRead(@PathVariable UUID id) {
+        User currentUser = getCurrentUser();
         Notification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Notification not found"));
+        if (!notification.getUserId().equals(currentUser.getId())) {
+            throw new RuntimeException("Not authorized to update this notification");
+        }
         notification.setRead(true);
         notificationRepository.save(notification);
         return ResponseEntity.ok(Map.of("success", true));

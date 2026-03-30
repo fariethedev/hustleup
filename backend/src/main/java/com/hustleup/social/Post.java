@@ -25,6 +25,12 @@ public class Post {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "media_urls", columnDefinition = "TEXT")
+    private String mediaUrls;
+
+    @Column(name = "media_types", columnDefinition = "TEXT")
+    private String mediaTypes;
+
     @Column(name = "linked_listing_id")
     private String linkedListingId;
 

@@ -82,14 +82,14 @@ export default function CreateListing() {
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all border ${
                 step >= s ? 'bg-[#CDFF00] text-black border-[#CDFF00]' : 'bg-transparent text-gray-600 border-white/10'
               }`}>{s}</div>
-              {s < 3 && <div className={`flex-1 h-0.5 transition-all ${step > s ? 'bg-[#CDFF00]' : 'bg-white/10'}`} />}
+              {s < 3 && <div className={`flex-1 h-0.5 transition-all ${step > s ? 'bg-[#CDFF00]' : 'glass bg-black/40 border border-white/10'}`} />}
             </div>
           ))}
         </div>
 
         <div className="glass rounded-3xl p-8 border border-white/5">
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2">
+            <div className="mb-6 p-4 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20 text-[#CDFF00] text-sm font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2">
               <X className="w-4 h-4" /> {error}
             </div>
           )}
@@ -212,7 +212,7 @@ export default function CreateListing() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button onClick={() => setStep(1)} className="flex-1 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2 outline-none">
+                <button onClick={() => setStep(1)} className="flex-1 py-4 rounded-xl glass bg-black/40 border border-white/10 border border-white/10 text-white font-bold uppercase tracking-widest hover:glass bg-black/40 border border-white/10 transition-all flex items-center justify-center gap-2 outline-none">
                   <ArrowLeft className="w-4 h-4" /> Back
                 </button>
                 <button
@@ -250,7 +250,7 @@ export default function CreateListing() {
                         <img src={URL.createObjectURL(img)} alt="" className="w-24 h-24 rounded-lg object-cover" />
                         <button
                           onClick={() => setImages(images.filter((_, idx) => idx !== i))}
-                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#CDFF00] text-white flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -278,7 +278,7 @@ export default function CreateListing() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button onClick={() => setStep(2)} className="flex-1 py-4 rounded-xl bg-white/5 border border-white/10 text-white font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2 outline-none">
+                <button onClick={() => setStep(2)} className="flex-1 py-4 rounded-xl glass bg-black/40 border border-white/10 border border-white/10 text-white font-bold uppercase tracking-widest hover:glass bg-black/40 border border-white/10 transition-all flex items-center justify-center gap-2 outline-none">
                   <ArrowLeft className="w-4 h-4" /> Back
                 </button>
                 <button

@@ -37,8 +37,8 @@ export default function Navbar() {
   return (
     <nav
       id="main-navbar"
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? 'glass-strong shadow-lg shadow-black/40' : 'bg-transparent'
+      className={`fixed top-0 left-0 right-0 z-[200] transition-all duration-300 ${
+        scrolled ? 'glass bg-black/40 border-b border-white/5 shadow-sm' : 'bg-transparent'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -47,18 +47,18 @@ export default function Navbar() {
           <Link to="/" className="flex items-center gap-3 group" id="nav-logo">
             <HustleUpLogo className="h-9 w-auto group-hover:scale-105 transition-transform" />
             <span className="text-xl font-heading font-extrabold text-white tracking-tight uppercase">
-              Hustle<span className="text-[#CDFF00]"> Up</span>
+              Hustle<span className="text-[#CDFF00]">Up</span>
             </span>
           </Link>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1">
             <NavLink to="/" current={location.pathname}><Home className="w-4 h-4 mr-2" /> Home</NavLink>
-            <NavLink to="/explore" current={location.pathname}><Compass className="w-4 h-4 mr-2" /> Explore</NavLink>
-            <NavLink to="/feed" current={location.pathname}><ImageIcon className="w-4 h-4 mr-2" /> Feed</NavLink>
             {isAuthenticated && (
               <>
-                <NavLink to="/dating" current={location.pathname}><Heart className="w-4 h-4 mr-2 text-rose-500" /> Matches</NavLink>
+                <NavLink to="/explore" current={location.pathname}><Compass className="w-4 h-4 mr-2" /> Explore</NavLink>
+                <NavLink to="/feed" current={location.pathname}><ImageIcon className="w-4 h-4 mr-2" /> Feed</NavLink>
+                <NavLink to="/dating" current={location.pathname}><Heart className="w-4 h-4 mr-2 text-[#CDFF00]" /> Matches</NavLink>
                 <NavLink to="/dashboard" current={location.pathname}>
                   <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
                   {unread > 0 && (
@@ -67,7 +67,14 @@ export default function Navbar() {
                     </span>
                   )}
                 </NavLink>
-                <NavLink to="/dm" current={location.pathname}><MessageSquare className="w-4 h-4 mr-2" /> DMs</NavLink>
+                <NavLink to="/dm" current={location.pathname}>
+                  <MessageSquare className="w-4 h-4 mr-2" /> DMs
+                  {unread > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-black bg-[#CDFF00] rounded-full">
+                      {unread > 9 ? '9+' : unread}
+                    </span>
+                  )}
+                </NavLink>
                 <NavLink to="/messages" current={location.pathname}><MessageSquare className="w-4 h-4 mr-2" /> Bookings</NavLink>
               </>
             )}
@@ -81,7 +88,7 @@ export default function Navbar() {
                   <Link
                     to="/create"
                     id="nav-create-listing"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#E0FF4D] active:scale-95 transition-all"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black font-extrabold text-sm hover:bg-[#b8e600] active:scale-95 transition-all shadow-md shadow-[#CDFF00]/20"
                   >
                     <Plus className="w-4 h-4" />
                     New Listing
@@ -90,27 +97,27 @@ export default function Navbar() {
                 <div className="relative group">
                   <button
                     id="nav-user-menu"
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/5 transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[#1E1E1E] transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-black border border-[#CDFF00]/30 flex items-center justify-center text-[#CDFF00] font-bold text-sm">
+                    <div className="w-8 h-8 rounded-full bg-[#CDFF00] border border-[#CDFF00] flex items-center justify-center text-black font-bold text-sm">
                       {user?.fullName?.[0] || 'U'}
                     </div>
-                    <span className="text-sm text-gray-300 max-w-[100px] truncate">{user?.fullName}</span>
+                    <span className="text-sm text-gray-300 max-w-[100px] truncate font-medium">{user?.fullName}</span>
                   </button>
-                  <div className="absolute right-0 top-full mt-2 w-48 py-2 glass-strong rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-1 group-hover:translate-y-0">
-                    <Link to={`/profile/${user?.id}`} className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5"><User className="w-4 h-4 mr-2" /> My Profile</Link>
-                    <Link to="/dashboard" className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5"><LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard</Link>
+                  <div className="absolute right-0 top-full mt-2 w-48 py-2 glass bg-black/40 border border-white/10 rounded-xl shadow-xl border border-white/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-1 group-hover:translate-y-0">
+                    <Link to={`/profile/${user?.id}`} className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-[#121212]"><User className="w-4 h-4 mr-2" /> My Profile</Link>
+                    <Link to="/dashboard" className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-[#121212]"><LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard</Link>
                     <hr className="my-1 border-white/5" />
-                    <button onClick={handleLogout} className="flex items-center w-full text-left px-4 py-2 text-sm text-rose-400 hover:bg-white/5"><LogOut className="w-4 h-4 mr-2" /> Sign Out</button>
+                    <button onClick={handleLogout} className="flex items-center w-full text-left px-4 py-2 text-sm text-[#CDFF00] hover:bg-[#CDFF00] hover:text-black transition-colors"><LogOut className="w-4 h-4 mr-2" /> Sign Out</button>
                   </div>
                 </div>
               </>
             ) : (
               <>
-                <Link to="/login" id="nav-login" className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all">
+                <Link to="/login" id="nav-login" className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-[#1E1E1E] transition-all">
                   Sign In
                 </Link>
-                <Link to="/register" id="nav-register" className="px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black text-sm font-bold hover:bg-[#E0FF4D] active:scale-95 transition-all">
+                <Link to="/register" id="nav-register" className="px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black text-sm font-extrabold hover:bg-[#b8e600] active:scale-95 transition-all shadow-md shadow-[#CDFF00]/20">
                   Get Started
                 </Link>
               </>
@@ -120,7 +127,7 @@ export default function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            className="md:hidden p-2 rounded-lg text-gray-300 hover:text-white hover:bg-[#1E1E1E] transition-colors"
           >
             {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -134,21 +141,28 @@ export default function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden glass-strong border-t border-white/5 overflow-hidden"
+            className="md:hidden glass bg-black/40 border border-white/10 border-t border-white/5 overflow-hidden shadow-lg"
           >
             <div className="px-4 py-4 space-y-1">
               <MobileLink to="/"><Home className="w-4 h-4 mr-2" /> Home</MobileLink>
-              <MobileLink to="/explore"><Compass className="w-4 h-4 mr-2" /> Explore</MobileLink>
-              <MobileLink to="/feed"><ImageIcon className="w-4 h-4 mr-2" /> Feed</MobileLink>
               {isAuthenticated && (
                 <>
-                  <MobileLink to="/dating"><Heart className="w-4 h-4 mr-2 text-rose-500" /> Matches</MobileLink>
+                  <MobileLink to="/explore"><Compass className="w-4 h-4 mr-2" /> Explore</MobileLink>
+                  <MobileLink to="/feed"><ImageIcon className="w-4 h-4 mr-2" /> Feed</MobileLink>
+                  <MobileLink to="/dating"><Heart className="w-4 h-4 mr-2 text-[#CDFF00]" /> Matches</MobileLink>
                   <MobileLink to="/dashboard"><LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard</MobileLink>
-                  <MobileLink to="/dm"><MessageSquare className="w-4 h-4 mr-2" /> DMs</MobileLink>
+                  <MobileLink to="/dm">
+                    <MessageSquare className="w-4 h-4 mr-2" /> DMs
+                    {unread > 0 && (
+                      <span className="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-bold text-black bg-[#CDFF00] rounded-full">
+                        {unread > 9 ? '9+' : unread}
+                      </span>
+                    )}
+                  </MobileLink>
                   <MobileLink to="/messages"><MessageSquare className="w-4 h-4 mr-2" /> Bookings</MobileLink>
                   {isSeller && <MobileLink to="/create"><Plus className="w-4 h-4 mr-2" /> New Listing</MobileLink>}
                   <hr className="border-white/5 my-2" />
-                  <button onClick={handleLogout} className="flex items-center w-full text-left px-4 py-3 rounded-lg text-rose-400 hover:bg-white/5 text-sm"><LogOut className="w-4 h-4 mr-2" /> Sign Out</button>
+                  <button onClick={handleLogout} className="flex items-center w-full text-left px-4 py-3 rounded-lg text-[#CDFF00] hover:bg-[#CDFF00] hover:text-black text-sm font-bold transition-colors"><LogOut className="w-4 h-4 mr-2" /> Sign Out</button>
                 </>
               )}
               {!isAuthenticated && (
@@ -168,8 +182,8 @@ export default function Navbar() {
 function HustleUpLogo({ className }) {
   return (
     <svg className={className} viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8 4h16v20h12V4h16v52H36V36H24v20H8V4z" fill="white" />
-      <path d="M30 28l3.09 6.26L40 35.27l-5 4.87 1.18 6.86L30 43.77l-6.18 3.23L25 40.14l-5-4.87 6.91-1.01L30 28z" fill="black" />
+      <path d="M8 4h16v20h12V4h16v52H36V36H24v20H8V4z" fill="#8B5CF6" />
+      <path d="M30 28l3.09 6.26L40 35.27l-5 4.87 1.18 6.86L30 43.77l-6.18 3.23L25 40.14l-5-4.87 6.91-1.01L30 28z" fill="white" />
     </svg>
   );
 }
@@ -179,8 +193,8 @@ function NavLink({ to, current, children }) {
   return (
     <Link
       to={to}
-      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center ${
-        active ? 'text-[#CDFF00] bg-[#CDFF00]/10' : 'text-gray-400 hover:text-white hover:bg-white/5'
+      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center ${
+        active ? 'text-black bg-[#CDFF00]' : 'text-gray-400 hover:text-white hover:bg-[#121212]'
       }`}
     >
       {children}
@@ -190,7 +204,7 @@ function NavLink({ to, current, children }) {
 
 function MobileLink({ to, children }) {
   return (
-    <Link to={to} className="flex items-center px-4 py-3 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 text-sm font-medium">
+    <Link to={to} className="flex items-center px-4 py-3 rounded-lg text-gray-300 hover:text-white hover:bg-[#121212] text-sm font-semibold">
       {children}
     </Link>
   );

@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: social-service
+  datasource:
+    url: ${SOCIAL_DB_URL:jdbc:mysql://localhost:3306/hustleup?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${SOCIAL_DB_USERNAME:root}
+    password: ${SOCIAL_DB_PASSWORD:francis}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+server:
+  port: ${SERVER_PORT:8081}
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:HustleUpSecretKeyForJWTTokenGenerationMustBe256BitsLongAtLeast!!2026}
+  upload:
+    dir: ${APP_UPLOAD_DIR:../../backend/uploads}

@@ -58,6 +58,7 @@ export const listingsApi = {
     }),
   update: (id, data) => api.patch(`/listings/${id}`, data),
   my: () => api.get('/listings/my'),
+  delete: (id) => api.delete(`/listings/${id}`),
 };
 
 // Bookings
@@ -97,14 +98,21 @@ export const notificationsApi = {
 
 // Users
 export const usersApi = {
+  getAll: () => api.get('/users'),
   getProfile: (id) => api.get(`/users/${id}/profile`),
   updateProfile: (data) => api.patch('/users/me', data),
+  followUser: (id) => api.post(`/users/${id}/follow`),
+  unfollowUser: (id) => api.delete(`/users/${id}/follow`),
 };
 
 // Feed
 export const feedApi = {
   getAll: () => api.get('/feed'),
   createPost: (formData) => api.post('/feed', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getComments: (postId) => api.get(`/feed/${postId}/comments`),
+  addComment: (postId, content) => api.post(`/feed/${postId}/comments`, { content }),
+  likePost: (postId) => api.post(`/feed/${postId}/likes`),
+  unlikePost: (postId) => api.delete(`/feed/${postId}/likes`),
 };
 
 // Dating
@@ -117,6 +125,15 @@ export const datingApi = {
 export const subscriptionsApi = {
   my: () => api.get('/subscriptions/my'),
   upgrade: () => api.post('/subscriptions/upgrade'),
+};
+
+// Stories
+export const storiesApi = {
+  getAll: () => api.get('/stories'),
+  create: (formData) => api.post('/stories', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  delete: (id) => api.delete(`/stories/${id}`),
+  like: (id) => api.post(`/stories/${id}/likes`),
+  unlike: (id) => api.delete(`/stories/${id}/likes`),
 };
 
 export default api;

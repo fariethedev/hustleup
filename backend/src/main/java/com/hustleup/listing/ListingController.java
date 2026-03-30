@@ -74,4 +74,11 @@ public class ListingController {
     public ResponseEntity<List<ListingDto>> myListings() {
         return ResponseEntity.ok(listingService.getMyListings());
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<?> delete(@PathVariable UUID id) {
+        listingService.delete(id);
+        return ResponseEntity.ok().build();
+    }
 }

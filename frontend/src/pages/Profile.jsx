@@ -22,6 +22,15 @@ export default function Profile() {
 
   const isOwn = currentUser?.id === id;
 
+  const handleDeleteListing = async (listingId) => {
+    try {
+      await listingsApi.delete(listingId);
+      setListings(listings.filter(l => l.id !== listingId));
+    } catch (e) {
+      alert("Failed to delete listing.");
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
     Promise.all([
@@ -72,7 +81,18 @@ export default function Profile() {
 
           <div className="p-8 sm:p-12 relative -mt-16 sm:-mt-24 z-10 w-full">
             {!isOwn && (
-            <div className="absolute top-6 right-6">
+            <div className="absolute top-6 right-6 flex items-center gap-3">
+              <button 
+                onClick={() => {
+                  if (profile.following) {
+                     usersApi.unfollowUser(profile.id).then(res => setProfile(res.data));
+                  } else {
+                     usersApi.followUser(profile.id).then(res => setProfile(res.data));
+                  }
+                }}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold tracking-widest uppercase text-xs transition-all shadow-lg backdrop-blur border ${profile.following ? 'bg-black/50 text-white border-white/20 hover:glass bg-black/40 border border-white/10' : 'bg-[#CDFF00] text-black border-[#CDFF00] hover:bg-[#E0FF4D]'}`}>
+                {profile.following ? 'Unfollow' : 'Follow'}
+              </button>
               <Link to={`/dm/${profile.id}`} className="flex items-center gap-2 px-5 py-2.5 bg-black/50 border border-white/10 hover:border-[#CDFF00]/50 rounded-full text-white font-bold tracking-widest uppercase text-xs hover:text-[#CDFF00] transition-all shadow-lg backdrop-blur">
                 <MessageCircle className="w-4 h-4" /> Message
               </Link>
@@ -86,6 +106,11 @@ export default function Profile() {
               {profile.idVerified && (
                 <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-gradient-to-r from-[#CDFF00] to-[#E0FF4D] text-black flex items-center justify-center border-4 border-black shadow-[0_0_15px_rgba(205,255,0,0.4)]" title="Verified User">
                   <BadgeCheck className="w-6 h-6 fill-black text-[#CDFF00]" />
+                </div>
+              )}
+              {profile.online && (
+                <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-green-500 border-4 border-[#121212]" title="Online now">
+                  <div className="w-full h-full rounded-full bg-green-400 animate-ping opacity-75" />
                 </div>
               )}
             </div>
@@ -121,7 +146,7 @@ export default function Profile() {
                     <span className="text-gray-500 text-xs">({reviews.length})</span>
                   </div>
                 </div>
-                <div className="w-px h-8 bg-white/10 hidden sm:block" />
+                <div className="w-px h-8 glass bg-black/40 border border-white/10 hidden sm:block" />
                 <div className="flex flex-col items-center sm:items-start gap-1">
                   <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Community</span>
                   <span className="text-white font-bold flex items-center gap-2">
@@ -131,6 +156,16 @@ export default function Profile() {
                     {profile.vouchCount} Vouches
                   </span>
                 </div>
+                <div className="w-px h-8 glass bg-black/40 border border-white/10 hidden sm:block" />
+                <div className="flex flex-col items-center sm:items-start gap-1">
+                  <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Network</span>
+                  <span className="text-white font-bold flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-[#CDFF00]/20 flex items-center justify-center">
+                      <User2 className="w-3 h-3 text-[#CDFF00]" />
+                    </div>
+                    {profile.followersCount || 0} Followers
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -138,10 +173,10 @@ export default function Profile() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-8 justify-center sm:justify-start">
+        <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide py-2 px-1">
           <button
             onClick={() => setTab('listings')}
-            className={`flex items-center gap-2 px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+            className={`flex items-center gap-2 px-5 sm:px-8 py-3 sm:py-4 shrink-0 whitespace-nowrap rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
               tab === 'listings' ? 'bg-[#CDFF00] text-black shadow-lg shadow-[#CDFF00]/10' : 'bg-black/50 glass border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
             }`}
           >
@@ -149,7 +184,7 @@ export default function Profile() {
           </button>
           <button
             onClick={() => setTab('posts')}
-            className={`flex items-center gap-2 px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+            className={`flex items-center gap-2 px-5 sm:px-8 py-3 sm:py-4 shrink-0 whitespace-nowrap rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
               tab === 'posts' ? 'bg-[#CDFF00] text-black shadow-lg shadow-[#CDFF00]/10' : 'bg-black/50 glass border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
             }`}
           >
@@ -157,7 +192,7 @@ export default function Profile() {
           </button>
           <button
             onClick={() => setTab('reviews')}
-            className={`flex items-center gap-2 px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+            className={`flex items-center gap-2 px-5 sm:px-8 py-3 sm:py-4 shrink-0 whitespace-nowrap rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
               tab === 'reviews' ? 'bg-[#CDFF00] text-black shadow-lg shadow-[#CDFF00]/10' : 'bg-black/50 glass border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
             }`}
           >
@@ -172,7 +207,7 @@ export default function Profile() {
               {listings.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {listings.map((listing, i) => (
-                    <ListingCard key={listing.id} listing={listing} index={i} />
+                    <ListingCard key={listing.id} listing={listing} index={i} onDelete={handleDeleteListing} />
                   ))}
                 </div>
               ) : (
