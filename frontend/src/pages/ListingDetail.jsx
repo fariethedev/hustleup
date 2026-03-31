@@ -1,258 +1,179 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useSelector } from 'react-redux';
-import { selectUser, selectIsAuthenticated } from '../store/authSlice';
-import { listingsApi, bookingsApi, reviewsApi } from '../api/client';
 import { LISTING_TYPES, formatPrice } from '../utils/constants';
+import { MapPin, BadgeCheck, MessageSquare, ShieldCheck, ShoppingCart, ArrowLeft, Star, Heart, Share2, Zap } from 'lucide-react';
+import { useState } from 'react';
 import ReviewStars from '../components/ReviewStars';
-import { MapPin, ChevronRight, BadgeCheck, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
 export default function ListingDetail() {
   const { id } = useParams();
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const user = useSelector(selectUser);
-  const navigate = useNavigate();
-  
-  const [listing, setListing] = useState(null);
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showBooking, setShowBooking] = useState(false);
-  const [offerPrice, setOfferPrice] = useState('');
-  const [bookingLoading, setBookingLoading] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [activeMedia, setActiveMedia] = useState(0);
 
-  useEffect(() => {
-    setLoading(true);
-    listingsApi.getById(id)
-      .then((r) => {
-        setListing(r.data);
-        if (r.data.sellerId) {
-          reviewsApi.getForUser(r.data.sellerId).then((rev) => setReviews(rev.data)).catch(() => {});
-        }
-      })
-      .catch(() => navigate('/explore'))
-      .finally(() => setLoading(false));
-  }, [id, navigate]);
-
-  const handleBook = async () => {
-    if (!isAuthenticated) { navigate('/login'); return; }
-    setBookingLoading(true);
-    try {
-      const data = { listingId: id };
-      if (offerPrice) data.offeredPrice = parseFloat(offerPrice);
-      await bookingsApi.create(data);
-      setBookingSuccess(true);
-      setShowBooking(false);
-    } catch (err) {
-      alert(err.response?.data?.error || 'Booking failed');
-    } finally {
-      setBookingLoading(false);
-    }
+  // Mock data — in a real app, fetch from the marketplace-service
+  const listing = {
+    id: id,
+    title: "Vibes & Vinyls: Premium Headphones",
+    description: "Experience sound like never before. These audiophile-grade headphones feature active noise cancellation, 40-hour battery life, and high-fidelity drivers tuned for perfection. Perfect for professional studio work or immersive home listening.",
+    price: 350.00,
+    currency: "USD",
+    listingType: "PRODUCT",
+    negotiable: true,
+    locationCity: "New York",
+    sellerId: "seller-1",
+    sellerName: "Premium Sound Shop",
+    sellerVerified: true,
+    avgRating: 4.9,
+    mediaUrls: [
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=2070&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1546435770-a3e426bf472b?q=80&w=2065&auto=format&fit=crop",
+    ]
   };
 
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 mt-10">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-pulse">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="h-96 rounded-2xl bg-surface-50" />
-            <div className="h-8 bg-surface-50 rounded w-3/4" />
-            <div className="h-4 bg-surface-50 rounded w-1/2" />
-          </div>
-          <div className="h-96 rounded-2xl bg-surface-50" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!listing) return null;
-
   const typeInfo = LISTING_TYPES.find((t) => t.value === listing.listingType) || LISTING_TYPES[0];
-  const TypeIcon = typeInfo.icon;
-  const isOwner = user?.id === listing.sellerId;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 mt-10">
-      {/* Breadcrumb */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest mb-8">
-        <Link to="/explore" className="hover:text-white transition-colors">Explore</Link>
-        <ChevronRight className="w-4 h-4" />
-        <Link to={`/explore?type=${listing.listingType}`} className="hover:text-white transition-colors flex items-center gap-1">
-          <TypeIcon className="w-3.5 h-3.5" />
-          {typeInfo.label}
-        </Link>
-        <ChevronRight className="w-4 h-4" />
-        <span className="text-[#CDFF00] truncate max-w-[200px]">{listing.title}</span>
-      </motion.div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Left: Main content */}
-        <motion.div className="lg:col-span-2 space-y-10" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Image */}
-          <div className="relative rounded-3xl overflow-hidden bg-black h-[400px] sm:h-[500px] border border-white/10 group">
-            {listing.mediaUrls?.[0] ? (
-              <img src={listing.mediaUrls[0]} alt={listing.title} className="w-full h-full object-cover opacity-90 transition-opacity" />
-            ) : (
-              <div className={`w-full h-full bg-gradient-to-br ${typeInfo.color} opacity-10 flex items-center justify-center`}>
-                <TypeIcon className="w-32 h-32 text-white opacity-40" />
-              </div>
-            )}
-            <div className="absolute top-6 left-6">
-              <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold bg-black/80 backdrop-blur-md text-[#CDFF00] border border-white/20 uppercase tracking-widest">
-                <TypeIcon className="w-4 h-4" />
-                {typeInfo.label}
-              </span>
-            </div>
+    <div className="min-h-screen bg-[#050505] text-white pt-24 pb-20">
+      <div className="max-w-7xl mx-auto px-6 sm:px-12">
+        
+        {/* Navigation / Header Row */}
+        <div className="flex items-center justify-between mb-12">
+          <Link
+            to="/marketplace"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl glass-strong text-[10px] font-black uppercase tracking-widest hover:text-[#CDFF00] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Marketplace
+          </Link>
+          <div className="flex gap-3">
+             <button className="flex items-center gap-2 px-6 py-2.5 rounded-2xl glass-strong text-[10px] font-black uppercase tracking-widest text-[#CDFF00] border-white/5 hover:bg-white/5 transition-all">
+                <Heart className="w-4 h-4" /> Save
+             </button>
+             <button className="flex items-center gap-2 px-6 py-2.5 rounded-2xl glass-strong text-[10px] font-black uppercase tracking-widest text-white border-white/5 hover:bg-white/5 transition-all">
+                <Share2 className="w-4 h-4" /> Share
+             </button>
           </div>
+        </div>
 
-          {/* Details */}
-          <div>
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <h1 className="text-3xl sm:text-5xl font-heading font-extrabold text-white uppercase tracking-tight">{listing.title}</h1>
-              {listing.negotiable && (
-                <span className="px-3 py-1 rounded-sm text-xs font-bold bg-[#CDFF00] text-black uppercase tracking-widest">Negotiable</span>
-              )}
-            </div>
-            
-            {listing.locationCity && (
-              <p className="text-gray-400 flex items-center gap-2 text-sm font-bold uppercase tracking-wider mb-8">
-                <MapPin className="w-4 h-4 text-[#CDFF00]" />
-                {listing.locationCity}
-              </p>
-            )}
-
-            <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-p:text-gray-300">
-              <p className="whitespace-pre-wrap">{listing.description || 'No description provided.'}</p>
-            </div>
-          </div>
-
-          {/* Reviews */}
-          <div className="border-t border-white/10 pt-10">
-            <h2 className="text-2xl font-heading font-black text-white uppercase tracking-wide mb-8 flex items-center justify-between">
-              Seller Reviews 
-              <span className="text-sm font-bold text-gray-500 glass bg-black/40 border border-white/10 px-3 py-1 rounded-full">{reviews.length}</span>
-            </h2>
-            
-            {reviews.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {reviews.map((review) => (
-                  <div key={review.id} className="glass border border-white/5 rounded-2xl p-6">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-black border border-[#CDFF00]/30 flex items-center justify-center text-[#CDFF00] text-sm font-bold">
-                        {review.reviewerName?.[0] || 'R'}
-                      </div>
-                      <div>
-                        <span className="text-sm font-bold text-white tracking-wide">{review.reviewerName || 'Customer'}</span>
-                        <div className="mt-1"><ReviewStars rating={review.rating} size="sm" /></div>
-                      </div>
-                    </div>
-                    {review.comment && <p className="text-gray-400 text-sm leading-relaxed">{review.comment}</p>}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 glass border border-white/5 rounded-2xl">
-                <ShieldAlert className="w-10 h-10 mx-auto text-gray-600 mb-3" />
-                <p className="text-gray-400 font-bold tracking-widest uppercase">No Reviews Yet</p>
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Right: Sidebar */}
-        <motion.div className="space-y-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          {/* Booking Card */}
-          <div className="glass-strong rounded-3xl p-8 sticky top-28 border border-white/10">
-            <div className="mb-8 border-b border-white/10 pb-6">
-              <span className="block text-sm font-bold text-gray-500 uppercase tracking-widest mb-1">Price / Cost</span>
-              <span className="text-4xl font-heading font-black text-white">
-                {formatPrice(listing.price, listing.currency)}
-              </span>
-              {listing.negotiable && <span className="block mt-2 text-xs font-bold text-[#CDFF00] uppercase tracking-widest">• Offers Accepted</span>}
-            </div>
-
-            {bookingSuccess ? (
-              <div className="p-6 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/20 text-center">
-                <CheckCircle2 className="w-10 h-10 mx-auto text-[#CDFF00] mb-3" />
-                <h4 className="text-[#CDFF00] font-bold uppercase tracking-wider mb-1">Request Sent!</h4>
-                <p className="text-sm text-[#CDFF00]/80">Check your dashboard for seller updates.</p>
-              </div>
-            ) : (
-              <>
-                {!isOwner && (
-                  <>
-                    {showBooking ? (
-                      <div className="space-y-4">
-                        {listing.negotiable && (
-                          <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Your Offer (Optional)</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={offerPrice}
-                              onChange={(e) => setOfferPrice(e.target.value)}
-                              placeholder={listing.price}
-                              className="w-full px-5 py-4 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-bold"
-                            />
-                          </div>
-                        )}
-                        <button
-                          onClick={handleBook}
-                          disabled={bookingLoading}
-                          className="w-full py-4 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:bg-[#E0FF4D] disabled:opacity-50 transition-all flex justify-center"
-                        >
-                          {bookingLoading ? 'Sending...' : 'Confirm Request'}
-                        </button>
-                        <button
-                          onClick={() => setShowBooking(false)}
-                          className="w-full py-4 rounded-xl text-gray-400 font-bold uppercase tracking-widest hover:text-white hover:glass bg-black/40 border border-white/10 transition-all outline-none"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setShowBooking(true)}
-                        className="w-full py-4 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:bg-[#E0FF4D] transition-all shadow-lg hover:shadow-[#CDFF00]/20 shadow-[#CDFF00]/10"
-                      >
-                        Book / Make Offer
-                      </button>
-                    )}
-                  </>
-                )}
-                {isOwner && (
-                  <Link to="/dashboard" className="block w-full py-4 rounded-xl glass bg-black/40 border border-white/10 text-center text-white font-black uppercase tracking-widest hover:glass bg-black/40 border border-white/10 transition-all">
-                    Manage Listing
-                  </Link>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Seller Card */}
-          <div className="glass rounded-3xl p-6 border border-white/5">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">About Seller</h3>
-            <Link to={`/profile/${listing.sellerId}`} className="flex items-center gap-4 group">
-              <div className="w-14 h-14 rounded-full bg-black border border-white/10 flex items-center justify-center text-[#CDFF00] font-black text-xl shrink-0 group-hover:border-[#CDFF00] transition-colors">
-                {listing.sellerName?.[0] || 'S'}
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-white font-bold tracking-wide group-hover:text-[#CDFF00] transition-colors">{listing.sellerName || 'Seller'}</span>
-                  {listing.sellerVerified && (
-                    <BadgeCheck className="w-4 h-4 text-[#CDFF00]" />
-                  )}
+        {/* 2-Column Luxury Viewport */}
+        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-16 items-start">
+          
+          {/* Left Column: Visual Storytelling */}
+          <div className="space-y-8">
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.95 }}
+               animate={{ opacity: 1, scale: 1 }}
+               className="relative aspect-[4/3] rounded-[48px] overflow-hidden glass-strong border-white/10"
+             >
+                <img 
+                  src={listing.mediaUrls[activeMedia]} 
+                  alt={listing.title} 
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                
+                {/* Visual Badge */}
+                <div className="absolute top-8 left-8">
+                  <span className="flex items-center gap-2 px-5 py-2 rounded-2xl glass-violet text-[#CDFF00] font-black text-[10px] uppercase tracking-widest border-white/10">
+                    <Zap className="w-4 h-4 fill-[#CDFF00]" /> {typeInfo.label}
+                  </span>
                 </div>
-                {listing.avgRating > 0 ? (
-                  <ReviewStars rating={listing.avgRating} size="sm" showValue />
-                ) : (
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">New Seller</span>
-                )}
-              </div>
-            </Link>
+             </motion.div>
+
+             {/* Media Thumbnails */}
+             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                {listing.mediaUrls.map((url, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveMedia(i)}
+                    className={`w-24 h-24 rounded-2xl overflow-hidden shrink-0 transition-all duration-300 ${
+                       activeMedia === i ? 'ring-2 ring-[#CDFF00] scale-105' : 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0'
+                    }`}
+                  >
+                    <img src={url} alt="Variant" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+             </div>
           </div>
-        </motion.div>
+
+          {/* Right Column: Information & Action Hub */}
+          <div className="flex flex-col gap-10">
+             
+             {/* Title & Metadata */}
+             <div>
+                <motion.h1 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-5xl sm:text-6xl font-black text-white mb-6 uppercase tracking-tighter leading-tight"
+                >
+                  {listing.title}
+                </motion.h1>
+                
+                <div className="flex flex-wrap items-center gap-6">
+                   <div className="flex items-center gap-2 bg-[#CDFF00] text-black px-3 py-1 rounded-xl text-sm font-black">
+                      <Star className="w-4 h-4 fill-black" /> {listing.avgRating}
+                   </div>
+                   <div className="flex items-center gap-2 text-gray-500 text-[10px] font-black uppercase tracking-widest">
+                      <MapPin className="w-4 h-4 text-[#CDFF00]" /> {listing.locationCity}
+                   </div>
+                   {listing.sellerVerified && (
+                      <div className="flex items-center gap-2 text-[#A855F7] text-[10px] font-black uppercase tracking-widest">
+                         <ShieldCheck className="w-4 h-4" /> Trusted Merchant
+                      </div>
+                   )}
+                </div>
+             </div>
+
+             {/* Price Focus Area */}
+             <div className="p-10 rounded-[40px] glass-strong border-white/10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-40 h-40 bg-violet-600/10 blur-[80px]" />
+                <div className="relative z-10">
+                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Acquisition Value</span>
+                   <div className="flex items-baseline gap-3 mb-8">
+                      <span className="text-6xl font-black text-white tracking-widest">
+                        {formatPrice(listing.price, listing.currency)}
+                      </span>
+                      {listing.negotiable && (
+                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-white/5 border border-white/10 text-[#CDFF00] rounded-lg">Negotiable</span>
+                      )}
+                   </div>
+
+                   <button 
+                     className="w-full py-5 rounded-3xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-[0.2em] shadow-[0_15px_35px_rgba(205,255,0,0.3)] hover:scale-[1.02] transition-transform active:scale-95 flex items-center justify-center gap-3 group"
+                   >
+                     Initiate Negotiation <ShoppingCart className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                   </button>
+                </div>
+             </div>
+
+             {/* Description & Narrative */}
+             <div>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-[#CDFF00] mb-4 opacity-40">Narrative</h4>
+                <p className="text-lg text-gray-300 leading-relaxed font-medium font-body opacity-90">
+                  {listing.description}
+                </p>
+             </div>
+
+             {/* Seller Profile Summary */}
+             <div className="pt-10 border-t border-white/5">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-6">Store Integrity</h4>
+                <div className="flex items-center gap-5 p-6 rounded-3xl glass-violet border-white/10 hover:border-white/20 transition-all cursor-pointer group">
+                   <div className="w-16 h-16 rounded-[24px] bg-gray-800 flex items-center justify-center text-2xl font-black text-[#CDFF00] border border-white/10">
+                      {listing.sellerName[0]}
+                   </div>
+                   <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                         <h5 className="text-lg font-black text-white uppercase tracking-tight group-hover:text-[#CDFF00] transition-colors">{listing.sellerName}</h5>
+                         {listing.sellerVerified && <BadgeCheck className="w-4.5 h-4.5 text-[#CDFF00]" />}
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Professional Seller • 142 Vouchers</span>
+                   </div>
+                   <div className="w-12 h-12 rounded-2xl glass-strong flex items-center justify-center group-hover:bg-[#CDFF00]/10">
+                      <MessageSquare className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                   </div>
+                </div>
+             </div>
+
+          </div>
+        </div>
       </div>
     </div>
   );

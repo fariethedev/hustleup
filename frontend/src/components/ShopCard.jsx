@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, MapPin, ArrowUpRight } from 'lucide-react';
+import { Star, MapPin, ArrowUpRight, ShieldCheck } from 'lucide-react';
 
 export default function ShopCard({ shop, index = 0 }) {
   return (
@@ -11,64 +11,78 @@ export default function ShopCard({ shop, index = 0 }) {
     >
       <Link
         to={`/shop/${shop.id}`}
-        className="group block rounded-2xl overflow-hidden glass bg-black/40 border border-white/10 border border-white/5 hover:border-white/10 transition-all duration-400 hover:shadow-2xl hover:shadow-black/8 hover:-translate-y-2"
+        className="group block relative rounded-3xl overflow-hidden glass bg-black/40 border border-white/10 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-2"
         id={`shop-card-${shop.id}`}
       >
-        {/* Image */}
-        <div className="relative h-52 overflow-hidden">
+        {/* Background Accent Glow */}
+        <div 
+          className="absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[80px] opacity-20 group-hover:opacity-40 transition-opacity duration-700" 
+          style={{ background: shop.accentColor }}
+        />
+
+        {/* Image Section */}
+        <div className="relative h-64 overflow-hidden">
           <img
             src={shop.image}
             alt={shop.name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+            className="w-full h-full object-cover scale-105 group-hover:scale-115 transition-transform duration-1000 ease-out"
           />
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
           
-          {/* Category badge */}
-          <div className="absolute top-4 left-4">
-            <span
-              className="px-3 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border border-white/20 text-white"
-              style={{ background: `${shop.accentColor}CC` }}
-            >
+          {/* Immersive Gradient Overlays */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-80" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-transparent to-black/40" />
+
+          {/* Top Badges */}
+          <div className="absolute top-5 left-5 flex flex-col gap-2">
+            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest glass-lime text-white border-white/20">
               {shop.category}
             </span>
+            {shop.rating >= 4.8 && (
+              <span className="flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[#CDFF00] text-black">
+                <ShieldCheck className="w-3 h-3" /> Top Rated
+              </span>
+            )}
           </div>
 
-          {/* Arrow icon on hover */}
-          <div className="absolute top-4 right-4 w-9 h-9 rounded-full glass bg-black/40 border border-white/10 group-hover:glass bg-black/40 border border-white/10 flex items-center justify-center transition-all duration-300 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0">
-            <ArrowUpRight className="w-4 h-4 text-gray-200" />
+          {/* Action Icon */}
+          <div className="absolute top-5 right-5 w-10 h-10 rounded-2xl glass-violet flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
+            <ArrowUpRight className="w-5 h-5 text-white" />
           </div>
 
-          {/* Location */}
-          <div className="absolute bottom-4 left-4 flex items-center gap-1.5 text-white/90 text-xs font-medium">
-            <MapPin className="w-3.5 h-3.5" />
-            {shop.location}
+          {/* Bottom Info Overlay */}
+          <div className="absolute bottom-5 left-5 right-5">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10">
+                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                <span className="text-xs font-bold text-white">{shop.rating}</span>
+              </div>
+              <span className="text-[10px] font-bold text-white/60 tracking-wider uppercase">{shop.reviewCount} Reviews</span>
+            </div>
+            <h3 className="text-2xl font-black text-white tracking-tight leading-none group-hover:text-[#CDFF00] transition-colors duration-300">
+              {shop.name}
+            </h3>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-5">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <h3 className="text-lg font-heading font-bold text-white group-hover:text-gray-300 transition-colors leading-tight">
-              {shop.name}
-            </h3>
-            <div className="flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg" style={{ background: shop.accentBg }}>
-              <Star className="w-3.5 h-3.5 fill-current" style={{ color: shop.accentColor }} />
-              <span className="text-sm font-bold" style={{ color: shop.accentColor }}>{shop.rating}</span>
-            </div>
-          </div>
-          
-          <p className="text-sm text-gray-500 leading-relaxed line-clamp-2">
-            {shop.tagline}
+        {/* Footer Details */}
+        <div className="p-6 bg-gradient-to-b from-transparent to-black/40">
+          <p className="text-sm text-gray-400 line-clamp-2 mb-5 font-medium leading-relaxed italic">
+            "{shop.tagline}"
           </p>
-
-          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              {shop.products.length} Products
-            </span>
-            <span className="text-xs font-semibold uppercase tracking-wider transition-colors" style={{ color: shop.accentColor }}>
-              Visit Shop →
-            </span>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-gray-500">
+              <MapPin className="w-3.5 h-3.5 text-[#CDFF00]" />
+              <span className="text-xs font-bold uppercase tracking-tighter">{shop.location}</span>
+            </div>
+            <div className="flex -space-x-2">
+              {/* Mock product avatars or icons */}
+              {[1,2,3].map(i => (
+                <div key={i} className="w-7 h-7 rounded-full border-2 border-black bg-gray-800 flex items-center justify-center text-[10px]">
+                  🎁
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </Link>

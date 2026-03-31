@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: hustleup-auth
+  datasource:
+    url: jdbc:mysql://localhost:3306/hustleup?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: ${MYSQL_PASSWORD:francis}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        type:
+          preferred_uuid_jdbc_type: VARCHAR
+
+server:
+  port: 8081
+
+app:
+  jwt:
+    secret: HustleUpSecretKeyForJWTTokenGenerationMustBe256BitsLongAtLeast!!2026
+    access-token-expiration-ms: 900000
+    refresh-token-expiration-ms: 604800000

@@ -5,6 +5,12 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Helper for non-React code to trigger toasts
+export const dispatchToast = (message, type = 'error') => {
+  const event = new CustomEvent('hustleup-toast', { detail: { message, type } });
+  window.dispatchEvent(event);
+};
+
 // Attach JWT token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('hustleup_token');
@@ -19,6 +25,13 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
+    
+    // Auto-Toast errors (except 401s which are handled below)
+    if (error.response?.status !== 401) {
+      const msg = error.response?.data?.message || error.message || "An unexpected error occurred";
+      dispatchToast(msg, 'error');
+    }
+
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
       const refreshToken = localStorage.getItem('hustleup_refresh');
@@ -134,6 +147,7 @@ export const storiesApi = {
   delete: (id) => api.delete(`/stories/${id}`),
   like: (id) => api.post(`/stories/${id}/likes`),
   unlike: (id) => api.delete(`/stories/${id}/likes`),
+  view: (id) => api.post(`/stories/${id}/views`),
 };
 
 export default api;

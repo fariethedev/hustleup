@@ -16,12 +16,13 @@ const formatAge = (createdAt) => {
   return `${diffDays}d ago`;
 };
 
-export default function StoryViewer({ users, initialUserIndex, onClose, onCreateStory }) {
+export default function StoryViewer({ users, initialUserIndex, onClose, onCreateStory, onViewed }) {
   const [userIndex, setUserIndex] = useState(initialUserIndex);
   const [storyIndex, setStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [likeInProgress, setLikeInProgress] = useState(false);
+  const [viewedIds, setViewedIds] = useState(new Set());
 
   const currentUser = users[userIndex];
   const stories = currentUser?.stories || [];
@@ -117,6 +118,27 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
 
     return () => clearInterval(timer);
   }, [userIndex, storyIndex]);
+
+  useEffect(() => {
+    if (currentStory && !viewedIds.has(currentStory.id)) {
+      const markAsViewed = async () => {
+        try {
+          await storiesApi.view(currentStory.id);
+          setViewedIds(prev => new Set([...prev, currentStory.id]));
+          onViewed?.(currentStory.id);
+          // Optionally update the local story object so the UI knows it's viewed
+          if (storiesLocal[storyIndex]) {
+            setStoriesLocal(prev => prev.map((s, i) => 
+               i === storyIndex ? { ...s, viewedByCurrentUser: true } : s
+            ));
+          }
+        } catch (err) {
+          console.error('Failed to mark story as viewed:', err);
+        }
+      };
+      markAsViewed();
+    }
+  }, [currentStory?.id]);
 
   if (!currentStory) return null;
 

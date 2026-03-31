@@ -128,6 +128,7 @@ export default function StoryBar() {
     const isCurrentUser = person.id === currentUserId;
     const personStories = person.stories;
     const hasStories = personStories.length > 0;
+    const hasUnseenStories = hasStories && personStories.some(s => !s.viewedByCurrentUser);
     const clickable = isCurrentUser || hasStories;
 
     return (
@@ -143,9 +144,11 @@ export default function StoryBar() {
               if (hasStories) setSelectedUserIndex(globalIndex);
             }}
             className={`relative w-24 h-24 rounded-full p-[4px] transition-all duration-500 transform group-hover:scale-110 active:scale-90 ${
-            hasStories
+            hasUnseenStories
               ? 'bg-[#CDFF00] shadow-[0_0_30px_rgba(205,255,0,0.4)]'
-              : 'bg-white/5 border border-white/5'
+              : hasStories
+                ? 'bg-gradient-to-tr from-white/80 to-violet-400 border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.2)]'
+                : 'bg-white/5 border border-white/5'
             } ${clickable ? 'cursor-pointer' : 'cursor-default opacity-40'}`}
           >
             <div className={`w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden border-[4px] border-black`}>
@@ -166,7 +169,7 @@ export default function StoryBar() {
         </div>
         
         <div className="text-center px-2">
-          <h4 className={`text-[12px] font-black uppercase tracking-[0.2em] truncate mb-1 transition-colors ${hasStories ? 'text-[#CDFF00]' : 'text-gray-400 group-hover:text-white'}`}>
+          <h4 className={`text-[12px] font-black uppercase tracking-[0.2em] truncate mb-1 transition-colors ${hasUnseenStories ? 'text-[#CDFF00]' : hasStories ? 'text-[#e9d5ff]' : 'text-gray-400 group-hover:text-white'}`}>
             {isCurrentUser ? 'Your Story' : getDisplayName(person).split(' ')[0]}
           </h4>
           <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest truncate opacity-60 group-hover:opacity-100 transition-opacity">
@@ -236,6 +239,11 @@ export default function StoryBar() {
             users={peopleWithStories}
             initialUserIndex={selectedUserIndex}
             onClose={() => setSelectedUserIndex(null)}
+            onViewed={(storyId) => {
+              setStories(prev => prev.map(s => 
+                s.id === storyId ? { ...s, viewedByCurrentUser: true } : s
+              ));
+            }}
             onCreateStory={() => setIsCreatorOpen(true)}
           />
         )}

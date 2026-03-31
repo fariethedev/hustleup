@@ -1,0 +1,5 @@
+package com.hustleup.user.model;
+
+public enum Role {
+    BUYER, SELLER, ADMIN
+}

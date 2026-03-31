@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: hustleup-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/auth/**
+            
+        - id: social-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/social/**
+            
+        - id: marketplace-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/v1/listings/**, /api/v1/bookings/**, /api/v1/reviews/**
+            
+        - id: subscription-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/v1/payments/**, /api/v1/subscriptions/**
+            
+        - id: notification-service
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/v1/messages/**, /api/v1/notifications/**
+
+server:
+  port: 8000

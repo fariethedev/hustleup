@@ -20,6 +20,7 @@ import ShopCheckout from './pages/ShopCheckout';
 import ShopConfirmation from './pages/ShopConfirmation';
 import Onboarding from './pages/Onboarding';
 import { selectHasCompletedOnboarding, selectIsAuthenticated } from './store/authSlice';
+import { ToastProvider } from './context/ToastContext';
 
 export default function App() {
   const location = useLocation();
@@ -27,6 +28,7 @@ export default function App() {
 
   return (
     <>
+    <ToastProvider>
       {!hideNavbar && <Navbar />}
       <main className={`flex-1 ${hideNavbar ? '' : 'pt-20'}`}>
         <Routes>
@@ -57,6 +59,7 @@ export default function App() {
         </Routes>
       </main>
       <Footer />
+    </ToastProvider>
     </>
   );
 }

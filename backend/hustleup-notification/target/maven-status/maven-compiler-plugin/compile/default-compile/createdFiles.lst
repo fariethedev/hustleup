@@ -1,0 +1,15 @@
+com\hustleup\messaging\dto\ChatMessageDto.class
+com\hustleup\messaging\controller\DirectMessageController.class
+com\hustleup\notification\controller\NotificationController.class
+com\hustleup\messaging\model\DirectMessage$DirectMessageBuilder.class
+com\hustleup\notification\NotificationApplication.class
+com\hustleup\notification\model\Notification.class
+com\hustleup\notification\repository\NotificationRepository.class
+com\hustleup\notification\model\Notification$NotificationBuilder.class
+com\hustleup\messaging\repository\ChatMessageRepository.class
+com\hustleup\messaging\model\DirectMessage.class
+com\hustleup\messaging\model\ChatMessage.class
+com\hustleup\messaging\repository\DirectMessageRepository.class
+com\hustleup\messaging\dto\ChatMessageDto$ChatMessageDtoBuilder.class
+com\hustleup\messaging\controller\ChatController.class
+com\hustleup\messaging\model\ChatMessage$ChatMessageBuilder.class
