@@ -88,6 +88,9 @@ export const authApi = {
 export const storiesApi = {
   getAll: () => api.get('/stories'),
   create: (formData) => api.post('/stories', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  like: (id) => api.post(`/stories/${id}/likes`),
+  unlike: (id) => api.delete(`/stories/${id}/likes`),
+  view: (id) => api.post(`/stories/${id}/views`),
 };
 
 export const usersApi = {

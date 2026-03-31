@@ -138,7 +138,7 @@ export default function MessagesScreen() {
             <Feather
               name="image"
               size={20}
-              color={pickerMode === 'photos' ? '#CDFF00' : '#FFFFFF'}
+              color={pickerMode === 'photos' ? '#C6FF33' : '#FFFFFF'}
             />
             <Text style={styles.mediaActionTitle}>Photos</Text>
             <Text style={styles.mediaActionText}>Tap to choose from gallery</Text>
@@ -155,7 +155,7 @@ export default function MessagesScreen() {
             <Feather
               name="film"
               size={20}
-              color={pickerMode === 'videos' ? '#CDFF00' : '#FFFFFF'}
+              color={pickerMode === 'videos' ? '#C6FF33' : '#FFFFFF'}
             />
             <Text style={styles.mediaActionTitle}>Videos</Text>
             <Text style={styles.mediaActionText}>Pick clips and updates</Text>
@@ -185,7 +185,7 @@ export default function MessagesScreen() {
                       <Image source={{ uri: item.uri }} style={styles.mediaPreviewImage} />
                     ) : (
                       <View style={styles.videoFallback}>
-                        <Feather name="play-circle" size={28} color="#CDFF00" />
+                        <Feather name="play-circle" size={28} color="#C6FF33" />
                         <Text style={styles.videoFallbackText}>
                           {formatDuration(item.duration) || 'Video'}
                         </Text>
@@ -240,7 +240,7 @@ export default function MessagesScreen() {
       <View style={styles.threadMeta}>
         <View style={styles.threadTitleRow}>
           <Text style={styles.threadTitle}>{item.name}</Text>
-          {item.verified ? <Feather name="check-circle" size={14} color="#CDFF00" /> : null}
+          {item.verified ? <Feather name="check-circle" size={14} color="#C6FF33" /> : null}
         </View>
         <Text style={styles.threadSubtitle}>{item.lastMsg}</Text>
       </View>
@@ -263,7 +263,7 @@ export default function MessagesScreen() {
         ListHeaderComponent={renderComposer}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Feather name="message-circle" size={44} color="#CDFF00" />
+            <Feather name="message-circle" size={44} color="#C6FF33" />
             <Text style={styles.emptyText}>No conversations yet</Text>
           </View>
         }
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   headerTitle: {
-    color: '#CDFF00',
+    color: '#C6FF33',
     fontSize: 30,
     fontWeight: '900',
   },
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   queueBadgeValue: {
-    color: '#CDFF00',
+    color: '#C6FF33',
     fontSize: 22,
     fontWeight: '900',
   },
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   clearText: {
-    color: '#CDFF00',
+    color: '#C6FF33',
     fontSize: 10,
     fontWeight: '900',
     textTransform: 'uppercase',
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 999,
-    backgroundColor: '#CDFF00',
+    backgroundColor: '#C6FF33',
     alignItems: 'center',
     justifyContent: 'center',
   },

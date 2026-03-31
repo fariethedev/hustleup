@@ -1,55 +1,146 @@
-import React from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useSelector } from 'react-redux';
+import { selectUser } from '../../store/authSlice';
+import { storiesApi } from '../../api/client';
+import StoryViewer from './StoryViewer';
 
-const stories = [
-  { id: 'me', name: 'Your Story', avatar: null, isMine: true },
-  { id: '1', name: 'Marcus', avatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Marcus' },
-  { id: '2', name: 'Linda', avatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Linda' },
-  { id: '3', name: 'Grace', avatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Grace' },
-];
-
-function StoryCard({ item }) {
+function StoryCard({ item, onPress }) {
+  const initials = item.name?.[0] || '?';
+  
   return (
-    <TouchableOpacity activeOpacity={0.85} style={styles.storyItem}>
-      <View style={[styles.storyRing, item.isMine && styles.storyRingMuted]}>
+    <TouchableOpacity activeOpacity={0.85} style={styles.storyItem} onPress={onPress}>
+      <View style={[styles.storyRing, item.isMine && !item.hasStory && styles.storyRingMuted]}>
         <View style={styles.storyAvatar}>
           {item.avatar ? (
             <Image source={{ uri: item.avatar }} style={styles.storyImage} />
           ) : (
-            <Feather name="plus" size={24} color="#CDFF00" />
+            <View style={styles.initialsAvatar}>
+              <Text style={styles.initialsText}>{initials}</Text>
+            </View>
           )}
         </View>
       </View>
 
-      {item.isMine ? (
+      {item.isMine && !item.hasStory ? (
         <View style={styles.addBadge}>
           <Feather name="plus" size={10} color="#050505" />
         </View>
       ) : null}
 
-      <Text style={[styles.storyText, item.isMine && styles.storyTextMuted]} numberOfLines={1}>
-        {item.name}
+      <Text style={[styles.storyText, item.isMine && !item.hasStory && styles.storyTextMuted]} numberOfLines={1}>
+        {item.isMine ? 'Your Story' : item.name.split(' ')[0]}
       </Text>
     </TouchableOpacity>
   );
 }
 
 export default function StoryBar() {
+  const [groupedStories, setGroupedStories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [selectedStories, setSelectedStories] = useState([]);
+  const currentUser = useSelector(selectUser);
+
+  useEffect(() => {
+    fetchStories();
+  }, []);
+
+  const fetchStories = async () => {
+    try {
+      setLoading(true);
+      const res = await storiesApi.getAll();
+      const allStories = res.data;
+
+      // Group stories by authorId
+      const groups = allStories.reduce((acc, story) => {
+        if (!acc[story.authorId]) {
+          acc[story.authorId] = {
+            id: story.authorId,
+            name: story.authorName,
+            avatar: story.authorAvatar, // Assuming this exists or null
+            stories: [],
+            isMine: story.authorId === currentUser?.id,
+          };
+        }
+        acc[story.authorId].stories.push(story);
+        return acc;
+      }, {});
+
+      let sortedGroups = Object.values(groups).sort((a, b) => {
+        if (a.isMine) return -1;
+        if (b.isMine) return 1;
+        return 0;
+      });
+
+      // If current user has no stories, add a placeholder for "Your Story"
+      if (!groups[currentUser?.id]) {
+        sortedGroups.unshift({
+          id: 'me',
+          name: currentUser?.fullName || 'You',
+          avatar: null,
+          stories: [],
+          isMine: true,
+          hasStory: false,
+        });
+      } else {
+        groups[currentUser.id].hasStory = true;
+      }
+
+      setGroupedStories(sortedGroups);
+    } catch (error) {
+      console.error('Failed to fetch stories:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openViewer = (group) => {
+    if (group.stories.length > 0) {
+      setSelectedStories(group.stories);
+      setViewerVisible(true);
+    } else {
+      // Handle creating a new story
+      console.log('Create new story');
+    }
+  };
+
+  if (loading && groupedStories.length === 0) {
+    return (
+      <View style={[styles.wrap, styles.loadingCenter]}>
+        <ActivityIndicator color="#C6FF33" size="small" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.wrap}>
       <View style={styles.headlineRow}>
         <Text style={styles.headline}>Stories</Text>
-        <Text style={styles.headlineMeta}>Fast updates</Text>
+        <TouchableOpacity onPress={fetchStories}>
+          <Text style={styles.headlineMeta}>Refresh</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
-        data={stories}
-        renderItem={({ item }) => <StoryCard item={item} />}
+        data={groupedStories}
+        renderItem={({ item }) => (
+          <StoryCard 
+            item={item} 
+            onPress={() => openViewer(item)} 
+          />
+        )}
         keyExtractor={(item) => item.id}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.content}
+      />
+
+      <StoryViewer 
+        visible={viewerVisible}
+        stories={selectedStories}
+        onClose={() => setViewerVisible(false)}
       />
     </View>
   );
@@ -62,6 +153,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
     backgroundColor: '#0C0C0C',
     paddingVertical: 14,
+  },
+  loadingCenter: {
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headlineRow: {
     flexDirection: 'row',
@@ -78,7 +174,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   headlineMeta: {
-    color: '#71717A',
+    color: '#CDFF00',
     fontSize: 9,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -112,6 +208,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  initialsAvatar: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#1A1A1A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  initialsText: {
+    color: '#FFF',
+    fontSize: 22,
+    fontWeight: '800',
   },
   storyImage: {
     width: '100%',

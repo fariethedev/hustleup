@@ -17,6 +17,7 @@ public class StoryDto {
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;
     private Integer likesCount;
+    private Integer viewsCount;
     private boolean likedByCurrentUser;
 
     public static StoryDto from(Story story, boolean likedByCurrentUser) {
@@ -30,6 +31,7 @@ public class StoryDto {
                 .createdAt(story.getCreatedAt())
                 .expiresAt(story.getExpiresAt())
                 .likesCount(story.getLikesCount() == null ? 0 : story.getLikesCount())
+                .viewsCount(story.getViewsCount() == null ? 0 : story.getViewsCount())
                 .likedByCurrentUser(likedByCurrentUser)
                 .build();
     }

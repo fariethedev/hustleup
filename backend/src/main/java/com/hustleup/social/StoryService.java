@@ -14,6 +14,7 @@ public class StoryService {
 
     private final StoryRepository storyRepository;
     private final StoryLikeRepository storyLikeRepository;
+    private final StoryViewRepository storyViewRepository;
 
     public Story saveStory(Story story) {
         if (story.getExpiresAt() == null) {
@@ -72,6 +73,23 @@ public class StoryService {
         if (storyLikeRepository.existsById(likeId)) {
             storyLikeRepository.deleteById(likeId);
             story.setLikesCount(Math.max(0, (story.getLikesCount() == null ? 0 : story.getLikesCount()) - 1));
+            return storyRepository.save(story);
+        }
+        return story;
+    }
+
+    @Transactional
+    public Story viewStory(String storyId, String userId) {
+        Story story = getStory(storyId);
+        StoryView.StoryViewId viewId = new StoryView.StoryViewId();
+        viewId.setStoryId(storyId);
+        viewId.setUserId(userId);
+
+        if (!storyViewRepository.existsById(viewId)) {
+            StoryView storyView = new StoryView();
+            storyView.setId(viewId);
+            storyViewRepository.save(storyView);
+            story.setViewsCount((story.getViewsCount() == null ? 0 : story.getViewsCount()) + 1);
             return storyRepository.save(story);
         }
         return story;

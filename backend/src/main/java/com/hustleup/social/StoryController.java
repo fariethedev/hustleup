@@ -58,6 +58,19 @@ public class StoryController {
         return ResponseEntity.ok(StoryDto.from(updatedStory, true));
     }
 
+    @PostMapping("/{id}/views")
+    public ResponseEntity<?> viewStory(@PathVariable String id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(email).orElse(null);
+        
+        if (currentUser == null) {
+            return ResponseEntity.ok().build(); // Guest view or skip
+        }
+
+        Story updatedStory = storyService.viewStory(id, currentUser.getId().toString());
+        return ResponseEntity.ok(StoryDto.from(updatedStory, true)); // Assume liked true if we don't check
+    }
+
     @DeleteMapping("/{id}/likes")
     public ResponseEntity<?> unlikeStory(@PathVariable String id) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();

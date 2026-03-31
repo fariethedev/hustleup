@@ -4,11 +4,11 @@
   --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
   --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
 
-  /* Brand colors — White base with colorful accents */
-  --color-brand-coral: #FF4D6A;
-  --color-brand-purple: #8B5CF6;
-  --color-brand-yellow: #FBBF24;
-  --color-brand-teal: #14B8A6;
+  /* Brand colors — Refined for Premium Dark Mode */
+  --color-brand-violet: #7D39EB;
+  --color-brand-lime: #C6FF33;
+  --color-brand-black: #050505;
+  --color-brand-white: #FFFFFF;
 
   --color-primary-50: #F5F3FF;
   --color-primary-100: #EDE9FE;
@@ -41,7 +41,7 @@
 @layer base {
   body {
     font-family: var(--font-body);
-    background: #0A0A0A;
+    background: #050505;
     color: #FFFFFF;
     min-height: 100vh;
     overflow-x: hidden;
@@ -56,9 +56,9 @@
   }
 
   ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #F8F9FA; }
-  ::-webkit-scrollbar-thumb { background: #CED4DA; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #8B5CF6; }
+  ::-webkit-scrollbar-track { background: #0A0A0A; }
+  ::-webkit-scrollbar-thumb { background: #1A1A1A; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #7D39EB; }
 }
 
 /* Custom utilities */
@@ -69,8 +69,6 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
 }
-
-
 
 @utility glass {
   background: rgba(18, 18, 18, 0.65);
@@ -87,23 +85,23 @@
 }
 
 @utility glow-purple {
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.12);
+  box-shadow: 0 0 30px rgba(125, 57, 235, 0.15);
 }
 
 @utility glow-purple-strong {
-  box-shadow: 0 0 60px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 0 60px rgba(125, 57, 235, 0.25);
 }
 
 @utility text-gradient-brand {
-  color: #CDFF00;
+  color: #C6FF33;
 }
 
 @utility text-gradient-warm {
-  color: #CDFF00;
+  color: #C6FF33;
 }
 
 @utility bg-gradient-hero {
-  background: radial-gradient(circle at center, rgba(205, 255, 0, 0.15) 0%, #0A0A0A 60%);
+  background: radial-gradient(circle at center, rgba(125, 57, 235, 0.15) 0%, #050505 70%);
 }
 
 @utility animate-float {
