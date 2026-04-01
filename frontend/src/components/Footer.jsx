@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Zap, Globe, ShieldCheck, Mail, Twitter, Instagram, Disc as Discord, Github } from 'lucide-react';
+import { Zap, Globe, ShieldCheck, Mail, Camera, MessageCircle, Code } from 'lucide-react';
 import { LISTING_TYPES } from '../utils/constants';
 
 export default function Footer() {
@@ -22,7 +22,7 @@ export default function Footer() {
               The premier marketplace for independent shops, professional services, and high-quality products. Building the future of the digital economy together.
             </p>
             <div className="flex gap-5">
-              {[Twitter, Instagram, Discord, Github].map((Icon, i) => (
+              {[Globe, Camera, MessageCircle, Code].map((Icon, i) => (
                 <motion_div_mock key={i} className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-gray-400 hover:text-[#D3FF37] hover:border-[#D3FF37] transition-all cursor-pointer group">
                   <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </motion_div_mock>

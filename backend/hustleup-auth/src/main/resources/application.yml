@@ -14,9 +14,8 @@ spring:
         type:
           preferred_uuid_jdbc_type: VARCHAR
 
-app:
-  jwt:
-    secret: HustleUpSecretKeyForJWTTokenGenerationMustBe256BitsLongAtLeast!!2026
+server:
+  port: 8081
 
 app:
   jwt:
