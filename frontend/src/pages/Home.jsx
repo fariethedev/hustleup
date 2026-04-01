@@ -140,12 +140,12 @@ export default function Home() {
             >
               <h1 className="text-6xl sm:text-7xl lg:text-8xl font-heading font-extrabold leading-[1.05] mb-8 tracking-tighter">
                 Discover <br />
-                <span className="text-white">Digital Art</span> and <br />
-                <span className="text-gradient-brand">Collect NFTs.</span>
+                <span className="text-white">Premium</span> and <br />
+                <span className="text-gradient-brand">Unique Services.</span>
               </h1>
               
               <p className="text-lg sm:text-xl text-gray-400 max-w-xl mb-12 leading-relaxed">
-                HustleUp is a shared liquidity NFT market smart contract which is used by multiple websites to provide the users the best possible experience.
+                HustleUp is your go-to marketplace for independent creators, professional services, and high-quality products. Join our community and elevate your hustle today.
               </p>
 
               <div className="flex flex-wrap gap-5">
@@ -166,16 +166,16 @@ export default function Home() {
               {/* Stats Bar Integrated */}
               <div className="mt-20 flex flex-wrap gap-12 sm:gap-20">
                 <div>
-                  <h4 className="text-4xl font-extrabold text-white mb-1">27k+</h4>
-                  <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Artwork</p>
+                  <h4 className="text-4xl font-extrabold text-white mb-1">15k+</h4>
+                  <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Services</p>
                 </div>
                 <div>
-                  <h4 className="text-4xl font-extrabold text-white mb-1">25k+</h4>
-                  <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Auction</p>
+                  <h4 className="text-4xl font-extrabold text-white mb-1">2.4k+</h4>
+                  <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Shops</p>
                 </div>
                 <div>
                   <h4 className="text-4xl font-extrabold text-white mb-1">12k+</h4>
-                  <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Artist</p>
+                  <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Hustlers</p>
                 </div>
               </div>
             </motion.div>
@@ -212,8 +212,8 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Current Bid</p>
-                    <p className="text-2xl font-black text-white">3.4 ETH</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Starting From</p>
+                    <p className="text-2xl font-black text-white">$45.00</p>
                   </div>
                 </div>
               </div>
@@ -272,7 +272,7 @@ export default function Home() {
                 Hot Trending <br /> On This <br /> Week.
               </h2>
               <p className="text-xl text-gray-500 leading-relaxed mb-10 max-w-lg">
-                Various kinds of NFTs that are trending this week will be listed here every week. Don't miss out on the best items.
+                Discover the most popular shops and top-rated services trending this week. Our community-driven marketplace highlights the best of the best.
               </p>
               <Link to="/explore" className="flex items-center gap-3 text-white font-bold text-lg hover:text-[#D3FF37] transition-colors group">
                 See all <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
@@ -287,11 +287,11 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-end justify-between mb-20 gap-10">
             <div className="text-left">
-               <span className="text-[#D3FF37] font-black uppercase tracking-[0.4em] text-xs mb-6 inline-block">Artist</span>
+               <span className="text-[#D3FF37] font-black uppercase tracking-[0.4em] text-xs mb-6 inline-block">Hustlers</span>
                <h2 className="text-5xl sm:text-7xl font-heading font-extrabold text-white leading-tight">
-                 Top List <br /> Artist.
+                 Top List <br /> Sellers.
                </h2>
-               <p className="text-xl text-gray-500 mt-6 max-w-md">We have dozens of artists who contribute to create amazing works.</p>
+               <p className="text-xl text-gray-500 mt-6 max-w-md">Meet the dedicated individuals who bring their expertise and passion to our platform.</p>
             </div>
             <div className="flex gap-4">
               <button onClick={previousUsers} className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/5 active:scale-95 transition-all">
@@ -315,7 +315,7 @@ export default function Home() {
                   className="glass-card rounded-[3.5rem] p-4 flex flex-col relative group"
                 >
                   <div className="relative h-[280px] w-full rounded-[3rem] overflow-hidden bg-gray-900 shadow-inner">
-                    <img src={user.avatarUrl || USER_CARD_FALLBACK} alt="Artwork" className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" />
+                    <img src={user.avatarUrl || USER_CARD_FALLBACK} alt="Service Preview" className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                   </div>
                   
@@ -345,10 +345,10 @@ export default function Home() {
       <section className="py-20 border-y border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
            <div className="flex flex-wrap items-center justify-between gap-12 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
-              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><ShieldCheck className="w-8 h-8" /> METAMASK</span>
-              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><Globe className="w-8 h-8" /> BINANCE</span>
-              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><ImageIcon className="w-8 h-8" /> UNREAL ENGINE</span>
-              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><Zap className="w-8 h-8" /> OCULUS</span>
+              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><ShieldCheck className="w-8 h-8" /> STRIPE</span>
+              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><Globe className="w-8 h-8" /> WORLDWIDE</span>
+              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><ImageIcon className="w-8 h-8" /> QUALITY TOOLS</span>
+              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><Zap className="w-8 h-8" /> FAST DELIVERY</span>
            </div>
         </div>
       </section>
@@ -362,7 +362,7 @@ export default function Home() {
              viewport={{ once: true }}
            >
              <h2 className="text-6xl sm:text-7xl font-heading font-extrabold text-white mb-10 leading-[1.05]">
-               Subscribe to Get <br /> Fresh News Update <br /> About NFTs.
+               Subscribe to Get <br /> Fresh News Update <br /> About HustleUp.
              </h2>
              <div className="relative mt-12 max-w-xl mx-auto">
                 <input 

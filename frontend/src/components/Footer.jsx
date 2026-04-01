@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Zap, Globe, ShieldCheck, Mail, Twitter, Instagram, Disc as Discord, Github } from 'lucide-react';
+import { LISTING_TYPES } from '../utils/constants';
 
 export default function Footer() {
   return (
@@ -18,7 +19,7 @@ export default function Footer() {
               <span className="text-2xl font-heading font-black text-white tracking-tighter">HustleUp.</span>
             </Link>
             <p className="text-gray-500 leading-relaxed max-w-sm mb-10 text-lg font-medium">
-              The premier marketplace for digital art, collectibles, and high-end services. Building the future of the digital economy together.
+              The premier marketplace for independent shops, professional services, and high-quality products. Building the future of the digital economy together.
             </p>
             <div className="flex gap-5">
               {[Twitter, Instagram, Discord, Github].map((Icon, i) => (
@@ -33,10 +34,13 @@ export default function Footer() {
           <div>
             <h4 className="text-white font-black text-sm mb-8 uppercase tracking-[0.2em]">Explore</h4>
             <ul className="space-y-4 text-gray-500 font-bold">
-              <li><Link to="/explore?type=art" className="hover:text-white transition-colors">Digital Art</Link></li>
-              <li><Link to="/explore?type=collectible" className="hover:text-white transition-colors">Collectibles</Link></li>
-              <li><Link to="/explore" className="hover:text-white transition-colors">Domain Names</Link></li>
-              <li><Link to="/explore" className="hover:text-white transition-colors">Utility</Link></li>
+              {LISTING_TYPES.map((type) => (
+                <li key={type.value}>
+                  <Link to={`/explore?type=${type.value}`} className="hover:text-white transition-colors">
+                    {type.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
