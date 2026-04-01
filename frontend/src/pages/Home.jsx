@@ -7,7 +7,7 @@ import { LISTING_TYPES } from '../utils/constants';
 import { listingsApi, usersApi } from '../api/client';
 import ShopCard from '../components/ShopCard';
 import ListingCard from '../components/ListingCard';
-import { Sparkles, ArrowRight, TrendingUp, Store, Users, ChevronLeft, ChevronRight, MapPin, BadgeCheck, Briefcase, Plus } from 'lucide-react';
+import { Sparkles, ArrowRight, TrendingUp, Store, Users, ChevronLeft, ChevronRight, MapPin, BadgeCheck, Briefcase, Plus, Image as ImageIcon, Camera, Globe, Award, DollarSign, Mail, Heart, Zap, ShieldCheck } from 'lucide-react';
 import { selectIsAuthenticated } from '../store/authSlice';
 
 const USER_CARD_FALLBACK = 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=1600&q=80';
@@ -122,504 +122,263 @@ export default function Home() {
     : Array.from({ length: visibleCards }, (_, offset) => users[(carouselIndex + offset) % users.length]);
 
   return (
-    <div>
-      <section className="relative h-screen flex items-center overflow-hidden bg-black" id="hero" ref={containerRef}>
-        {/* Parallax Background Image */}
-        <motion.div 
-          className="absolute inset-0 pointer-events-none"
-          style={{ y: y1 }}
-        >
-          <img 
-            src="https://images.unsplash.com/photo-1556761175-b413da4baf72?w=1920&q=80" 
-            alt="Hustle HD" 
-            className="w-full h-full object-cover opacity-40 scale-110" 
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/20 to-transparent" />
-        </motion.div>
+    <div className="relative">
+      {/* Background Ambient Glows */}
+      <div className="ambient-glow ambient-glow-purple top-[-10%] left-[-10%]" />
+      <div className="ambient-glow ambient-glow-lime top-[20%] right-[-10%]" />
+      <div className="ambient-glow ambient-glow-purple bottom-[10%] left-[20%]" />
 
-        {/* Floating Decorative Elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(6)].map((_, i) => (
+      {/* Hero Section Split Layout */}
+      <section className="relative min-h-[90vh] flex items-center pt-10" id="hero">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+          {/* Left Side: Content */}
+          <div className="lg:w-1/2 flex flex-col text-left">
             <motion.div
-              key={i}
-              className="absolute rounded-full glass bg-white/5 border border-white/10 blur-xl"
-              style={{
-                width: Math.random() * 300 + 100,
-                height: Math.random() * 300 + 100,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-              }}
-              animate={{
-                y: [0, Math.random() * 100 - 50, 0],
-                x: [0, Math.random() * 100 - 50, 0],
-                rotate: [0, 180, 360],
-                scale: [1, 1.2, 1],
-              }}
-              transition={{
-                duration: Math.random() * 20 + 20,
-                repeat: Infinity,
-                ease: "linear"
-              }}
-            />
-          ))}
-        </div>
-
-        <motion.div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full" style={{ opacity: opacityHero, y: y2 }}>
-          <div className="text-center max-w-4xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold glass bg-black/40 border border-white/10 text-white backdrop-blur-md border border-white/20 mb-6 uppercase tracking-wider shadow-sm">
-                <Sparkles className="w-4 h-4 text-[#CDFF00]" />
-                A Marketplace For Go-Getters
-              </span>
-            </motion.div>
-
-            <motion.h1
-              className="text-5xl sm:text-7xl lg:text-8xl font-heading font-extrabold leading-[1.1] tracking-tight mb-6"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              <span className="text-white">Hustle</span>{' '}
-              <span className="text-gradient-brand">Up</span>
-            </motion.h1>
-
-            <motion.p
-              className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto mb-10 leading-relaxed drop-shadow"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              Discover amazing shops, buy unique products, and connect with independent sellers and creators.
-              Everything you need, in one vibrant marketplace.
-            </motion.p>
-
-            <motion.div
-              className="flex flex-col sm:flex-row items-center justify-center gap-4"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <a
-                href="#shops"
-                className="px-8 py-4 rounded-2xl bg-[#CDFF00] text-black font-extrabold text-base hover:bg-[#b8e600] hover:shadow-2xl hover:shadow-[#CDFF00]/20 active:scale-95 transition-all flex items-center gap-2"
-              >
-                <Store className="w-5 h-5" /> Browse Shops <ArrowRight className="w-5 h-5" />
-              </a>
-              <Link
-                to="/register"
-                className="px-8 py-4 rounded-2xl glass bg-black/40 border border-white/10 border-2 text-gray-100 font-bold text-base hover:bg-[#121212] hover:border-[#CDFF00] hover:text-white active:scale-95 transition-all"
-              >
-                Start Selling
-              </Link>
-            </motion.div>
-          </div>
-        </motion.div>
-      </section>
-
-
-
-      {/* Community Carousel (Vertical) */}
-      <section className="py-24 bg-black overflow-hidden" id="community">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
-          <div className="flex flex-col lg:flex-row items-center gap-16 min-h-[700px]">
-            {/* Left side text */}
-            <motion.div
-              className="lg:w-1/2"
               initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
             >
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold bg-[#CDFF00]/10 text-[#CDFF00] border border-[#CDFF00]/20 mb-8 uppercase tracking-[0.3em]">
-                <Users className="w-4 h-4" /> The Community
-              </span>
-              <h2 className="text-5xl sm:text-7xl font-heading font-extrabold text-white mb-8 leading-[1.05]">
-                Built by <br/> <span className="text-[#CDFF00]">People</span> like You
-              </h2>
-              <p className="text-xl text-gray-400 leading-relaxed mb-12 max-w-xl">
-                Discover the independent spirits powering HustleUp. From artisan creators to savvy collectors, our community is the heartbeat of this marketplace.
-              </p>
+              <h1 className="text-6xl sm:text-7xl lg:text-8xl font-heading font-extrabold leading-[1.05] mb-8 tracking-tighter">
+                Discover <br />
+                <span className="text-white">Digital Art</span> and <br />
+                <span className="text-gradient-brand">Collect NFTs.</span>
+              </h1>
               
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={previousUsers}
-                  className="w-10 h-10 rounded-full border border-white/20 text-white hover:border-[#CDFF00] hover:text-[#CDFF00] transition-all flex items-center justify-center disabled:opacity-20"
-                  disabled={users.length <= 1}
+              <p className="text-lg sm:text-xl text-gray-400 max-w-xl mb-12 leading-relaxed">
+                HustleUp is a shared liquidity NFT market smart contract which is used by multiple websites to provide the users the best possible experience.
+              </p>
+
+              <div className="flex flex-wrap gap-5">
+                <Link
+                  to="/explore"
+                  className="px-10 py-5 rounded-[1.2rem] bg-[#D3FF37] text-black font-extrabold text-lg hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#D3FF37]/20"
                 >
-                  <ChevronLeft className="w-5 h-5 rotate-90" />
-                </button>
-                <button
-                  type="button"
-                  onClick={nextUsers}
-                  className="w-10 h-10 rounded-full bg-[#CDFF00] text-black hover:bg-[#b8e600] transition-all flex items-center justify-center disabled:opacity-20"
-                  disabled={users.length <= 1}
+                  Get Started
+                </Link>
+                <Link
+                  to="/dashboard"
+                  className="px-10 py-5 rounded-[1.2rem] glass border border-white/10 text-white font-bold text-lg hover:bg-white/5 active:scale-95 transition-all flex items-center gap-2"
                 >
-                  <ChevronRight className="w-5 h-5 rotate-90" />
-                </button>
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-4">
-                  {carouselIndex + 1} / {users.length} Candidates
-                </span>
+                  Learn More <ArrowRight className="w-5 h-5" />
+                </Link>
+              </div>
+
+              {/* Stats Bar Integrated */}
+              <div className="mt-20 flex flex-wrap gap-12 sm:gap-20">
+                <div>
+                  <h4 className="text-4xl font-extrabold text-white mb-1">27k+</h4>
+                  <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Artwork</p>
+                </div>
+                <div>
+                  <h4 className="text-4xl font-extrabold text-white mb-1">25k+</h4>
+                  <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Auction</p>
+                </div>
+                <div>
+                  <h4 className="text-4xl font-extrabold text-white mb-1">12k+</h4>
+                  <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Artist</p>
+                </div>
               </div>
             </motion.div>
-
-            {/* Right side Vertical Carousel */}
-            <div className="lg:w-1/2 relative w-full h-[650px] flex justify-center items-center">
-              {loadingUsers ? (
-                <div className="w-full max-w-[380px] h-[550px] rounded-[2.5rem] bg-gray-900 animate-pulse border border-white/5" />
-              ) : users.length > 0 ? (
-                <div className="relative w-full max-w-[400px] h-full flex flex-col items-center">
-                  <AnimatePresence mode="popLayout">
-                    {visibleUsers.slice(0, 1).map((user) => user && (
-                      <motion.div
-                        key={`${user.id}-${carouselIndex}`}
-                        initial={{ opacity: 0, y: 160, rotateX: 45, scale: 0.8 }}
-                        animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -160, rotateX: -45, scale: 0.8 }}
-                        transition={{ 
-                          type: "spring",
-                          stiffness: 100,
-                          damping: 20,
-                          mass: 1
-                        }}
-                        className="absolute inset-0"
-                        style={{ perspective: "1200px" }}
-                      >
-                        {/* Redesigned User Card based on reference */}
-                        <div className="w-full h-full glass bg-black/40 border border-white/10 border border-white/5 rounded-[3rem] overflow-hidden shadow-2xl flex flex-col group">
-                          {/* Image section */}
-                          <div className="relative h-[72%] w-full overflow-hidden">
-                            <img
-                              src={user.avatarUrl || USER_CARD_FALLBACK}
-                              alt={user.fullName}
-                              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                            />
-                            {/* Decorative badge in top left if needed? Not in ref image but we can keep role */}
-                            <div className="absolute top-6 left-6">
-                              <span className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] font-black text-[#CDFF00] uppercase tracking-widest border border-[#CDFF00]/30 shadow-lg">
-                                {getUserLabel(user)}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Content section */}
-                          <div className="flex-1 bg-white p-8 flex flex-col justify-between">
-                            <div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <h3 className="text-2xl font-black text-black tracking-tight">{user.fullName}</h3>
-                                <BadgeCheck className="w-5 h-5 text-green-500 fill-current" />
-                              </div>
-                              <p className="text-gray-500 text-sm font-medium leading-relaxed line-clamp-2">
-                                {user.bio || "Professional designer and curator focused on high-end results and user satisfaction."}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center justify-between mt-6">
-                              <div className="flex items-center gap-6">
-                                <div className="flex items-center gap-2 text-black/80">
-                                  <Users className="w-4 h-4 text-black/40" />
-                                  <span className="text-sm font-bold">{user.followersCount || 0}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-black/80">
-                                  <Briefcase className="w-4 h-4 text-black/40" />
-                                  <span className="text-sm font-bold">{user.activeListingsCount || 0}</span>
-                                </div>
-                              </div>
-                              
-                              <Link 
-                                to={`/profile/${user.id}`}
-                                className="px-6 py-2.5 bg-gray-100 hover:bg-[#CDFF00] text-black font-extrabold text-xs rounded-full uppercase tracking-tighter transition-all shadow-sm flex items-center gap-2 active:scale-95"
-                              >
-                                Follow <Plus className="w-3.5 h-3.5" />
-                              </Link>
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              ) : (
-                <div className="w-full max-w-[380px] h-[550px] rounded-[2.5rem] bg-gray-900/50 border border-white/5 flex items-center justify-center">
-                   <p className="text-gray-600 font-bold uppercase tracking-widest text-xs">No users found</p>
-                </div>
-              )}
-            </div>
           </div>
-        </div>
-      </section>
 
-
-      {/* Event Advertisement Banner */}
-      <section className="py-12 bg-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="relative h-[400px] rounded-[3rem] overflow-hidden group shadow-2xl border border-white/10"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            {/* Background Image */}
-            <div 
-              className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 group-hover:scale-105"
-              style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1600&q=80")' }}
-            />
-            {/* Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/40 to-transparent" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(205,255,0,0.3),transparent_60%)]" />
-
-            {/* Content */}
-            <div className="relative h-full flex flex-col justify-center p-12 md:p-20">
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black bg-[#CDFF00] text-black mb-6 uppercase tracking-[0.3em] self-start shadow-xl">
-                Upcoming Event
-              </span>
-              <h2 className="text-5xl sm:text-7xl font-heading font-extrabold text-white mb-6 leading-none">
-                FREEMAN <br/> <span className="text-[#CDFF00]">LIVE</span> 2026
-              </h2>
-              <p className="text-xl text-gray-200 font-medium mb-10 max-w-lg leading-relaxed">
-                Experience the most anticipated concert of the season. Tickets are selling fast! Join the community for a night of pure energy.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <button className="px-8 py-4 rounded-2xl bg-white text-black font-black text-sm uppercase tracking-widest hover:bg-[#CDFF00] transition-all shadow-xl active:scale-95">
-                  Get Tickets
-                </button>
-                <button className="px-8 py-4 rounded-2xl glass bg-black/40 border border-white/10 text-white font-bold text-sm uppercase tracking-widest hover:bg-white/10 transition-all border border-white/20 active:scale-95">
-                  Learn More
-                </button>
-              </div>
-            </div>
-
-            {/* Floating Banner Tag */}
-            <div className="absolute top-10 right-10 -rotate-12 group-hover:rotate-0 transition-transform duration-500">
-               <div className="bg-[#CDFF00] text-black px-6 py-3 rounded-2xl font-black text-xl uppercase tracking-tighter shadow-2xl border-4 border-black">
-                 SOLD OUT!
-               </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Featured Shops */}
-      <section className="py-20" id="featured-shops">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="text-center mb-14"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl sm:text-5xl font-heading font-extrabold text-white mb-4">
-              Featured Shops
-            </h2>
-            <p className="text-gray-400 text-lg max-w-xl mx-auto">
-              Our hand-picked selection of top-tier businesses making waves this week.
-            </p>
-          </motion.div>
-
-          <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={{
-              visible: {
-                transition: {
-                  staggerChildren: 0.15
-                }
-              }
-            }}
-          >
-            {SHOPS.slice(0, 3).map((shop, i) => (
-              <motion.div
-                key={shop.id}
-                className="relative aspect-square rounded-[3rem] overflow-hidden group shadow-2xl border border-white/5"
-                variants={{
-                  hidden: { opacity: 0, y: 40, scale: 0.95 },
-                  visible: { opacity: 1, y: 0, scale: 1 }
-                }}
-                transition={{ type: "spring", stiffness: 100, damping: 20 }}
-                whileHover={{ y: -12, scale: 1.02 }}
-              >
-                <img src={shop.image} alt={shop.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/50 to-transparent opacity-95 transition-opacity duration-300" />
-                
-                <div className="absolute inset-0 p-8 flex flex-col justify-end">
-                  <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                    <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-white/90 text-xs font-bold mb-4 uppercase tracking-wider border border-white/20">
-                      {shop.category}
-                    </span>
-                    <h3 className="text-3xl font-heading font-extrabold text-white mb-3">{shop.name}</h3>
-                    <p className="text-gray-300 font-medium mb-6 line-clamp-2 text-sm md:text-base leading-relaxed">{shop.description}</p>
-                    <Link
-                      to={`/shop/${shop.id}`}
-                      className="inline-flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-white text-black hover:bg-[#CDFF00] font-extrabold transition-colors duration-300"
-                    >
-                      Visit Shop <ArrowRight className="w-5 h-5" />
-                    </Link>
+          {/* Right Side: Primary Image Card */}
+          <div className="lg:w-1/2 relative w-full aspect-[4/5] lg:aspect-square flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full h-full rounded-[3.5rem] overflow-hidden group shadow-2xl border border-white/10 bg-gray-900"
+            >
+              <img 
+                src="https://images.unsplash.com/photo-1556761175-b413da4baf72?w=1600&q=80" 
+                alt="Main Feature" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+              
+              {/* Overlaid Card Info */}
+              <div className="absolute bottom-10 left-10 right-10 translate-y-4 group-hover:translate-y-0 transition-all duration-500">
+                <div className="glass-card rounded-[2.5rem] p-8 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex -space-x-3 overflow-hidden">
+                      {[1, 2, 3, 4].map(i => (
+                        <img 
+                          key={i}
+                          className="inline-block h-10 w-10 rounded-full ring-2 ring-black bg-gray-800" 
+                          src={`https://i.pravatar.cc/100?u=${i}`} 
+                          alt="" 
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Current Bid</p>
+                    <p className="text-2xl font-black text-white">3.4 ETH</p>
                   </div>
                 </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Featured Listings */}
-      <section className="py-20" id="featured">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-end justify-between mb-14 gap-4">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <h2 className="text-3xl sm:text-4xl font-heading font-extrabold text-white mb-2">
-                Featured User Listings
-              </h2>
-              <p className="text-gray-400 text-lg">Top rated services and products from our community.</p>
-            </motion.div>
-            <Link to="/explore" className="text-[#CDFF00] font-bold hover:text-[#CDFF00] flex items-center gap-2 transition-colors">
-              View all <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          {loadingListings ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-64 bg-[#121212] rounded-2xl animate-pulse border border-white/5" />
-              ))}
-            </div>
-          ) : featuredListings.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {featuredListings.map((listing, i) => (
-                <ListingCard key={listing.id} listing={listing} index={i} />
-              ))}
-            </div>
-          ) : (
-             <div className="text-center py-20 bg-[#121212] rounded-3xl border border-white/5">
-                <p className="text-gray-500 font-bold">No active user listings yet.</p>
-             </div>
-          )}
-        </div>
-      </section>
-
-      {/* Shop Directory */}
-      <section className="py-20 bg-[#121212]" id="shops">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="text-center mb-14"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold glass bg-black/40 border border-white/10 text-[#CDFF00] border border-[#CDFF00] mb-4 uppercase tracking-wider shadow-sm">
-              <TrendingUp className="w-3.5 h-3.5" /> Premium Curated
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-heading font-extrabold text-white mb-3">
-              Explore Our Shops
-            </h2>
-            <p className="text-gray-400 text-lg max-w-xl mx-auto">
-              Each shop is unique — click to browse their products and find exactly what you need.
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {SHOPS.map((shop, i) => (
-              <ShopCard key={shop.id} shop={shop} index={i} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Categories */}
-      <section className="py-20 glass bg-black/40 border border-white/10" id="categories">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="text-center mb-14"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl sm:text-4xl font-heading font-extrabold text-white mb-3">
-              Browse by Category
-            </h2>
-            <p className="text-gray-400 text-lg">Find exactly what you need</p>
-          </motion.div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {LISTING_TYPES.map((type, i) => {
-              const Icon = type.icon;
-              const colors = [
-                { bg: '#FDF2F8', iconBg: '#EC4899', hover: '#EC4899' },
-                { bg: '#FFFBEB', iconBg: '#F59E0B', hover: '#F59E0B' },
-                { bg: '#F5F3FF', iconBg: '#8B5CF6', hover: '#8B5CF6' },
-                { bg: '#FDF2F8', iconBg: '#EC4899', hover: '#EC4899' },
-                { bg: '#EFF6FF', iconBg: '#3B82F6', hover: '#3B82F6' },
-                { bg: '#F0FDFA', iconBg: '#14B8A6', hover: '#14B8A6' },
-              ][i];
-              return (
-                <motion.div
-                  key={type.value}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.08, duration: 0.4 }}
-                >
-                  <Link
-                    to={`/explore?type=${type.value}`}
-                    className="group flex flex-col items-center gap-4 p-6 rounded-2xl bg-[#121212] border border-white/5 hover:border-white/10 hover:shadow-lg hover:glass bg-black/40 border border-white/10 transition-all duration-300 hover:-translate-y-1"
-                  >
-                    <div
-                      className="w-16 h-16 rounded-2xl flex items-center justify-center text-white transition-all group-hover:scale-110 shadow-sm"
-                      style={{ background: colors.iconBg }}
-                    >
-                      <Icon className="w-8 h-8" />
-                    </div>
-                    <span className="text-sm font-semibold text-gray-600 text-center group-hover:text-white transition-colors">
-                      {type.label}
-                    </span>
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            className="relative rounded-[2.5rem] overflow-hidden shadow-2xl shadow-[#CDFF00]/10"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <div className="absolute inset-0 bg-[#CDFF00]" />
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 30% 50%, white 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
-            <div className="relative text-center py-24 px-8">
-              <h2 className="text-3xl sm:text-5xl font-heading font-extrabold text-black mb-4 leading-tight">
-                Ready to Hustle?
-              </h2>
-              <p className="text-black/70 text-lg max-w-xl mx-auto mb-10 font-medium">
-                Join thousands of independent sellers and buyers. Your next opportunity is one click away.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link to="/register" className="px-8 py-4 rounded-xl glass bg-black/40 border border-white/10 text-[#CDFF00] font-bold hover:bg-[#1E1E1E] active:scale-95 transition-all shadow-xl shadow-black/10">
-                  Create Account
-                </Link>
-                <Link to="/explore" className="px-8 py-4 rounded-xl glass bg-black/40 border border-white/10 border border-white/20 text-white font-semibold hover:glass bg-black/40 border border-white/10 active:scale-95 transition-all">
-                  Browse Marketplace
-                </Link>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+            
+            {/* Background Blob Glow for Hero */}
+            <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[radial-gradient(circle,rgba(211,255,55,0.1)_0%,transparent_70%)]" />
+          </div>
         </div>
       </section>
+
+      {/* Hot Trending Section */}
+      <section className="py-32" id="trending">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
+            {/* Grid of Images */}
+            <div className="lg:w-1/2 grid grid-cols-2 gap-6 w-full">
+               <motion.div 
+                 initial={{ opacity: 0, y: 20 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 viewport={{ once: true }}
+                 className="aspect-[4/5] rounded-[3.5rem] overflow-hidden border border-white/5 bg-gray-900 group"
+               >
+                 <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=800&q=80" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Trending 1" />
+               </motion.div>
+               <motion.div 
+                 initial={{ opacity: 0, y: 20 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 viewport={{ once: true, delay: 0.1 }}
+                 className="aspect-[4/5] rounded-[3.5rem] overflow-hidden border border-white/5 bg-gray-900 group mt-10"
+               >
+                 <img src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&q=80" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Trending 2" />
+               </motion.div>
+               <motion.div 
+                 initial={{ opacity: 0, y: 20 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 viewport={{ once: true, delay: 0.2 }}
+                 className="aspect-[4/5] rounded-[3.5rem] overflow-hidden border border-white/5 bg-gray-900 group"
+               >
+                 <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Trending 3" />
+               </motion.div>
+               <motion.div 
+                 initial={{ opacity: 0, y: 20 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 viewport={{ once: true, delay: 0.3 }}
+                 className="aspect-[4/5] rounded-[3.5rem] overflow-hidden border border-white/5 bg-gray-900 group mt-10"
+               >
+                 <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&q=80" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Trending 4" />
+               </motion.div>
+            </div>
+
+            {/* Content Left */}
+            <div className="lg:w-1/2 flex flex-col text-left">
+              <span className="text-[#D3FF37] font-black uppercase tracking-[0.4em] text-xs mb-6">Popular Item</span>
+              <h2 className="text-5xl sm:text-7xl font-heading font-extrabold text-white mb-8 leading-[1.1]">
+                Hot Trending <br /> On This <br /> Week.
+              </h2>
+              <p className="text-xl text-gray-500 leading-relaxed mb-10 max-w-lg">
+                Various kinds of NFTs that are trending this week will be listed here every week. Don't miss out on the best items.
+              </p>
+              <Link to="/explore" className="flex items-center gap-3 text-white font-bold text-lg hover:text-[#D3FF37] transition-colors group">
+                See all <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Top List Artist Section */}
+      <section className="py-32 bg-gradient-to-b from-black to-[#050505]" id="artists">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row items-end justify-between mb-20 gap-10">
+            <div className="text-left">
+               <span className="text-[#D3FF37] font-black uppercase tracking-[0.4em] text-xs mb-6 inline-block">Artist</span>
+               <h2 className="text-5xl sm:text-7xl font-heading font-extrabold text-white leading-tight">
+                 Top List <br /> Artist.
+               </h2>
+               <p className="text-xl text-gray-500 mt-6 max-w-md">We have dozens of artists who contribute to create amazing works.</p>
+            </div>
+            <div className="flex gap-4">
+              <button onClick={previousUsers} className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/5 active:scale-95 transition-all">
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button onClick={nextUsers} className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-[#D3FF37] hover:text-black active:scale-95 transition-all">
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-10">
+            <AnimatePresence mode="wait">
+              {visibleUsers.slice(0, 2).map((user, i) => user && (
+                <motion.div
+                  key={user.id}
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="glass-card rounded-[3.5rem] p-4 flex flex-col relative group"
+                >
+                  <div className="relative h-[280px] w-full rounded-[3rem] overflow-hidden bg-gray-900 shadow-inner">
+                    <img src={user.avatarUrl || USER_CARD_FALLBACK} alt="Artwork" className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                  </div>
+                  
+                  {/* Floating Artist Info Card Overlay */}
+                  <div className="absolute top-[200px] left-1/2 -translate-x-1/2 w-[85%] glass rounded-[2.5rem] p-6 shadow-2xl flex flex-col items-center border border-white/10">
+                     <div className="w-20 h-20 rounded-full border-4 border-black bg-gray-800 overflow-hidden absolute top-[-40px] shadow-2xl">
+                        <img src={user.avatarUrl || USER_CARD_FALLBACK} alt={user.fullName} className="w-full h-full object-cover" />
+                     </div>
+                     <div className="mt-10 text-center">
+                        <h4 className="text-2xl font-black text-white">{user.fullName}</h4>
+                        <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1">@{user.fullName?.split(' ')[0].toLowerCase()}</p>
+                     </div>
+                     <div className="w-full h-[100px] mt-6 rounded-[1.5rem] overflow-hidden bg-black/40">
+                        <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&q=80" alt="Preview" className="w-full h-full object-cover opacity-50" />
+                     </div>
+                  </div>
+                  
+                  <div className="h-[200px]" /> {/* Spacer for overlap */}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Shops & Partners */}
+      <section className="py-20 border-y border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+           <div className="flex flex-wrap items-center justify-between gap-12 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
+              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><ShieldCheck className="w-8 h-8" /> METAMASK</span>
+              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><Globe className="w-8 h-8" /> BINANCE</span>
+              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><ImageIcon className="w-8 h-8" /> UNREAL ENGINE</span>
+              <span className="flex items-center gap-2 font-black text-2xl tracking-tighter"><Zap className="w-8 h-8" /> OCULUS</span>
+           </div>
+        </div>
+      </section>
+
+      {/* Newsletter Section */}
+      <section className="py-40">
+        <div className="max-w-3xl mx-auto px-4 text-center">
+           <motion.div
+             initial={{ opacity: 0, y: 30 }}
+             whileInView={{ opacity: 1, y: 0 }}
+             viewport={{ once: true }}
+           >
+             <h2 className="text-6xl sm:text-7xl font-heading font-extrabold text-white mb-10 leading-[1.05]">
+               Subscribe to Get <br /> Fresh News Update <br /> About NFTs.
+             </h2>
+             <div className="relative mt-12 max-w-xl mx-auto">
+                <input 
+                  type="email" 
+                  placeholder="Enter your email address" 
+                  className="w-full bg-gray-900 border border-white/10 rounded-full px-10 py-6 text-white text-lg focus:outline-none focus:border-[#D3FF37] transition-colors"
+                />
+                <button className="absolute right-2 top-2 bottom-2 px-10 rounded-full bg-[#D3FF37] text-black font-black text-sm uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-[#D3FF37]/20">
+                  Subscribe
+                </button>
+             </div>
+           </motion.div>
+        </div>
+      </section>
+
+      {/* Remove duplicate footer from here, already in App.jsx */}
     </div>
   );
 }

@@ -24,13 +24,19 @@ public class DirectMessageController {
     }
 
     private String getCurrentUserId() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepo.findByEmail(email).orElseThrow().getId().toString();
+        org.springframework.security.core.Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return null;
+        String email = auth.getName();
+        return userRepo.findByEmail(email)
+                .map(u -> u.getId().toString())
+                .orElse(null);
     }
 
     @GetMapping("/partners")
     public ResponseEntity<?> getChatPartners() {
         String currentUserId = getCurrentUserId();
+        if (currentUserId == null) return ResponseEntity.status(401).build();
+        
         List<String> partnerIds = dmRepo.findDistinctChatPartners(currentUserId);
         List<Map<String, String>> partners = new ArrayList<>();
         
@@ -58,6 +64,8 @@ public class DirectMessageController {
     @GetMapping("/{partnerId}")
     public ResponseEntity<?> getConversation(@PathVariable String partnerId) {
         String currentUserId = getCurrentUserId();
+        if (currentUserId == null) return ResponseEntity.status(401).build();
+        
         List<DirectMessage> messages = dmRepo.findConversation(currentUserId, partnerId);
         return ResponseEntity.ok(messages);
     }
@@ -68,6 +76,7 @@ public class DirectMessageController {
         if (content == null || content.trim().isEmpty()) return ResponseEntity.badRequest().build();
         
         String currentUserId = getCurrentUserId();
+        if (currentUserId == null) return ResponseEntity.status(401).build();
         
         DirectMessage msg = DirectMessage.builder()
                 .senderId(currentUserId)

@@ -32,6 +32,10 @@ export default function Profile() {
   };
 
   useEffect(() => {
+    if (!id || id === 'null' || id === 'undefined') {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     Promise.all([
       usersApi.getProfile(id),

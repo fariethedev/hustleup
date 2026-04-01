@@ -11,7 +11,7 @@ export default function ShopCard({ shop, index = 0 }) {
     >
       <Link
         to={`/shop/${shop.id}`}
-        className="group block relative rounded-3xl overflow-hidden glass bg-black/40 border border-white/10 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-2"
+        className="group block relative rounded-[2.5rem] overflow-hidden glass-card border border-white/10 transition-all duration-500 hover:shadow-premium hover:-translate-y-2"
         id={`shop-card-${shop.id}`}
       >
         {/* Background Accent Glow */}
@@ -38,14 +38,14 @@ export default function ShopCard({ shop, index = 0 }) {
               {shop.category}
             </span>
             {shop.rating >= 4.8 && (
-              <span className="flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[#CDFF00] text-black">
+              <span className="flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[#D3FF37] text-black">
                 <ShieldCheck className="w-3 h-3" /> Top Rated
               </span>
             )}
           </div>
 
           {/* Action Icon */}
-          <div className="absolute top-5 right-5 w-10 h-10 rounded-2xl glass-violet flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
+          <div className="absolute top-5 right-5 w-10 h-10 rounded-2xl glass-lime flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
             <ArrowUpRight className="w-5 h-5 text-white" />
           </div>
 
@@ -58,7 +58,7 @@ export default function ShopCard({ shop, index = 0 }) {
               </div>
               <span className="text-[10px] font-bold text-white/60 tracking-wider uppercase">{shop.reviewCount} Reviews</span>
             </div>
-            <h3 className="text-2xl font-black text-white tracking-tight leading-none group-hover:text-[#CDFF00] transition-colors duration-300">
+            <h3 className="text-2xl font-black text-white tracking-tight leading-none group-hover:text-[#D3FF37] transition-colors duration-300">
               {shop.name}
             </h3>
           </div>
@@ -72,7 +72,7 @@ export default function ShopCard({ shop, index = 0 }) {
           
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-500">
-              <MapPin className="w-3.5 h-3.5 text-[#CDFF00]" />
+              <MapPin className="w-3.5 h-3.5 text-[#D3FF37]" />
               <span className="text-xs font-bold uppercase tracking-tighter">{shop.location}</span>
             </div>
             <div className="flex -space-x-2">

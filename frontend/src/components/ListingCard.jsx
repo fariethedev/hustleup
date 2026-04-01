@@ -21,7 +21,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
     >
       <Link
         to={`/listing/${listing.id}`}
-        className="group block glass bg-black/40 border border-white/5 hover:border-[#CDFF00]/40 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-[0_20px_50px_rgba(205,255,0,0.1)] hover:-translate-y-2"
+        className="group block glass-card border border-white/5 hover:border-[#D3FF37]/40 rounded-[2.5rem] overflow-hidden transition-all duration-500 hover:shadow-premium hover:-translate-y-2"
       >
         {/* Immersive Image Section */}
         <div className="relative h-60 overflow-hidden bg-[#0A0A0A]">
@@ -42,8 +42,8 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
 
           {/* Type Badge */}
           <div className="absolute top-4 left-4">
-            <span className="flex items-center gap-2 px-4 py-1.5 rounded-2xl glass-violet text-[10px] font-black uppercase tracking-widest text-[#CDFF00] border-white/10">
-              <Zap className="w-3.5 h-3.5 fill-[#CDFF00] text-[#CDFF00]" />
+            <span className="flex items-center gap-2 px-4 py-1.5 rounded-2xl glass-lime text-[10px] font-black uppercase tracking-widest text-white border-white/10">
+              <Zap className="w-3.5 h-3.5 fill-[#D3FF37] text-[#D3FF37]" />
               {typeInfo.label}
             </span>
           </div>
@@ -60,7 +60,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
 
           {listing.negotiable && (
             <div className="absolute top-4 right-4">
-              <span className="px-3 py-1.5 rounded-full text-[10px] font-black bg-[#CDFF00] text-black uppercase tracking-widest animate-pulse shadow-[0_0_15px_rgba(205,255,0,0.4)]">
+              <span className="px-3 py-1.5 rounded-full text-[10px] font-black bg-[#D3FF37] text-black uppercase tracking-widest animate-pulse shadow-[0_0_15px_rgba(211,255,55,0.4)]">
                 Negotiable
               </span>
             </div>
@@ -69,7 +69,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
 
         {/* Content Section */}
         <div className="p-6">
-          <h3 className="text-xl font-bold text-white mb-2 line-clamp-1 group-hover:text-[#CDFF00] transition-colors duration-300">
+          <h3 className="text-xl font-black text-white mb-2 line-clamp-1 group-hover:text-[#D3FF37] transition-colors duration-300">
             {listing.title}
           </h3>
           <p className="text-sm text-gray-500 mb-6 line-clamp-2 leading-relaxed font-medium italic">
@@ -85,7 +85,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                     {listing.sellerName[0]}
                   </div>
                   {listing.sellerVerified && (
-                    <div className="absolute -bottom-1 -right-1 bg-[#CDFF00] rounded-full p-0.5 border border-black">
+                    <div className="absolute -bottom-1 -right-1 bg-[#D3FF37] rounded-full p-0.5 border border-black">
                       <BadgeCheck className="w-2.5 h-2.5 text-black" />
                     </div>
                   )}
@@ -102,7 +102,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                 <ReviewStars rating={listing.avgRating} size="sm" />
               )}
               <div className="flex items-center gap-1 opacity-60">
-                <MapPin className="w-3 h-3 text-[#CDFF00]" />
+                <MapPin className="w-3 h-3 text-[#D3FF37]" />
                 <span className="text-[9px] font-bold text-gray-400 tracking-widest uppercase">{listing.locationCity}</span>
               </div>
             </div>

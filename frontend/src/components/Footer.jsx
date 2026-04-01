@@ -1,70 +1,78 @@
 import { Link } from 'react-router-dom';
-import { LISTING_TYPES } from '../utils/constants';
+import { Zap, Globe, ShieldCheck, Mail, Twitter, Instagram, Disc as Discord, Github } from 'lucide-react';
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/5 mt-auto bg-[#121212]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
-          {/* Brand */}
-          <div className="md:col-span-1">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 rounded-xl bg-[#CDFF00] flex items-center justify-center text-white font-heading font-extrabold text-base">
+    <footer className="py-24 bg-black border-t border-white/5 relative overflow-hidden">
+      {/* Background Glows */}
+      <div className="ambient-glow ambient-glow-purple bottom-[-10%] right-[-10%] opacity-10" />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-16">
+          {/* Brand & Description */}
+          <div className="lg:col-span-2">
+            <Link to="/" className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-[#D3FF37] flex items-center justify-center text-black font-heading font-black text-xl">
                 H
               </div>
-              <span className="text-lg font-heading font-bold text-white">HustleUp</span>
+              <span className="text-2xl font-heading font-black text-white tracking-tighter">HustleUp.</span>
             </Link>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              The marketplace for hustlers. Buy, sell, trade, and connect with independent creators and service providers.
+            <p className="text-gray-500 leading-relaxed max-w-sm mb-10 text-lg font-medium">
+              The premier marketplace for digital art, collectibles, and high-end services. Building the future of the digital economy together.
             </p>
-          </div>
-
-          {/* Categories */}
-          <div>
-            <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Categories</h4>
-            <ul className="space-y-2">
-              {LISTING_TYPES.map((t) => (
-                <li key={t.value}>
-                  <Link
-                    to={`/explore?type=${t.value}`}
-                    className="text-sm text-gray-500 hover:text-[#CDFF00] transition-colors"
-                  >
-                    {t.label}
-                  </Link>
-                </li>
+            <div className="flex gap-5">
+              {[Twitter, Instagram, Discord, Github].map((Icon, i) => (
+                <motion_div_mock key={i} className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-gray-400 hover:text-[#D3FF37] hover:border-[#D3FF37] transition-all cursor-pointer group">
+                  <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                </motion_div_mock>
               ))}
+            </div>
+          </div>
+
+          {/* Nav Columns */}
+          <div>
+            <h4 className="text-white font-black text-sm mb-8 uppercase tracking-[0.2em]">Explore</h4>
+            <ul className="space-y-4 text-gray-500 font-bold">
+              <li><Link to="/explore?type=art" className="hover:text-white transition-colors">Digital Art</Link></li>
+              <li><Link to="/explore?type=collectible" className="hover:text-white transition-colors">Collectibles</Link></li>
+              <li><Link to="/explore" className="hover:text-white transition-colors">Domain Names</Link></li>
+              <li><Link to="/explore" className="hover:text-white transition-colors">Utility</Link></li>
             </ul>
           </div>
 
-          {/* Platform */}
           <div>
-            <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Platform</h4>
-            <ul className="space-y-2">
-              <li><Link to="/explore" className="text-sm text-gray-500 hover:text-[#CDFF00] transition-colors">Browse Listings</Link></li>
-              <li><Link to="/register" className="text-sm text-gray-500 hover:text-[#CDFF00] transition-colors">Become a Seller</Link></li>
-              <li><Link to="/dashboard" className="text-sm text-gray-500 hover:text-[#CDFF00] transition-colors">Dashboard</Link></li>
+            <h4 className="text-white font-black text-sm mb-8 uppercase tracking-[0.2em]">Statistic</h4>
+            <ul className="space-y-4 text-gray-500 font-bold">
+              <li><Link to="/dashboard" className="hover:text-white transition-colors">Ranking</Link></li>
+              <li><Link to="/dashboard" className="hover:text-white transition-colors">Activity</Link></li>
             </ul>
           </div>
 
-          {/* Connect */}
           <div>
-            <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Connect</h4>
-            <ul className="space-y-2">
-              <li><a href="#" className="text-sm text-gray-500 hover:text-[#CDFF00] transition-colors">Twitter / X</a></li>
-              <li><a href="#" className="text-sm text-gray-500 hover:text-[#CDFF00] transition-colors">Instagram</a></li>
-              <li><a href="#" className="text-sm text-gray-500 hover:text-[#CDFF00] transition-colors">Discord</a></li>
+            <h4 className="text-white font-black text-sm mb-8 uppercase tracking-[0.2em]">Resource</h4>
+            <ul className="space-y-4 text-gray-500 font-bold">
+              <li><Link to="/" className="hover:text-white transition-colors">Help Center</Link></li>
+              <li><Link to="/" className="hover:text-white transition-colors">Platform Status</Link></li>
+              <li><Link to="/" className="hover:text-white transition-colors">Partners</Link></li>
+              <li><Link to="/" className="hover:text-white transition-colors">Blog</Link></li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-gray-400">© {new Date().getFullYear()} HustleUp. All rights reserved.</p>
-          <div className="flex gap-6">
-            <a href="#" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Privacy Policy</a>
-            <a href="#" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Terms of Service</a>
+        {/* Copyright Line */}
+        <div className="mt-24 pt-10 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 text-gray-600 font-bold text-sm">
+          <p>© {new Date().getFullYear()} HustleUp. All rights reserved.</p>
+          <div className="flex gap-8">
+            <Link to="/" className="hover:text-gray-400">Privacy Policy</Link>
+            <Link to="/" className="hover:text-gray-400">Terms of Service</Link>
           </div>
         </div>
       </div>
     </footer>
   );
+}
+
+// Simple wrapper since motion might not be imported or used for simple hover here
+function motion_div_mock({ children, className }) {
+  return <div className={className}>{children}</div>;
 }

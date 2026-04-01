@@ -39,5 +39,15 @@ spring:
           predicates:
             - Path=/api/v1/notifications/**, /api/v1/direct-messages/**, /api/v1/messages/**
 
+        - id: dating-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/dating/**
+
+        - id: uploads-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/uploads/**
+
 server:
   port: 8000
