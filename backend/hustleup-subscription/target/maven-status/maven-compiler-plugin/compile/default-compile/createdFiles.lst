@@ -1,7 +1,0 @@
-com\hustleup\subscription\service\StripeService.class
-com\hustleup\subscription\model\Subscription.class
-com\hustleup\subscription\model\Subscription$SubscriptionBuilder.class
-com\hustleup\subscription\controller\StripeController.class
-com\hustleup\subscription\controller\SubscriptionController.class
-com\hustleup\subscription\SubscriptionApplication.class
-com\hustleup\subscription\repository\SubscriptionRepository.class

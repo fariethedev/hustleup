@@ -7,7 +7,7 @@ spring:
     password: ${MYSQL_PASSWORD:francis}
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
 
 server:
   port: 8082

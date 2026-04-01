@@ -32,7 +32,7 @@
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
-                <version>2023.0.3</version> <!-- Compatible with Boot 3.3/3.4 -->
+                <version>2024.0.0</version> <!-- Compatible with Boot 3.4.x -->
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

@@ -21,6 +21,26 @@
             <artifactId>hustleup-common</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.hustleup</groupId>
+            <artifactId>hustleup-social</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hustleup</groupId>
+            <artifactId>hustleup-marketplace</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hustleup</groupId>
+            <artifactId>hustleup-subscription</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hustleup</groupId>
+            <artifactId>hustleup-notification</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>

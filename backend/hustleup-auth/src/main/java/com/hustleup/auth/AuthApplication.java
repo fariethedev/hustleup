@@ -7,9 +7,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
-@EnableJpaRepositories(basePackages = "com.hustleup.common.repository")
-@EntityScan(basePackages = {"com.hustleup.common.model", "com.hustleup.auth.model"})
-@ComponentScan(basePackages = {"com.hustleup.auth", "com.hustleup.common"})
+@EnableJpaRepositories(basePackages = "com.hustleup")
+@EntityScan(basePackages = "com.hustleup")
+@ComponentScan(basePackages = "com.hustleup")
 public class AuthApplication {
     public static void main(String[] args) {
         SpringApplication.run(AuthApplication.class, args);

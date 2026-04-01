@@ -1,22 +1,33 @@
 # Backend
-backend/target/
-backend/.mvn/
-backend/*.jar
-*.class
+**/target/
+**/.mvn/
+**/*.jar
+**/*.class
 
 # Frontend
-frontend/node_modules/
-frontend/dist/
+**/node_modules/
+**/dist/
+**/build/
+
+# Mobile
+mobile/.expo/
+mobile/node_modules/
 
 # IDE
 .vscode/
 .idea/
 *.iml
+*.iws
+*.ipr
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Env
+# Tooling
+.qodo/
+.git_status.txt
+
+# Env & Logs
 .env
 *.log

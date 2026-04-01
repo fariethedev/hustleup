@@ -21,6 +21,7 @@ import ShopConfirmation from './pages/ShopConfirmation';
 import Onboarding from './pages/Onboarding';
 import { selectHasCompletedOnboarding, selectIsAuthenticated } from './store/authSlice';
 import { ToastProvider } from './context/ToastContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   const location = useLocation();
@@ -52,7 +53,7 @@ export default function App() {
             <Route path="/dm" element={<DirectMessages />} />
             <Route path="/dm/:partnerId" element={<DirectMessages />} />
             <Route path="/profile/:id" element={<Profile />} />
-            <Route path="/feed" element={<Feed />} />
+            <Route path="/feed" element={<ErrorBoundary><Feed /></ErrorBoundary>} />
             <Route path="/dating" element={<Dating />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

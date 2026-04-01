@@ -190,7 +190,7 @@ export default function Feed() {
         <form onSubmit={handlePost} className="glass bg-black/40 border border-white/10 border border-white/5 p-6 rounded-3xl mb-10 shadow-lg shadow-black/5 hover:border-white/10 transition-colors">
           <div className="flex gap-4">
             <div className="w-12 h-12 rounded-full bg-[#CDFF00] border border-[#CDFF00] flex items-center justify-center text-[#CDFF00] font-bold text-lg shrink-0">
-              {user.fullName[0]}
+              {user?.fullName?.[0] || '?'}
             </div>
             <div className="flex-1 space-y-4">
               <textarea
@@ -309,14 +309,14 @@ export default function Feed() {
               <motion.div key={`post-${item.id}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass bg-black/40 border border-white/10 border border-white/5 p-0 rounded-3xl group overflow-hidden transition-all hover:border-white/10 shadow-sm hover:shadow-xl hover:shadow-black/5">
                 <div className="p-4 flex items-center gap-3 border-b border-gray-50">
                   <Link to={`/profile/${item.authorId}`} className="relative w-10 h-10 rounded-full bg-[#CDFF00] flex items-center justify-center text-[#CDFF00] border border-[#CDFF00] group-hover:bg-[#CDFF00] transition-all font-bold">
-                    {item.authorName[0]}
+                    {item.authorName?.[0] || '?'}
                   </Link>
                   <div>
                     <Link to={`/profile/${item.authorId}`} className="text-white font-bold tracking-wide hover:text-[#CDFF00] transition-colors">
                       {item.authorName}
                     </Link>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                      {new Date(item.createdAt).toLocaleString()}
+                      {item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Just now'}
                     </p>
                   </div>
                 </div>
@@ -346,7 +346,7 @@ export default function Feed() {
                     </button>
                   </div>
                   <div className="text-sm leading-relaxed text-gray-300">
-                    <Link to={`/profile/${item.authorId}`} className="font-bold text-white hover:text-[#CDFF00] mr-2">{item.authorName}</Link>
+                    <Link to={`/profile/${item.authorId}`} className="font-bold text-white hover:text-[#CDFF00] mr-2">{item.authorName || 'User'}</Link>
                     <span>{item.content}</span>
                   </div>
                   {item.commentsCount > 0 && !expandedComments[item.id] && (
@@ -358,7 +358,7 @@ export default function Feed() {
                     <div className="mt-4 border-t border-white/5 pt-4 space-y-3">
                       {(commentsData[item.id] || []).map((c) => (
                         <div key={c.id} className="text-sm">
-                          <Link to={`/profile/${c.authorId}`} className="font-bold text-white hover:text-[#CDFF00] mr-2">{c.authorName}</Link>
+                          <Link to={`/profile/${c.authorId}`} className="font-bold text-white hover:text-[#CDFF00] mr-2">{c.authorName || 'User'}</Link>
                           <span className="text-gray-300 break-words">{c.content}</span>
                         </div>
                       ))}

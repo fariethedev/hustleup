@@ -26,6 +26,7 @@
         <module>hustleup-marketplace</module>
         <module>hustleup-subscription</module>
         <module>hustleup-notification</module>
+        <module>hustleup-gateway</module>
     </modules>
 
     <properties>
