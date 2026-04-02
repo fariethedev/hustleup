@@ -2,14 +2,14 @@ package com.hustleup.social.dto;
 
 import com.hustleup.social.model.Post;
 import lombok.Builder;
-import lombok.Value;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-@Value
+@Data
 @Builder
 public class PostDto {
     String id;
@@ -87,7 +87,8 @@ public class PostDto {
         return lower.matches(".*\\.(mp4|mov|webm|ogg|m4v)(\\?.*)?$") ? "VIDEO" : "IMAGE";
     }
 
-    @Value
+    @Data
+    @Builder
     public static class PostMediaDto {
         String url;
         String type;

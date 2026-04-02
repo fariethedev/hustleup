@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Zap, Globe, ShieldCheck, Mail, Camera, MessageCircle, Code } from 'lucide-react';
 import { LISTING_TYPES } from '../utils/constants';
 
@@ -23,9 +24,9 @@ export default function Footer() {
             </p>
             <div className="flex gap-5">
               {[Globe, Camera, MessageCircle, Code].map((Icon, i) => (
-                <motion_div_mock key={i} className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-gray-400 hover:text-[#D3FF37] hover:border-[#D3FF37] transition-all cursor-pointer group">
+                <motion.div key={i} className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-gray-400 hover:text-[#D3FF37] hover:border-[#D3FF37] transition-all cursor-pointer group">
                   <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                </motion_div_mock>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -77,6 +78,4 @@ export default function Footer() {
 }
 
 // Simple wrapper since motion might not be imported or used for simple hover here
-function motion_div_mock({ children, className }) {
-  return <div className={className}>{children}</div>;
-}
+

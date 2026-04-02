@@ -13,6 +13,7 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(columnDefinition = "VARCHAR(36)")
     private UUID id;
 
     @Column(nullable = false, unique = true)
@@ -70,4 +71,8 @@ public class User {
     @Column(name = "last_active")
     @Builder.Default
     private LocalDateTime lastActive = LocalDateTime.now();
+
+    @Column(name = "onboarding_completed")
+    @Builder.Default
+    private Boolean onboardingCompleted = true;
 }

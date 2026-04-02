@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashSet;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -142,8 +143,9 @@ public class FeedController {
         likeId.setUserId(currentUser.getId().toString());
 
         if (!postLikeRepository.existsById(likeId)) {
-            PostLike postLike = new PostLike();
-            postLike.setId(likeId);
+            PostLike postLike = PostLike.builder()
+                    .id(likeId)
+                    .build();
             postLikeRepository.save(postLike);
             post.setLikesCount((post.getLikesCount() == null ? 0 : post.getLikesCount()) + 1);
             postRepository.save(post);
@@ -172,8 +174,13 @@ public class FeedController {
 
     private User requireCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            throw new org.springframework.security.access.AccessDeniedException("Not authenticated");
+        }
         String email = authentication.getName();
-        return userRepository.findByEmail(email).orElseThrow();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
     }
 
     private java.util.Optional<User> getCurrentUser() {

@@ -283,7 +283,7 @@ export default function Feed() {
                   </div>
                   
                   <Link to={`/listing/${item.id}`} className="block relative bg-[#121212] aspect-square max-h-[500px] w-full flex items-center justify-center overflow-hidden border-b border-gray-50">
-                    <img src={item.mediaUrls?.[0] || LISTING_FALLBACK_IMAGE} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={item.mediaUrls?.[0] || LISTING_FALLBACK_IMAGE} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => { e.target.onerror = null; e.target.src = LISTING_FALLBACK_IMAGE; }} />
                     <div className="absolute top-4 right-4 px-3 py-1.5 glass bg-black/40 border border-white/10 border border-white/10 rounded-full text-white font-black shadow-lg">
                       {formatPrice(item.price, item.currency)}
                     </div>
@@ -324,8 +324,8 @@ export default function Feed() {
                 {item.media && item.media.length > 0 ? (
                   <PostMediaGallery media={item.media} />
                 ) : (item.imageUrl || extractUrl(item.content)) && (
-                  <div className="bg-[#121212] aspect-square max-h-[500px] w-full flex items-center justify-center overflow-hidden border-b border-gray-50">
-                    <img src={item.imageUrl || extractUrl(item.content)} alt="Post" className="w-full h-full object-cover" />
+                  <div className="relative w-full aspect-[4/5] bg-black overflow-hidden">
+                    <img src={item.imageUrl || extractUrl(item.content)} alt="Post" className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = POST_FALLBACK_IMAGE; }} />
                   </div>
                 )}
                 
@@ -349,9 +349,9 @@ export default function Feed() {
                     <Link to={`/profile/${item.authorId}`} className="font-bold text-white hover:text-[#CDFF00] mr-2">{item.authorName || 'User'}</Link>
                     <span>{item.content}</span>
                   </div>
-                  {item.commentsCount > 0 && !expandedComments[item.id] && (
+                  {!expandedComments[item.id] && (
                     <button onClick={() => toggleComments(item.id)} className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-4 hover:text-gray-600 transition-colors bg-[#121212] px-3 py-1.5 rounded-full">
-                      View all {item.commentsCount} comments
+                      {item.commentsCount > 0 ? `View all ${item.commentsCount} comments` : 'Add a comment'}
                     </button>
                   )}
                   {expandedComments[item.id] && (

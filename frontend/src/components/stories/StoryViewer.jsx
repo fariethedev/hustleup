@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Volume2, VolumeX, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { lockBodyScroll } from '../../utils/lockBodyScroll';
-import { storiesApi } from '../../api/client';
+import { storiesApi, dispatchToast } from '../../api/client';
 
 const formatAge = (createdAt) => {
   if (!createdAt) return 'Just now';
@@ -82,10 +83,12 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
         const res = await storiesApi.unlike(story.id);
         const updated = res.data;
         setStoriesLocal(prev => prev.map((s, i) => i === storyIndex ? updated : s));
+        dispatchToast('Story unliked', 'success');
       } else {
         const res = await storiesApi.like(story.id);
         const updated = res.data;
         setStoriesLocal(prev => prev.map((s, i) => i === storyIndex ? updated : s));
+        dispatchToast('Story liked!', 'success');
       }
     } catch (err) {
       console.error('Failed to toggle like:', err);
@@ -126,14 +129,14 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
           await storiesApi.view(currentStory.id);
           setViewedIds(prev => new Set([...prev, currentStory.id]));
           onViewed?.(currentStory.id);
-          // Optionally update the local story object so the UI knows it's viewed
           if (storiesLocal[storyIndex]) {
             setStoriesLocal(prev => prev.map((s, i) => 
                i === storyIndex ? { ...s, viewedByCurrentUser: true } : s
             ));
           }
         } catch (err) {
-          console.error('Failed to mark story as viewed:', err);
+          const errorMsg = err.response?.data?.message || 'Failed to track view';
+          console.warn('View tracking failed:', errorMsg);
         }
       };
       markAsViewed();
@@ -158,6 +161,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
            src={currentStory.mediaUrl || currentStory.media}
            className="w-full h-full object-cover blur-[100px] opacity-20 scale-125"
            alt=""
+           onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
          />
       </div>
 
@@ -206,19 +210,20 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
 
         {/* Header */}
         <div className="absolute top-12 left-8 right-8 flex items-center justify-between z-30">
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-full border-2 border-[#CDFF00] p-0.5 shadow-lg bg-black/40">
+          <Link to={`/profile/${currentUser.id}`} onClick={onClose} className="flex items-center gap-4 group/author clickable">
+            <div className="w-11 h-11 rounded-full border-2 border-[#CDFF00] p-0.5 shadow-lg bg-black/40 group-hover/author:scale-110 transition-transform">
               <img 
                 src={currentUser.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.fullName || currentUser.name}`} 
                 alt="Author" 
-                className="w-full h-full rounded-full object-cover" 
+                className="w-full h-full rounded-full object-cover"
+                onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.fullName || currentUser.name}`; }}
               />
             </div>
             <div>
-              <p className="text-white text-sm font-black uppercase tracking-[0.2em]">{currentUser.fullName || currentUser.name}</p>
+              <p className="text-white text-sm font-black uppercase tracking-[0.2em] group-hover/author:text-[#CDFF00] transition-colors">{currentUser.fullName || currentUser.name}</p>
               <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mt-1 opacity-80">{formatAge(currentStoryLocal.createdAt)}</p>
             </div>
-          </div>
+          </Link>
           <button 
             onClick={() => setIsMuted(!isMuted)}
             className="p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-[#CDFF00] hover:text-black transition-all shadow-xl"
@@ -258,6 +263,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
               src={currentStoryLocal.mediaUrl || currentStoryLocal.media} 
               alt="Story Content" 
               className="w-full h-full object-cover"
+              onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
             />
           )}
         </div>

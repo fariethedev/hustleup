@@ -1,19 +1,17 @@
 package com.hustleup.social.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "posts")
-@Data
 public class Post {
     @Id
+    @Column(columnDefinition = "VARCHAR(36)")
     private String id;
 
-    @Column(name = "author_id", nullable = false)
+    @Column(name = "author_id", nullable = false, columnDefinition = "VARCHAR(36)")
     private String authorId;
 
     @Column(name = "author_name", nullable = false)
@@ -43,4 +41,39 @@ public class Post {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    public Post() {}
+
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+
+    public String getAuthorId() { return authorId; }
+    public void setAuthorId(String authorId) { this.authorId = authorId; }
+
+    public String getAuthorName() { return authorName; }
+    public void setAuthorName(String authorName) { this.authorName = authorName; }
+
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public String getMediaUrls() { return mediaUrls; }
+    public void setMediaUrls(String mediaUrls) { this.mediaUrls = mediaUrls; }
+
+    public String getMediaTypes() { return mediaTypes; }
+    public void setMediaTypes(String mediaTypes) { this.mediaTypes = mediaTypes; }
+
+    public String getLinkedListingId() { return linkedListingId; }
+    public void setLinkedListingId(String linkedListingId) { this.linkedListingId = linkedListingId; }
+
+    public Integer getLikesCount() { return likesCount == null ? 0 : likesCount; }
+    public void setLikesCount(Integer likesCount) { this.likesCount = likesCount; }
+
+    public Integer getCommentsCount() { return commentsCount == null ? 0 : commentsCount; }
+    public void setCommentsCount(Integer commentsCount) { this.commentsCount = commentsCount; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

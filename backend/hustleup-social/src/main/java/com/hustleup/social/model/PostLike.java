@@ -5,7 +5,10 @@ import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.io.Serializable;
@@ -14,6 +17,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "post_likes")
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PostLike {
     @EmbeddedId
     private PostLikeId id;
@@ -24,6 +30,8 @@ public class PostLike {
 
     @Embeddable
     @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class PostLikeId implements Serializable {
         @Column(name = "post_id")
         private String postId;

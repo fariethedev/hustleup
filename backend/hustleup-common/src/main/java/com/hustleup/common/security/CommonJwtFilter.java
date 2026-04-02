@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,7 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 
-
+@Slf4j
 public class CommonJwtFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
@@ -27,16 +28,25 @@ public class CommonJwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String token = extractToken(request);
+        String requestPath = request.getRequestURI();
 
-        if (StringUtils.hasText(token) && tokenProvider.validateToken(token)) {
-            String email = tokenProvider.getEmailFromToken(token);
-            
-            // In a real microservice, we might extract roles from JWT claims.
-            // For now, we'll just set a basic authenticated user.
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(email, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        if (StringUtils.hasText(token)) {
+            try {
+                if (tokenProvider.validateToken(token)) {
+                    String email = tokenProvider.getEmailFromToken(token);
+                    log.debug("JWT validated successfully for user: {} on path: {}", email, requestPath);
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(email, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                } else {
+                    log.warn("JWT validation failed for token on path: {}", requestPath);
+                }
+            } catch (Exception e) {
+                log.error("JWT Filter error: {} for path: {}", e.getMessage(), requestPath, e);
+            }
+        } else if (log.isDebugEnabled()) {
+            log.debug("No JWT token found in request for path: {}", requestPath);
         }
 
         filterChain.doFilter(request, response);

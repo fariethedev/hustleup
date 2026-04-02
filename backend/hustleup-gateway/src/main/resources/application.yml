@@ -3,6 +3,12 @@ spring:
     name: hustleup-gateway
   cloud:
     gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
       routes:
         - id: uploads-service
           uri: http://localhost:8081
@@ -14,40 +20,42 @@ spring:
           predicates:
             - Path=/api/v1/auth/**
 
-        - id: user-service
+        - id: users-service
           uri: http://localhost:8081
           predicates:
-            - Path=/api/v1/users/**
+            - Path=/api/v1/users/**,/api/v1/users
 
-        - id: social-service
+        - id: social-stories
           uri: http://localhost:8082
           predicates:
-            - Path=/api/v1/stories/**, /api/v1/feed/**
+            - Path=/api/v1/stories/**,/api/v1/stories
+
+        - id: social-feed
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/feed/**,/api/v1/feed
+
+        - id: social-dating
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/dating/**,/api/v1/dating
 
         - id: marketplace-service
           uri: http://localhost:8083
           predicates:
-            - Path=/api/v1/listings/**, /api/v1/bookings/**, /api/v1/reviews/**
+            - Path=/api/v1/listings/**,/api/v1/bookings/**,/api/v1/reviews/**
 
         - id: subscription-service
           uri: http://localhost:8084
           predicates:
-            - Path=/api/v1/payments/**, /api/payments/**, /api/v1/subscriptions/**
+            - Path=/api/v1/payments/**,/api/payments/**,/api/v1/subscriptions/**
 
         - id: notification-service
           uri: http://localhost:8085
           predicates:
-            - Path=/api/v1/notifications/**, /api/v1/direct-messages/**, /api/v1/messages/**
+            - Path=/api/v1/notifications/**,/api/v1/direct-messages/**,/api/v1/messages/**
 
-        - id: dating-service
-          uri: http://localhost:8082
-          predicates:
-            - Path=/api/v1/dating/**
 
-        - id: uploads-service
-          uri: http://localhost:8082
-          predicates:
-            - Path=/uploads/**
 
 server:
   port: 8000

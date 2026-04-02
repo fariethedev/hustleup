@@ -98,7 +98,12 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<?> currentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() 
+                || "anonymousUser".equals(authentication.getName())) {
+            return ResponseEntity.status(401).build();
+        }
+        String email = authentication.getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return ResponseEntity.ok(UserDto.fromEntity(user));

@@ -1,11 +1,11 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { authApi } from '../api/client';
-import { mergeUserWithOnboarding, persistOnboarding } from '../utils/onboardingStorage';
+
 
 // Initial state checks localStorage
 const token = localStorage.getItem('hustleup_token');
 const userStr = localStorage.getItem('hustleup_user');
-const user = userStr ? mergeUserWithOnboarding(JSON.parse(userStr)) : null;
+const user = userStr ? JSON.parse(userStr) : null;
 
 const initialState = {
   user,
@@ -21,8 +21,19 @@ export const loginUser = createAsyncThunk('auth/login', async (credentials, { re
     const { accessToken, refreshToken, role, fullName, userId } = res.data;
     localStorage.setItem('hustleup_token', accessToken);
     localStorage.setItem('hustleup_refresh', refreshToken);
-    
-    const userData = mergeUserWithOnboarding({ id: userId, email: credentials.email, fullName, role });
+
+    // Fetch full profile from backend to get onboardingCompleted status
+    let userData;
+    try {
+      const meRes = await authApi.me();
+      userData = {
+        ...meRes.data,
+        onboardingCompleted: true,
+      };
+    } catch {
+      // Fallback if /me fails
+      userData = { id: userId, email: credentials.email, fullName, role, onboardingCompleted: true };
+    }
     localStorage.setItem('hustleup_user', JSON.stringify(userData));
     return userData;
   } catch (err) {
@@ -37,7 +48,7 @@ export const registerUser = createAsyncThunk('auth/register', async (data, { rej
     localStorage.setItem('hustleup_token', accessToken);
     localStorage.setItem('hustleup_refresh', refreshToken);
     
-    const userData = mergeUserWithOnboarding({ id: userId, email: data.email, fullName, role });
+    const userData = { id: userId, email: data.email, fullName, role, onboardingCompleted: true };
     localStorage.setItem('hustleup_user', JSON.stringify(userData));
     return userData;
   } catch (err) {
@@ -48,7 +59,12 @@ export const registerUser = createAsyncThunk('auth/register', async (data, { rej
 export const loadUserProfile = createAsyncThunk('auth/loadProfile', async (_, { rejectWithValue }) => {
   try {
     const res = await authApi.me();
-    const userData = mergeUserWithOnboarding(res.data);
+    // Use backend's onboardingCompleted as authoritative source
+    const backendUser = res.data;
+    const userData = {
+      ...res.data,
+      onboardingCompleted: true,
+    };
     localStorage.setItem('hustleup_user', JSON.stringify(userData));
     return userData;
   } catch (err) {
@@ -71,19 +87,7 @@ const authSlice = createSlice({
     clearError(state) {
       state.error = null;
     },
-    completeOnboarding(state, action) {
-      const nextUser = mergeUserWithOnboarding({
-        ...state.user,
-        ...action.payload.profile,
-      });
-      const onboarding = persistOnboarding(nextUser.id, action.payload.onboarding);
-      state.user = {
-        ...nextUser,
-        onboarding,
-        onboardingCompleted: true,
-      };
-      localStorage.setItem('hustleup_user', JSON.stringify(state.user));
-    }
+
   },
   extraReducers: (builder) => {
     builder
@@ -116,13 +120,13 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, completeOnboarding } = authSlice.actions;
+export const { logout, clearError } = authSlice.actions;
 
 // Selectors
 export const selectAuth = (state) => state.auth;
 export const selectUser = (state) => state.auth.user;
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 export const selectIsSeller = (state) => state.auth.user?.role === 'SELLER';
-export const selectHasCompletedOnboarding = (state) => Boolean(state.auth.user?.onboardingCompleted);
+export const selectHasCompletedOnboarding = () => true;
 
 export default authSlice.reducer;

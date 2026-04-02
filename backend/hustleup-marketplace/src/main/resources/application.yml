@@ -7,7 +7,7 @@ spring:
     password: ${MYSQL_PASSWORD:francis}
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
 
 server:
   port: 8083
@@ -15,3 +15,5 @@ server:
 app:
   jwt:
     secret: HustleUpSecretKeyForJWTTokenGenerationMustBe256BitsLongAtLeast!!2026
+    access-token-expiration-ms: 900000
+    refresh-token-expiration-ms: 604800000

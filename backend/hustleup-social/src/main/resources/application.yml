@@ -7,7 +7,12 @@ spring:
     password: ${MYSQL_PASSWORD:francis}
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        type:
+          preferred_uuid_jdbc_type: VARCHAR
 
 server:
   port: 8082
@@ -15,3 +20,9 @@ server:
 app:
   jwt:
     secret: HustleUpSecretKeyForJWTTokenGenerationMustBe256BitsLongAtLeast!!2026
+    access-token-expiration-ms: 900000
+    refresh-token-expiration-ms: 604800000
+  stories:
+    expiration-hours: 24
+  upload:
+    dir: C:/Users/Admin/.gemini/antigravity/scratch/hustleup/backend/uploads

@@ -18,27 +18,25 @@ import ShopDetail from './pages/ShopDetail';
 import ShopNegotiation from './pages/ShopNegotiation';
 import ShopCheckout from './pages/ShopCheckout';
 import ShopConfirmation from './pages/ShopConfirmation';
-import Onboarding from './pages/Onboarding';
-import { selectHasCompletedOnboarding, selectIsAuthenticated } from './store/authSlice';
+import { selectIsAuthenticated } from './store/authSlice';
 import { ToastProvider } from './context/ToastContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   const location = useLocation();
-  const hideNavbar = location.pathname === '/onboarding';
 
   return (
     <>
     <ToastProvider>
-      {!hideNavbar && <Navbar />}
-      <main className={`flex-1 ${hideNavbar ? '' : 'pt-20'}`}>
+      <Navbar />
+      <main className="flex-1 pt-20">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route element={<GuestOnlyRoute />}>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Route>
-          <Route path="/onboarding" element={<OnboardingRoute />} />
+
           <Route element={<ProtectedRoute />}>
             <Route path="/shop/:id" element={<ShopDetail />} />
             <Route path="/shop/:id/product/:productId/negotiate" element={<ShopNegotiation />} />
@@ -67,42 +65,18 @@ export default function App() {
 
 function GuestOnlyRoute() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
-  const hasCompletedOnboarding = useSelector(selectHasCompletedOnboarding);
 
-  if (!isAuthenticated) {
-    return <Outlet />;
-  }
-
-  return <Navigate to={hasCompletedOnboarding ? '/dashboard' : '/onboarding'} replace />;
+  if (!isAuthenticated) return <Outlet />;
+  return <Navigate to="/dashboard" replace />;
 }
 
 function ProtectedRoute() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
-  const hasCompletedOnboarding = useSelector(selectHasCompletedOnboarding);
   const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/register" replace state={{ from: location.pathname }} />;
   }
 
-  if (!hasCompletedOnboarding) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
   return <Outlet />;
-}
-
-function OnboardingRoute() {
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const hasCompletedOnboarding = useSelector(selectHasCompletedOnboarding);
-
-  if (!isAuthenticated) {
-    return <Navigate to="/register" replace />;
-  }
-
-  if (hasCompletedOnboarding) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <Onboarding />;
 }

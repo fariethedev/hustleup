@@ -142,26 +142,32 @@ export default function DirectMessages() {
                 <h2 className="text-xl font-heading font-black text-[#CDFF00] uppercase tracking-wider">Messages</h2>
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-hide">
-                {partners.map((p) => {
-                  const isActive = p.id === activePartner;
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => setActivePartner(p.id)}
-                      className={`w-full text-left p-4 rounded-2xl transition-all border ${isActive ? 'bg-[#CDFF00]/10 border-[#CDFF00]/50' : 'bg-black/40 border-transparent hover:border-white/10'}`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center font-black overflow-hidden ${isActive ? 'bg-[#CDFF00] text-black' : 'bg-[#1e1e1e] text-white border border-white/10'}`}>
-                          {p.avatarUrl ? <img src={p.avatarUrl} className="w-full h-full object-cover" /> : p.name?.[0] || '?'}
+                {(() => {
+                  // Show existing partners first, then all other users to allow starting new chats
+                  const partnerIds = new Set(partners.map(p => p.id));
+                  const otherUsers = allUsers.filter(u => !partnerIds.has(u.id) && u.id !== user?.id);
+                  const combined = [...partners, ...otherUsers];
+                  return combined.map((p) => {
+                    const isActive = p.id === activePartner;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => setActivePartner(p.id)}
+                        className={`w-full text-left p-4 rounded-2xl transition-all border ${isActive ? 'bg-[#CDFF00]/10 border-[#CDFF00]/50' : 'bg-black/40 border-transparent hover:border-white/10'}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center font-black overflow-hidden ${isActive ? 'bg-[#CDFF00] text-black' : 'bg-[#1e1e1e] text-white border border-white/10'}`}>
+                            {p.avatarUrl ? <img src={p.avatarUrl} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }} /> : (p.name || p.fullName)?.[0] || '?'}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm font-bold truncate uppercase tracking-wider ${isActive ? 'text-[#CDFF00]' : 'text-white'}`}>{p.name || p.fullName}</p>
+                            <p className="text-[10px] text-gray-500 truncate mt-1 uppercase tracking-widest">{getStatusLine(p)}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className={`text-sm font-bold truncate uppercase tracking-wider ${isActive ? 'text-[#CDFF00]' : 'text-white'}`}>{p.name}</p>
-                          <p className="text-[10px] text-gray-500 truncate mt-1 uppercase tracking-widest">{getStatusLine(p)}</p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  });
+                })()}
               </div>
             </div>
 

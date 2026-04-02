@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Type, Image as ImageIcon, CheckCircle2, AlertCircle, Loader2, Video, ChevronRight } from 'lucide-react';
-import { storiesApi } from '../../api/client';
+import { storiesApi, dispatchToast } from '../../api/client';
 import { lockBodyScroll } from '../../utils/lockBodyScroll';
 
 export default function StoryCreator({ onClose, onSuccess }) {
@@ -93,10 +93,12 @@ export default function StoryCreator({ onClose, onSuccess }) {
 
     try {
       await storiesApi.create(formData);
+      dispatchToast('Story posted successfully!', 'success');
       onSuccess();
     } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Could not post story. Please try again.';
+      setError(errorMsg);
       console.error('Failed to create story:', err);
-      setError('Could not post story. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

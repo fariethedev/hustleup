@@ -304,7 +304,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-10">
-            <AnimatePresence mode="wait">
+            <AnimatePresence>
               {visibleUsers.slice(0, 2).map((user, i) => user && (
                 <motion.div
                   key={user.id}

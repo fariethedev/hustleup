@@ -1,8 +1,9 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSelector } from 'react-redux';
-import { authApi, storiesApi, usersApi } from '../../api/client';
+import { authApi, storiesApi, usersApi, dispatchToast } from '../../api/client';
 import { selectUser } from '../../store/authSlice';
 import StoryViewer from './StoryViewer';
 import StoryCreator from './StoryCreator';
@@ -12,6 +13,11 @@ const getDisplayName = (person) => person?.fullName || person?.name || 'User';
 const getAvatarUrl = (person) => {
   if (person?.avatarUrl) return person.avatarUrl;
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(getDisplayName(person))}`;
+};
+
+const fallbackAvatar = (e, person) => {
+  e.target.onerror = null;
+  e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(getDisplayName(person))}`;
 };
 
 const getStatusLine = (person, hasStories) => {
@@ -155,6 +161,7 @@ export default function StoryBar() {
               <img
                 src={getAvatarUrl(person)}
                 alt={getDisplayName(person)}
+                onError={(e) => fallbackAvatar(e, person)}
                 className={`w-full h-full object-cover transition-all duration-700 ${hasStories ? 'scale-110 group-hover:scale-125' : 'grayscale group-hover:grayscale-0 opacity-60 group-hover:opacity-100'}`}
               />
             </div>
@@ -169,9 +176,11 @@ export default function StoryBar() {
         </div>
         
         <div className="text-center px-2">
-          <h4 className={`text-[12px] font-black uppercase tracking-[0.2em] truncate mb-1 transition-colors ${hasUnseenStories ? 'text-[#CDFF00]' : hasStories ? 'text-[#e9d5ff]' : 'text-gray-400 group-hover:text-white'}`}>
-            {isCurrentUser ? 'Your Story' : getDisplayName(person).split(' ')[0]}
-          </h4>
+          <Link to={`/profile/${person.id}`}>
+            <h4 className={`text-[12px] font-black uppercase tracking-[0.2em] truncate mb-1 transition-colors hover:text-[#CDFF00] cursor-pointer ${hasUnseenStories ? 'text-[#CDFF00]' : hasStories ? 'text-[#e9d5ff]' : 'text-gray-400 group-hover:text-white'}`}>
+              {isCurrentUser ? 'Your Story' : getDisplayName(person).split(' ')[0]}
+            </h4>
+          </Link>
           <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest truncate opacity-60 group-hover:opacity-100 transition-opacity">
             {getStatusLine(person, hasStories)}
           </p>

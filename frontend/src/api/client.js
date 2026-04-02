@@ -20,33 +20,43 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 — attempt token refresh
+// Handle 401/403 — attempt token refresh, then logout
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
-    
-    // Auto-Toast errors (except 401s which are handled below)
-    if (error.response?.status !== 401) {
+    const status = error.response?.status;
+
+    // Skip toast for auth errors — they'll be handled by redirect/refresh
+    if (status !== 401 && status !== 403) {
       const msg = error.response?.data?.message || error.message || "An unexpected error occurred";
-      dispatchToast(msg, 'error');
+      console.error('API Error:', msg);
     }
 
-    if (error.response?.status === 401 && !original._retry) {
+    // On 401 or 403: try refreshing the access token once (only if user was authenticated)
+    const hasStoredToken = !!localStorage.getItem('hustleup_token') || !!localStorage.getItem('hustleup_refresh');
+    if ((status === 401 || status === 403) && !original._retry && hasStoredToken) {
       original._retry = true;
       const refreshToken = localStorage.getItem('hustleup_refresh');
       if (refreshToken) {
         try {
           const res = await axios.post('/api/v1/auth/refresh', { refreshToken });
-          localStorage.setItem('hustleup_token', res.data.accessToken);
-          original.headers.Authorization = `Bearer ${res.data.accessToken}`;
+          const newToken = res.data.accessToken;
+          localStorage.setItem('hustleup_token', newToken);
+          original.headers.Authorization = `Bearer ${newToken}`;
           return api(original);
         } catch {
+          // Refresh failed — clear session and redirect to login
           localStorage.removeItem('hustleup_token');
           localStorage.removeItem('hustleup_refresh');
           localStorage.removeItem('hustleup_user');
           window.location.href = '/login';
         }
+      } else {
+        // No refresh token either — clear and redirect
+        localStorage.removeItem('hustleup_token');
+        localStorage.removeItem('hustleup_user');
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);
