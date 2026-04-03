@@ -2,16 +2,38 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LISTING_TYPES, formatPrice } from '../utils/constants';
 import ReviewStars from './ReviewStars';
-import { MapPin, BadgeCheck, Trash, Zap } from 'lucide-react';
-import { useSelector } from 'react-redux';
+import { MapPin, BadgeCheck, Trash, Zap, ShoppingCart, Check } from 'lucide-react';
+import { useSelector, useDispatch } from 'react-redux';
 import { selectUser } from '../store/authSlice';
+import { addToCart, selectCartItems } from '../store/cartSlice';
+import { useState } from 'react';
 
 export default function ListingCard({ listing, index = 0, onDelete }) {
   const user = useSelector(selectUser);
+  const dispatch = useDispatch();
+  const cartItems = useSelector(selectCartItems);
   const isOwn = user?.id === listing.sellerId;
   const typeInfo = LISTING_TYPES.find((t) => t.value === listing.listingType) || LISTING_TYPES[0];
   const imageUrl = listing.mediaUrls?.[0] || null;
   const TypeIcon = typeInfo.icon;
+  const [added, setAdded] = useState(false);
+  const inCart = cartItems.some((i) => i.listingId === listing.id);
+
+  const handleAddToCart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dispatch(addToCart({
+      listingId: listing.id,
+      title: listing.title,
+      price: Number(listing.price),
+      currency: listing.currency || 'GBP',
+      image: imageUrl,
+      sellerId: listing.sellerId,
+      sellerName: listing.sellerName || 'Seller',
+    }));
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
 
   return (
     <motion.div
@@ -107,6 +129,20 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
               </div>
             </div>
           </div>
+
+          {/* Cart button row */}
+          {!isOwn && (
+            <button
+              onClick={handleAddToCart}
+              className={`mt-4 w-full py-2.5 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                inCart || added
+                  ? 'bg-green-500/20 border border-green-500/30 text-green-400'
+                  : 'bg-white/5 border border-white/10 text-white hover:bg-[#CDFF00]/10 hover:border-[#CDFF00]/30 hover:text-[#CDFF00]'
+              }`}
+            >
+              {inCart || added ? <><Check className="w-3 h-3" /> In Cart</> : <><ShoppingCart className="w-3 h-3" /> Add to Cart</>}
+            </button>
+          )}
         </div>
       </Link>
     </motion.div>

@@ -71,13 +71,17 @@ public class ReviewController {
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<ReviewDto>> getUserReviews(@PathVariable UUID userId) {
-        List<ReviewDto> reviews = reviewRepository.findByReviewedIdOrderByCreatedAtDesc(userId).stream()
-                .map(r -> {
-                    ReviewDto dto = ReviewDto.fromEntity(r);
-                    userRepository.findById(r.getReviewerId()).ifPresent(u -> dto.setReviewerName(u.getFullName()));
-                    return dto;
-                })
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(reviews);
+        try {
+            List<ReviewDto> reviews = reviewRepository.findByReviewedIdOrderByCreatedAtDesc(userId).stream()
+                    .map(r -> {
+                        ReviewDto dto = ReviewDto.fromEntity(r);
+                        userRepository.findById(r.getReviewerId()).ifPresent(u -> dto.setReviewerName(u.getFullName()));
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(reviews);
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of());
+        }
     }
 }

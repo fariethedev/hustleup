@@ -55,6 +55,7 @@ public class CommonSecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/api/v1/auth/**", "/api/v1/public/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/listings/**", "/api/v1/reviews/**", "/api/v1/users/**", "/api/v1/users").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/feed/**", "/api/v1/stories/**", "/api/v1/dating/**").permitAll()

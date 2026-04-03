@@ -99,7 +99,7 @@ public class SocialApplication {
             p1.setAuthorId("01a6a8cf-a547-4c3e-8b8d-54e8bc1798cc"); // Sarah
             p1.setAuthorName("Sarah Moyo");
             p1.setContent("Morning energy in the workspace. Planning the next big storefront drop! ☕✨ #hustle #lifestyle");
-            p1.setMediaUrls("https://assets.mixkit.co/videos/preview/mixkit-coffee-maker-machine-slow-motion-2320-large.mp4");
+            p1.setMediaUrls("https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4");
             p1.setMediaTypes("VIDEO");
             p1.setLikesCount(124);
             p1.setCommentsCount(8);
@@ -109,7 +109,7 @@ public class SocialApplication {
             p2.setAuthorId("04d09278-1f95-4300-b4eb-cc4527b744ba"); // Ibrahim
             p2.setAuthorName("Ibrahim Kone");
             p2.setContent("Deep work phase. The code doesn't write itself, but the vision makes it worth it. 💻🚀 #devlife #builder");
-            p2.setMediaUrls("https://assets.mixkit.co/videos/preview/mixkit-software-developer-working-on-a-laptop-4428-large.mp4");
+            p2.setMediaUrls("https://www.w3schools.com/html/mov_bbb.mp4");
             p2.setMediaTypes("VIDEO");
             p2.setLikesCount(210);
             p2.setCommentsCount(15);
@@ -119,7 +119,7 @@ public class SocialApplication {
             p3.setAuthorId("23d1c637-9528-493e-8659-f4d7247e635c"); // Chioma
             p3.setAuthorName("Chioma Mensah");
             p3.setContent("Just reached a new milestone on HustleUp! Thank you to everyone supporting the brand. 🥂👗 #entrepreneur #success");
-            p3.setMediaUrls("https://assets.mixkit.co/videos/preview/mixkit-woman-holding-a-shopping-bag-in-a-clothing-store-4444-large.mp4");
+            p3.setMediaUrls("https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4");
             p3.setMediaTypes("VIDEO");
             p3.setLikesCount(356);
             p3.setCommentsCount(42);

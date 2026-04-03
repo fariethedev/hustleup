@@ -2,6 +2,8 @@ package com.hustleup.messaging.controller;
 
 import com.hustleup.messaging.model.DirectMessage;
 import com.hustleup.messaging.repository.DirectMessageRepository;
+import com.hustleup.notification.model.Notification;
+import com.hustleup.notification.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/direct-messages")
@@ -17,10 +20,13 @@ public class DirectMessageController {
 
     private final DirectMessageRepository dmRepo;
     private final UserRepository userRepo;
+    private final NotificationRepository notificationRepo;
 
-    public DirectMessageController(DirectMessageRepository dmRepo, UserRepository userRepository) {
+    public DirectMessageController(DirectMessageRepository dmRepo, UserRepository userRepository,
+                                   NotificationRepository notificationRepo) {
         this.dmRepo = dmRepo;
         this.userRepo = userRepository;
+        this.notificationRepo = notificationRepo;
     }
 
     private String getCurrentUserId() {
@@ -42,7 +48,7 @@ public class DirectMessageController {
         
         for (String pid : partnerIds) {
             try {
-                userRepo.findById(java.util.UUID.fromString(pid)).ifPresent(user -> {
+                userRepo.findById(UUID.fromString(pid)).ifPresent(user -> {
                     boolean isOnline = false;
                     if (user.getLastActive() != null) {
                         isOnline = user.getLastActive().isAfter(java.time.LocalDateTime.now().minusMinutes(5));
@@ -55,7 +61,7 @@ public class DirectMessageController {
                     ));
                 });
             } catch (IllegalArgumentException e) {
-                // Ignore invalid mock partner IDs from before wipe
+                // Ignore invalid UUIDs
             }
         }
         return ResponseEntity.ok(partners);
@@ -85,6 +91,23 @@ public class DirectMessageController {
                 .build();
                 
         DirectMessage saved = dmRepo.save(msg);
+
+        // Create notification for the recipient
+        try {
+            String senderName = userRepo.findById(UUID.fromString(currentUserId))
+                    .map(u -> u.getFullName())
+                    .orElse("Someone");
+            String preview = content.length() > 60 ? content.substring(0, 60) + "…" : content;
+            notificationRepo.save(Notification.builder()
+                    .userId(UUID.fromString(partnerId))
+                    .title("New message from " + senderName)
+                    .message(preview)
+                    .notificationType("DIRECT_MESSAGE")
+                    .referenceId(UUID.fromString(currentUserId))
+                    .build());
+        } catch (Exception ignored) {}
+
         return ResponseEntity.ok(saved);
     }
 }
+

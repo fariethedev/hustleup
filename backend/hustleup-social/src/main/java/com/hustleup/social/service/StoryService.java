@@ -133,13 +133,11 @@ public class StoryService {
                 story = storyRepository.save(story);
                 log.debug("Story viewed: storyId={}, userId={}, newViewCount={}", storyId, userId, story.getViewsCount());
             }
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            // Duplicate view - just increment the count anyway
-            log.debug("Story already viewed by this user: storyId={}, userId={}", storyId, userId);
-            int currentCount = story.getViewsCount() != null ? story.getViewsCount() : 0;
-            if (currentCount > 0) {
-                story.setViewsCount(currentCount);
-            }
+        } catch (org.springframework.dao.DataIntegrityViolationException |
+                 org.springframework.dao.CannotAcquireLockException |
+                 org.springframework.dao.DeadlockLoserDataAccessException e) {
+            // Duplicate view or deadlock - silently ignore, view already counted
+            log.debug("Story view skipped (duplicate or deadlock): storyId={}, userId={}", storyId, userId);
         }
         return story;
     }

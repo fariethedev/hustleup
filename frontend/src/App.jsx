@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import CartDrawer from './components/CartDrawer';
 import Home from './pages/Home';
 import Explore from './pages/Explore';
 import ListingDetail from './pages/ListingDetail';
@@ -14,13 +15,19 @@ import Profile from './pages/Profile';
 import Feed from './pages/Feed';
 import Dating from './pages/Dating';
 import DirectMessages from './pages/DirectMessages';
+import Jobs from './pages/Jobs';
+import News from './pages/News';
 import ShopDetail from './pages/ShopDetail';
 import ShopNegotiation from './pages/ShopNegotiation';
 import ShopCheckout from './pages/ShopCheckout';
 import ShopConfirmation from './pages/ShopConfirmation';
+import Checkout from './pages/Checkout';
+import CheckoutConfirmation from './pages/CheckoutConfirmation';
 import { selectIsAuthenticated } from './store/authSlice';
 import { ToastProvider } from './context/ToastContext';
 import ErrorBoundary from './components/ErrorBoundary';
+
+import ScrollToTop from './components/ScrollToTop';
 
 export default function App() {
   const location = useLocation();
@@ -28,8 +35,10 @@ export default function App() {
   return (
     <>
     <ToastProvider>
+      <ScrollToTop />
       <Navbar />
-      <main className="flex-1 pt-20">
+      <CartDrawer />
+      <main className="flex-1 pt-16 md:pt-20 pb-20 md:pb-0">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route element={<GuestOnlyRoute />}>
@@ -45,6 +54,8 @@ export default function App() {
             <Route path="/explore" element={<Explore />} />
             <Route path="/listing/:id" element={<ListingDetail />} />
             <Route path="/create" element={<CreateListing />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/checkout/confirmation" element={<CheckoutConfirmation />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:bookingId" element={<Messages />} />
@@ -53,6 +64,8 @@ export default function App() {
             <Route path="/profile/:id" element={<Profile />} />
             <Route path="/feed" element={<ErrorBoundary><Feed /></ErrorBoundary>} />
             <Route path="/dating" element={<Dating />} />
+            <Route path="/jobs" element={<Jobs />} />
+            <Route path="/news" element={<News />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

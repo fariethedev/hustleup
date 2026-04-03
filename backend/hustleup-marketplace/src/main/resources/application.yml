@@ -17,3 +17,5 @@ app:
     secret: HustleUpSecretKeyForJWTTokenGenerationMustBe256BitsLongAtLeast!!2026
     access-token-expiration-ms: 900000
     refresh-token-expiration-ms: 604800000
+  upload:
+    dir: C:/Users/Admin/.gemini/antigravity/scratch/hustleup/backend/uploads

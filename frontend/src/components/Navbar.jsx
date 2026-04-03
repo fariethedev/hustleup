@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectUser, selectIsAuthenticated, selectIsSeller, logout } from '../store/authSlice';
 import { notificationsApi } from '../api/client';
-import { LogOut, Home, Compass, LayoutDashboard, MessageSquare, Plus, Menu, X, User, Heart, Image as ImageIcon } from 'lucide-react';
+import { LogOut, Home, Compass, LayoutDashboard, MessageSquare, Plus, User, Heart, Image as ImageIcon, Bell, Search, Briefcase, Newspaper } from 'lucide-react';
 
 export default function Navbar() {
   const dispatch = useDispatch();
@@ -13,7 +13,6 @@ export default function Navbar() {
   const isSeller = useSelector(selectIsSeller);
   
   const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
@@ -24,8 +23,6 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  useEffect(() => { setMenuOpen(false); }, [location]);
-
   useEffect(() => {
     if (isAuthenticated) {
       notificationsApi.unreadCount().then(r => setUnread(r.data.count)).catch(() => {});
@@ -34,178 +31,234 @@ export default function Navbar() {
 
   const handleLogout = () => { dispatch(logout()); navigate('/'); };
 
+  const navItems = [
+    { to: '/',        icon: Home,         label: 'Home',    always: true },
+    { to: '/explore', icon: Compass,      label: 'Explore', auth: true },
+    { to: '/feed',    icon: ImageIcon,    label: 'Feed',    auth: true },
+    { to: '/dating',  icon: Heart,        label: 'Bond',    auth: true, accent: true },
+    { to: '/news',    icon: Newspaper,    label: 'News',    auth: true },
+    { to: '/dm',      icon: MessageSquare,label: 'Messages',auth: true, badge: unread },
+    { to: '/jobs',    icon: Briefcase,    label: 'Jobs',    auth: true },
+  ];
+
+  const visibleItems = navItems.filter(item => item.always || (item.auth && isAuthenticated));
+
+  // Bottom tab items (mobile) — max 5 slots + optional centre FAB
+  const bottomTabs = [
+    { to: '/',        icon: Home,          label: 'Home',    always: true },
+    { to: '/explore', icon: Compass,       label: 'Explore', auth: true },
+    { to: '/feed',    icon: ImageIcon,     label: 'Feed',    auth: true },
+    { to: '/dm',      icon: MessageSquare, label: 'Messages',auth: true, badge: unread },
+    { to: '/dating',  icon: Heart,         label: 'Bond',    auth: true, accent: true },
+  ];
+  const visibleTabs = bottomTabs.filter(item => item.always || (item.auth && isAuthenticated));
+
+  const isActive = (to) => to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
+
   return (
-    <nav
-      id="main-navbar"
-      className={`fixed top-0 left-0 right-0 z-[200] transition-all duration-300 ${
-        scrolled ? 'glass bg-black/40 border-b border-white/5 shadow-sm' : 'bg-transparent'
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group" id="nav-logo">
-            <HustleUpLogo className="h-9 w-auto group-hover:scale-105 transition-transform" />
-            <span className="text-xl font-heading font-extrabold text-white tracking-tight uppercase">
-              Hustle<span className="text-[#CDFF00]">Up</span>
-            </span>
-          </Link>
+    <>
+      {/* ── TOP NAV BAR ── */}
+      <nav
+        id="main-navbar"
+        className={`fixed top-0 left-0 right-0 z-[200] transition-all duration-300 ${
+          scrolled ? 'glass bg-black/60 border-b border-white/5 shadow-sm backdrop-blur-2xl' : 'bg-transparent'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 md:h-20">
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-1">
-            <NavLink to="/" current={location.pathname}><Home className="w-4 h-4 mr-2" /> Home</NavLink>
-            {isAuthenticated && (
-              <>
-                <NavLink to="/explore" current={location.pathname}><Compass className="w-4 h-4 mr-2" /> Explore</NavLink>
-                <NavLink to="/feed" current={location.pathname}><ImageIcon className="w-4 h-4 mr-2" /> Feed</NavLink>
-                <NavLink to="/dating" current={location.pathname}><Heart className="w-4 h-4 mr-2 text-[#CDFF00]" /> Matches</NavLink>
-                <NavLink to="/dashboard" current={location.pathname}>
-                  <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
-                  {unread > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-black bg-[#CDFF00] rounded-full">
-                      {unread > 9 ? '9+' : unread}
-                    </span>
-                  )}
-                </NavLink>
-                <NavLink to="/dm" current={location.pathname}>
-                  <MessageSquare className="w-4 h-4 mr-2" /> DMs
-                  {unread > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-black bg-[#CDFF00] rounded-full">
-                      {unread > 9 ? '9+' : unread}
-                    </span>
-                  )}
-                </NavLink>
-                <NavLink to="/messages" current={location.pathname}><MessageSquare className="w-4 h-4 mr-2" /> Bookings</NavLink>
-              </>
-            )}
-          </div>
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2.5 group shrink-0" id="nav-logo">
+              <div className="w-9 h-9 bg-[#CDFF00] rounded-xl flex items-center justify-center font-black text-black text-xl group-hover:scale-105 transition-transform shadow-[0_0_20px_#CDFF00]/20">
+                H
+              </div>
+              <span className="text-lg md:text-xl font-heading font-extrabold text-white tracking-tight uppercase">
+                Hustle<span className="text-[#CDFF00]">Up</span>
+              </span>
+            </Link>
 
-          {/* Right side */}
-          <div className="hidden md:flex items-center gap-3">
-            {isAuthenticated ? (
-              <>
-                {isSeller && (
-                  <Link
-                    to="/create"
-                    id="nav-create-listing"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black font-extrabold text-sm hover:bg-[#b8e600] active:scale-95 transition-all shadow-md shadow-[#CDFF00]/20"
-                  >
-                    <Plus className="w-4 h-4" />
-                    New Listing
-                  </Link>
-                )}
+            {/* Desktop Nav — centered pills */}
+            <div className="hidden md:flex flex-1 items-center justify-center gap-1">
+              <div className="flex items-center gap-1 bg-white/5 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xl">
+                {visibleItems.map(({ to, icon: Icon, label, accent, badge }) => {
+                  const active = isActive(to);
+                  return (
+                    <Link
+                      key={to}
+                      to={to}
+                      className={`group relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-300
+                        ${active
+                          ? 'bg-[#CDFF00] text-black shadow-lg shadow-[#CDFF00]/10'
+                          : 'text-gray-400 hover:text-white hover:bg-white/5'
+                        }`}
+                    >
+                      <Icon className={`w-5 h-5 flex-shrink-0 ${accent && !active ? 'text-[#CDFF00]' : ''}`} />
+                      <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-[#CDFF00] text-black text-[10px] font-black px-2 py-1 rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all uppercase tracking-tighter whitespace-nowrap">
+                        {label}
+                      </span>
+                      {badge > 0 && (
+                        <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black text-black bg-[#CDFF00] rounded-full ring-2 ring-black">
+                          {badge > 9 ? '9+' : badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+                <div className="w-px h-6 bg-white/10 mx-2" />
+                <button
+                  id="global-search-trigger"
+                  className="flex items-center justify-center w-11 h-11 rounded-xl text-gray-400 hover:text-[#CDFF00] hover:bg-white/5 transition-all"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Desktop right — user menu */}
+            <div className="hidden md:flex items-center gap-3 w-[200px] justify-end">
+              {isAuthenticated ? (
                 <div className="relative group">
                   <button
                     id="nav-user-menu"
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[#1E1E1E] transition-colors"
+                    className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/10"
                   >
-                    <div className="w-8 h-8 rounded-full bg-[#CDFF00] border border-[#CDFF00] flex items-center justify-center text-black font-bold text-sm">
-                      {user?.fullName?.[0] || 'U'}
+                    <div className="w-9 h-9 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-xs uppercase shadow-sm overflow-hidden">
+                      {user?.avatarUrl
+                        ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        : user?.fullName?.[0] || 'U'}
                     </div>
-                    <span className="text-sm text-gray-300 max-w-[100px] truncate font-medium">{user?.fullName}</span>
                   </button>
-                  <div className="absolute right-0 top-full mt-2 w-48 py-2 glass bg-black/40 border border-white/10 rounded-xl shadow-xl border border-white/5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-1 group-hover:translate-y-0">
-                    <Link to={`/profile/${user?.id}`} className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-[#121212]"><User className="w-4 h-4 mr-2" /> My Profile</Link>
-                    <Link to="/dashboard" className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-[#121212]"><LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard</Link>
-                    <hr className="my-1 border-white/5" />
-                    <button onClick={handleLogout} className="flex items-center w-full text-left px-4 py-2 text-sm text-[#CDFF00] hover:bg-[#CDFF00] hover:text-black transition-colors"><LogOut className="w-4 h-4 mr-2" /> Sign Out</button>
+                  <div className="absolute right-0 top-full mt-2 w-56 py-3 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-1 group-hover:translate-y-0 backdrop-blur-3xl">
+                    <div className="px-4 py-2 border-b border-white/5 mb-2">
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Signed in as</p>
+                      <p className="text-sm text-white font-black truncate">{user?.fullName}</p>
+                    </div>
+                    <Link to={`/profile/${user?.id}`} className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold uppercase tracking-tighter"><User className="w-4 h-4 mr-3" /> Profile Hub</Link>
+                    <Link to="/dashboard" className="flex items-center px-4 py-2 text-sm text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold uppercase tracking-tighter"><LayoutDashboard className="w-4 h-4 mr-3" /> Hustle Dash</Link>
+                    <hr className="my-2 border-white/5" />
+                    <button onClick={handleLogout} className="flex items-center w-full text-left px-4 py-2 text-sm text-[#CDFF00] hover:bg-[#CDFF00] hover:text-black transition-colors font-bold uppercase tracking-tighter"><LogOut className="w-4 h-4 mr-3" /> Exit System</button>
                   </div>
                 </div>
-              </>
-            ) : (
-              <>
-                <Link to="/login" id="nav-login" className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-[#1E1E1E] transition-all">
-                  Sign In
-                </Link>
-                <Link to="/register" id="nav-register" className="px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black text-sm font-extrabold hover:bg-[#b8e600] active:scale-95 transition-all shadow-md shadow-[#CDFF00]/20">
-                  Get Started
-                </Link>
-              </>
-            )}
-          </div>
-
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-lg text-gray-300 hover:text-white hover:bg-[#1E1E1E] transition-colors"
-          >
-            {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile menu */}
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden glass bg-black/40 border border-white/10 border-t border-white/5 overflow-hidden shadow-lg"
-          >
-            <div className="px-4 py-4 space-y-1">
-              <MobileLink to="/"><Home className="w-4 h-4 mr-2" /> Home</MobileLink>
-              {isAuthenticated && (
-                <>
-                  <MobileLink to="/explore"><Compass className="w-4 h-4 mr-2" /> Explore</MobileLink>
-                  <MobileLink to="/feed"><ImageIcon className="w-4 h-4 mr-2" /> Feed</MobileLink>
-                  <MobileLink to="/dating"><Heart className="w-4 h-4 mr-2 text-[#CDFF00]" /> Matches</MobileLink>
-                  <MobileLink to="/dashboard"><LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard</MobileLink>
-                  <MobileLink to="/dm">
-                    <MessageSquare className="w-4 h-4 mr-2" /> DMs
-                    {unread > 0 && (
-                      <span className="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-bold text-black bg-[#CDFF00] rounded-full">
-                        {unread > 9 ? '9+' : unread}
-                      </span>
-                    )}
-                  </MobileLink>
-                  <MobileLink to="/messages"><MessageSquare className="w-4 h-4 mr-2" /> Bookings</MobileLink>
-                  {isSeller && <MobileLink to="/create"><Plus className="w-4 h-4 mr-2" /> New Listing</MobileLink>}
-                  <hr className="border-white/5 my-2" />
-                  <button onClick={handleLogout} className="flex items-center w-full text-left px-4 py-3 rounded-lg text-[#CDFF00] hover:bg-[#CDFF00] hover:text-black text-sm font-bold transition-colors"><LogOut className="w-4 h-4 mr-2" /> Sign Out</button>
-                </>
-              )}
-              {!isAuthenticated && (
-                <>
-                  <MobileLink to="/login">Sign In</MobileLink>
-                  <MobileLink to="/register">Get Started</MobileLink>
-                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link to="/login" className="px-4 py-2 text-xs font-black text-gray-400 hover:text-white uppercase tracking-widest">Sign In</Link>
+                  <Link to="/register" className="px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black text-xs font-black hover:bg-[#b8e600] active:scale-95 transition-all shadow-lg shadow-[#CDFF00]/10 uppercase tracking-widest">Join</Link>
+                </div>
               )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </nav>
+
+            {/* Mobile right — avatar or sign-in */}
+            <div className="flex md:hidden items-center gap-2">
+              {isAuthenticated ? (
+                <Link to={`/profile/${user?.id}`} className="w-9 h-9 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-xs uppercase overflow-hidden border-2 border-white/10">
+                  {user?.avatarUrl
+                    ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    : user?.fullName?.[0] || 'U'}
+                </Link>
+              ) : (
+                <Link to="/login" className="px-4 py-2 rounded-xl bg-[#CDFF00] text-black text-xs font-black uppercase tracking-widest">
+                  Sign In
+                </Link>
+              )}
+            </div>
+
+          </div>
+        </div>
+      </nav>
+
+      {/* ── MOBILE BOTTOM TAB BAR ── */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[200] bg-[#0a0a0a]/95 border-t border-white/8 backdrop-blur-2xl safe-area-pb">
+        <div className="flex items-stretch">
+
+          {visibleTabs.map(({ to, icon: Icon, label, accent, badge }) => {
+            const active = isActive(to);
+            return (
+              <Link
+                key={to}
+                to={to}
+                className="flex-1 flex flex-col items-center justify-center py-3 gap-1 relative transition-colors"
+              >
+                <div className={`relative flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-200 ${
+                  active ? 'bg-[#CDFF00]' : 'bg-transparent'
+                }`}>
+                  <Icon className={`w-5 h-5 transition-colors ${
+                    active ? 'text-black' : accent ? 'text-[#CDFF00]' : 'text-gray-400'
+                  }`} />
+                  {badge > 0 && (
+                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-0.5 text-[9px] font-black text-black bg-[#CDFF00] rounded-full ring-1 ring-[#0a0a0a]">
+                      {badge > 9 ? '9+' : badge}
+                    </span>
+                  )}
+                </div>
+                <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${
+                  active ? 'text-[#CDFF00]' : 'text-gray-600'
+                }`}>
+                  {label}
+                </span>
+              </Link>
+            );
+          })}
+
+          {/* Centre FAB — create, for sellers */}
+          {isAuthenticated && isSeller && (
+            <Link
+              to="/create"
+              className="flex-1 flex flex-col items-center justify-center py-3 gap-1"
+            >
+              <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-[#CDFF00] shadow-[0_4px_20px_rgba(205,255,0,0.4)]">
+                <Plus className="w-5 h-5 text-black" />
+              </div>
+              <span className="text-[9px] font-black uppercase tracking-widest text-[#CDFF00]">Drop</span>
+            </Link>
+          )}
+
+          {/* Profile tab */}
+          {isAuthenticated ? (
+            <Link
+              to={`/profile/${user?.id}`}
+              className="flex-1 flex flex-col items-center justify-center py-3 gap-1"
+            >
+              <div className={`w-10 h-10 rounded-2xl overflow-hidden border-2 transition-all ${
+                location.pathname.startsWith('/profile') ? 'border-[#CDFF00]' : 'border-white/10'
+              }`}>
+                {user?.avatarUrl
+                  ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  : <div className="w-full h-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-xs">{user?.fullName?.[0] || 'U'}</div>
+                }
+              </div>
+              <span className={`text-[9px] font-black uppercase tracking-widest ${
+                location.pathname.startsWith('/profile') ? 'text-[#CDFF00]' : 'text-gray-600'
+              }`}>
+                Me
+              </span>
+            </Link>
+          ) : (
+            <Link
+              to="/register"
+              className="flex-1 flex flex-col items-center justify-center py-3 gap-1"
+            >
+              <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-white/5 border border-white/10">
+                <User className="w-5 h-5 text-gray-400" />
+              </div>
+              <span className="text-[9px] font-black uppercase tracking-widest text-gray-600">Join</span>
+            </Link>
+          )}
+
+        </div>
+      </div>
+    </>
   );
 }
 
 function HustleUpLogo({ className }) {
   return (
     <svg className={className} viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8 4h16v20h12V4h16v52H36V36H24v20H8V4z" fill="#8B5CF6" />
-      <path d="M30 28l3.09 6.26L40 35.27l-5 4.87 1.18 6.86L30 43.77l-6.18 3.23L25 40.14l-5-4.87 6.91-1.01L30 28z" fill="white" />
+      <path d="M8 4h16v20h12V4h16v52H36V36H24v20H8V4z" fill="#CDFF00" />
+      <path d="M30 28l3.09 6.26L40 35.27l-5 4.87 1.18 6.86L30 43.77l-6.18 3.23L25 40.14l-5-4.87 6.91-1.01L30 28z" fill="black" />
     </svg>
   );
 }
 
-function NavLink({ to, current, children }) {
-  const active = current === to || (to !== '/' && current.startsWith(to));
-  return (
-    <Link
-      to={to}
-      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center ${
-        active ? 'text-black bg-[#CDFF00]' : 'text-gray-400 hover:text-white hover:bg-[#121212]'
-      }`}
-    >
-      {children}
-    </Link>
-  );
-}
 
-function MobileLink({ to, children }) {
-  return (
-    <Link to={to} className="flex items-center px-4 py-3 rounded-lg text-gray-300 hover:text-white hover:bg-[#121212] text-sm font-semibold">
-      {children}
-    </Link>
-  );
-}
+
+

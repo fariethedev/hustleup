@@ -25,34 +25,40 @@ public class NotificationController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Notification>> getMyNotifications() {
-        User user = getCurrentUser();
-        return ResponseEntity.ok(notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId()));
+    public ResponseEntity<?> getMyNotifications() {
+        return getCurrentUser()
+                .map(user -> ResponseEntity.ok((Object) notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId())))
+                .orElse(ResponseEntity.ok(List.of()));
     }
 
     @GetMapping("/unread-count")
     public ResponseEntity<Map<String, Long>> getUnreadCount() {
-        User user = getCurrentUser();
-        long count = notificationRepository.countByUserIdAndReadFalse(user.getId());
-        return ResponseEntity.ok(Map.of("count", count));
+        return getCurrentUser()
+                .map(user -> ResponseEntity.ok(Map.of("count", notificationRepository.countByUserIdAndReadFalse(user.getId()))))
+                .orElse(ResponseEntity.ok(Map.of("count", 0L)));
     }
 
     @PatchMapping("/{id}/read")
     public ResponseEntity<?> markRead(@PathVariable UUID id) {
-        User currentUser = getCurrentUser();
-        Notification notification = notificationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Notification not found"));
-        if (!notification.getUserId().equals(currentUser.getId())) {
-            throw new RuntimeException("Not authorized to update this notification");
-        }
-        notification.setRead(true);
-        notificationRepository.save(notification);
-        return ResponseEntity.ok(Map.of("success", true));
+        return getCurrentUser()
+                .map(user -> {
+                    Notification notification = notificationRepository.findById(id)
+                            .orElseThrow(() -> new RuntimeException("Notification not found"));
+                    if (!notification.getUserId().equals(user.getId())) {
+                        throw new RuntimeException("Not authorized to update this notification");
+                    }
+                    notification.setRead(true);
+                    notificationRepository.save(notification);
+                    return ResponseEntity.ok(Map.of("success", true));
+                })
+                .orElse(ResponseEntity.status(401).build());
     }
 
-    private User getCurrentUser() {
+    private java.util.Optional<User> getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (email == null || email.equals("anonymousUser")) {
+            return java.util.Optional.empty();
+        }
+        return userRepository.findByEmail(email);
     }
 }

@@ -129,14 +129,19 @@ public class ListingService {
 
     private ListingDto enrichDto(Listing listing) {
         ListingDto dto = ListingDto.fromEntity(listing);
-        userRepository.findById(listing.getSellerId()).ifPresent(seller -> {
-            dto.setSellerName(seller.getFullName());
-            dto.setSellerAvatarUrl(seller.getAvatarUrl());
-            dto.setSellerVerified(seller.isIdVerified());
-        });
-        Double avg = reviewRepository.averageRatingForUser(listing.getSellerId());
-        dto.setAvgRating(avg != null ? avg : 0.0);
-        dto.setReviewCount(reviewRepository.countByReviewedId(listing.getSellerId()));
+        try {
+            userRepository.findById(listing.getSellerId()).ifPresent(seller -> {
+                dto.setSellerName(seller.getFullName());
+                dto.setSellerAvatarUrl(seller.getAvatarUrl());
+                dto.setSellerVerified(seller.isIdVerified());
+            });
+            Double avg = reviewRepository.averageRatingForUser(listing.getSellerId());
+            dto.setAvgRating(avg != null ? avg : 0.0);
+            dto.setReviewCount(reviewRepository.countByReviewedId(listing.getSellerId()));
+        } catch (Exception e) {
+            dto.setAvgRating(0.0);
+            dto.setReviewCount(0);
+        }
         return dto;
     }
 }

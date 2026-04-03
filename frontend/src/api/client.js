@@ -116,6 +116,7 @@ export const reviewsApi = {
 export const notificationsApi = {
   getAll: () => api.get('/notifications'),
   unreadCount: () => api.get('/notifications/unread-count'),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
   markRead: (id) => api.patch(`/notifications/${id}/read`),
 };
 
@@ -123,7 +124,12 @@ export const notificationsApi = {
 export const usersApi = {
   getAll: () => api.get('/users'),
   getProfile: (id) => api.get(`/users/${id}/profile`),
-  updateProfile: (data) => api.patch('/users/me', data),
+  updateProfile: (data) => {
+    const isMultipart = data instanceof FormData;
+    return api.patch('/users/me', data, {
+      headers: isMultipart ? { 'Content-Type': 'multipart/form-data' } : {}
+    });
+  },
   followUser: (id) => api.post(`/users/${id}/follow`),
   unfollowUser: (id) => api.delete(`/users/${id}/follow`),
 };
@@ -141,7 +147,8 @@ export const feedApi = {
 // Dating
 export const datingApi = {
   getProfiles: () => api.get('/dating/profiles'),
-  saveProfile: (formData) => api.post('/dating/profile', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getMyProfile: () => api.get('/dating/profile/me'),
+  saveProfile: (formData) => api.post('/dating/profile', formData),
 };
 
 // Subscriptions
