@@ -118,6 +118,7 @@ export const notificationsApi = {
   unreadCount: () => api.get('/notifications/unread-count'),
   getUnreadCount: () => api.get('/notifications/unread-count'),
   markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch('/notifications/read-all'),
 };
 
 // Users

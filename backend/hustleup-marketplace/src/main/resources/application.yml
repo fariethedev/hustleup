@@ -1,6 +1,10 @@
 spring:
   application:
     name: hustleup-marketplace
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
   datasource:
     url: jdbc:mysql://localhost:3306/hustleup?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
@@ -19,3 +23,9 @@ app:
     refresh-token-expiration-ms: 604800000
   upload:
     dir: C:/Users/Admin/.gemini/antigravity/scratch/hustleup/backend/uploads
+  aws:
+    access-key: ${AWS_ACCESS_KEY_ID:}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:}
+    region: ${AWS_REGION:us-east-1}
+    s3:
+      bucket: ${AWS_S3_BUCKET:hustle-up}

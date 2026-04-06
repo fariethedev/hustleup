@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-const DEFAULT_PORT = '8080';
+const DEFAULT_PORT = '8000';
 const API_PATH = '/api/v1';
 
 const trimTrailingSlash = (value) => value.replace(/\/+$/, '');
@@ -32,11 +32,12 @@ const getConfiguredBaseUrl = () => {
 };
 
 const resolveApiUrl = () => {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return withApiPath(window.location.origin);
+  const configured = getConfiguredBaseUrl();
+
+  if (Platform.OS === 'web') {
+    return configured || `http://localhost:${DEFAULT_PORT}${API_PATH}`;
   }
 
-  const configured = getConfiguredBaseUrl();
   const expoHost = getHostFromExpo();
 
   if (expoHost) {
@@ -46,7 +47,6 @@ const resolveApiUrl = () => {
       }
       return `http://localhost:${DEFAULT_PORT}${API_PATH}`;
     }
-
     return `http://${expoHost}:${DEFAULT_PORT}${API_PATH}`;
   }
 
@@ -79,6 +79,49 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+let _isRefreshing = false;
+let _failedQueue = [];
+
+const _processQueue = (error, token = null) => {
+  _failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token)));
+  _failedQueue = [];
+};
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config;
+    if (error.response?.status === 401 && !original._retry) {
+      if (_isRefreshing) {
+        return new Promise((resolve, reject) => {
+          _failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          original.headers.Authorization = `Bearer ${token}`;
+          return api(original);
+        });
+      }
+      original._retry = true;
+      _isRefreshing = true;
+      try {
+        const refreshToken = await AsyncStorage.getItem('hustleup_refresh');
+        if (!refreshToken) throw new Error('No refresh token');
+        const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+        await AsyncStorage.setItem('hustleup_token', data.accessToken);
+        _processQueue(null, data.accessToken);
+        original.headers.Authorization = `Bearer ${data.accessToken}`;
+        return api(original);
+      } catch (refreshErr) {
+        _processQueue(refreshErr, null);
+        await AsyncStorage.multiRemove(['hustleup_token', 'hustleup_refresh', 'hustleup_user']);
+        return Promise.reject(refreshErr);
+      } finally {
+        _isRefreshing = false;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const authApi = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
@@ -88,6 +131,7 @@ export const authApi = {
 export const storiesApi = {
   getAll: () => api.get('/stories'),
   create: (formData) => api.post('/stories', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  delete: (id) => api.delete(`/stories/${id}`),
   like: (id) => api.post(`/stories/${id}/likes`),
   unlike: (id) => api.delete(`/stories/${id}/likes`),
   view: (id) => api.post(`/stories/${id}/views`),
@@ -95,6 +139,67 @@ export const storiesApi = {
 
 export const usersApi = {
   getAll: () => api.get('/users'),
+  getProfile: (id) => api.get(`/users/${id}/profile`),
+  getMyViewers: () => api.get('/users/me/viewers'),
+  updateProfile: (data) => api.patch('/users/me', data),
+  uploadAvatar: (formData) => api.patch('/users/me/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  uploadBanner: (formData) => api.patch('/users/me/banner', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+};
+
+export const followsApi = {
+  getFollowers: (userId) => api.get(userId ? `/follows/${userId}/followers` : '/follows/followers'),
+  getFollowing: (userId) => api.get(userId ? `/follows/${userId}/following` : '/follows/following'),
+  getMyFollowers: () => api.get('/follows/followers'),
+  getMyFollowing: () => api.get('/follows/following'),
+  getCounts: (userId) => api.get(`/follows/${userId}/counts`),
+  isFollowing: (userId) => api.get(`/follows/${userId}/is-following`),
+  follow: (id) => api.post(`/follows/${id}`),
+  unfollow: (id) => api.delete(`/follows/${id}`),
+};
+
+export const listingsApi = {
+  browse: (params) => api.get('/listings', { params }),
+  search: (q) => api.get('/listings/search', { params: { q } }),
+  getById: (id) => api.get(`/listings/${id}`),
+  create: (formData) => api.post('/listings', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getMyListings: () => api.get('/listings/my'),
+  forFeed: () => api.get('/listings', { params: { sort: 'latest' } }),
+  getRecommended: () => api.get('/listings/recommended'),
+  getByUser: (userId) => api.get(`/listings/user/${userId}`),
+};
+
+export const feedApi = {
+  getPosts: (sort = 'latest') => api.get('/feed', { params: { sort } }),
+  createPost: (formData) => api.post('/feed', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  likePost: (id) => api.post(`/feed/${id}/likes`),
+  unlikePost: (id) => api.delete(`/feed/${id}/likes`),
+  getComments: (id) => api.get(`/feed/${id}/comments`),
+  addComment: (id, content, parentId) => {
+    const body = { content };
+    if (parentId) body.parentId = parentId;
+    return api.post(`/feed/${id}/comments`, body);
+  },
+};
+
+export const datingApi = {
+  getProfiles: () => api.get('/dating/profiles'),
+  getMyProfile: () => api.get('/dating/profile/me'),
+  saveProfile: (formData) => api.post('/dating/profile', formData),
+  likeProfile: (id) => api.post(`/dating/like/${id}`),
+  passProfile: (id) => api.post(`/dating/pass/${id}`),
+};
+
+export const directMessagesApi = {
+  getPartners: () => api.get('/direct-messages/partners'),
+  getConversation: (partnerId) => api.get(`/direct-messages/${partnerId}`),
+  sendMessage: (partnerId, content) => api.post(`/direct-messages/${partnerId}`, { content }),
+};
+
+export const notificationsApi = {
+  getAll: () => api.get('/notifications'),
+  unreadCount: () => api.get('/notifications/unread-count'),
+  markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch('/notifications/read-all'),
 };
 
 export { API_URL };

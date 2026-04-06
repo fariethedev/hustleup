@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
+import { lockBodyScroll } from '../utils/lockBodyScroll';
 import {
   selectCartItems,
   selectCartOpen,
@@ -20,6 +22,12 @@ export default function CartDrawer() {
   const open = useSelector(selectCartOpen);
   const total = useSelector(selectCartTotal);
   const count = useSelector(selectCartCount);
+
+  useEffect(() => {
+    if (!open) return;
+    const unlock = lockBodyScroll();
+    return () => unlock();
+  }, [open]);
 
   const checkout = () => {
     dispatch(closeCart());

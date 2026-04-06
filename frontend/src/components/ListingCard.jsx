@@ -129,22 +129,31 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
               </div>
             </div>
           </div>
-
-          {/* Cart button row */}
-          {!isOwn && (
-            <button
-              onClick={handleAddToCart}
-              className={`mt-4 w-full py-2.5 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                inCart || added
-                  ? 'bg-green-500/20 border border-green-500/30 text-green-400'
-                  : 'bg-white/5 border border-white/10 text-white hover:bg-[#CDFF00]/10 hover:border-[#CDFF00]/30 hover:text-[#CDFF00]'
-              }`}
-            >
-              {inCart || added ? <><Check className="w-3 h-3" /> In Cart</> : <><ShoppingCart className="w-3 h-3" /> Add to Cart</>}
-            </button>
-          )}
         </div>
       </Link>
+
+      {/* Cart button OUTSIDE the Link to prevent navigation on click */}
+      {!isOwn && (
+        <button
+          onClick={handleAddToCart}
+          className={`mt-2 w-full py-2.5 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+            inCart || added
+              ? 'bg-green-500/20 border border-green-500/30 text-green-400'
+              : 'bg-white/5 border border-white/10 text-white hover:bg-[#CDFF00]/10 hover:border-[#CDFF00]/30 hover:text-[#CDFF00]'
+          }`}
+        >
+          {inCart || added ? <><Check className="w-3 h-3" /> In Cart</> : <><ShoppingCart className="w-3 h-3" /> Add to Cart</>}
+        </button>
+      )}
+
+      {isOwn && onDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(listing.id); }}
+          className="mt-2 w-full py-2 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/30 transition-all"
+        >
+          <Trash className="w-3 h-3" /> Delete Listing
+        </button>
+      )}
     </motion.div>
   );
 }

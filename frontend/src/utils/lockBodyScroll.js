@@ -1,25 +1,18 @@
 export function lockBodyScroll() {
-  const scrollY = window.scrollY;
-  const bodyStyle = document.body.style;
+  const originalStyle = window.getComputedStyle(document.body).overflow;
+  const originalPadding = document.body.style.paddingRight;
+  
+  // Calculate scrollbar width to prevent "jumping" when scrollbar disappears
+  const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 
-  bodyStyle.position = 'fixed';
-  bodyStyle.top = `-${scrollY}px`;
-  bodyStyle.left = '0';
-  bodyStyle.right = '0';
-  bodyStyle.width = '100%';
-  bodyStyle.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+  
+  if (scrollbarWidth > 0) {
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+  }
 
   return () => {
-    const top = bodyStyle.top;
-
-    bodyStyle.position = '';
-    bodyStyle.top = '';
-    bodyStyle.left = '';
-    bodyStyle.right = '';
-    bodyStyle.width = '';
-    bodyStyle.overflow = '';
-
-    const offset = top ? Number.parseInt(top, 10) : 0;
-    window.scrollTo(0, Number.isNaN(offset) ? scrollY : Math.abs(offset));
+    document.body.style.overflow = originalStyle === 'hidden' ? '' : originalStyle;
+    document.body.style.paddingRight = originalPadding;
   };
 }

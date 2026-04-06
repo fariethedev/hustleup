@@ -143,7 +143,7 @@ export default function Feed() {
     if (!commentInput.trim() || !selectedPost) return;
     setCommenting(true);
     try {
-      const res = await feedApi.addComment(selectedPost.id, { content: commentInput });
+      const res = await feedApi.addComment(selectedPost.id, commentInput.trim());
       setComments([...comments, res.data]);
       setCommentInput('');
       setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p));
@@ -153,6 +153,12 @@ export default function Feed() {
       setCommenting(false);
     }
   };
+
+  useEffect(() => {
+    if (!selectedPost) return;
+    const unlock = lockBodyScroll();
+    return () => unlock();
+  }, [selectedPost]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 pb-24">

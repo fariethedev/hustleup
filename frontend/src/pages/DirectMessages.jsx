@@ -90,6 +90,9 @@ export default function DirectMessages() {
     directMessagesApi.getConversation(id)
       .then(res => setMessages(res.data || []))
       .catch(e => console.error(e));
+    // Mark all notifications as read when viewing messages
+    notificationsApi.markAllRead().catch(() => {});
+    setUnreadNotifications(0);
   };
 
   const sendMessage = async (e) => {

@@ -1,14 +1,25 @@
 spring:
   application:
     name: hustleup-gateway
+  codec:
+    max-in-memory-size: 500MB
   cloud:
     gateway:
       globalcors:
         cors-configurations:
           '[/**]':
             allowedOrigins: "*"
-            allowedMethods: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+              - HEAD
             allowedHeaders: "*"
+            exposedHeaders:
+              - "Authorization"
       routes:
         - id: uploads-service
           uri: http://localhost:8081
@@ -29,6 +40,11 @@ spring:
           uri: http://localhost:8082
           predicates:
             - Path=/api/v1/stories/**,/api/v1/stories
+
+        - id: social-follows
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/follows/**,/api/v1/follows
 
         - id: social-feed
           uri: http://localhost:8082

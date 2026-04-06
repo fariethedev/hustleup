@@ -38,7 +38,7 @@ export default function App() {
       <ScrollToTop />
       <Navbar />
       <CartDrawer />
-      <main className="flex-1 pt-16 md:pt-20 pb-20 md:pb-0">
+      <main className={`flex-1 ${location.pathname === '/' ? 'pt-0 pb-0' : 'pt-16 md:pt-20 pb-20 md:pb-0'}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route element={<GuestOnlyRoute />}>
@@ -46,13 +46,17 @@ export default function App() {
             <Route path="/register" element={<Register />} />
           </Route>
 
+          {/* Publicly Browseable */}
+          <Route path="/explore" element={<Explore />} />
+          <Route path="/listing/:id" element={<ListingDetail />} />
+          <Route path="/profile/:id" element={<Profile />} />
+          <Route path="/feed" element={<ErrorBoundary><Feed /></ErrorBoundary>} />
+
           <Route element={<ProtectedRoute />}>
             <Route path="/shop/:id" element={<ShopDetail />} />
             <Route path="/shop/:id/product/:productId/negotiate" element={<ShopNegotiation />} />
             <Route path="/shop/:id/product/:productId/checkout" element={<ShopCheckout />} />
             <Route path="/shop/:id/product/:productId/confirmation" element={<ShopConfirmation />} />
-            <Route path="/explore" element={<Explore />} />
-            <Route path="/listing/:id" element={<ListingDetail />} />
             <Route path="/create" element={<CreateListing />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/checkout/confirmation" element={<CheckoutConfirmation />} />
@@ -61,8 +65,6 @@ export default function App() {
             <Route path="/messages/:bookingId" element={<Messages />} />
             <Route path="/dm" element={<DirectMessages />} />
             <Route path="/dm/:partnerId" element={<DirectMessages />} />
-            <Route path="/profile/:id" element={<Profile />} />
-            <Route path="/feed" element={<ErrorBoundary><Feed /></ErrorBoundary>} />
             <Route path="/dating" element={<Dating />} />
             <Route path="/jobs" element={<Jobs />} />
             <Route path="/news" element={<News />} />
@@ -70,7 +72,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      <Footer />
+      {location.pathname !== '/' && <Footer />}
     </ToastProvider>
     </>
   );

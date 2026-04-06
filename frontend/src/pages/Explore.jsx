@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { listingsApi } from '../api/client';
 import { LISTING_TYPES } from '../utils/constants';
 import ListingCard from '../components/ListingCard';
-import { Search, SearchX, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, SearchX, ChevronLeft, ChevronRight, ArrowLeft, Home, Image as ImageIcon } from 'lucide-react';
 
 export default function Explore() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,6 +76,27 @@ export default function Explore() {
   return (
     <div className="min-h-screen pt-10">
       <div className="pt-8 pb-6 px-4 max-w-7xl mx-auto">
+        {/* Back navigation */}
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/30 transition-all text-xs font-black uppercase tracking-widest"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back
+          </button>
+                  <Link
+                    to="/feed"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-[#CDFF00] hover:border-[#CDFF00]/30 transition-all text-xs font-black uppercase tracking-widest"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" /> Feed
+                  </Link>
+                  <Link
+                    to="/"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-[#CDFF00] hover:border-[#CDFF00]/30 transition-all text-xs font-black uppercase tracking-widest"
+                  >
+                    <Home className="w-3.5 h-3.5" /> Home
+                  </Link>
+        </div>
         <span className="inline-block px-3 py-1 text-[10px] font-black uppercase tracking-widest bg-[#CDFF00]/10 text-[#CDFF00] border border-[#CDFF00]/20 rounded-full mb-3">DISCOVER LIMITLESS POSSIBILITIES</span>
         <h1 className="text-4xl font-black text-white uppercase tracking-tight">Hustle <span className="text-[#CDFF00]">Scout</span></h1>
         <p className="text-gray-500 text-sm mt-1">Uncover trending opportunities and elite creators. The frontier of modern collaboration begins here.</p>

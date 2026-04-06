@@ -209,7 +209,7 @@ export default function Dating() {
   );
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pb-24 relative overflow-hidden">
+    <div className="min-h-screen bg-[#050505] text-white pb-24 relative">
       <div className="pt-8 pb-6 px-4 max-w-7xl mx-auto text-center">
         <span className="inline-block px-3 py-1 text-[10px] font-black uppercase tracking-widest bg-[#CDFF00]/10 text-[#CDFF00] border border-[#CDFF00]/20 rounded-full mb-3">ELITE NETWORKING HUB</span>
         <h1 className="text-4xl font-black text-white uppercase tracking-tight">Hustle <span className="text-[#CDFF00]">Bond</span></h1>

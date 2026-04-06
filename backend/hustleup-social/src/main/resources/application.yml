@@ -1,6 +1,10 @@
 spring:
   application:
     name: hustleup-social
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
   datasource:
     url: jdbc:mysql://localhost:3306/hustleup?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
@@ -13,6 +17,33 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         type:
           preferred_uuid_jdbc_type: VARCHAR
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      connect-timeout: 2s
+      timeout: 2s
+  cache:
+    type: ${CACHE_TYPE:redis}
+    redis:
+      time-to-live: 60000   # 1 minute — short enough for avatar/profile changes to appear quickly
+      cache-null-values: false
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      retries: 0
+      # max.block.ms controls how long producer.send() will block waiting for
+      # metadata or buffer space before throwing a TimeoutException.
+      # Default is 60000ms (60s) — far too long for a local dev environment
+      # where Kafka may not be running.  500ms gives up almost instantly.
+      properties:
+        max.block.ms: 500
+        request.timeout.ms: 1000
+        delivery.timeout.ms: 1500
+    admin:
+      fail-fast: false
 
 server:
   port: 8082
@@ -26,3 +57,9 @@ app:
     expiration-hours: 24
   upload:
     dir: C:/Users/Admin/.gemini/antigravity/scratch/hustleup/backend/uploads
+  aws:
+    access-key: ${AWS_ACCESS_KEY_ID:}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:}
+    region: ${AWS_REGION:us-east-1}
+    s3:
+      bucket: ${AWS_S3_BUCKET:hustle-up}

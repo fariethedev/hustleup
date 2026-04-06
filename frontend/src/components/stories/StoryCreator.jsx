@@ -14,7 +14,10 @@ export default function StoryCreator({ onClose, onSuccess }) {
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
-  useEffect(() => lockBodyScroll(), []);
+  useEffect(() => {
+    const unlock = lockBodyScroll();
+    return () => unlock();
+  }, []);
 
   useEffect(() => (
     () => {
@@ -167,11 +170,11 @@ export default function StoryCreator({ onClose, onSuccess }) {
                     placeholder="Type something fire..."
                     className="w-full min-h-[300px] bg-transparent text-white text-4xl font-black uppercase text-center focus:outline-none placeholder:text-gray-900 leading-tight resize-none italic px-4"
                     rows={6}
-                    maxLength={150}
+                    maxLength={300}
                   />
                   <div className="text-center mt-4">
                     <span className="px-4 py-1.5 rounded-full bg-white/5 text-gray-600 text-[10px] font-black tracking-widest uppercase">
-                      {content.length} / 150
+                      {content.length} / 300
                     </span>
                   </div>
                 </motion.div>

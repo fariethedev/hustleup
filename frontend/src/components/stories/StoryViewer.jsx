@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Volume2, VolumeX, ChevronLeft, ChevronRight, Heart, Share, Play, Pause, SkipBack, SkipForward, Send, User, BadgeCheck } from 'lucide-react';
+import { X, Volume2, VolumeX, ChevronLeft, ChevronRight, Heart, Share, Play, Pause, SkipBack, SkipForward, Send, User, BadgeCheck, Trash2 } from 'lucide-react';
 import { lockBodyScroll } from '../../utils/lockBodyScroll';
 import { storiesApi, dispatchToast } from '../../api/client';
+import { useSelector } from 'react-redux';
+import { selectUser } from '../../store/authSlice';
 
 const formatAge = (createdAt) => {
   if (!createdAt) return 'Just now';
@@ -15,7 +17,7 @@ const formatAge = (createdAt) => {
   return `${Math.floor(diffHours / 24)}d`;
 };
 
-export default function StoryViewer({ users, initialUserIndex, onClose, onCreateStory, onViewed }) {
+export default function StoryViewer({ users, initialUserIndex, onClose, onCreateStory, onViewed, onDeleted }) {
   const [userIndex, setUserIndex] = useState(initialUserIndex);
   const [storyIndex, setStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -24,14 +26,14 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
   const [showControls, setShowControls] = useState(true);
   const [storiesLocal, setStoriesLocal] = useState([]);
   const [likeInProgress, setLikeInProgress] = useState(false);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [viewedIds, setViewedIds] = useState(new Set());
   const videoRef = useRef(null);
   const controlsTimer = useRef(null);
+  const loggedInUser = useSelector(selectUser);
 
   const currentUser = users[userIndex];
   const stories = currentUser?.stories || [];
-
-  useEffect(() => lockBodyScroll(), []);
 
   useEffect(() => {
     setStoriesLocal(stories);
@@ -121,6 +123,35 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
     }
   };
 
+  const handleDelete = async (e) => {
+    e.stopPropagation();
+    if (deleteInProgress || !currentStory) return;
+    if (!window.confirm('Delete this story?')) return;
+    setDeleteInProgress(true);
+    try {
+      await storiesApi.delete(currentStory.id);
+      dispatchToast('Story deleted', 'success');
+      const remaining = storiesLocal.filter(s => s.id !== currentStory.id);
+      if (remaining.length === 0) {
+        nextUser();
+      } else {
+        setStoriesLocal(remaining);
+        setStoryIndex(Math.min(storyIndex, remaining.length - 1));
+      }
+      if (onDeleted) onDeleted(currentStory.id);
+    } catch (err) {
+      dispatchToast('Failed to delete story', 'error');
+    } finally {
+      setDeleteInProgress(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!currentStory) return;
+    const unlock = lockBodyScroll();
+    return () => unlock();
+  }, [currentStory]);
+
   if (!currentStory) return null;
 
   return createPortal(
@@ -193,6 +224,16 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                 >
                   {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                 </button>
+                {loggedInUser && currentStory?.authorId === String(loggedInUser.id) && (
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleteInProgress}
+                    className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white hover:bg-red-500/80 hover:border-red-400 transition-all"
+                    title="Delete story"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           </div>

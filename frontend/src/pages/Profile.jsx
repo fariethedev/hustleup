@@ -184,36 +184,37 @@ export default function Profile() {
 
               {/* Identity & Headline Stats */}
               <div className="flex-1 text-center lg:text-left">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-12">
                   <div>
-                    <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 mb-4">
-                      <span className="px-4 py-1.5 rounded-full bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-[0.2em]">
+                    <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 mb-6">
+                      <span className="px-5 py-2 rounded-full bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_5px_20px_rgba(205,255,0,0.3)]">
                         {profile.role}
                       </span>
                       {profile.city && (
-                        <span className="flex items-center gap-1.5 text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">
-                          <MapPin className="w-3 h-3" /> {profile.city}
+                        <span className="flex items-center gap-2 text-[10px] font-black text-white/40 uppercase tracking-[0.25em]">
+                          <MapPin className="w-3.5 h-3.5 text-[#CDFF00]" /> {profile.city}
                         </span>
                       )}
                     </div>
-                    <h1 className="text-5xl sm:text-7xl font-heading font-black text-white uppercase tracking-tighter mb-4">
-                      {profile.fullName}
+                    <h1 className="text-6xl sm:text-8xl font-heading font-black text-white uppercase tracking-tighter leading-[0.85] mb-6 drop-shadow-2xl">
+                      {profile.fullName || profile.username}
                     </h1>
+                    <p className="text-sm font-black text-[#CDFF00]/60 uppercase tracking-[0.3em] lg:text-left text-center">Protocol: {profile.idVerified ? 'VERIFIED_SYNDICATE' : 'STANDARD_HUSTLE'}</p>
                   </div>
 
                   {/* Headline Stats: FOLLOWING & FOLLOWERS */}
-                  <div className="flex items-center justify-center gap-10 sm:gap-16">
+                  <div className="flex items-center justify-center gap-12 sm:gap-20 bg-white/[0.03] border border-white/5 p-8 rounded-[3rem] backdrop-blur-xl">
                     <div className="text-center">
-                      <p className="text-4xl sm:text-6xl font-heading font-black text-[#CDFF00] leading-none mb-2">
+                      <p className="text-5xl sm:text-7xl font-heading font-black text-[#CDFF00] leading-none mb-3 drop-shadow-[0_0_20px_rgba(205,255,0,0.4)]">
                         {profile.followersCount || 0}
                       </p>
-                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Followers</p>
+                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Amplifiers</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-4xl sm:text-6xl font-heading font-black text-white leading-none mb-2">
+                      <p className="text-5xl sm:text-7xl font-heading font-black text-white leading-none mb-3">
                         {profile.followingCount || 0}
                       </p>
-                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Following</p>
+                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em]">Network</p>
                     </div>
                   </div>
                 </div>
