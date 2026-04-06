@@ -168,12 +168,13 @@ public class ListingController {
             @RequestParam(required = false) String currency,
             @RequestParam(defaultValue = "false") boolean negotiable,
             @RequestParam(required = false) String city,
+            @RequestParam(defaultValue = "false") boolean agentFee,
             @RequestParam(required = false) String meta,
             // MultipartFile is Spring's abstraction for an uploaded file from a multipart form.
             // List<MultipartFile> allows the client to send multiple images in a single request.
             @RequestParam(required = false) List<MultipartFile> images) {
         return ResponseEntity.ok(listingService.create(title, description, listingType,
-                price, currency, negotiable, city, meta, images));
+                price, currency, negotiable, city, agentFee, meta, images));
     }
 
     /**

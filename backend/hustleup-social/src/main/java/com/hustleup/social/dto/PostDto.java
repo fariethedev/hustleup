@@ -97,6 +97,9 @@ public class PostDto {
      */
     boolean likedByCurrentUser;
 
+    /** Whether this post was published anonymously. When true, authorId/authorName/authorAvatarUrl are masked. */
+    boolean anonymous;
+
     /** Timestamp of when the post was created. */
     LocalDateTime createdAt;
 
@@ -156,10 +159,10 @@ public class PostDto {
 
         return PostDto.builder()
                 .id(post.getId())
-                .authorId(post.getAuthorId())
-                .authorName(post.getAuthorName())
+                .authorId(post.isAnonymous() ? null : post.getAuthorId())
+                .authorName(post.isAnonymous() ? "Anonymous" : post.getAuthorName())
                 // Refresh the avatar URL too (it might be stored in S3 with a pre-signed URL)
-                .authorAvatarUrl(authorAvatarUrl != null ? urlRefresher.apply(authorAvatarUrl) : null)
+                .authorAvatarUrl(post.isAnonymous() ? null : (authorAvatarUrl != null ? urlRefresher.apply(authorAvatarUrl) : null))
                 .content(post.getContent())
                 // Use the refreshed imageUrl; fall back to the first image in the media list
                 .imageUrl(imageUrl != null ? imageUrl : resolvePrimaryImageUrl(media))
@@ -169,6 +172,7 @@ public class PostDto {
                 .likesCount(post.getLikesCount() == null ? 0 : post.getLikesCount())
                 .commentsCount(post.getCommentsCount() == null ? 0 : post.getCommentsCount())
                 .likedByCurrentUser(likedByCurrentUser)
+                .anonymous(post.isAnonymous())
                 .createdAt(post.getCreatedAt())
                 .build();
     }

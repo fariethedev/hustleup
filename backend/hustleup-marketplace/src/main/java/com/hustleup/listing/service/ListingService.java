@@ -187,8 +187,8 @@ public class ListingService {
      * @return the created listing as an enriched DTO
      */
     public ListingDto create(String title, String description, String listingType, BigDecimal price,
-                              String currency, boolean negotiable, String city, String meta,
-                              List<MultipartFile> images) {
+                              String currency, boolean negotiable, String city, boolean agentFee,
+                              String meta, List<MultipartFile> images) {
         // Resolve the authenticated user's email from the Spring Security context.
         // The email is the "principal name" set during JWT authentication.
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -216,6 +216,7 @@ public class ListingService {
                 .currency(currency != null ? currency : "GBP") // fall back to GBP if not specified
                 .negotiable(negotiable)
                 .locationCity(city)
+                .agentFee(agentFee)
                 .meta(meta)
                 .mediaUrls(mediaUrlsCsv)
                 .build();

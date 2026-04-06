@@ -261,6 +261,7 @@ public class FeedController {
             // or completely absent "content" fields don't cause a 400 Bad Request.
             @RequestParam(value = "content", required = false, defaultValue = "") String content,
             @RequestParam(value = "authorName", required = false) String authorName,
+            @RequestParam(value = "anonymous", required = false, defaultValue = "false") boolean anonymous,
             @RequestParam(value = "media", required = false) List<MultipartFile> mediaFiles) {
 
         // This throws AccessDeniedException if no authenticated user is found,
@@ -285,6 +286,7 @@ public class FeedController {
         post.setAuthorId(userId);
         post.setAuthorName(authorName != null && !authorName.isBlank() ? authorName : currentUser.getFullName());
         post.setContent(content == null ? "" : content.trim());
+        post.setAnonymous(anonymous);
 
         if (!validMediaFiles.isEmpty()) {
             // Upload each file to storage and collect the resulting storage keys/URLs.
@@ -310,25 +312,28 @@ public class FeedController {
         feedEventPublisher.postCreated(savedPost.getId(), userId);
 
         // Notify each follower of this post author via in-app notification.
+        // Skip for anonymous posts — notifying followers would reveal the poster's identity.
         // Wrapped in try/catch so a notification failure never rolls back the post itself.
         try {
-            List<Follow> followers = followRepository.findByFollowingId(currentUser.getId());
-            if (!followers.isEmpty()) {
-                // Determine the display name to show in the notification title.
-                String displayName = currentUser.getFullName() != null && !currentUser.getFullName().isBlank()
-                        ? currentUser.getFullName() : currentUser.getEmail().split("@")[0];
-                // Truncate post content to 80 chars for the notification snippet.
-                String snippet = post.getContent() != null && !post.getContent().isBlank()
-                        ? post.getContent().substring(0, Math.min(post.getContent().length(), 80)) : "Shared new content";
-                // Build one Notification per follower and batch-save for efficiency.
-                List<Notification> notifs = followers.stream().map(f -> Notification.builder()
-                        .userId(f.getFollowerId())
-                        .title(displayName + " posted")
-                        .message(snippet)
-                        .notificationType("POST")
-                        .referenceId(UUID.fromString(savedPost.getId()))
-                        .build()).toList();
-                notificationRepository.saveAll(notifs);
+            if (!anonymous) {
+                List<Follow> followers = followRepository.findByFollowingId(currentUser.getId());
+                if (!followers.isEmpty()) {
+                    // Determine the display name to show in the notification title.
+                    String displayName = currentUser.getFullName() != null && !currentUser.getFullName().isBlank()
+                            ? currentUser.getFullName() : currentUser.getEmail().split("@")[0];
+                    // Truncate post content to 80 chars for the notification snippet.
+                    String snippet = post.getContent() != null && !post.getContent().isBlank()
+                            ? post.getContent().substring(0, Math.min(post.getContent().length(), 80)) : "Shared new content";
+                    // Build one Notification per follower and batch-save for efficiency.
+                    List<Notification> notifs = followers.stream().map(f -> Notification.builder()
+                            .userId(f.getFollowerId())
+                            .title(displayName + " posted")
+                            .message(snippet)
+                            .notificationType("POST")
+                            .referenceId(UUID.fromString(savedPost.getId()))
+                            .build()).toList();
+                    notificationRepository.saveAll(notifs);
+                }
             }
         } catch (Exception ignored) {}
 

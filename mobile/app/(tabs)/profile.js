@@ -12,6 +12,7 @@ import {
   Modal,
   FlatList,
   Alert,
+  Share,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -80,8 +81,7 @@ export default function ProfileScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType.Images,
-      allowsEditing: true,
+      mediaTypes: 'images',
       aspect: type === 'avatar' ? [1, 1] : [16, 9],
       quality: 0.85,
     });
@@ -134,6 +134,24 @@ export default function ProfileScreen() {
   const getUserHandle = () => {
     if (user?.username) return `@${user.username}`;
     return `@${user?.email?.split('@')[0] || 'user'}`;
+  };
+
+  const toggleLike = (postId) => {
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        const isLiked = !p.isLiked;
+        return { ...p, isLiked, likesCount: (p.likesCount || 0) + (isLiked ? 1 : -1) };
+      }
+      return p;
+    }));
+  };
+
+  const handleShare = async (title, message) => {
+    try {
+      await Share.share({ title, message, url: 'https://hustleup.app/profile/' + user?.id });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   if (loading) {
@@ -223,13 +241,19 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Bio + Edit */}
+        {/* Bio + Actions */}
         <View style={styles.bioSection}>
           <Text style={styles.bioText}>{user?.bio || 'No bio yet. Start your hustle story.'}</Text>
           <View style={styles.editRow}>
             <TouchableOpacity style={styles.primaryEditBtn} onPress={() => router.push('/profile/edit')}>
-              <Text style={styles.primaryEditBtnText}>Edit Profile</Text>
               <Feather name="edit-3" size={14} color="#050505" />
+              <Text style={styles.primaryEditBtnText}>Edit Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => handleShare('HustleUp Profile', `Check out ${user?.fullName || 'this user'}'s profile on HustleUp!`)}>
+              <Feather name="share-2" size={16} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/profile/settings')}>
+              <Feather name="more-horizontal" size={16} color="#FFF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -251,10 +275,27 @@ export default function ProfileScreen() {
             <Text style={styles.followLabel}>Listings</Text>
           </TouchableOpacity>
           <View style={styles.followDivider} />
-          <View style={styles.followPill}>
+          <TouchableOpacity style={styles.followPill} onPress={() => router.push('/profile/placeholder?title=Vouches&icon=shield')}>
             <Text style={styles.followCount}>{user?.vouchCount || 0}</Text>
             <Text style={styles.followLabel}>Vouches</Text>
-          </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          {[
+            { icon: 'shopping-bag', label: 'My Shop', onPress: () => user?.id && router.push(`/shop/${user.id}`) },
+            { icon: 'package', label: 'Orders', onPress: () => router.push('/profile/orders') },
+            { icon: 'credit-card', label: 'Wallet', onPress: () => router.push('/profile/wallet') },
+            { icon: 'bar-chart-2', label: 'Insights', onPress: () => router.push('/profile/insights') },
+          ].map((action, i) => (
+            <TouchableOpacity key={i} style={styles.quickActionItem} onPress={action.onPress} activeOpacity={0.7}>
+              <View style={styles.quickActionIcon}>
+                <Feather name={action.icon} size={18} color={LIME} />
+              </View>
+              <Text style={styles.quickActionLabel}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Content Tabs */}
@@ -295,15 +336,24 @@ export default function ProfileScreen() {
                   <Text style={styles.postContent}>{item.content}</Text>
                   <View style={styles.postFooter}>
                     <Text style={styles.postDate}>{new Date(item.createdAt).toDateString()}</Text>
-                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Feather name="heart" size={13} color="rgba(255,255,255,0.3)" />
-                        <Text style={styles.postStat}>{item.likesCount || 0}</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Feather name="message-circle" size={13} color="rgba(255,255,255,0.3)" />
+                    <View style={{ flexDirection: 'row', gap: 16 }}>
+                      <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} onPress={() => toggleLike(item.id)}>
+                        <Feather name="heart" size={15} color={item.isLiked ? '#FF4B4B' : "rgba(255,255,255,0.4)"} />
+                        <Text style={[styles.postStat, item.isLiked && { color: '#FF4B4B' }]}>{item.likesCount || 0}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} onPress={() => router.push({ pathname: '/(tabs)/messages', params: { partnerId: item.authorId || item.userId } })}>
+                        <Feather name="message-circle" size={15} color="rgba(255,255,255,0.4)" />
                         <Text style={styles.postStat}>{item.commentsCount || 0}</Text>
-                      </View>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleShare('Check this out', item.content)}>
+                        <Feather name="share-2" size={15} color="rgba(255,255,255,0.4)" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => Alert.alert('Post Options', 'Manage this post', [
+                        { text: 'Delete', style: 'destructive', onPress: () => setPosts(prev => prev.filter(p => p.id !== item.id)) },
+                        { text: 'Cancel', style: 'cancel' },
+                      ])}>
+                        <Feather name="more-horizontal" size={15} color="rgba(255,255,255,0.4)" />
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </View>
@@ -354,7 +404,7 @@ export default function ProfileScreen() {
                         />
                         <View style={styles.listingCardInfo}>
                           <Text style={styles.listingCardTitle} numberOfLines={2}>{item.title}</Text>
-                          <Text style={styles.listingCardPrice}>£{item.price}</Text>
+                          <Text style={styles.listingCardPrice}>PLN {item.price}</Text>
                         </View>
                         <View style={[styles.listingStatusBadge,
                           item.status === 'ACTIVE' ? styles.statusActive : styles.statusInactive]}>
@@ -526,6 +576,12 @@ const styles = StyleSheet.create({
     paddingVertical: 13, borderRadius: 14, gap: 8,
   },
   primaryEditBtnText: { color: '#050505', fontWeight: '900', fontSize: 13 },
+  secondaryBtn: {
+    width: 46, height: 46, borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center', alignItems: 'center',
+  },
 
   followRow: {
     flexDirection: 'row', alignItems: 'center',
@@ -539,7 +595,23 @@ const styles = StyleSheet.create({
   followLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginTop: 2, letterSpacing: 0.5 },
   followDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.07)' },
 
-  contentTabs: { flexDirection: 'row', marginTop: 32, paddingHorizontal: 24, gap: 8 },
+  contentTabs: { flexDirection: 'row', marginTop: 24, paddingHorizontal: 24, gap: 8 },
+
+  quickActions: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    marginHorizontal: 24, marginTop: 24,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 18, paddingVertical: 16, paddingHorizontal: 12,
+  },
+  quickActionItem: { alignItems: 'center', flex: 1, gap: 8 },
+  quickActionIcon: {
+    width: 44, height: 44, borderRadius: 14,
+    backgroundColor: 'rgba(205,255,0,0.08)',
+    borderWidth: 1, borderColor: 'rgba(205,255,0,0.15)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  quickActionLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '700' },
   tabBtn: { paddingHorizontal: 20, paddingVertical: 9, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.03)' },
   activeTabBtn: { backgroundColor: LIME },
   tabBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },

@@ -45,5 +45,12 @@ public enum ListingType {
      * Employment opportunities posted by businesses or individuals looking to hire.
      * The listing price may represent an hourly rate or an annual salary.
      */
-    JOB
+    JOB,
+
+    /**
+     * Residential rentals — rooms, flats, houses, short-term lets.
+     * The listing price typically represents a monthly or weekly rent.
+     * The optional {@code agentFee} flag indicates whether a letting-agent fee applies.
+     */
+    RENTAL
 }

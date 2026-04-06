@@ -193,6 +193,16 @@ export const directMessagesApi = {
   getPartners: () => api.get('/direct-messages/partners'),
   getConversation: (partnerId) => api.get(`/direct-messages/${partnerId}`),
   sendMessage: (partnerId, content) => api.post(`/direct-messages/${partnerId}`, { content }),
+  getOrCreateConversation: (partnerId) => api.get(`/direct-messages/${partnerId}`),
+};
+
+export const bookingsApi = {
+  create: (data) => api.post('/bookings', data),
+  getAll: () => api.get('/bookings/my'),
+  cancel: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }),
+  accept: (id) => api.patch(`/bookings/${id}/accept`),
+  counter: (id, counterPrice) => api.patch(`/bookings/${id}/counter`, { counterPrice }),
+  complete: (id) => api.patch(`/bookings/${id}/complete`),
 };
 
 export const notificationsApi = {

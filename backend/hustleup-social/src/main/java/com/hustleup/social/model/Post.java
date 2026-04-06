@@ -141,6 +141,15 @@ public class Post {
     private Integer commentsCount = 0;
 
     /**
+     * Whether this post was published anonymously.
+     *
+     * <p>When true, the client should NOT expose the author's identity.
+     * The authorId is still stored internally for moderation purposes.
+     */
+    @Column(name = "anonymous", nullable = false)
+    private boolean anonymous = false;
+
+    /**
      * Timestamp of when the post was created, set automatically by Hibernate.
      *
      * <p>{@code @CreationTimestamp} tells Hibernate to set this field to the current
@@ -212,6 +221,11 @@ public class Post {
     public Integer getCommentsCount() { return commentsCount == null ? 0 : commentsCount; }
     /** Sets the comment count. */
     public void setCommentsCount(Integer commentsCount) { this.commentsCount = commentsCount; }
+
+    /** Returns true if this post was published anonymously. */
+    public boolean isAnonymous() { return anonymous; }
+    /** Sets the anonymous flag. */
+    public void setAnonymous(boolean anonymous) { this.anonymous = anonymous; }
 
     /** Returns the creation timestamp (set automatically by Hibernate). */
     public LocalDateTime getCreatedAt() { return createdAt; }

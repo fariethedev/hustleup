@@ -16,15 +16,13 @@ import {
   ScrollView,
   Alert,
   RefreshControl,
-  ImageBackground,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Video, ResizeMode } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
-import { feedApi, API_URL, usersApi, followsApi, listingsApi } from '../../src/api/client';
+import { feedApi, API_URL, usersApi, followsApi, listingsApi, bookingsApi, directMessagesApi } from '../../src/api/client';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated, selectUser } from '../../src/store/authSlice';
@@ -37,8 +35,6 @@ const CARD_WIDTH = width - 28;
 const CARD_MEDIA_HEIGHT = Math.round(CARD_WIDTH * (5 / 4));
 const LIME = '#CDFF00';
 const BG = '#050505';
-
-// Cross-platform shadow helper (shadow* deprecated on web, use boxShadow)
 const shadow = (color, ox = 0, oy = 4, opacity = 0.35, radius = 10, elev = 6) =>
   Platform.select({
     web: { boxShadow: `${ox}px ${oy}px ${radius}px ${color}` },
@@ -50,6 +46,7 @@ const CreatePostModal = ({ visible, onClose, onPostSuccess }) => {
   const [caption, setCaption] = useState('');
   const [mediaItems, setMediaItems] = useState([]); // array of { uri, type, filename, mimeType }
   const [posting, setPosting] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
 
   const MAX_MEDIA = 6;
 
@@ -65,15 +62,15 @@ const CreatePostModal = ({ visible, onClose, onPostSuccess }) => {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: onlyVideo
-        ? ImagePicker.MediaType.Videos
-        : [ImagePicker.MediaType.Images, ImagePicker.MediaType.Videos],
+        ? 'videos'
+        : ['images', 'videos'],
       allowsMultipleSelection: true,
       allowsEditing: false,
-      selectionLimit: MAX_MEDIA - mediaItems.length,
       quality: 0.85,
     });
     if (!result.canceled && result.assets?.length) {
-      const newItems = result.assets.map(asset => {
+      const remaining = MAX_MEDIA - mediaItems.length;
+      const newItems = result.assets.slice(0, remaining).map(asset => {
         const filename = asset.uri.split('/').pop();
         const ext = filename.split('.').pop().toLowerCase();
         const isVid = asset.type === 'video';
@@ -97,12 +94,14 @@ const CreatePostModal = ({ visible, onClose, onPostSuccess }) => {
     try {
       const formData = new FormData();
       formData.append('content', caption.trim());
+      formData.append('anonymous', String(isAnonymous));
       mediaItems.forEach(m => {
         formData.append('media', { uri: m.uri, name: m.filename, type: m.mimeType });
       });
       await feedApi.createPost(formData);
       setCaption('');
       setMediaItems([]);
+      setIsAnonymous(false);
       onPostSuccess();
       onClose();
     } catch (e) {
@@ -116,6 +115,7 @@ const CreatePostModal = ({ visible, onClose, onPostSuccess }) => {
   const handleClose = () => {
     setCaption('');
     setMediaItems([]);
+    setIsAnonymous(false);
     onClose();
   };
 
@@ -170,33 +170,63 @@ const CreatePostModal = ({ visible, onClose, onPostSuccess }) => {
             </ScrollView>
           )}
 
-          <View style={styles.createActions}>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity style={styles.mediaButton} onPress={() => pickMedia(false)}>
-                <Feather name="image" size={20} color={LIME} />
-                <Text style={styles.mediaButtonText}>Photo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaButton} onPress={() => pickMedia(true)}>
-                <Feather name="video" size={20} color={LIME} />
-                <Text style={styles.mediaButtonText}>Video</Text>
-              </TouchableOpacity>
-              {mediaItems.length > 0 && (
-                <View style={styles.mediaCountChip}>
-                  <Text style={styles.mediaCountChipText}>{mediaItems.length}/{MAX_MEDIA}</Text>
-                </View>
-              )}
+          {/* Anonymous mode banner */}
+          {isAnonymous && (
+            <View style={styles.anonBanner}>
+              <Feather name="eye-off" size={14} color="rgba(255,255,255,0.5)" />
+              <Text style={styles.anonBannerText}>Your identity will be hidden from this post</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.postButton, posting && styles.postButtonDisabled]}
-              onPress={handlePost}
-              disabled={posting}
-            >
-              {posting ? (
-                <ActivityIndicator size="small" color={BG} />
-              ) : (
-                <Text style={styles.postButtonText}>POST</Text>
-              )}
-            </TouchableOpacity>
+          )}
+
+          <View style={styles.createActions}>
+            {/* Media buttons row */}
+            <View style={styles.createActionsTop}>
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                <TouchableOpacity style={styles.mediaButton} onPress={() => pickMedia(false)}>
+                  <Feather name="image" size={18} color={LIME} />
+                  <Text style={styles.mediaButtonText}>Photo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.mediaButton} onPress={() => pickMedia(true)}>
+                  <Feather name="video" size={18} color={LIME} />
+                  <Text style={styles.mediaButtonText}>Video</Text>
+                </TouchableOpacity>
+                {mediaItems.length > 0 && (
+                  <View style={styles.mediaCountChip}>
+                    <Text style={styles.mediaCountChipText}>{mediaItems.length}/{MAX_MEDIA}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Anon toggle + POST button */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <TouchableOpacity
+                  style={[styles.anonToggle, isAnonymous && styles.anonToggleActive]}
+                  onPress={() => setIsAnonymous(v => !v)}
+                  activeOpacity={0.8}
+                >
+                  <Feather
+                    name={isAnonymous ? 'eye-off' : 'eye'}
+                    size={14}
+                    color={isAnonymous ? '#FFF' : 'rgba(255,255,255,0.4)'}
+                  />
+                  <Text style={[styles.anonToggleText, isAnonymous && styles.anonToggleTextActive]}>
+                    {isAnonymous ? 'Anon' : 'Public'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.postButton, posting && styles.postButtonDisabled]}
+                  onPress={handlePost}
+                  disabled={posting}
+                >
+                  {posting ? (
+                    <ActivityIndicator size="small" color={BG} />
+                  ) : (
+                    <Text style={styles.postButtonText}>POST</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -394,11 +424,12 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
     setVideoPlaying(!!isVisible);
   }, [isVisible]);
 
-  const authorName = isListing ? item.sellerName : item.authorName;
+  const isAnon = !isListing && item.anonymous;
+  const authorName = isListing ? item.sellerName : (isAnon ? 'Anonymous' : item.authorName);
   const authorRole = isListing ? 'SELLER' : (item.authorRole || null);
-  const authorVerified = isListing ? item.sellerVerified : item.authorVerified;
-  const authorId = isListing ? item.sellerId : item.authorId;
-  const authorAvatarUrl = isListing ? item.sellerAvatarUrl : item.authorAvatarUrl;
+  const authorVerified = isListing ? item.sellerVerified : (isAnon ? false : item.authorVerified);
+  const authorId = isListing ? item.sellerId : (isAnon ? null : item.authorId);
+  const authorAvatarUrl = isListing ? item.sellerAvatarUrl : (isAnon ? null : item.authorAvatarUrl);
   const initial = (authorName || '?')[0].toUpperCase();
 
   const handleLike = async () => {
@@ -427,23 +458,8 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
 
   const [showShareModal, setShowShareModal] = useState(false);
 
-  const handleShare = async () => {
-    Alert.alert(
-      'Share Post',
-      'How would you like to share?',
-      [
-        { text: 'Share to User', onPress: () => setShowShareModal(true) },
-        { text: 'Share External', onPress: async () => {
-          try {
-            await RNShare.share({
-              message: `Check out this hustle on HustleUp: ${isListing ? item.title : item.content}`,
-            });
-          } catch {}
-        }},
-        { text: 'Copy Link', onPress: () => Alert.alert('Copied!', 'Link copied to clipboard') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+  const handleShare = () => {
+    setShowShareModal(true);
   };
 
   const handleCommentCountBump = useCallback(() => {
@@ -454,9 +470,15 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
     <View style={styles.feedCard}>
       {/* ── Card Header ─────────────────────────────────── */}
       <View style={styles.feedCardHeader}>
-        <TouchableOpacity onPress={() => onAuthorPress?.(authorId)} activeOpacity={0.75} style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}>
-          <View style={styles.feedAvatar}>
-            {authorAvatarUrl && !avatarError ? (
+        <TouchableOpacity
+          onPress={() => !isAnon && onAuthorPress?.(authorId, item.type, item.sellerId)}
+          activeOpacity={isAnon ? 1 : 0.75}
+          style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}
+        >
+          <View style={[styles.feedAvatar, isAnon && styles.feedAvatarAnon]}>
+            {isAnon ? (
+              <Feather name="user-x" size={18} color="rgba(255,255,255,0.35)" />
+            ) : authorAvatarUrl && !avatarError ? (
               <Image
                 source={{ uri: resolveMediaUrl(authorAvatarUrl) }}
                 style={styles.feedAvatarImage}
@@ -468,7 +490,12 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
           </View>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-              <Text style={styles.feedAuthorName}>{authorName || 'Unknown'}</Text>
+              <Text style={[styles.feedAuthorName, isAnon && styles.feedAuthorNameAnon]}>{authorName || 'Unknown'}</Text>
+              {isAnon && (
+                <View style={styles.anonBadge}>
+                  <Text style={styles.anonBadgeText}>ANON</Text>
+                </View>
+              )}
               {authorVerified && (
                 <MaterialCommunityIcons name="check-decagram" size={14} color={LIME} />
               )}
@@ -498,7 +525,7 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
             {isListing ? item.title : item.content}
           </Text>
           {isListing && item.price != null && (
-            <Text style={styles.feedPrice}>£{item.price}{item.negotiable ? ' · negotiable' : ''}</Text>
+            <Text style={styles.feedPrice}>PLN {item.price}{item.negotiable ? ' · negotiable' : ''}</Text>
           )}
         </View>
       )}
@@ -593,7 +620,7 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
           {isListing && item.price != null && (
             <TouchableOpacity style={styles.feedBuyBtn} onPress={() => onListingPress?.(item)}>
               <Text style={styles.feedBuyBtnText}>
-                £{item.price} · VIEW
+                PLN {item.price} · VIEW
               </Text>
             </TouchableOpacity>
           )}
@@ -1044,83 +1071,6 @@ const shareStyles = StyleSheet.create({
 });
 
 // ─── Live Stream Section ──────────────────────────────────────────────────────
-const MOCK_LIVE_STREAMS = [
-  { id: 'l1', name: 'Tyler B.', title: 'Cooking masterclass 🍝', viewers: 342, avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&h=200&fit=crop&crop=face', thumbnail: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=500&fit=crop' },
-  { id: 'l2', name: 'Zara T.', title: 'Late night vibes 🎶', viewers: 128, avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop&crop=face', thumbnail: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=500&fit=crop' },
-  { id: 'l3', name: 'David O.', title: 'DJ set from Lagos 🎧', viewers: 891, avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=200&h=200&fit=crop&crop=face', thumbnail: 'https://images.unsplash.com/photo-1571266028243-d220c6e9f6a7?w=400&h=500&fit=crop' },
-];
-
-const LiveStreamSection = ({ onGoLive }) => (
-  <View style={liveStyles.wrap}>
-    <View style={liveStyles.headerRow}>
-      <View style={liveStyles.headerLeft}>
-        <View style={liveStyles.liveDot} />
-        <Text style={liveStyles.headerTitle}>LIVE NOW</Text>
-        <View style={liveStyles.countBadge}>
-          <Text style={liveStyles.countText}>{MOCK_LIVE_STREAMS.length}</Text>
-        </View>
-      </View>
-      <TouchableOpacity style={liveStyles.goLiveBtn} onPress={onGoLive} activeOpacity={0.8}>
-        <Feather name="video" size={14} color="#FFF" />
-        <Text style={liveStyles.goLiveText}>Go Live</Text>
-      </TouchableOpacity>
-    </View>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={liveStyles.scrollContent}>
-      {MOCK_LIVE_STREAMS.map(stream => (
-        <TouchableOpacity key={stream.id} style={liveStyles.card} activeOpacity={0.85}
-          onPress={() => Alert.alert('📺 Live Stream', `Joining ${stream.name}'s stream: ${stream.title}`)}
-        >
-          <ImageBackground source={{ uri: stream.thumbnail }} style={liveStyles.cardBg} imageStyle={liveStyles.cardBgImg}>
-            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={liveStyles.cardGrad}>
-              <View style={liveStyles.cardLiveBadge}>
-                <View style={liveStyles.cardLiveDot} />
-                <Text style={liveStyles.cardLiveText}>LIVE</Text>
-              </View>
-              <View style={liveStyles.cardViewers}>
-                <Feather name="eye" size={10} color="#FFF" />
-                <Text style={liveStyles.cardViewersText}>{stream.viewers}</Text>
-              </View>
-              <View style={liveStyles.cardBottom}>
-                <Image source={{ uri: stream.avatar }} style={liveStyles.cardAvatar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={liveStyles.cardName}>{stream.name}</Text>
-                  <Text style={liveStyles.cardTitle} numberOfLines={1}>{stream.title}</Text>
-                </View>
-              </View>
-            </LinearGradient>
-          </ImageBackground>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  </View>
-);
-
-const liveStyles = StyleSheet.create({
-  wrap: { marginBottom: 8 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 14 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF3B30' },
-  headerTitle: { color: '#FFF', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
-  countBadge: { backgroundColor: 'rgba(255,59,48,0.15)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  countText: { color: '#FF3B30', fontSize: 10, fontWeight: '900' },
-  goLiveBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FF3B30', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
-  goLiveText: { color: '#FFF', fontSize: 11, fontWeight: '900' },
-  scrollContent: { paddingHorizontal: 16, gap: 12 },
-  card: { width: 160, height: 220, borderRadius: 20, overflow: 'hidden' },
-  cardBg: { width: '100%', height: '100%' },
-  cardBgImg: { borderRadius: 20 },
-  cardGrad: { flex: 1, padding: 12, justifyContent: 'space-between' },
-  cardLiveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: '#FF3B30', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  cardLiveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#FFF' },
-  cardLiveText: { color: '#FFF', fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
-  cardViewers: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginTop: 4 },
-  cardViewersText: { color: '#FFF', fontSize: 9, fontWeight: '800' },
-  cardBottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardAvatar: { width: 28, height: 28, borderRadius: 10, borderWidth: 1.5, borderColor: '#FF3B30' },
-  cardName: { color: '#FFF', fontSize: 11, fontWeight: '800' },
-  cardTitle: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '600' },
-});
-
 // ─── Category Filter ──────────────────────────────────────────────────────────
 const CATEGORIES = ['All', 'Trending', 'Jobs', 'Creative', 'Tech', 'Services'];
 
@@ -1188,6 +1138,247 @@ const EmptyFeed = ({ onCreatePost, router }) => (
   </View>
 );
 
+// ─── Listing Detail Sheet ─────────────────────────────────────────────────────
+const ListingDetailSheet = ({ listing, onClose, onGoToShop, onGoToChat }) => {
+  const [activeImg, setActiveImg] = useState(0);
+  const [booking, setBooking] = useState(false);
+  const [booked, setBooked] = useState(false);
+  const [bookingError, setBookingError] = useState('');
+  const [showPolicy, setShowPolicy] = useState(false);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+
+  if (!listing) return null;
+
+  const media = (listing.mediaUrls || []).map(u => resolveMediaUrl(u)).filter(Boolean);
+  const currency = listing.currency || 'PLN ';
+  const TYPE_COLORS = { PRODUCT: '#60A5FA', SERVICE: '#A78BFA', JOB: '#FB923C', SKILL: '#34D399', RENTAL: '#F472B6', EVENT: '#FBBF24' };
+  const typeColor = TYPE_COLORS[listing.listingType] || LIME;
+
+  const handleBuyNow = async () => {
+    if (!isAuthenticated) {
+      setBookingError('Please sign in to place an order.');
+      return;
+    }
+    setBooking(true);
+    setBookingError('');
+    try {
+      await bookingsApi.create({ listingId: listing.id, offeredPrice: listing.price });
+      await directMessagesApi.sendMessage(
+        listing.sellerId,
+        `Hi! I just placed an order for "${listing.title}" (${currency}${listing.price}). Looking forward to hearing from you! 🛒`
+      );
+      setBooked(true);
+    } catch (e) {
+      setBookingError(e.response?.data?.message || 'Could not place order. Try messaging the seller directly.');
+    } finally {
+      setBooking(false);
+    }
+  };
+
+  return (
+    <View style={lsStyles.overlay}>
+      <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={onClose} />
+      <View style={lsStyles.sheet}>
+        <View style={lsStyles.handle} />
+
+        <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+          {/* ── Image carousel ── */}
+          {media.length > 0 ? (
+            <View>
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(e) => setActiveImg(Math.round(e.nativeEvent.contentOffset.x / width))}
+              >
+                {media.map((uri, i) => (
+                  <Image key={i} source={{ uri }} style={[lsStyles.image, { width }]} resizeMode="cover" />
+                ))}
+              </ScrollView>
+              {media.length > 1 && (
+                <View style={lsStyles.dots}>
+                  {media.map((_, i) => <View key={i} style={[lsStyles.dot, i === activeImg && lsStyles.dotActive]} />)}
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={lsStyles.noImgBox}>
+              <Feather name="package" size={48} color="rgba(255,255,255,0.1)" />
+            </View>
+          )}
+
+          <View style={lsStyles.body}>
+            {/* Type + Condition badges */}
+            <View style={lsStyles.badgeRow}>
+              <View style={[lsStyles.typeBadge, { backgroundColor: typeColor + '22', borderColor: typeColor + '55' }]}>
+                <Text style={[lsStyles.typeBadgeText, { color: typeColor }]}>{listing.listingType || 'PRODUCT'}</Text>
+              </View>
+              {listing.condition && (
+                <View style={lsStyles.condBadge}>
+                  <Text style={lsStyles.condBadgeText}>{listing.condition}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Price */}
+            <View style={lsStyles.priceRow}>
+              <Text style={lsStyles.price}>{currency}{Number(listing.price).toLocaleString()}</Text>
+              {listing.negotiable && (
+                <View style={lsStyles.negBadge}><Text style={lsStyles.negText}>NEGOTIABLE</Text></View>
+              )}
+            </View>
+
+            {/* Title + Description */}
+            <Text style={lsStyles.title}>{listing.title}</Text>
+            {listing.description ? (
+              <Text style={lsStyles.desc}>{listing.description}</Text>
+            ) : null}
+
+            {/* Location */}
+            {listing.locationCity ? (
+              <View style={lsStyles.locRow}>
+                <Feather name="map-pin" size={13} color="rgba(255,255,255,0.35)" />
+                <Text style={lsStyles.locText}>{listing.locationCity}{listing.locationCountry ? `, ${listing.locationCountry}` : ''}</Text>
+              </View>
+            ) : null}
+
+            {/* ── Seller card ── */}
+            {listing.sellerName ? (
+              <TouchableOpacity style={lsStyles.sellerCard} onPress={() => onGoToShop(listing.sellerId)} activeOpacity={0.85}>
+                <View style={lsStyles.sellerAvatar}>
+                  {listing.sellerAvatarUrl ? (
+                    <Image source={{ uri: resolveMediaUrl(listing.sellerAvatarUrl) }} style={lsStyles.sellerAvatarImg} />
+                  ) : (
+                    <Text style={lsStyles.sellerInitial}>{(listing.sellerName || '?')[0].toUpperCase()}</Text>
+                  )}
+                  <View style={lsStyles.sellerOnlineDot} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={lsStyles.sellerName}>{listing.sellerName}</Text>
+                  <Text style={lsStyles.sellerSub}>Tap to view shop →</Text>
+                </View>
+                <View style={lsStyles.shopPill}>
+                  <Feather name="shopping-bag" size={12} color={LIME} />
+                  <Text style={lsStyles.shopPillText}>SHOP</Text>
+                </View>
+              </TouchableOpacity>
+            ) : null}
+
+            {/* ── Payment policy notice ── */}
+            <TouchableOpacity style={lsStyles.policyBox} onPress={() => setShowPolicy(v => !v)} activeOpacity={0.85}>
+              <View style={lsStyles.policyHeader}>
+                <Feather name="shield" size={14} color={LIME} />
+                <Text style={lsStyles.policyTitle}>HustleUp Buyer Policy</Text>
+                <Feather name={showPolicy ? 'chevron-up' : 'chevron-down'} size={14} color="rgba(255,255,255,0.4)" />
+              </View>
+              {showPolicy && (
+                <Text style={lsStyles.policyBody}>
+                  {'• Payment is arranged directly between buyer and seller.\n• Agree on method (bank transfer, cash, etc.) via chat before paying.\n• Always confirm item condition before completing payment.\n• Card/Blik payments coming soon — watch for updates.\n• For disputes, contact support via the Help section.'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {/* ── Error ── */}
+            {bookingError ? (
+              <View style={lsStyles.errorBox}>
+                <Feather name="alert-circle" size={13} color="#EF4444" />
+                <Text style={lsStyles.errorText}>{bookingError}</Text>
+              </View>
+            ) : null}
+
+            {/* ── Success state ── */}
+            {booked ? (
+              <View style={lsStyles.successBox}>
+                <Feather name="check-circle" size={22} color={LIME} />
+                <Text style={lsStyles.successTitle}>Order Placed!</Text>
+                <Text style={lsStyles.successSub}>A message has been sent to the seller. Continue the conversation to arrange payment and delivery.</Text>
+                <TouchableOpacity style={lsStyles.goToChatBtn} onPress={() => onGoToChat(listing.sellerId, listing.sellerName)}>
+                  <Feather name="message-circle" size={16} color={BG} />
+                  <Text style={lsStyles.goToChatText}>Continue in Chat</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={lsStyles.actionRow}>
+                <TouchableOpacity
+                  style={lsStyles.buyBtn}
+                  onPress={handleBuyNow}
+                  disabled={booking}
+                  activeOpacity={0.88}
+                >
+                  {booking ? (
+                    <ActivityIndicator size="small" color={BG} />
+                  ) : (
+                    <>
+                      <Feather name="shopping-cart" size={18} color={BG} />
+                      <Text style={lsStyles.buyBtnText}>Buy Now · {currency}{Number(listing.price).toLocaleString()}</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={lsStyles.msgBtn}
+                  onPress={() => onGoToChat(listing.sellerId, listing.sellerName)}
+                  activeOpacity={0.85}
+                >
+                  <Feather name="message-circle" size={20} color={LIME} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      </View>
+    </View>
+  );
+};
+
+const lsStyles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.75)' },
+  sheet: { backgroundColor: '#0E0E0E', borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: height * 0.92, overflow: 'hidden' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginVertical: 12 },
+  image: { height: 300 },
+  noImgBox: { height: 180, backgroundColor: '#111', alignItems: 'center', justifyContent: 'center' },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, position: 'absolute', bottom: 12, width: '100%' },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.35)' },
+  dotActive: { backgroundColor: LIME, width: 18 },
+  body: { padding: 22, paddingBottom: 48, gap: 14 },
+  badgeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  typeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  typeBadgeText: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  condBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  condBadgeText: { color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  price: { color: LIME, fontSize: 30, fontWeight: '900' },
+  negBadge: { backgroundColor: 'rgba(205,255,0,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(205,255,0,0.25)' },
+  negText: { color: LIME, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  title: { color: '#FFF', fontSize: 20, fontWeight: '900', lineHeight: 26 },
+  desc: { color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 22 },
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  locText: { color: 'rgba(255,255,255,0.35)', fontSize: 13 },
+  sellerCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  sellerAvatar: { width: 48, height: 48, borderRadius: 15, backgroundColor: 'rgba(205,255,0,0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(205,255,0,0.3)', position: 'relative' },
+  sellerAvatarImg: { width: 48, height: 48, borderRadius: 15 },
+  sellerInitial: { color: LIME, fontSize: 20, fontWeight: '900' },
+  sellerOnlineDot: { position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#22C55E', borderWidth: 2, borderColor: '#0E0E0E' },
+  sellerName: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+  sellerSub: { color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 2 },
+  shopPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(205,255,0,0.08)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(205,255,0,0.2)' },
+  shopPillText: { color: LIME, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  policyBox: { backgroundColor: 'rgba(205,255,0,0.04)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(205,255,0,0.12)' },
+  policyHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  policyTitle: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '800', flex: 1 },
+  policyBody: { color: 'rgba(255,255,255,0.4)', fontSize: 12, lineHeight: 20, marginTop: 10 },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)' },
+  errorText: { color: '#EF4444', fontSize: 12, fontWeight: '700', flex: 1 },
+  successBox: { alignItems: 'center', gap: 10, backgroundColor: 'rgba(205,255,0,0.06)', borderRadius: 18, padding: 22, borderWidth: 1, borderColor: 'rgba(205,255,0,0.2)' },
+  successTitle: { color: LIME, fontSize: 18, fontWeight: '900' },
+  successSub: { color: 'rgba(255,255,255,0.5)', fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  goToChatBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: LIME, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 14, marginTop: 4 },
+  goToChatText: { color: BG, fontWeight: '900', fontSize: 13 },
+  actionRow: { flexDirection: 'row', gap: 12 },
+  buyBtn: { flex: 1, backgroundColor: LIME, borderRadius: 16, height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  buyBtnText: { color: BG, fontWeight: '900', fontSize: 14 },
+  msgBtn: { width: 56, height: 56, borderRadius: 16, backgroundColor: 'rgba(205,255,0,0.08)', borderWidth: 1.5, borderColor: 'rgba(205,255,0,0.25)', alignItems: 'center', justifyContent: 'center' },
+});
+
 // ─── Home Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter();
@@ -1203,6 +1394,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [storyTrigger, setStoryTrigger] = useState(false);
   const [commentsPostId, setCommentsPostId] = useState(null);
   const [commentsCountBump, setCommentsCountBump] = useState(null);
   const [commentsVisible, setCommentsVisible] = useState(false);
@@ -1302,11 +1494,11 @@ export default function HomeScreen() {
 
       {/* ── Stories ── */}
       <View style={styles.storiesBlock}>
-        <StoryBar />
+        <StoryBar
+          triggerCreate={storyTrigger}
+          onTriggerHandled={() => setStoryTrigger(false)}
+        />
       </View>
-
-      {/* ── Live Streams ── */}
-      <LiveStreamSection onGoLive={() => Alert.alert('🔴 Go Live', 'Starting your live stream...\n\nThis feature requires camera access and a streaming server.', [{ text: 'Start', onPress: () => router.push('/livestream') }, { text: 'Cancel', style: 'cancel' }])} />
 
       {/* ── Sort Bar ─────────────────────────────────────── */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortBar}>
@@ -1334,7 +1526,7 @@ export default function HomeScreen() {
           <QuickAction icon="search"         label="Explore"   color={LIME}      onPress={() => router.navigate('/(tabs)/explore')} />
           <QuickAction icon="message-circle" label="Messages"  color="#60A5FA"   onPress={() => router.navigate('/(tabs)/messages')} />
           <QuickAction icon="edit-3"         label="New Post"  color="#F472B6"   onPress={() => setCreateModalVisible(true)} />
-          <QuickAction icon="video"          label="Go Live"   color="#FF3B30"   onPress={() => Alert.alert('🔴 Go Live', 'Starting your live stream...', [{ text: 'Start', onPress: () => router.push('/livestream') }, { text: 'Cancel', style: 'cancel' }])} />
+          <QuickAction icon="camera"         label="Add Story" color={LIME}      onPress={() => setStoryTrigger(true)} />
         </View>
       </View>
 
@@ -1421,7 +1613,11 @@ export default function HomeScreen() {
               onCommentPress={handleCommentPress}
               isVisible={item.id === visibleItemId}
               onListingPress={(listing) => setSelectedListing(listing)}
-              onAuthorPress={(authorId) => authorId && router.push(`/profile/${authorId}`)}
+              onAuthorPress={(authorId, itemType, sellerId) => {
+                if (!authorId) return;
+                if (itemType === 'LISTING') router.push(`/shop/${sellerId || authorId}`);
+                else router.push(`/profile/${authorId}`);
+              }}
             />
           )}
           keyExtractor={(item) => `${item.type}_${item.id}`}
@@ -1447,68 +1643,19 @@ export default function HomeScreen() {
         onCountChange={handleCommentCountChange}
       />
 
-      {/* Listing Detail Sheet */}
+      {/* ══ Listing Detail Sheet ══════════════════════════════════════════ */}
       <Modal
         visible={!!selectedListing}
         transparent
         animationType="slide"
         onRequestClose={() => setSelectedListing(null)}
       >
-        <View style={styles.listingModalOverlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setSelectedListing(null)} />
-          <View style={styles.listingModalSheet}>
-            <View style={styles.listingModalHandle} />
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {selectedListing?.mediaUrls?.[0] && (
-                <Image
-                  source={{ uri: resolveMediaUrl(selectedListing.mediaUrls[0]) }}
-                  style={styles.listingModalImage}
-                  resizeMode="cover"
-                />
-              )}
-              <View style={styles.listingModalBody}>
-                <View style={styles.listingModalPriceRow}>
-                  <Text style={styles.listingModalPrice}>£{selectedListing?.price}</Text>
-                  {selectedListing?.negotiable && (
-                    <View style={styles.listingModalNegBadge}><Text style={styles.listingModalNegText}>NEGOTIABLE</Text></View>
-                  )}
-                </View>
-                <Text style={styles.listingModalTitle}>{selectedListing?.title}</Text>
-                {selectedListing?.description && (
-                  <Text style={styles.listingModalDesc}>{selectedListing.description}</Text>
-                )}
-                {selectedListing?.locationCity && (
-                  <View style={styles.listingModalLocRow}>
-                    <Feather name="map-pin" size={13} color="rgba(255,255,255,0.4)" />
-                    <Text style={styles.listingModalLoc}>{selectedListing.locationCity}</Text>
-                  </View>
-                )}
-                {selectedListing?.sellerName && (
-                  <TouchableOpacity
-                    style={styles.listingModalSellerRow}
-                    onPress={() => { setSelectedListing(null); if (selectedListing.sellerId) router.push(`/profile/${selectedListing.sellerId}`); }}
-                  >
-                    <View style={styles.listingModalSellerAvatar}>
-                      <Text style={styles.listingModalSellerInitial}>{(selectedListing.sellerName || '?')[0].toUpperCase()}</Text>
-                    </View>
-                    <View>
-                      <Text style={styles.listingModalSellerName}>{selectedListing.sellerName}</Text>
-                      <Text style={styles.listingModalSellerLabel}>Seller · View profile</Text>
-                    </View>
-                    <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.3)" style={{ marginLeft: 'auto' }} />
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  style={styles.listingModalMsgBtn}
-                  onPress={() => { setSelectedListing(null); if (selectedListing?.sellerId) router.push({ pathname: '/(tabs)/messages', params: { partnerId: selectedListing.sellerId } }); }}
-                >
-                  <Feather name="message-circle" size={18} color={BG} />
-                  <Text style={styles.listingModalMsgText}>Message Seller</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
+        <ListingDetailSheet
+          listing={selectedListing}
+          onClose={() => setSelectedListing(null)}
+          onGoToShop={(sellerId) => { setSelectedListing(null); router.push(`/shop/${sellerId}`); }}
+          onGoToChat={(sellerId, sellerName) => { setSelectedListing(null); router.push({ pathname: '/(tabs)/messages', params: { partnerId: sellerId, partnerName: sellerName } }); }}
+        />
       </Modal>
     </View>
   );
@@ -1718,7 +1865,11 @@ const styles = StyleSheet.create({
   },
   feedAvatarImage: { width: '100%', height: '100%', borderRadius: 22 },
   feedAvatarText: { color: LIME, fontSize: 17, fontWeight: '900' },
+  feedAvatarAnon: { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' },
   feedAuthorName: { color: '#FFF', fontSize: 14, fontWeight: '900', letterSpacing: 0.1 },
+  feedAuthorNameAnon: { color: 'rgba(255,255,255,0.45)', fontStyle: 'italic' },
+  anonBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  anonBadgeText: { color: 'rgba(255,255,255,0.35)', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
   feedTimestamp: { color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '700', marginTop: 2, letterSpacing: 0.5 },
   feedListingBadge: {
     paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8,
@@ -1845,7 +1996,16 @@ const styles = StyleSheet.create({
   imagePreviewContainer: { position: 'relative', marginBottom: 16 },
   imagePreview: { width: '100%', height: 180, borderRadius: 12 },
   removeImage: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, padding: 2 },
-  createActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+  createActions: { marginTop: 12, gap: 10 },
+  createActionsTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  anonBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    marginBottom: 4,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  },
+  anonBannerText: { color: 'rgba(255,255,255,0.45)', fontSize: 12, flex: 1 },
   mediaButton: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: 'rgba(205,255,0,0.08)',
@@ -1856,6 +2016,10 @@ const styles = StyleSheet.create({
   postButton: { backgroundColor: LIME, paddingHorizontal: 32, paddingVertical: 12, borderRadius: 20, minWidth: 90, alignItems: 'center' },
   postButtonDisabled: { opacity: 0.6 },
   postButtonText: { color: BG, fontWeight: '900', fontSize: 13, letterSpacing: 1 },
+  anonToggle: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, paddingVertical: 8, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.04)' },
+  anonToggleActive: { backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.35)' },
+  anonToggleText: { color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: '800' },
+  anonToggleTextActive: { color: '#FFF' },
 
   // Comments Sheet
   commentsOverlay: { flex: 1, justifyContent: 'flex-end' },

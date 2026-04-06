@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
-export default function GenericProfileScreen({ title, icon, color }) {
+export default function GenericProfileScreen() {
+  const { title = 'Page', icon, color } = useLocalSearchParams();
   const router = useRouter();
   return (
     <View style={styles.container}>

@@ -115,6 +115,11 @@ public class Listing {
     @Column(name = "location_city")
     private String locationCity; // city where the service is offered, or "Remote"
 
+    // Whether a letting-agent fee applies — only relevant for RENTAL listings.
+    @Column(name = "agent_fee", nullable = false)
+    @Builder.Default
+    private boolean agentFee = false;
+
     // Flexible JSON/string blob for category-specific extras (e.g. cuisine type for FOOD).
     // Stored as TEXT so any amount of metadata can be attached without schema changes.
     @Column(columnDefinition = "TEXT")

@@ -281,7 +281,7 @@ public class BookingService {
         // .distinct() uses Booking.equals() (default identity equality since there is no @EqualsAndHashCode)
         // which compares by object reference — distinct() here removes duplicate entity references
         // from the merged list when the same Booking object appeared in both queries.
-        return bookings.stream().distinct().map(this::enrichDto).collect(Collectors.toList());
+        return bookings.stream().distinct().map(b -> enrichDto(b, user.getId())).collect(Collectors.toList());
     }
 
     /**
@@ -302,6 +302,12 @@ public class BookingService {
         userRepository.findById(booking.getSellerId()).ifPresent(u -> dto.setSellerName(u.getFullName()));
         // Resolve the listing title so clients don't need a second API call
         listingRepository.findById(booking.getListingId()).ifPresent(l -> dto.setListingTitle(l.getTitle()));
+        return dto;
+    }
+
+    private BookingDto enrichDto(Booking booking, UUID currentUserId) {
+        BookingDto dto = enrichDto(booking);
+        dto.setRole(booking.getBuyerId().equals(currentUserId) ? "buyer" : "seller");
         return dto;
     }
 

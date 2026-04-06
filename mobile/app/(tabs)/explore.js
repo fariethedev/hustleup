@@ -25,6 +25,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../../src/store/authSlice';
 import { listingsApi } from '../../src/api/client';
+import { useRouter } from 'expo-router';
 
 const LIME = '#CDFF00';
 const BG   = '#050505';
@@ -36,7 +37,7 @@ const CATEGORIES = [
   { key: 'FOOD',         label: 'FOOD',       icon: 'coffee' },
   { key: 'EVENT',        label: 'EVENTS',     icon: 'calendar' },
   { key: 'JOB',          label: 'JOBS',       icon: 'briefcase' },
-  { key: 'APARTMENT',    label: 'APARTMENTS', icon: 'home' },
+  { key: 'RENTAL',       label: 'RENTALS',    icon: 'home' },
   { key: 'FASHION',      label: 'FASHION',    icon: 'tag' },
   { key: 'SKILL',        label: 'SKILLS',     icon: 'cpu' },
   { key: 'HAIR_BEAUTY',  label: 'BEAUTY',     icon: 'scissors' },
@@ -45,45 +46,86 @@ const CATEGORIES = [
 const TYPE_COLORS = {
   SKILL: '#60A5FA', HAIR_BEAUTY: '#F472B6', FOOD: '#FB923C',
   FASHION: LIME,    GOODS: '#A78BFA',       EVENT: '#34D399',
-  JOB: '#FBBF24',   APARTMENT: '#38BDF8',
+  JOB: '#FBBF24',   RENTAL: '#38BDF8',
 };
 
 const TYPE_LABELS = {
   SKILL: 'SKILL', HAIR_BEAUTY: 'BEAUTY', FOOD: 'FOOD',
   FASHION: 'FASHION', GOODS: 'GOODS', EVENT: 'EVENT',
-  JOB: 'JOB', APARTMENT: 'APARTMENT',
+  JOB: 'JOB', RENTAL: 'RENTAL',
 };
 
 const TYPE_ICONS = {
   SKILL: 'cpu', HAIR_BEAUTY: 'scissors', FOOD: 'coffee',
   FASHION: 'tag', GOODS: 'package', EVENT: 'calendar',
-  JOB: 'briefcase', APARTMENT: 'home',
+  JOB: 'briefcase', RENTAL: 'home',
 };
 
 // ── Small grid card (used in Hot Now + See More) ──────────────────────────
 function ListingCard({ item, onPress }) {
   const typeColor = TYPE_COLORS[item.type] || '#888';
-  const initials  = item.sellerName?.[0]?.toUpperCase() || item.title?.[0]?.toUpperCase() || '?';
+  const imageSource = item.mediaUrls?.[0] || item.imageUrl;
+  const sellerInitial = item.sellerName?.[0]?.toUpperCase() || '?';
+
   return (
-    <TouchableOpacity style={styles.card} onPress={() => onPress?.(item)} activeOpacity={0.8}>
-      <View style={styles.cardImageWrap}>
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.cardImage} resizeMode="cover" />
-        ) : (
-          <LinearGradient colors={[`${typeColor}22`, `${typeColor}08`]} style={styles.cardImage}>
-            <Text style={[styles.cardInitial, { color: typeColor }]}>{initials}</Text>
-          </LinearGradient>
-        )}
-        <View style={[styles.typeBadge, { borderColor: `${typeColor}60`, backgroundColor: `${typeColor}18` }]}>
-          <Text style={[styles.typeBadgeText, { color: typeColor }]}>{TYPE_LABELS[item.type] || item.type || 'OTHER'}</Text>
+    <TouchableOpacity style={styles.card} onPress={() => onPress?.(item)} activeOpacity={0.85}>
+      {/* Full-bleed image */}
+      {imageSource ? (
+        <Image source={{ uri: imageSource }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+      ) : (
+        <LinearGradient colors={[`${typeColor}30`, `${typeColor}08`]} style={StyleSheet.absoluteFillObject}>
+          <View style={styles.cardFallbackIcon}>
+            <Feather name={TYPE_ICONS[item.type] || 'tag'} size={36} color={typeColor} />
+          </View>
+        </LinearGradient>
+      )}
+
+      {/* Gradient overlay */}
+      <LinearGradient
+        colors={['transparent', 'transparent', 'rgba(0,0,0,0.75)', 'rgba(0,0,0,0.95)']}
+        locations={[0, 0.35, 0.7, 1]}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {/* Seller avatar — top left */}
+      {item.sellerName && (
+        <View style={styles.cardSellerPill}>
+          <View style={styles.cardSellerAvatar}>
+            <Text style={styles.cardSellerAvatarText}>{sellerInitial}</Text>
+          </View>
+          <Text style={styles.cardSellerName} numberOfLines={1}>{item.sellerName}</Text>
         </View>
-      </View>
-      <View style={styles.cardBody}>
+      )}
+
+      {/* Negotiable badge — top right */}
+      {item.negotiable && (
+        <View style={styles.cardDealBadge}>
+          <Text style={styles.cardDealText}>DEAL</Text>
+        </View>
+      )}
+
+      {/* Bottom overlay content */}
+      <View style={styles.cardOverlay}>
         <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-        {item.sellerName && <Text style={styles.cardSeller} numberOfLines={1}>{item.sellerName}</Text>}
-        {item.price != null && (
-          <Text style={styles.cardPrice}>{item.currency || '£'}{Number(item.price).toFixed(2)}</Text>
-        )}
+
+        {/* Bottom row: type badge + price + location */}
+        <View style={styles.cardBottomRow}>
+          <View style={[styles.cardTypePill, { backgroundColor: `${typeColor}25`, borderColor: `${typeColor}50` }]}>
+            <Feather name={TYPE_ICONS[item.type] || 'tag'} size={8} color={typeColor} />
+            <Text style={[styles.cardTypeText, { color: typeColor }]}>{TYPE_LABELS[item.type] || item.type}</Text>
+          </View>
+          {item.price != null && (
+            <View style={styles.cardPricePill}>
+              <Text style={styles.cardPriceText}>{Number(item.price).toFixed(0)} zł</Text>
+            </View>
+          )}
+          {item.locationCity && (
+            <View style={styles.cardLocPill}>
+              <Feather name="map-pin" size={8} color="rgba(255,255,255,0.6)" />
+              <Text style={styles.cardLocText} numberOfLines={1}>{item.locationCity}</Text>
+            </View>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -92,37 +134,62 @@ function ListingCard({ item, onPress }) {
 // ── Wide featured card (horizontal scroll) ────────────────────────────────
 function FeaturedCard({ item, onPress }) {
   const typeColor = TYPE_COLORS[item.type] || '#888';
-  const initials  = item.sellerName?.[0]?.toUpperCase() || item.title?.[0]?.toUpperCase() || '?';
+  const imageSource = item.mediaUrls?.[0] || item.imageUrl;
+  const sellerInitial = item.sellerName?.[0]?.toUpperCase() || '?';
+
   return (
     <TouchableOpacity style={styles.featCard} onPress={() => onPress?.(item)} activeOpacity={0.85}>
-      {item.imageUrl ? (
-        <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+      {/* Full-bleed image */}
+      {imageSource ? (
+        <Image source={{ uri: imageSource }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
       ) : (
         <LinearGradient colors={[`${typeColor}44`, `${typeColor}11`]} style={StyleSheet.absoluteFillObject}>
           <View style={styles.featInitialWrap}>
-            <Text style={[styles.featInitial, { color: typeColor }]}>{initials}</Text>
+            <Text style={[styles.featInitial, { color: typeColor }]}>{item.title?.[0] || '?'}</Text>
           </View>
         </LinearGradient>
       )}
+
+      {/* Gradient overlay */}
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.88)']}
-        style={[StyleSheet.absoluteFillObject, { justifyContent: 'flex-end', padding: 16 }]}
-      >
-        <View style={[styles.typeBadge, { borderColor: `${typeColor}60`, backgroundColor: `${typeColor}28`, alignSelf: 'flex-start', marginBottom: 8 }]}>
-          <Text style={[styles.typeBadgeText, { color: typeColor }]}>{item.type || 'OTHER'}</Text>
+        colors={['rgba(0,0,0,0.15)', 'transparent', 'rgba(0,0,0,0.8)', 'rgba(0,0,0,0.95)']}
+        locations={[0, 0.25, 0.65, 1]}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {/* Seller pill — top */}
+      {item.sellerName && (
+        <View style={styles.featSellerPill}>
+          <View style={styles.featSellerAvatar}>
+            <Text style={styles.featSellerAvatarText}>{sellerInitial}</Text>
+          </View>
+          <Text style={styles.featSellerName} numberOfLines={1}>{item.sellerName}</Text>
         </View>
+      )}
+
+      {/* Bottom overlay */}
+      <View style={styles.featOverlay}>
         <Text style={styles.featTitle} numberOfLines={2}>{item.title}</Text>
-        {item.sellerName && <Text style={styles.featSeller}>{item.sellerName}</Text>}
-        {item.price != null && (
-          <Text style={styles.featPrice}>{item.currency || '$'}{Number(item.price).toFixed(2)}</Text>
-        )}
-      </LinearGradient>
+
+        <View style={styles.featBottomRow}>
+          <View style={[styles.cardTypePill, { backgroundColor: `${typeColor}25`, borderColor: `${typeColor}50` }]}>
+            <Feather name={TYPE_ICONS[item.type] || 'tag'} size={8} color={typeColor} />
+            <Text style={[styles.cardTypeText, { color: typeColor }]}>{TYPE_LABELS[item.type] || item.type}</Text>
+          </View>
+          {item.price != null && (
+            <View style={styles.cardPricePill}>
+              <Text style={styles.cardPriceText}>{Number(item.price).toFixed(0)} zł</Text>
+            </View>
+          )}
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
 
 // ── Listing Detail Bottom Sheet with Negotiate + Purchase ─────────────────
 function ListingDetailSheet({ item, visible, onClose }) {
+  const router = useRouter();
   const [negotiateVisible, setNegotiateVisible] = useState(false);
   const [offerAmount, setOfferAmount] = useState('');
   const [negotiationState, setNegotiationState] = useState('idle'); // idle | offered | accepted | declined
@@ -150,7 +217,7 @@ function ListingDetailSheet({ item, visible, onClose }) {
     const price = negotiationState === 'accepted' ? offerAmount : item.price;
     Alert.alert(
       '💳 Confirm Purchase',
-      `Buy "${item.title}" for £${Number(price).toFixed(2)}?`,
+      `Buy "${item.title}" for PLN ${Number(price).toFixed(2)}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Pay Now', onPress: () => {
@@ -199,7 +266,7 @@ function ListingDetailSheet({ item, visible, onClose }) {
               <Text style={styles.detailTitle}>{item.title}</Text>
               {item.price != null && (
                 <View style={styles.detailPriceRow}>
-                  <Text style={styles.detailPrice}>{item.currency || '£'}{Number(item.price).toFixed(2)}</Text>
+                  <Text style={styles.detailPrice}>{Number(item.price).toFixed(2)} PLN</Text>
                   {item.negotiable && (
                     <View style={styles.negotiableBadge}>
                       <Text style={styles.negotiableText}>NEGOTIABLE</Text>
@@ -210,7 +277,7 @@ function ListingDetailSheet({ item, visible, onClose }) {
             </View>
 
             {/* Seller row */}
-            <TouchableOpacity style={styles.detailSellerRow} onPress={() => setShopVisible(true)} activeOpacity={0.75}>
+            <TouchableOpacity style={styles.detailSellerRow} onPress={() => { handleClose(); router.push(`/shop/${item.sellerId}?name=${encodeURIComponent(item.sellerName || 'Seller')}`); }} activeOpacity={0.75}>
               <View style={styles.detailAvatar}>
                 <Text style={styles.detailAvatarText}>{sellerInit}</Text>
               </View>
@@ -246,10 +313,10 @@ function ListingDetailSheet({ item, visible, onClose }) {
                 <Text style={styles.negotiateTitle}>Make an Offer</Text>
                 {negotiationState === 'idle' && (
                   <View style={styles.negotiateInputRow}>
-                    <Text style={styles.currencyLabel}>£</Text>
+                    <Text style={styles.currencyLabel}>PLN</Text>
                     <TextInput
                       style={styles.negotiateInput}
-                      placeholder={`Suggest a price (listed: £${Number(item.price).toFixed(2)})`}
+                      placeholder={`Suggest a price (listed: PLN ${Number(item.price).toFixed(2)})`}
                       placeholderTextColor="rgba(255,255,255,0.25)"
                       keyboardType="numeric"
                       value={offerAmount}
@@ -270,7 +337,7 @@ function ListingDetailSheet({ item, visible, onClose }) {
                   <View style={styles.negotiateStatus}>
                     <Feather name="check-circle" size={20} color="#34C759" />
                     <Text style={[styles.negotiateStatusText, { color: '#34C759' }]}>
-                      Offer of £{Number(offerAmount).toFixed(2)} accepted!
+                      Offer of PLN {Number(offerAmount).toFixed(2)} accepted!
                     </Text>
                   </View>
                 )}
@@ -293,7 +360,7 @@ function ListingDetailSheet({ item, visible, onClose }) {
               <TouchableOpacity style={styles.buyBtn} onPress={handleBuy} activeOpacity={0.85}>
                 <Feather name="shopping-cart" size={16} color="#FFF" />
                 <Text style={styles.buyBtnText}>
-                  {negotiationState === 'accepted' ? `Buy for £${Number(offerAmount).toFixed(2)}` : `Buy for £${Number(item.price || 0).toFixed(2)}`}
+                  {negotiationState === 'accepted' ? `Buy for PLN ${Number(offerAmount).toFixed(2)}` : `Buy for PLN ${Number(item.price || 0).toFixed(2)}`}
                 </Text>
               </TouchableOpacity>
               
@@ -312,109 +379,9 @@ function ListingDetailSheet({ item, visible, onClose }) {
           </ScrollView>
         </View>
       </View>
-
-      {/* Shop Modal */}
-      <SellerShopModal visible={shopVisible} onClose={() => setShopVisible(false)} sellerName={item.sellerName} sellerId={item.sellerId} />
     </Modal>
   );
 }
-
-// ── Seller Shop Modal ────────────────────────────────────────────────────────
-const MOCK_SHOP_ITEMS = [
-  { id: 's1', title: 'Vintage Sneakers', price: 85, type: 'GOODS', imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=300&fit=crop' },
-  { id: 's2', title: 'Homemade Jerk Wings', price: 12, type: 'FOOD', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=300&h=300&fit=crop' },
-  { id: 's3', title: 'Rooftop Party', price: 25, type: 'EVENT', imageUrl: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=300&h=300&fit=crop' },
-  { id: 's4', title: 'Room Available - Zone 2', price: 850, type: 'APARTMENT', imageUrl: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=300&h=300&fit=crop' },
-  { id: 's5', title: 'Freelance Web Dev', price: 50, type: 'JOB', imageUrl: null },
-  { id: 's6', title: 'Custom T-Shirts', price: 22, type: 'FASHION', imageUrl: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=300&h=300&fit=crop' },
-];
-
-function SellerShopModal({ visible, onClose, sellerName, sellerId }) {
-  if (!visible) return null;
-  const sellerInit = sellerName?.[0]?.toUpperCase() || '?';
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.sheetOverlay}>
-        <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={onClose} />
-        <View style={[styles.sheetContainer, { maxHeight: '90%' }]}>
-          <View style={styles.sheetHandle} />
-          
-          {/* Shop Header */}
-          <View style={shopStyles.header}>
-            <LinearGradient colors={['rgba(205,255,0,0.08)', 'transparent']} style={shopStyles.headerBg}>
-              <View style={shopStyles.headerContent}>
-                <View style={shopStyles.shopAvatar}>
-                  <Text style={shopStyles.shopAvatarText}>{sellerInit}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={shopStyles.shopName}>{sellerName || 'Unknown'}'s Shop</Text>
-                  <Text style={shopStyles.shopSub}>{MOCK_SHOP_ITEMS.length} items · ⭐ 4.8 (127 reviews)</Text>
-                </View>
-                <TouchableOpacity style={shopStyles.followShopBtn}>
-                  <Text style={shopStyles.followShopText}>Follow</Text>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-
-          {/* Items Grid */}
-          <FlatList
-            data={MOCK_SHOP_ITEMS}
-            keyExtractor={item => item.id}
-            numColumns={2}
-            columnWrapperStyle={{ gap: 10 }}
-            contentContainerStyle={{ padding: 16, gap: 10 }}
-            renderItem={({ item }) => {
-              const tc = TYPE_COLORS[item.type] || '#888';
-              return (
-                <TouchableOpacity style={shopStyles.itemCard} activeOpacity={0.8}
-                  onPress={() => Alert.alert(item.title, `${item.type} · £${item.price}\n\nTap Buy to purchase or message the seller.`)}
-                >
-                  {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={shopStyles.itemImage} resizeMode="cover" />
-                  ) : (
-                    <View style={[shopStyles.itemImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#1A1A1A' }]}>
-                      <Feather name={TYPE_ICONS[item.type] || 'tag'} size={24} color={tc} />
-                    </View>
-                  )}
-                  <View style={shopStyles.itemBody}>
-                    <Text style={shopStyles.itemTitle} numberOfLines={1}>{item.title}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Text style={shopStyles.itemPrice}>£{item.price}</Text>
-                      <View style={[shopStyles.itemTypeBadge, { backgroundColor: `${tc}15`, borderColor: `${tc}40` }]}>
-                        <Text style={[shopStyles.itemTypeText, { color: tc }]}>{TYPE_LABELS[item.type] || item.type}</Text>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
-          />
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-const shopStyles = StyleSheet.create({
-  header: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  headerBg: { padding: 20 },
-  headerContent: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  shopAvatar: { width: 56, height: 56, borderRadius: 18, backgroundColor: 'rgba(205,255,0,0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: LIME },
-  shopAvatarText: { color: LIME, fontSize: 22, fontWeight: '900' },
-  shopName: { color: '#FFF', fontSize: 18, fontWeight: '900' },
-  shopSub: { color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: '600', marginTop: 3 },
-  followShopBtn: { backgroundColor: LIME, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16 },
-  followShopText: { color: BG, fontSize: 12, fontWeight: '900' },
-  itemCard: { flex: 1, borderRadius: 16, overflow: 'hidden', backgroundColor: '#111', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  itemImage: { width: '100%', aspectRatio: 1, backgroundColor: '#1A1A1A' },
-  itemBody: { padding: 10, gap: 4 },
-  itemTitle: { color: '#FFF', fontSize: 13, fontWeight: '700' },
-  itemPrice: { color: LIME, fontSize: 14, fontWeight: '900' },
-  itemTypeBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1 },
-  itemTypeText: { fontSize: 8, fontWeight: '800' },
-});
 
 // ── Create Listing Bottom Sheet ───────────────────────────────────────────
 const LISTING_TYPES = [
@@ -422,7 +389,7 @@ const LISTING_TYPES = [
   { key: 'FOOD',        label: 'Food',          icon: 'coffee' },
   { key: 'EVENT',       label: 'Events',        icon: 'calendar' },
   { key: 'JOB',         label: 'Jobs',          icon: 'briefcase' },
-  { key: 'APARTMENT',   label: 'Apartments',    icon: 'home' },
+  { key: 'RENTAL',      label: 'Rental',        icon: 'home' },
   { key: 'FASHION',     label: 'Fashion',       icon: 'tag' },
   { key: 'SKILL',       label: 'Skills',        icon: 'cpu' },
   { key: 'HAIR_BEAUTY', label: 'Hair & Beauty', icon: 'scissors' },
@@ -435,12 +402,13 @@ function CreateListingModal({ visible, onClose, onCreated }) {
   const [city,        setCity]        = useState('');
   const [listingType, setListingType] = useState('SKILL');
   const [negotiable,  setNegotiable]  = useState(false);
+  const [agentFee,    setAgentFee]    = useState(false);
   const [images,      setImages]      = useState([]);
   const [submitting,  setSubmitting]  = useState(false);
 
   const reset = () => {
     setTitle(''); setDescription(''); setPrice(''); setCity('');
-    setListingType('SKILL'); setNegotiable(false); setImages([]);
+    setListingType('SKILL'); setNegotiable(false); setAgentFee(false); setImages([]);
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -452,8 +420,7 @@ function CreateListingModal({ visible, onClose, onCreated }) {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType.Images,
-      allowsMultipleSelection: true,
+      mediaTypes: 'images',
       allowsEditing: false,
       quality: 0.85,
     });
@@ -482,6 +449,7 @@ function CreateListingModal({ visible, onClose, onCreated }) {
       formData.append('price',       parseFloat(price).toFixed(2));
       formData.append('currency',    'GBP');
       formData.append('negotiable',  negotiable ? 'true' : 'false');
+      formData.append('agentFee',    agentFee ? 'true' : 'false');
       formData.append('city',        city.trim());
       images.forEach((img, i) => {
         const uri      = img.uri;
@@ -573,7 +541,7 @@ function CreateListingModal({ visible, onClose, onCreated }) {
             <Text style={styles.inputLabel}>Price (GBP) <Text style={{ color: LIME }}>*</Text></Text>
             <View style={styles.priceRow}>
               <View style={[styles.input, styles.priceInput, { flexDirection: 'row', alignItems: 'center' }]}>
-                <Text style={{ color: '#666', fontSize: 16, marginRight: 6 }}>£</Text>
+                <Text style={{ color: '#666', fontSize: 16, marginRight: 6 }}>PLN </Text>
                 <TextInput
                   style={{ flex: 1, color: '#FFF', fontSize: 16 }}
                   placeholder="0.00"
@@ -605,6 +573,25 @@ function CreateListingModal({ visible, onClose, onCreated }) {
                 onChangeText={setCity}
               />
             </View>
+
+            {/* Agent Fee — only for RENTAL listings */}
+            {listingType === 'RENTAL' && (
+              <View style={styles.agentFeeRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Agent Fee</Text>
+                  <Text style={styles.agentFeeSubtitle}>Does this listing include a letting-agent fee?</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.agentFeeToggle, agentFee && styles.agentFeeToggleActive]}
+                  onPress={() => setAgentFee(v => !v)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.agentFeeToggleText, agentFee && styles.agentFeeToggleTextActive]}>
+                    {agentFee ? 'Yes' : 'No'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Images */}
             <Text style={styles.inputLabel}>Photos <Text style={{ color: '#555', fontWeight: '400' }}>(up to 6)</Text></Text>
@@ -699,22 +686,22 @@ export default function ExploreScreen() {
 
 // ── Demo Listings (shown when API returns empty) ─────────────────────────
 const DEMO_LISTINGS = [
-  { id: 'd1', title: 'Nike Air Max 90 - Barely Used', type: 'GOODS', price: 85, currency: '£', negotiable: true, sellerName: 'Tyler B.', sellerId: 'u1', description: 'Size 10 UK. Only worn 3 times. Comes with original box.', locationCity: 'London', imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop' },
-  { id: 'd2', title: 'Homemade Jerk Chicken Platter', type: 'FOOD', price: 15, currency: '£', negotiable: false, sellerName: 'Priya S.', sellerId: 'u2', description: 'Authentic Jamaican-style jerk chicken with rice & peas, plantain. Delivery available.', locationCity: 'Manchester', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=400&h=400&fit=crop' },
-  { id: 'd3', title: 'Rooftop Afrobeats Summer Party', type: 'EVENT', price: 25, currency: '£', negotiable: false, sellerName: 'Zara T.', sellerId: 'u3', description: 'Join us for the hottest rooftop party this summer! DJ lineup, food vendors, and good vibes.', locationCity: 'Birmingham', imageUrl: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&h=400&fit=crop' },
-  { id: 'd4', title: 'Freelance Web Developer Needed', type: 'JOB', price: 50, currency: '£/hr', negotiable: true, sellerName: 'Marcus C.', sellerId: 'u4', description: 'Looking for a React/Next.js dev for a 3-month contract. Remote work OK.', locationCity: 'Remote', imageUrl: null },
-  { id: 'd5', title: 'Double Room in Zone 2 Flat', type: 'APARTMENT', price: 850, currency: '£/mo', negotiable: true, sellerName: 'Andre W.', sellerId: 'u5', description: 'Fully furnished double room in a modern 2-bed flat. Bills included. 5 min walk to station.', locationCity: 'London, Zone 2', imageUrl: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=400&fit=crop' },
-  { id: 'd6', title: 'Custom Tie-Dye T-Shirts', type: 'FASHION', price: 22, currency: '£', negotiable: false, sellerName: 'Luna R.', sellerId: 'u6', description: 'Handmade tie-dye tees. Choose your colors and pattern. 100% organic cotton.', locationCity: 'Bristol', imageUrl: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400&h=400&fit=crop' },
-  { id: 'd7', title: 'Photography Lessons - Beginner', type: 'SKILL', price: 35, currency: '£', negotiable: true, sellerName: 'Maya J.', sellerId: 'u7', description: '2-hour session covering camera basics, composition, and lighting. Bring your own camera.', locationCity: 'London', imageUrl: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=400&h=400&fit=crop' },
-  { id: 'd8', title: 'Box Braids & Cornrows', type: 'HAIR_BEAUTY', price: 60, currency: '£', negotiable: false, sellerName: 'Aisha P.', sellerId: 'u8', description: 'Professional braiding. All hair types welcome. Hair included in price.', locationCity: 'Croydon', imageUrl: 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=400&h=400&fit=crop' },
-  { id: 'd9', title: 'PS5 + 3 Games Bundle', type: 'GOODS', price: 380, currency: '£', negotiable: true, sellerName: 'Kai N.', sellerId: 'u9', description: 'PS5 Disc edition with 2 controllers and FIFA, GTA V, Spider-Man. Fully working.', locationCity: 'Leeds', imageUrl: 'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=400&h=400&fit=crop' },
-  { id: 'd10', title: 'Gourmet Burger Pop-Up', type: 'FOOD', price: 12, currency: '£', negotiable: false, sellerName: 'David O.', sellerId: 'u10', description: 'Smash burgers, loaded fries, milkshakes. Find us every Saturday at Camden Market.', locationCity: 'Camden, London', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=400&fit=crop' },
-  { id: 'd11', title: 'Tech Networking Mixer', type: 'EVENT', price: 0, currency: '£', negotiable: false, sellerName: 'Jamal C.', sellerId: 'u11', description: 'FREE Tech & Startup networking event. Meet founders, investors, and engineers.', locationCity: 'Shoreditch, London', imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=400&fit=crop' },
-  { id: 'd12', title: 'Social Media Manager', type: 'JOB', price: 30, currency: '£/hr', negotiable: true, sellerName: 'Sofia M.', sellerId: 'u12', description: 'Part-time social media management for small brands. Content creation, scheduling, analytics.', locationCity: 'Remote', imageUrl: null },
-  { id: 'd13', title: 'Studio Flat - Canary Wharf', type: 'APARTMENT', price: 1200, currency: '£/mo', negotiable: false, sellerName: 'Tyler B.', sellerId: 'u1', description: 'Modern studio with a river view. Fully furnished. Gym and concierge included.', locationCity: 'Canary Wharf, London', imageUrl: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=400&fit=crop' },
-  { id: 'd14', title: 'Vintage Denim Jacket', type: 'FASHION', price: 45, currency: '£', negotiable: true, sellerName: 'Zara T.', sellerId: 'u3', description: 'Authentic 90s Levi\'s denim jacket. Size M. Perfect condition.', locationCity: 'London', imageUrl: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=400&h=400&fit=crop' },
-  { id: 'd15', title: 'Guitar Lessons - All Levels', type: 'SKILL', price: 25, currency: '£', negotiable: false, sellerName: 'Marcus C.', sellerId: 'u4', description: '1-hour guitar lessons. Acoustic or electric. In person or online.', locationCity: 'Manchester', imageUrl: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=400&h=400&fit=crop' },
-  { id: 'd16', title: 'Natural Hair Treatments', type: 'HAIR_BEAUTY', price: 40, currency: '£', negotiable: false, sellerName: 'Priya S.', sellerId: 'u2', description: 'Deep conditioning, hot oil treatments, and protective styles for natural hair.', locationCity: 'Brixton, London', imageUrl: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=400&fit=crop' },
+  { id: 'd1', title: 'Nike Air Max 90 - Barely Used', type: 'GOODS', price: 85, currency: 'PLN ', negotiable: true, sellerName: 'Tyler B.', sellerId: 'u1', description: 'Size 10 UK. Only worn 3 times. Comes with original box.', locationCity: 'London', imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop' },
+  { id: 'd2', title: 'Homemade Jerk Chicken Platter', type: 'FOOD', price: 15, currency: 'PLN ', negotiable: false, sellerName: 'Priya S.', sellerId: 'u2', description: 'Authentic Jamaican-style jerk chicken with rice & peas, plantain. Delivery available.', locationCity: 'Manchester', imageUrl: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=400&h=400&fit=crop' },
+  { id: 'd3', title: 'Rooftop Afrobeats Summer Party', type: 'EVENT', price: 25, currency: 'PLN ', negotiable: false, sellerName: 'Zara T.', sellerId: 'u3', description: 'Join us for the hottest rooftop party this summer! DJ lineup, food vendors, and good vibes.', locationCity: 'Birmingham', imageUrl: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&h=400&fit=crop' },
+  { id: 'd4', title: 'Freelance Web Developer Needed', type: 'JOB', price: 50, currency: 'PLN /hr', negotiable: true, sellerName: 'Marcus C.', sellerId: 'u4', description: 'Looking for a React/Next.js dev for a 3-month contract. Remote work OK.', locationCity: 'Remote', imageUrl: null },
+  { id: 'd5', title: 'Double Room in Zone 2 Flat', type: 'RENTAL', price: 850, currency: 'PLN /mo', negotiable: true, sellerName: 'Andre W.', sellerId: 'u5', description: 'Fully furnished double room in a modern 2-bed flat. Bills included. 5 min walk to station.', locationCity: 'London, Zone 2', imageUrl: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=400&fit=crop' },
+  { id: 'd6', title: 'Custom Tie-Dye T-Shirts', type: 'FASHION', price: 22, currency: 'PLN ', negotiable: false, sellerName: 'Luna R.', sellerId: 'u6', description: 'Handmade tie-dye tees. Choose your colors and pattern. 100% organic cotton.', locationCity: 'Bristol', imageUrl: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400&h=400&fit=crop' },
+  { id: 'd7', title: 'Photography Lessons - Beginner', type: 'SKILL', price: 35, currency: 'PLN ', negotiable: true, sellerName: 'Maya J.', sellerId: 'u7', description: '2-hour session covering camera basics, composition, and lighting. Bring your own camera.', locationCity: 'London', imageUrl: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=400&h=400&fit=crop' },
+  { id: 'd8', title: 'Box Braids & Cornrows', type: 'HAIR_BEAUTY', price: 60, currency: 'PLN ', negotiable: false, sellerName: 'Aisha P.', sellerId: 'u8', description: 'Professional braiding. All hair types welcome. Hair included in price.', locationCity: 'Croydon', imageUrl: 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=400&h=400&fit=crop' },
+  { id: 'd9', title: 'PS5 + 3 Games Bundle', type: 'GOODS', price: 380, currency: 'PLN ', negotiable: true, sellerName: 'Kai N.', sellerId: 'u9', description: 'PS5 Disc edition with 2 controllers and FIFA, GTA V, Spider-Man. Fully working.', locationCity: 'Leeds', imageUrl: 'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=400&h=400&fit=crop' },
+  { id: 'd10', title: 'Gourmet Burger Pop-Up', type: 'FOOD', price: 12, currency: 'PLN ', negotiable: false, sellerName: 'David O.', sellerId: 'u10', description: 'Smash burgers, loaded fries, milkshakes. Find us every Saturday at Camden Market.', locationCity: 'Camden, London', imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=400&fit=crop' },
+  { id: 'd11', title: 'Tech Networking Mixer', type: 'EVENT', price: 0, currency: 'PLN ', negotiable: false, sellerName: 'Jamal C.', sellerId: 'u11', description: 'FREE Tech & Startup networking event. Meet founders, investors, and engineers.', locationCity: 'Shoreditch, London', imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=400&fit=crop' },
+  { id: 'd12', title: 'Social Media Manager', type: 'JOB', price: 30, currency: 'PLN /hr', negotiable: true, sellerName: 'Sofia M.', sellerId: 'u12', description: 'Part-time social media management for small brands. Content creation, scheduling, analytics.', locationCity: 'Remote', imageUrl: null },
+  { id: 'd13', title: 'Studio Flat - Canary Wharf', type: 'RENTAL', price: 1200, currency: 'PLN /mo', negotiable: false, sellerName: 'Tyler B.', sellerId: 'u1', description: 'Modern studio with a river view. Fully furnished. Gym and concierge included.', locationCity: 'Canary Wharf, London', imageUrl: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=400&fit=crop' },
+  { id: 'd14', title: 'Vintage Denim Jacket', type: 'FASHION', price: 45, currency: 'PLN ', negotiable: true, sellerName: 'Zara T.', sellerId: 'u3', description: 'Authentic 90s Levi\'s denim jacket. Size M. Perfect condition.', locationCity: 'London', imageUrl: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=400&h=400&fit=crop' },
+  { id: 'd15', title: 'Guitar Lessons - All Levels', type: 'SKILL', price: 25, currency: 'PLN ', negotiable: false, sellerName: 'Marcus C.', sellerId: 'u4', description: '1-hour guitar lessons. Acoustic or electric. In person or online.', locationCity: 'Manchester', imageUrl: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=400&h=400&fit=crop' },
+  { id: 'd16', title: 'Natural Hair Treatments', type: 'HAIR_BEAUTY', price: 40, currency: 'PLN ', negotiable: false, sellerName: 'Priya S.', sellerId: 'u2', description: 'Deep conditioning, hot oil treatments, and protective styles for natural hair.', locationCity: 'Brixton, London', imageUrl: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&h=400&fit=crop' },
 ];
 
   const loadInitial = useCallback(async (category, q) => {
@@ -784,6 +771,16 @@ const DEMO_LISTINGS = [
     loadInitial(activeCategory, search);
   };
 
+  // Fix for react-native-web Modal scroll lock bug
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const isAnyModalOpen = detailVisible || createVisible || false;
+      if (!isAnyModalOpen) {
+        document.body.style.overflow = 'unset';
+      }
+    }
+  }, [detailVisible, createVisible]);
+
   const openDetail = (item) => { setSelectedListing(item); setDetailVisible(true); };
   const closeDetail = () => setDetailVisible(false);
 
@@ -834,6 +831,7 @@ const DEMO_LISTINGS = [
               onPress={() => setActiveCategory(cat.key)}
               activeOpacity={0.7}
             >
+              <Feather name={cat.icon} size={12} color={active ? LIME : '#71717A'} />
               <Text style={[styles.chipText, active && styles.chipTextActive]}>{cat.label}</Text>
             </TouchableOpacity>
           );
@@ -1027,6 +1025,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, color: '#FFF', fontSize: 14 },
   chipsRow: { paddingHorizontal: 16, paddingBottom: 12, gap: 8 },
   chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
@@ -1053,14 +1052,24 @@ const styles = StyleSheet.create({
   // Featured horizontal cards
   featRow: { paddingHorizontal: 16, gap: 12, paddingBottom: 4 },
   featCard: {
-    width: 200, height: 280, borderRadius: 22, overflow: 'hidden',
+    width: 200, height: 300, borderRadius: 22, overflow: 'hidden',
     backgroundColor: '#111', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
   },
   featInitialWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   featInitial: { fontSize: 56, fontWeight: '900' },
-  featTitle:   { color: '#FFF', fontSize: 15, fontWeight: '800', lineHeight: 20 },
-  featSeller:  { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '600', marginTop: 2 },
-  featPrice:   { color: LIME, fontSize: 16, fontWeight: '900', marginTop: 6 },
+  featSellerPill: {
+    position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 20, paddingRight: 10, paddingVertical: 3, paddingLeft: 3,
+  },
+  featSellerAvatar: {
+    width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(205,255,0,0.15)',
+    borderWidth: 1.5, borderColor: LIME, justifyContent: 'center', alignItems: 'center',
+  },
+  featSellerAvatarText: { color: LIME, fontSize: 10, fontWeight: '900' },
+  featSellerName: { color: '#FFF', fontSize: 11, fontWeight: '700', maxWidth: 100 },
+  featOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 14, gap: 8 },
+  featTitle: { color: '#FFF', fontSize: 16, fontWeight: '900', lineHeight: 20, textTransform: 'uppercase' },
+  featBottomRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
 
   // Grid (2-col)
   gridWrap: {
@@ -1075,26 +1084,72 @@ const styles = StyleSheet.create({
   },
   hotBadgeText: { fontSize: 12 },
 
-  // Small grid card
+  // Small grid card — full-bleed overlay design
   card: {
-    flex: 1, borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
+    flex: 1, borderRadius: 20, overflow: 'hidden',
+    backgroundColor: '#111',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    height: 240,
   },
-  cardImageWrap: { aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
-  cardImage:     { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
-  cardInitial:   { fontSize: 30, fontWeight: '900' },
+  cardFallbackIcon: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  // Seller pill — top left of card
+  cardSellerPill: {
+    position: 'absolute', top: 10, left: 10, flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 16, paddingRight: 8, paddingVertical: 2, paddingLeft: 2,
+  },
+  cardSellerAvatar: {
+    width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(205,255,0,0.15)',
+    borderWidth: 1.5, borderColor: LIME, justifyContent: 'center', alignItems: 'center',
+  },
+  cardSellerAvatarText: { color: LIME, fontSize: 9, fontWeight: '900' },
+  cardSellerName: { color: '#FFF', fontSize: 10, fontWeight: '700', maxWidth: 80 },
+
+  // Deal badge — top right
+  cardDealBadge: {
+    position: 'absolute', top: 10, right: 10,
+    backgroundColor: 'rgba(52,199,89,0.2)', borderWidth: 1, borderColor: 'rgba(52,199,89,0.5)',
+    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8,
+  },
+  cardDealText: { color: '#34C759', fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
+
+  // Bottom overlay content
+  cardOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, gap: 8 },
+  cardTitle: { color: '#FFF', fontSize: 14, fontWeight: '900', lineHeight: 18, textTransform: 'uppercase' },
+
+  // Bottom row with pill badges
+  cardBottomRow: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
+
+  // Shared type pill
+  cardTypePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8, borderWidth: 1,
+  },
+  cardTypeText: { fontSize: 8, fontWeight: '900', letterSpacing: 0.5 },
+
+  // Price pill
+  cardPricePill: {
+    backgroundColor: 'rgba(205,255,0,0.15)', borderWidth: 1, borderColor: 'rgba(205,255,0,0.35)',
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+  },
+  cardPriceText: { color: LIME, fontSize: 10, fontWeight: '900' },
+
+  // Location pill
+  cardLocPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8,
+  },
+  cardLocText: { color: 'rgba(255,255,255,0.6)', fontSize: 9, fontWeight: '600', maxWidth: 60 },
+
+  // Legacy compat
   typeBadge: {
     position: 'absolute', top: 8, left: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: 8, borderWidth: 1,
   },
   typeBadgeText: { fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8 },
-  cardBody:   { padding: 12, gap: 4 },
-  cardTitle:  { color: '#FFF', fontSize: 13, fontWeight: '800', lineHeight: 18 },
-  cardSeller: { color: '#666', fontSize: 11, fontWeight: '600' },
-  cardPrice:  { color: LIME, fontSize: 14, fontWeight: '900', marginTop: 4 },
 
   // Flat list layout (filtering mode)
   listContent: { paddingHorizontal: 12 },
@@ -1126,7 +1181,7 @@ const styles = StyleSheet.create({
 
   // FAB
   fab: {
-    position: 'absolute', right: 20, zIndex: 200,
+    position: 'absolute', right: 20, bottom: 30, zIndex: 200,
     width: 56, height: 56, borderRadius: 28,
     backgroundColor: LIME,
     alignItems: 'center', justifyContent: 'center',
@@ -1277,6 +1332,12 @@ const styles = StyleSheet.create({
   },
   negotiableActive: { borderColor: `${LIME}60`, backgroundColor: `${LIME}10` },
   negotiableText: { color: '#555', fontSize: 12, fontWeight: '700' },
+  agentFeeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 },
+  agentFeeSubtitle: { color: '#555', fontSize: 11, marginTop: 2 },
+  agentFeeToggle: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)', minWidth: 60, alignItems: 'center' },
+  agentFeeToggleActive: { backgroundColor: '#38BDF820', borderColor: '#38BDF8' },
+  agentFeeToggleText: { color: '#555', fontSize: 13, fontWeight: '900' },
+  agentFeeToggleTextActive: { color: '#38BDF8' },
   imageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   imageThumbWrap: { width: 80, height: 80, borderRadius: 12, overflow: 'hidden', position: 'relative' },
   imageThumb: { width: '100%', height: '100%' },

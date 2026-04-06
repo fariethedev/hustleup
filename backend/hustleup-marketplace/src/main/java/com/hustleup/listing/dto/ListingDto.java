@@ -58,6 +58,9 @@ public class ListingDto {
     // --- Location ---
     private String locationCity; // city where the service is based, or "Remote"
 
+    // Whether a letting-agent fee applies (RENTAL listings only)
+    private boolean agentFee;
+
     // --- Extra metadata ---
     private String meta;              // optional JSON blob for category-specific fields
     private List<String> mediaUrls;   // parsed image/video URLs (entity stores as CSV, DTO exposes as List)
@@ -107,6 +110,7 @@ public class ListingDto {
                 .currency(listing.getCurrency())
                 .negotiable(listing.isNegotiable())
                 .locationCity(listing.getLocationCity())
+                .agentFee(listing.isAgentFee())
                 .meta(listing.getMeta())
                 // Parse the CSV string into a proper List<String>, applying the URL refresher to each
                 .mediaUrls(parseMediaUrls(listing.getMediaUrls(), urlRefresher))

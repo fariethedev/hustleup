@@ -55,6 +55,9 @@ public class BookingDto {
     private String status;        // BookingStatus.name() — e.g. "BOOKED", "CANCELLED"
     private String cancelReason;  // reason provided at cancellation time; null for non-cancelled bookings
 
+    // --- Viewer role ---
+    private String role; // "buyer" or "seller" — set relative to the authenticated user who fetched this DTO
+
     // --- Timestamps ---
     private LocalDateTime createdAt; // when the booking was first created
 

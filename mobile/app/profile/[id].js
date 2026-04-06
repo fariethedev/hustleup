@@ -67,7 +67,7 @@ function GridCard({ item, onPress }) {
         {/* Price */}
         <View style={styles.invGridPrice}>
           <Text style={styles.invGridPriceText}>
-            {item.currency || '£'}{Number(item.price).toLocaleString()}
+            {item.currency || 'PLN '}{Number(item.price).toLocaleString()}
           </Text>
           {item.negotiable && <Text style={styles.invNegotiable}>OBO</Text>}
         </View>
@@ -110,7 +110,7 @@ function ListCard({ item, onPress }) {
         <Text style={styles.invListTitle} numberOfLines={2}>{item.title}</Text>
         <View style={styles.invListPriceRow}>
           <Text style={styles.invListPrice}>
-            {item.currency || '£'}{Number(item.price).toLocaleString()}
+            {item.currency || 'PLN '}{Number(item.price).toLocaleString()}
           </Text>
           {item.negotiable && <Text style={styles.invNegotiable}>OBO</Text>}
         </View>
