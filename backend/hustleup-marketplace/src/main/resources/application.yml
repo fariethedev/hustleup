@@ -8,7 +8,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/hustleup?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
-    password: ${MYSQL_PASSWORD:francis}
+    password: ${MYSQL_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
@@ -18,11 +18,11 @@ server:
 
 app:
   jwt:
-    secret: HustleUpSecretKeyForJWTTokenGenerationMustBe256BitsLongAtLeast!!2026
+    secret: ${JWT_SECRET}
     access-token-expiration-ms: 900000
     refresh-token-expiration-ms: 604800000
   upload:
-    dir: C:/Users/Admin/.gemini/antigravity/scratch/hustleup/backend/uploads
+    dir: ${UPLOAD_DIR:./uploads}
   aws:
     access-key: ${AWS_ACCESS_KEY_ID:}
     secret-key: ${AWS_SECRET_ACCESS_KEY:}

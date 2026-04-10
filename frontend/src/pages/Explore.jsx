@@ -16,9 +16,17 @@ export default function Explore() {
   const [scrolled, setScrolled] = useState(false);
   const itemsPerPage = 9;
 
+  const activeQ = searchParams.get('q') || '';
   const activeType = searchParams.get('type') || '';
   const activeCity = searchParams.get('city') || '';
   const negotiable = searchParams.get('negotiable') === 'true';
+
+  useEffect(() => {
+    // Only update local searchQuery state if it diverges from URL 'q'
+    if (activeQ !== searchQuery) {
+      setSearchQuery(activeQ);
+    }
+  }, [activeQ]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 80);
@@ -29,6 +37,7 @@ export default function Explore() {
   useEffect(() => {
     setLoading(true);
     const params = {};
+    if (activeQ) params.q = activeQ;
     if (activeType) params.type = activeType;
     if (activeCity) params.city = activeCity;
     if (negotiable) params.negotiable = true;
@@ -40,19 +49,14 @@ export default function Explore() {
       })
       .catch(() => setListings([]))
       .finally(() => setLoading(false));
-  }, [activeType, activeCity, negotiable]);
+  }, [activeQ, activeType, activeCity, negotiable]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
-    setLoading(true);
-    listingsApi.search(searchQuery)
-      .then((r) => {
-        setListings(r.data);
-        setCurrentPage(1);
-      })
-      .catch(() => setListings([]))
-      .finally(() => setLoading(false));
+    const params = new URLSearchParams(searchParams);
+    if (searchQuery.trim()) params.set('q', searchQuery.trim());
+    else params.delete('q');
+    setSearchParams(params);
   };
 
   const setFilter = (key, value) => {

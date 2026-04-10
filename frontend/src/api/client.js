@@ -73,7 +73,6 @@ export const authApi = {
 // Listings
 export const listingsApi = {
   browse: (params) => api.get('/listings', { params }),
-  search: (q) => api.get('/listings/search', { params: { q } }),
   getById: (id) => api.get(`/listings/${id}`),
   create: (formData) =>
     api.post('/listings', formData, {
