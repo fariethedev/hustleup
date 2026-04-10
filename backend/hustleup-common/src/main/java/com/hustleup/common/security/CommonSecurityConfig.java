@@ -207,8 +207,7 @@ public class CommonSecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/listings/**", "/api/v1/reviews/**", "/api/v1/users/**", "/api/v1/users").permitAll()
                 // Social features (feed, stories, dating) can be read by guests
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/feed/**", "/api/v1/stories/**", "/api/v1/dating/**").permitAll()
-                // Notifications and messages can be read without auth (auth check happens at data layer)
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/notifications/**", "/api/v1/direct-messages/**", "/api/v1/messages/**").permitAll()
+                // SECURITY: notifications, DMs, and messages require authentication — never expose user data publicly
                 // All other requests (POST, PUT, DELETE, authenticated GETs) require a valid JWT
                 .anyRequest().authenticated()
             );

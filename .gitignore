@@ -28,6 +28,20 @@ Thumbs.db
 .qodo/
 .git_status.txt
 
-# Env & Logs
+# ── Environment & Secrets ────────────────────────────────
 .env
+.env.*
+!.env.example
+*.local
+
+# ── Cryptographic Keys ──────────────────────────────────
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# ── Logs & Error Files ──────────────────────────────────
 *.log
+*.err
+*.log.err

@@ -5,7 +5,7 @@ spring:
     url: ${SOCIAL_DB_URL:jdbc:mysql://localhost:3306/hustleup?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${SOCIAL_DB_USERNAME:root}
-    password: ${SOCIAL_DB_PASSWORD:francis}
+    password: ${SOCIAL_DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -25,6 +25,6 @@ server:
   port: ${SERVER_PORT:8081}
 app:
   jwt:
-    secret: ${APP_JWT_SECRET:HustleUpSecretKeyForJWTTokenGenerationMustBe256BitsLongAtLeast!!2026}
+    secret: ${APP_JWT_SECRET}
   upload:
     dir: ${APP_UPLOAD_DIR:../../backend/uploads}
