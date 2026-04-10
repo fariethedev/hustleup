@@ -56,8 +56,8 @@ export default function CreateStoryModal({ visible, onClose, onCreated }) {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: mediaType === 'VIDEO'
-        ? 'videos'
-        : 'images',
+        ? ImagePicker.MediaTypeOptions.Videos
+        : ImagePicker.MediaTypeOptions.Images,
       quality: 0.85,
       allowsEditing: true,
     });

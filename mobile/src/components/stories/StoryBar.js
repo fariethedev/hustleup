@@ -59,11 +59,13 @@ function AddStoryCard({ avatar, myStories, onPress, onAddPress }) {
         />
 
         {/* Plus icon — tapping it always opens create modal */}
-        <TouchableOpacity style={s.addIconWrap} onPress={onAddPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <LinearGradient colors={[LIME, '#A8E600']} style={s.addIconCircle}>
-            <Feather name="plus" size={22} color={BG} />
-          </LinearGradient>
-        </TouchableOpacity>
+        <View style={s.addIconWrap} pointerEvents="box-none">
+          <TouchableOpacity onPress={onAddPress} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
+            <LinearGradient colors={[LIME, '#A8E600']} style={s.addIconCircle}>
+              <Feather name="plus" size={22} color={BG} />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
 
         {/* Label */}
         <View style={s.cardBottom}>
@@ -428,7 +430,7 @@ const s = StyleSheet.create({
 
   // Add story card
   addIconWrap: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
   },
