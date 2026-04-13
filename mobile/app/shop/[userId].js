@@ -2,15 +2,25 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
   ActivityIndicator, RefreshControl, TextInput, ScrollView, Dimensions,
+  ImageBackground, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSelector } from 'react-redux';
-import { listingsApi, usersApi, followsApi, directMessagesApi } from '../../src/api/client';
-import { selectUser, selectIsAuthenticated } from '../../src/store/authSlice';
+import { useSelector, useDispatch } from 'react-redux';
+import * as ImagePicker from 'expo-image-picker';
+import { listingsApi, usersApi, followsApi, directMessagesApi, API_URL } from '../../src/api/client';
+import { selectUser, selectIsAuthenticated, setUser as setReduxUser } from '../../src/store/authSlice';
 import ListingDetailSheet from '../../src/components/listings/ListingDetailSheet';
+
+const resolveMediaUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+  const apiUrl = typeof API_URL !== 'undefined' && API_URL ? API_URL : 'http://localhost:8000/api/v1';
+  const base = apiUrl.replace('/api/v1', '');
+  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
 const { width } = Dimensions.get('window');
 const BG   = '#050505';
@@ -83,6 +93,7 @@ const pc = StyleSheet.create({
 export default function ShopPage() {
   const { userId } = useLocalSearchParams();
   const router = useRouter();
+  const dispatch = useDispatch();
   const currentUser = useSelector(selectUser);
   const isAuthenticated = useSelector(selectIsAuthenticated);
 
@@ -95,6 +106,7 @@ export default function ShopPage() {
   const [selectedItem, setSelectedItem]     = useState(null);
   const [isFollowing, setIsFollowing]       = useState(false);
   const [followLoading, setFollowLoading]   = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   const isOwnShop = currentUser?.id === userId;
 
@@ -145,6 +157,36 @@ export default function ShopPage() {
     }
   };
 
+  const handleBannerUpload = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted' && status !== 'limited') {
+      Alert.alert('Permission needed', 'Allow photo library access to change your banner.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      aspect: [16, 9],
+      quality: 0.85,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setUploadingBanner(true);
+    try {
+      const filename = asset.uri.split('/').pop();
+      const ext = filename.split('.').pop().toLowerCase();
+      const formData = new FormData();
+      formData.append('file', { uri: asset.uri, name: filename, type: `image/${ext}` });
+      const res = await usersApi.uploadBanner(formData);
+      const updated = res.data;
+      setUser(prev => ({ ...prev, ...updated }));
+      dispatch(setReduxUser({ ...currentUser, ...updated }));
+    } catch {
+      Alert.alert('Upload failed', 'Could not update banner. Try again.');
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
   const filteredListings = listings.filter(item => {
     const matchCat = activeCategory === 'All' || item.listingType === activeCategory;
     const matchSearch = !search || item.title?.toLowerCase().includes(search.toLowerCase());
@@ -153,15 +195,42 @@ export default function ShopPage() {
 
   const sellerName = user?.fullName || user?.username || 'Seller';
   const sellerInitial = sellerName[0]?.toUpperCase() || '?';
+  const bannerUrl = resolveMediaUrl(user?.shopBannerUrl);
+  const avatarUrl = resolveMediaUrl(user?.avatarUrl);
 
   const ListHeader = () => (
     <View>
+      {/* ── Banner ── */}
+      <TouchableOpacity
+        activeOpacity={isOwnShop ? 0.85 : 1}
+        onPress={isOwnShop ? handleBannerUpload : undefined}
+        style={sh.bannerTouch}
+      >
+        <ImageBackground
+          source={bannerUrl ? { uri: bannerUrl } : null}
+          style={[sh.banner, !bannerUrl && sh.bannerPlaceholder]}
+        >
+          <LinearGradient
+            colors={['rgba(5,5,5,0.1)', 'rgba(5,5,5,0.75)']}
+            style={StyleSheet.absoluteFillObject}
+          />
+          {isOwnShop && (
+            <View style={sh.bannerEditBadge}>
+              {uploadingBanner
+                ? <ActivityIndicator size="small" color="#FFF" />
+                : <Feather name="camera" size={14} color="#FFF" />}
+              {!uploadingBanner && <Text style={sh.bannerEditText}>Edit Banner</Text>}
+            </View>
+          )}
+        </ImageBackground>
+      </TouchableOpacity>
+
       {/* ── Hero ── */}
-      <LinearGradient colors={['rgba(205,255,0,0.07)', 'transparent']} style={sh.hero}>
+      <View style={sh.hero}>
         <View style={sh.heroContent}>
           <View style={sh.avatarWrap}>
-            {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={sh.avatarImg} />
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={sh.avatarImg} />
             ) : (
               <Text style={sh.avatarText}>{sellerInitial}</Text>
             )}
@@ -205,12 +274,12 @@ export default function ShopPage() {
           </View>
         )}
         {isOwnShop && (
-          <TouchableOpacity style={sh.editShopBtn} onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.85}>
-            <Feather name="settings" size={14} color={LIME} />
-            <Text style={sh.editShopText}>Edit Profile</Text>
+          <TouchableOpacity style={sh.editShopBtn} onPress={() => router.push('/profile/edit')} activeOpacity={0.85}>
+            <Feather name="edit-2" size={14} color={LIME} />
+            <Text style={sh.editShopText}>Edit Shop</Text>
           </TouchableOpacity>
         )}
-      </LinearGradient>
+      </View>
 
       {/* ── Search ── */}
       <View style={sh.searchWrap}>
@@ -301,6 +370,11 @@ const sh = StyleSheet.create({
   appBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
   backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
   appBarTitle: { color: '#FFF', fontSize: 16, fontWeight: '900', flex: 1, textAlign: 'center' },
+  bannerTouch: { width: '100%' },
+  banner: { width: '100%', height: 160, justifyContent: 'flex-end', alignItems: 'flex-end', padding: 12 },
+  bannerPlaceholder: { backgroundColor: 'rgba(205,255,0,0.05)' },
+  bannerEditBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  bannerEditText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
   hero: { padding: 20, gap: 16 },
   heroContent: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
   avatarWrap: { position: 'relative' },
