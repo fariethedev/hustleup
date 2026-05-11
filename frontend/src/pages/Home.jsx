@@ -59,20 +59,20 @@ export default function Home() {
     <div className="bg-[#050505] min-h-screen">
       
       {/* ── HERO ── THE DIGITAL COMMAND CENTER ── */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 perspective-1000">
+      <section className="relative min-h-[95vh] flex flex-col items-center justify-center overflow-hidden pt-20">
 
         {/* Global Cinematic Background */}
         <div className="absolute inset-0 z-0">
           <motion.img
             initial={{ scale: 1.1 }}
             animate={{ scale: 1 }}
-            transition={{ duration: 15, repeat: Infinity, repeatType: "reverse" }}
-            src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&q=80"
+            transition={{ duration: 20, repeat: Infinity, repeatType: "reverse" }}
+            src="https://i.pinimg.com/736x/58/74/1f/58741f272e68a56882695d2701168f9a.jpg"
             alt=""
-            className="w-full h-full object-cover object-center opacity-30 grayscale contrast-125"
+            className="w-full h-full object-cover object-center brightness-75 contrast-110"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-[#050505]" />
-          <div className="absolute inset-0 bg-[#050505]/60 backdrop-blur-[3px]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
+          <div className="absolute inset-0 bg-[#050505]/20 backdrop-blur-[1px]" />
         </div>
 
         {/* Floating Profile Orbs — Drift Logic */}
@@ -83,18 +83,18 @@ export default function Home() {
               initial={{ x: item.x * 2, y: 100, opacity: 0 }}
               animate={{ 
                 x: [item.x * 1.5, item.x * 1.6, item.x * 1.5],
-                y: [20 * (i % 2 ? 1 : -1), -20 * (i % 2 ? 1 : -1), 20 * (i % 2 ? 1 : -1)],
-                opacity: 0.15
+                y: [40 * (i % 2 ? 1 : -1), -40 * (i % 2 ? 1 : -1), 40 * (i % 2 ? 1 : -1)],
+                opacity: 0.1
               }}
               transition={{ 
-                duration: 12 + i * 3, 
+                duration: 15 + i * 5, 
                 repeat: Infinity, 
                 ease: "easeInOut",
-                opacity: { duration: 1.5, delay: i * 0.2 }
+                opacity: { duration: 2, delay: i * 0.3 }
               }}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 sm:w-56 sm:h-56 rounded-full border border-white/5 p-2"
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full border border-white/5 p-2"
             >
-              <div className="w-full h-full rounded-full overflow-hidden grayscale brightness-50">
+              <div className="w-full h-full rounded-full overflow-hidden grayscale opacity-40">
                 <img src={item.image} alt="" className="w-full h-full object-cover" />
               </div>
             </motion.div>
@@ -104,42 +104,38 @@ export default function Home() {
         {/* Main Glass Marketplace Hub */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-30 w-full max-w-5xl mx-auto px-6"
+          whileInView={{ opacity: 1, scale: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="relative z-30 w-full max-w-6xl mx-auto px-6"
         >
-          <div className="glass border border-white/10 rounded-[3rem] p-12 md:p-20 flex flex-col items-center text-center shadow-[0_40px_100px_rgba(0,0,0,0.9)] backdrop-blur-3xl overflow-hidden">
+          <div className="glass border border-white/5 rounded-[4rem] p-16 md:p-24 flex flex-col items-center text-center backdrop-blur-3xl overflow-hidden bg-black/40 shadow-2xl">
             
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-3 px-6 py-2 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-[0.4em] text-white/40 border border-white/10 bg-white/5 mb-10 shadow-2xl"
-            >
-              <Store className="w-4 h-4" /> Global Commerce Layer
-            </motion.div>
+            <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.5em] text-[#CDFF00] border border-[#CDFF00]/20 bg-[#CDFF00]/5 mb-12">
+              <Zap className="w-4 h-4 animate-pulse" /> The Digital Syndicate
+            </div>
 
-            <h1 className="text-5xl sm:text-7xl md:text-[5.5rem] font-black text-white uppercase tracking-tighter leading-[0.85] mb-10">
-              HUSTLEUP<br />
-              <span className="text-white/30">MARKETPLACE.</span>
+            <h1 className="text-6xl sm:text-8xl md:text-[7rem] font-black text-white uppercase tracking-tighter leading-[0.8] mb-12">
+              Scale Your<br />
+              <span className="text-[#CDFF00]">Ambition.</span>
             </h1>
 
-            <p className="text-base sm:text-lg text-gray-500 font-bold max-w-2xl mb-14 leading-relaxed uppercase tracking-widest opacity-80">
-              The premium destination for the modern professional. <br className="hidden md:block" /> 
-              Scale your vision on the world's most elite exchange.
+            <p className="text-base sm:text-xl text-gray-400 font-bold max-w-2xl mb-16 leading-relaxed uppercase tracking-widest opacity-80">
+              The world's most elite exchange for modern makers. <br className="hidden md:block" /> 
+              Secure your future with precision collaboration.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full">
               <Link
                 to="/explore"
-                className="w-full sm:w-auto flex items-center justify-center gap-3 px-12 py-5 rounded-2xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-[0_20px_40px_rgba(205,255,0,0.15)] group"
+                className="w-full sm:w-auto flex items-center justify-center gap-3 px-14 py-6 rounded-[2rem] bg-[#CDFF00] text-black font-black text-xs uppercase tracking-[0.3em] hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-[#CDFF00]/20"
               >
-                <Store className="w-5 h-5 group-hover:rotate-12 transition-transform" /> Enter the Vault
+                Enter the Vault <Store className="w-5 h-5" />
               </Link>
               <Link
                 to={isAuthenticated ? "/feed" : "/register"}
-                className="w-full sm:w-auto flex items-center justify-center gap-3 px-12 py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-black text-[11px] uppercase tracking-[0.2em] hover:bg-white/10 hover:scale-105 active:scale-95 transition-all backdrop-blur-xl"
+                className="w-full sm:w-auto flex items-center justify-center gap-3 px-14 py-6 rounded-[2rem] bg-white/5 border border-white/10 text-white font-black text-xs uppercase tracking-[0.3em] hover:bg-white/10 hover:scale-105 active:scale-95 transition-all backdrop-blur-xl"
               >
-                <Users className="w-5 h-5" /> Active Flow
+                Join Flow <Users className="w-5 h-5" />
               </Link>
             </div>
 

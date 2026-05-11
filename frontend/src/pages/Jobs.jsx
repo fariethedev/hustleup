@@ -173,22 +173,19 @@ export default function Jobs() {
       </section>
 
       {/* ── SEARCH + CONTENT ── */}
-      <div className="max-w-7xl mx-auto px-4 -mt-8 relative z-20">
-        {/* Search & Filter Bar */}
-        <div className="glass bg-black/60 border border-white/10 rounded-[3rem] p-4 flex flex-col md:flex-row items-center gap-4 shadow-2xl backdrop-blur-3xl">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-            <input 
-              type="text" 
-              placeholder="Search roles, companies or skills..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-16 pr-6 text-sm placeholder-gray-600 focus:border-[#CDFF00] transition-colors outline-none font-bold" 
-            />
-          </div>
-          <button className="flex items-center gap-3 px-8 py-5 rounded-2xl bg-white/5 border border-white/10 font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-colors">
-            <Filter className="w-4 h-4" /> Filters
-          </button>
+      <div className="max-w-7xl mx-auto px-4 -mt-16 relative z-20">
+        {/* Navigation Grid (Replacing search bar for higher density) */}
+        <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
+           <button 
+              onClick={() => setActiveCategory('all')}
+              className={`px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] transition-all ${activeCategory === 'all' ? 'bg-[#CDFF00] text-black shadow-2xl' : 'bg-black/60 border border-white/10 text-white hover:bg-black'}`}
+           >
+              All Openings
+           </button>
+           <div className="w-px h-8 bg-white/10 hidden md:block" />
+           <div className="flex items-center gap-2 px-6 py-4 rounded-full bg-white/5 border border-white/10 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+              <span className="w-2 h-2 rounded-full bg-[#CDFF00] animate-pulse" /> Live Listings
+           </div>
         </div>
 
         {/* Categories */}

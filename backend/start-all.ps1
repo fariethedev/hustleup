@@ -15,7 +15,7 @@ Write-Host "🚀 Launching HustleUp Microservices Mesh..." -ForegroundColor Cyan
 foreach ($s in $services) {
     Write-Host "✨ Starting $($s.Name) on port $($s.Port)..." -ForegroundColor Yellow
     # Using Start-Process to keep logs separate and ensure services stay up
-    Start-Process -FilePath "mvn" -ArgumentList "spring-boot:run", "-pl", "$($s.Dir)", "-Dspring-boot.run.jvmArguments='-Xmx512m'" -WindowStyle Minimized -WorkingDirectory (Get-Location)
+    Start-Process -FilePath "mvn.cmd" -ArgumentList "spring-boot:run", "-pl", "$($s.Dir)", "-Dspring-boot.run.jvmArguments='-Xmx512m'" -WindowStyle Minimized -WorkingDirectory (Get-Location)
 }
 
 Write-Host "`n✅ All services initiated. Use 'localhost:8000' for the API Gateway and frontend proxy." -ForegroundColor Green

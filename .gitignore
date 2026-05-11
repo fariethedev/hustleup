@@ -45,3 +45,8 @@ Thumbs.db
 *.log
 *.err
 *.log.err
+*log.txt
+
+# ── Temporary & Uploads ──────────────────────────────────
+backend/uploads/
+/.expo/

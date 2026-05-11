@@ -144,8 +144,7 @@ public class UserController {
         try {
             String viewerEmail = currentUserEmail();
 
-            // "anonymousUser" is the name Spring Security gives unauthenticated requests.
-            if (viewerEmail != null && !viewerEmail.equals("anonymousUser")) {
+            if (viewerEmail != null) {
                 userRepository.findByEmail(viewerEmail).ifPresent(viewer -> {
                     // Don't record a self-view (looking at your own profile).
                     if (!viewer.getId().equals(UUID.fromString(id))) {
