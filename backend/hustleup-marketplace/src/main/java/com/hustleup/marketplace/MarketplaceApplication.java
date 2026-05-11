@@ -22,10 +22,10 @@
  */
 package com.hustleup.marketplace;
 
-import com.hustleup.listing.model.Listing;
-import com.hustleup.listing.model.ListingStatus;
-import com.hustleup.listing.model.ListingType;
-import com.hustleup.listing.repository.ListingRepository;
+import com.hustleup.marketplace.listing.model.Listing;
+import com.hustleup.marketplace.listing.model.ListingStatus;
+import com.hustleup.marketplace.listing.model.ListingType;
+import com.hustleup.marketplace.listing.repository.ListingRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -48,26 +48,23 @@ import java.util.UUID;
 // concrete implementations backed by Hibernate at startup. Without this, only
 // repositories in com.hustleup.marketplace would be discovered.
 @EnableJpaRepositories(basePackages = {
-    "com.hustleup.listing.repository",
-    "com.hustleup.booking.repository",
-    "com.hustleup.review.repository",
+    "com.hustleup.marketplace.listing.repository",
+    "com.hustleup.marketplace.booking.repository",
+    "com.hustleup.marketplace.review.repository",
     "com.hustleup.common.repository"
 })
 // Tell Hibernate which packages contain @Entity classes so it can map them to
 // database tables and build/validate the schema on startup.
 @EntityScan(basePackages = {
-    "com.hustleup.listing.model",
-    "com.hustleup.booking.model",
-    "com.hustleup.review.model",
+    "com.hustleup.marketplace.listing.model",
+    "com.hustleup.marketplace.booking.model",
+    "com.hustleup.marketplace.review.model",
     "com.hustleup.common.model"
 })
 // Explicit component scan so that @Service, @RestController, @Repository beans
 // in every module are picked up and registered in the Spring application context.
 @ComponentScan(basePackages = {
     "com.hustleup.marketplace",
-    "com.hustleup.listing",
-    "com.hustleup.booking",
-    "com.hustleup.review",
     "com.hustleup.common"
 })
 public class MarketplaceApplication {

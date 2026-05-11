@@ -36,19 +36,16 @@ import org.springframework.context.annotation.ComponentScan;
 //   3. @ComponentScan        — scans for @Component, @Service, @Repository, @Controller, etc.
 @SpringBootApplication
 
-// Tells Spring Data JPA where to look for Repository interfaces.
-// Without this, only repositories under com.hustleup.auth would be detected.
-// We point at "com.hustleup" so repositories in hustleup-common are included too.
-@EnableJpaRepositories(basePackages = "com.hustleup")
+@EnableJpaRepositories(basePackages = {"com.hustleup.auth.repository", "com.hustleup.common.repository"})
 
 // Tells Hibernate (the JPA implementation) where @Entity classes live.
 // It needs this to build the database schema and generate SQL queries.
-// Again, broadened to "com.hustleup" to catch shared entities like User.
-@EntityScan(basePackages = "com.hustleup")
+// Again, broadened to catch shared entities like User.
+@EntityScan(basePackages = {"com.hustleup.auth.model", "com.hustleup.common.model"})
 
 // Broadens Spring's component scan beyond the default package.
 // Picks up @Service, @Component, @Configuration, etc. from hustleup-common.
-@ComponentScan(basePackages = "com.hustleup")
+@ComponentScan(basePackages = {"com.hustleup.auth", "com.hustleup.common"})
 public class AuthApplication {
 
     /**

@@ -60,19 +60,17 @@ import org.springframework.context.annotation.ComponentScan;
  */
 @EnableJpaRepositories(basePackages = {
     "com.hustleup.common.repository",    // Notification & User repositories from the shared lib
-    "com.hustleup.messaging.repository"  // DirectMessage & ChatMessage repositories
+    "com.hustleup.notification.messaging.repository"  // DirectMessage & ChatMessage repositories
 })
 
 /**
- * {@code @EntityScan} tells Hibernate (the JPA provider) where to look for
- * classes annotated with {@code @Entity} so it can map them to database tables.
- *
- * <p>Same reasoning as {@code @EnableJpaRepositories} above – we need to
- * explicitly list packages outside this service's own root package.
+ * {@code @Entity} tells JPA that this class maps to a database table.
+ * Hibernate will manage the lifecycle of instances of this class
+ * (INSERT on {@code save()}, SELECT on {@code findById()}, etc.).
  */
 @EntityScan(basePackages = {
     "com.hustleup.common.model",    // Shared entities: User, Notification
-    "com.hustleup.messaging.model"  // Messaging entities: DirectMessage, ChatMessage
+    "com.hustleup.notification.messaging.model"  // Messaging entities: DirectMessage, ChatMessage
 })
 
 /**
@@ -82,8 +80,7 @@ import org.springframework.context.annotation.ComponentScan;
  * Spring application context.
  */
 @ComponentScan(basePackages = {
-    "com.hustleup.notification", // Notification controllers, config (WebSocketConfig, etc.)
-    "com.hustleup.messaging",    // DirectMessageController, ChatController, and supporting beans
+    "com.hustleup.notification", // Notification controllers, config (WebSocketConfig, etc.) and messaging sub-packages
     "com.hustleup.common"        // Shared security, utilities, and service beans
 })
 public class NotificationApplication {
