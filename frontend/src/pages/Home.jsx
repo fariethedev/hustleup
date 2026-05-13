@@ -1,406 +1,342 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
-  ArrowRight, Users, Store, Zap, ChevronLeft, ChevronRight, 
-  UserPlus, UserCheck, ShieldCheck, MapPin, Newspaper, Check,
-  Mail, MessageSquare, Send
+  ArrowRight, Store, Zap, ArrowUpRight, Sparkles, Tag,
+  ShoppingBag, TrendingUp, Calendar, Star, MapPin
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { selectIsAuthenticated, selectUser } from '../store/authSlice';
-import { usersApi } from '../api/client';
-import HeroBrief from '../components/HeroBrief';
-
-// Fallback images
-const HERO_BG = "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=1600&q=80";
-const USER_CARD_FALLBACK = "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?w=400&q=80";
-const LISTING_FALLBACK_IMAGE = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=60";
-
-const heroFanItems = [
-  { rotate: -15, x: -320, zIndex: 10, image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80", handle: "creativ_mind" },
-  { rotate: -8, x: -160, zIndex: 20, image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&q=80", handle: "dev_hustle" },
-  { rotate: 0, x: 0, zIndex: 30, image: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=500&q=80", handle: "market_pro" },
-  { rotate: 8, x: 160, zIndex: 20, image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&q=80", handle: "social_guru" },
-  { rotate: 15, x: 320, zIndex: 10, image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&q=80", handle: "fit_coach" },
-];
+import { selectIsAuthenticated } from '../store/authSlice';
+import { listingsApi } from '../api/client';
 
 export default function Home() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
-  const currentUser = useSelector(selectUser);
-  const [topUsers, setTopUsers] = useState([]);
-  const [userPageIndex, setUserPageIndex] = useState(0);
-  const [followedIds, setFollowedIds] = useState(new Set());
+  const [listings, setListings] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    usersApi.getAll().then(r => setTopUsers(r.data)).catch(() => {});
+    listingsApi.browse({}).then(r => {
+      setListings(r.data?.slice(0, 8) || []);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const nextUsers = () => {
-    if ((userPageIndex + 1) * 2 < topUsers.length) setUserPageIndex(i => i + 1);
-    else setUserPageIndex(0);
-  };
-  const previousUsers = () => {
-    if (userPageIndex > 0) setUserPageIndex(i => i - 1);
-    else setUserPageIndex(Math.floor((topUsers.length - 1) / 2));
-  };
-
-  const toggleFollow = (id) => {
-    setFollowedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const visibleUsers = topUsers.slice(userPageIndex * 2, userPageIndex * 2 + 2);
+  const categories = [
+    { icon: ShoppingBag, label: 'Fashion', color: 'from-[#FF00FF]/40 to-purple-600/40', border: 'border-[#FF00FF]/50' },
+    { icon: Tag, label: 'Services', color: 'from-[#00FFFF]/40 to-blue-600/40', border: 'border-[#00FFFF]/50' },
+    { icon: TrendingUp, label: 'Digital', color: 'from-[#CDFF00]/40 to-green-600/40', border: 'border-[#CDFF00]/50' },
+    { icon: Calendar, label: 'Events', color: 'from-[#FF00FF]/40 to-orange-500/40', border: 'border-[#FF00FF]/50' },
+    { icon: Star, label: 'Premium', color: 'from-[#00FFFF]/40 to-indigo-500/40', border: 'border-[#00FFFF]/50' },
+    { icon: Store, label: 'Shops', color: 'from-[#CDFF00]/40 to-lime-500/40', border: 'border-[#CDFF00]/50' },
+  ];
 
   return (
-    <div className="bg-[#050505] min-h-screen">
+    <div className="bg-[#050505] min-h-screen font-sans">
       
-      {/* ── HERO ── THE DIGITAL COMMAND CENTER ── */}
-      <section className="relative min-h-[95vh] flex flex-col items-center justify-center overflow-hidden pt-20">
-
-        {/* Global Cinematic Background */}
-        <div className="absolute inset-0 z-0">
-          <motion.img
-            initial={{ scale: 1.1 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 20, repeat: Infinity, repeatType: "reverse" }}
-            src="https://i.pinimg.com/736x/58/74/1f/58741f272e68a56882695d2701168f9a.jpg"
-            alt=""
-            className="w-full h-full object-cover object-center brightness-75 contrast-110"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
-          <div className="absolute inset-0 bg-[#050505]/20 backdrop-blur-[1px]" />
+      {/* ── HERO ── */}
+      <section className="relative w-full overflow-hidden bg-[#0A0A0A] pt-16 md:pt-24 pb-20 md:pb-32 lg:min-h-[85vh] flex items-center">
+        {/* Subtle Geometric Afro Pattern */}
+        <div className="absolute inset-0 z-0 flex opacity-[0.15] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, #FF00FF 2px, transparent 0), radial-gradient(circle at 30px 30px, #00FFFF 2px, transparent 0)', backgroundSize: '40px 40px' }}>
         </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-[#FF00FF]/5 to-[#0A0A0A] z-0" />
 
-        {/* Floating Profile Orbs — Drift Logic */}
-        <div className="absolute inset-0 z-10 overflow-hidden pointer-events-none opacity-40">
-          {heroFanItems.map((item, i) => (
+        <div className="relative z-10 max-w-6xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center w-full">
+          
+          {/* Left */}
+          <div className="flex flex-col">
             <motion.div
-              key={i}
-              initial={{ x: item.x * 2, y: 100, opacity: 0 }}
-              animate={{ 
-                x: [item.x * 1.5, item.x * 1.6, item.x * 1.5],
-                y: [40 * (i % 2 ? 1 : -1), -40 * (i % 2 ? 1 : -1), 40 * (i % 2 ? 1 : -1)],
-                opacity: 0.1
-              }}
-              transition={{ 
-                duration: 15 + i * 5, 
-                repeat: Infinity, 
-                ease: "easeInOut",
-                opacity: { duration: 2, delay: i * 0.3 }
-              }}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full border border-white/5 p-2"
+              initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', bounce: 0.5, duration: 0.8 }}
             >
-              <div className="w-full h-full rounded-full overflow-hidden grayscale opacity-40">
-                <img src={item.image} alt="" className="w-full h-full object-cover" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.3em] text-white border-2 border-[#FF00FF] bg-[#FF00FF]/20 mb-5 shadow-[0_0_15px_#FF00FF]">
+                <Sparkles className="w-4 h-4 text-[#FF00FF]" /> CREATOR MARKETPLACE
+              </div>
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[1.05] uppercase tracking-tighter mb-4 drop-shadow-[4px_4px_0_#FF00FF]">
+                Buy, Sell &<br />
+                <span className="text-[#00FFFF] drop-shadow-[4px_4px_0_#CDFF00]">Elevate.</span>
+              </h1>
+              <p className="text-[#CDFF00] text-base font-bold max-w-md mb-6 leading-relaxed tracking-wider">
+                The ultimate platform for modern creatives. List your brand, discover fresh talent, and connect with the movement.
+              </p>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', bounce: 0.4, duration: 0.8, delay: 0.2 }}
+              className="flex items-center gap-4"
+            >
+              <Link 
+                to="/explore" 
+                className="px-8 py-4 rounded-full bg-[#FF00FF] text-white font-black text-[12px] uppercase tracking-widest hover:scale-110 hover:-rotate-2 transition-transform shadow-[0_0_20px_#FF00FF]"
+              >
+                DISCOVER
+              </Link>
+              <Link 
+                to={isAuthenticated ? "/create" : "/register"} 
+                className="px-8 py-4 rounded-full border-2 border-[#00FFFF] bg-transparent text-[#00FFFF] font-black text-[12px] uppercase tracking-widest hover:bg-[#00FFFF] hover:text-black hover:scale-110 hover:rotate-2 transition-all shadow-[0_0_15px_#00FFFF]"
+              >
+                JOIN THE MOVEMENT
+              </Link>
+            </motion.div>
+
+            {/* Quick stats */}
+            <motion.div 
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              className="flex items-center gap-6 mt-10 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm w-max"
+            >
+              <div className="flex flex-col items-center">
+                <span className="text-[#FF00FF] font-black text-xl drop-shadow-[1px_1px_0_#fff]">12.4K</span>
+                <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">CREATIVES</span>
+              </div>
+              <div className="w-px h-10 bg-[#00FFFF]/30" />
+              <div className="flex flex-col items-center">
+                <span className="text-[#00FFFF] font-black text-xl drop-shadow-[1px_1px_0_#fff]">50K+</span>
+                <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">PROJECTS</span>
+              </div>
+              <div className="w-px h-10 bg-[#FF00FF]/30" />
+              <div className="flex flex-col items-center">
+                <span className="text-[#CDFF00] font-black text-xl drop-shadow-[1px_1px_0_#fff]">98%</span>
+                <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">SUCCESS</span>
               </div>
             </motion.div>
-          ))}
-        </div>
-
-        {/* Main Glass Marketplace Hub */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          whileInView={{ opacity: 1, scale: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="relative z-30 w-full max-w-6xl mx-auto px-6"
-        >
-          <div className="glass border border-white/5 rounded-[4rem] p-16 md:p-24 flex flex-col items-center text-center backdrop-blur-3xl overflow-hidden bg-black/40 shadow-2xl">
-            
-            <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.5em] text-[#CDFF00] border border-[#CDFF00]/20 bg-[#CDFF00]/5 mb-12">
-              <Zap className="w-4 h-4 animate-pulse" /> The Digital Syndicate
-            </div>
-
-            <h1 className="text-6xl sm:text-8xl md:text-[7rem] font-black text-white uppercase tracking-tighter leading-[0.8] mb-12">
-              Scale Your<br />
-              <span className="text-[#CDFF00]">Ambition.</span>
-            </h1>
-
-            <p className="text-base sm:text-xl text-gray-400 font-bold max-w-2xl mb-16 leading-relaxed uppercase tracking-widest opacity-80">
-              The world's most elite exchange for modern makers. <br className="hidden md:block" /> 
-              Secure your future with precision collaboration.
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full">
-              <Link
-                to="/explore"
-                className="w-full sm:w-auto flex items-center justify-center gap-3 px-14 py-6 rounded-[2rem] bg-[#CDFF00] text-black font-black text-xs uppercase tracking-[0.3em] hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-[#CDFF00]/20"
-              >
-                Enter the Vault <Store className="w-5 h-5" />
-              </Link>
-              <Link
-                to={isAuthenticated ? "/feed" : "/register"}
-                className="w-full sm:w-auto flex items-center justify-center gap-3 px-14 py-6 rounded-[2rem] bg-white/5 border border-white/10 text-white font-black text-xs uppercase tracking-[0.3em] hover:bg-white/10 hover:scale-105 active:scale-95 transition-all backdrop-blur-xl"
-              >
-                Join Flow <Users className="w-5 h-5" />
-              </Link>
-            </div>
-
-            {/* Micro Stats Bar */}
-            <div className="hidden md:flex items-center gap-12 mt-20 pt-10 border-t border-white/5 w-full justify-center">
-              <div className="flex flex-col items-center">
-                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Global Node</span>
-                <span className="text-white font-black text-xs uppercase tracking-tight">Active</span>
-              </div>
-              <div className="w-px h-8 bg-white/5" />
-              <div className="flex flex-col items-center">
-                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Sync Status</span>
-                <span className="text-[#CDFF00] font-black text-xs uppercase tracking-tight">100% Secure</span>
-              </div>
-              <div className="w-px h-8 bg-white/5" />
-              <div className="flex flex-col items-center">
-                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Community</span>
-                <span className="text-white font-black text-xs uppercase tracking-tight">12.4K</span>
-              </div>
-            </div>
-
-          </div>
-        </motion.div>
-
-        {/* Massive Ambient Background Overlay */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] bg-[#CDFF00]/5 rounded-full blur-[180px] pointer-events-none" />
-      </section>
-
-      {/* ── TOP SELLERS SECTION ── */}
-      <section className="py-32" id="artists">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col items-center text-center mb-24">
-             <span className="text-[#CDFF00] font-black uppercase tracking-[0.4em] text-xs mb-6 inline-block bg-[#CDFF00]/5 px-6 py-2 rounded-full border border-[#CDFF00]/10">Top Tier Market</span>
-             <h2 className="text-5xl sm:text-7xl font-black text-white uppercase tracking-tighter leading-tight">
-               Elite <span className="text-[#CDFF00]">Hustlers.</span>
-             </h2>
-             <p className="text-lg text-gray-500 mt-6 max-w-xl font-bold uppercase tracking-tight opacity-70">Meet the high-impact makers who are building the backbone of the HustleUp ecosystem.</p>
-             
-             <div className="flex gap-4 mt-12">
-                <button onClick={previousUsers} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-[#CDFF00] hover:text-black transition-all">
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
-                <button onClick={nextUsers} className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-[#CDFF00] hover:text-black transition-all">
-                  <ChevronRight className="w-6 h-6" />
-                </button>
-             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            <AnimatePresence mode="wait">
-              {visibleUsers.map((user, i) => user && (
-                <motion.div
-                  key={user.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                  className="glass-card rounded-[3rem] h-[580px] flex flex-col relative group overflow-hidden border border-white/10 shadow-2xl"
-                >
-                  <div className="absolute inset-0 w-full h-full">
-                    <img src={user.avatarUrl || USER_CARD_FALLBACK} alt="" className="w-full h-full object-cover p-2 rounded-[3.2rem]" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent p-2 rounded-[3.1rem]" />
-                  </div>
-                  
-                  <div className="mt-auto p-10 z-10 flex flex-col items-center">
-                     <div className="w-24 h-24 rounded-[32px] border-4 border-[#050505] bg-gray-900 overflow-hidden shadow-2xl mb-6 ring-2 ring-[#CDFF00]/20">
-                        <img src={user.avatarUrl || USER_CARD_FALLBACK} alt="" className="w-full h-full object-cover" />
-                     </div>
-                     <div className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                           <h4 className="text-3xl font-black text-white uppercase tracking-tighter">{user.fullName}</h4>
-                           {user.verified && <ShieldCheck className="w-5 h-5 text-[#CDFF00]" />}
-                        </div>
-                        <p className="text-sm font-black text-[#CDFF00] uppercase tracking-[0.3em] mt-2">@{user.fullName?.split(' ')[0].toLowerCase()}</p>
-                     </div>
-                     <p className="text-[14px] text-gray-400 mt-6 text-center line-clamp-2 font-black uppercase tracking-tight opacity-80 max-w-[80%]">
-                        {user.bio || "Crafting premium experiences and building high-impact services for the community."}
-                     </p>
-
-                     <div className="w-full flex gap-4 mt-10">
-                       <Link to={`/profile/${user.id}`} className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white text-[11px] font-black uppercase tracking-widest text-center hover:bg-white/10 transition-all">Profile</Link>
-                       {isAuthenticated && String(user.id) !== String(currentUser?.id) && (
-                         <button onClick={() => toggleFollow(user.id)} className={`flex-1 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${followedIds.has(user.id) ? 'bg-white/10 text-gray-400 border border-white/10' : 'bg-[#CDFF00] text-black shadow-lg shadow-[#CDFF00]/10'}`}>
-                           {followedIds.has(user.id) ? 'Following' : 'Connect'}
-                         </button>
-                       )}
-                     </div>
-                   </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+          {/* Right — Hero Image */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8, rotate: 5 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', bounce: 0.5, duration: 1 }}
+            className="relative perspective-1000 w-full"
+          >
+            <div className="relative overflow-hidden rounded-[2rem] border-4 border-[#FF00FF] shadow-[0_0_30px_#FF00FF] p-1 bg-black transform hover:rotate-y-12 hover:scale-105 transition-all duration-500 w-full">
+              <img 
+                src="/hero_afro.png" 
+                alt="Youth Marketplace" 
+                className="w-full aspect-[4/5] sm:aspect-square md:aspect-[4/5] object-cover rounded-3xl"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#FF00FF]/40 via-transparent to-transparent rounded-3xl pointer-events-none" />
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* ── COMMUNITY PULSE ── */}
-      <section className="py-32 border-t border-white/5" id="community-pulse">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col items-center text-center mb-24">
-            <span className="text-[#CDFF00] font-black uppercase tracking-[0.4em] text-xs mb-6 inline-block bg-[#CDFF00]/5 px-6 py-2 rounded-full border border-[#CDFF00]/10">Hub Synergy</span>
-            <h2 className="text-5xl sm:text-7xl font-black text-white uppercase tracking-tighter leading-tight">
-              Community <span className="text-[#CDFF00]">Pulse.</span>
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                tag: "REGULATION", tagColor: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-                city: "Lagos, NG", title: "New TRC regulations for digital creators effective next month.",
-                date: "Oct 24, 2026"
-              },
-              {
-                tag: "EVENT", tagColor: "bg-[#CDFF00]/10 text-[#CDFF00] border-[#CDFF00]/20",
-                city: "Nairobi, KE", title: "Global Diaspora Hustle Meetup at iHub Nairobi.",
-                date: "Nov 02, 2026"
-              },
-              {
-                tag: "OPPORTUNITY", tagColor: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-                city: "Harare, ZW", title: "City Council opens $1M grant for youth marketplaces.",
-                date: "Oct 28, 2026"
-              }
-            ].map((news, i) => (
+      {/* ── CATEGORIES STRIP ── */}
+      <section className="py-10 border-b border-[#FF00FF]/20 bg-gradient-to-r from-[#050505] via-[#FF00FF]/5 to-[#050505]">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+            {categories.map((cat, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="glass border border-white/10 rounded-[3rem] p-10 hover:border-[#CDFF00]/30 transition-all group flex flex-col h-full bg-white/[0.02]"
+                whileHover={{ scale: 1.1, rotate: (i % 2 === 0 ? 3 : -3) }}
+                whileTap={{ scale: 0.9 }}
               >
-                <div className="flex items-center justify-between mb-8">
-                  <span className={`px-4 py-1.5 rounded-full text-[9px] font-black tracking-widest border ${news.tagColor}`}>
-                    {news.tag}
-                  </span>
-                  <span className="flex items-center gap-2 text-gray-500 text-[10px] font-black uppercase tracking-widest">
-                    <MapPin className="w-3.5 h-3.5 text-[#CDFF00]" /> {news.city}
-                  </span>
-                </div>
-                <h4 className="text-2xl font-black text-white mb-8 group-hover:text-[#CDFF00] transition-colors leading-tight uppercase tracking-tight">
-                  {news.title}
-                </h4>
-                <div className="mt-auto flex items-center justify-between pt-8 border-t border-white/5">
-                  <span className="text-gray-600 text-[10px] font-black uppercase tracking-widest">{news.date}</span>
-                  <Link to="/news" className="text-white font-black text-[10px] uppercase tracking-[0.2em] group-hover:text-[#CDFF00] transition-all flex items-center gap-2">
-                    Signal <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </div>
+                <Link 
+                  to={`/explore?type=${cat.label.toLowerCase()}`}
+                  className={`flex flex-col items-center gap-3 p-5 rounded-[1.5rem] bg-gradient-to-br ${cat.color} border-2 ${cat.border} cursor-pointer group shadow-[0_4px_15px_rgba(0,0,0,0.5)]`}
+                >
+                  <cat.icon className="w-8 h-8 text-white group-hover:text-black transition-colors z-10" />
+                  <span className="text-[11px] font-black text-white uppercase tracking-widest group-hover:text-black transition-colors z-10">{cat.label}</span>
+                  <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity rounded-[1.3rem] -z-0"></div>
+                </Link>
               </motion.div>
             ))}
           </div>
-
-          <div className="mt-20 flex justify-center">
-            <Link to="/news" className="px-12 py-5 rounded-full bg-white/5 border border-white/10 text-white font-black text-[10px] uppercase tracking-[0.3em] hover:bg-[#CDFF00] hover:text-black transition-all shadow-2xl">
-              Enter the Signal Hub
-            </Link>
-          </div>
         </div>
       </section>
 
-      {/* ── JOIN THE SYNDICATE (SUBSCRIBE) ── */}
-      <section className="py-32 relative overflow-hidden">
-        {/* Subtle background glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#CDFF00]/5 rounded-full blur-[120px] pointer-events-none" />
+      {/* ── FEATURED LISTINGS ── */}
+      <section className="py-20 relative">
+        <div className="absolute left-0 top-1/4 w-64 h-64 bg-[#00FFFF]/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute right-0 bottom-1/4 w-64 h-64 bg-[#FF00FF]/10 rounded-full blur-[100px] pointer-events-none" />
         
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="glass border border-white/10 rounded-[3.5rem] p-12 text-center relative z-10 overflow-hidden bg-white/[0.02]">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#CDFF00]/40 to-transparent" />
-            
-            <Zap className="w-10 h-10 text-[#CDFF00] mx-auto mb-8 animate-pulse" />
-            <h2 className="text-4xl sm:text-5xl font-black text-white uppercase tracking-tighter leading-tight mb-6">
-              Join the <span className="text-[#CDFF00]">Syndicate.</span>
-            </h2>
-            <p className="text-gray-400 font-bold uppercase tracking-widest text-xs mb-10 opacity-70">
-              Get the latest alpha, exclusive drops, and market insights delivered straight to your terminal.
-            </p>
-            
-            <form className="flex flex-col sm:flex-row gap-4 max-w-xl mx-auto" onSubmit={(e) => e.preventDefault()}>
-              <input 
-                type="email" 
-                placeholder="ENTER YOUR EMAIL..." 
-                className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-xs font-black uppercase tracking-widest focus:border-[#CDFF00] outline-none transition-all placeholder:text-gray-700"
-              />
-              <button className="px-10 py-4 rounded-2xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_15px_30px_rgba(205,255,0,0.2)]">
-                JOIN NOW
-              </button>
-            </form>
-            
-            <p className="mt-8 text-[9px] text-gray-600 font-black uppercase tracking-[0.3em]">No spam. Only high-value signals. Unsubscribe anytime.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── REACH OUT (CONTACT) ── */}
-      <section className="py-32 border-t border-white/5" id="contact">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid lg:grid-cols-[1fr_1.2fr] gap-20 items-start">
-            
-            <div className="flex flex-col">
-              <span className="text-[#CDFF00] font-black uppercase tracking-[0.4em] text-xs mb-6 inline-block bg-[#CDFF00]/5 px-6 py-2 rounded-full border border-[#CDFF00]/10 w-fit">Direct Line</span>
-              <h2 className="text-5xl sm:text-7xl font-black text-white uppercase tracking-tighter leading-tight mb-8">
-                Reach <br /> Out.
+        <div className="max-w-6xl mx-auto px-4 relative z-10">
+          <div className="flex items-center justify-between mb-12">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#00FFFF] mb-2 block drop-shadow-[0_0_5px_#00FFFF]">Trending Projects</span>
+              <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tighter drop-shadow-[2px_2px_0_#FF00FF]">
+                Fresh <span className="text-[#CDFF00]">Talent</span>
               </h2>
-              <p className="text-gray-400 text-lg font-bold uppercase tracking-tight mb-12 opacity-80 leading-relaxed">
-                Have a proposal, an inquiry, or just want to sync with the syndicate? We're always listening to the pulse.
-              </p>
-              
-              <div className="space-y-6">
-                <div className="flex items-center gap-6 p-6 rounded-3xl bg-white/5 border border-white/10 group hover:border-[#CDFF00]/30 transition-all cursor-pointer">
-                  <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-[#CDFF00] group-hover:bg-[#CDFF00] group-hover:text-black transition-all">
-                    <Mail className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-1">Email</p>
-                    <p className="text-white font-black uppercase tracking-tight">syndicate@hustleup.com</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-6 p-6 rounded-3xl bg-white/5 border border-white/10 group hover:border-[#CDFF00]/30 transition-all cursor-pointer">
-                  <div className="w-12 h-12 rounded-2xl bg-black flex items-center justify-center text-[#CDFF00] group-hover:bg-[#CDFF00] group-hover:text-black transition-all">
-                    <MessageSquare className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-1">Discord</p>
-                    <p className="text-white font-black uppercase tracking-tight">HustleUp Syndicate</p>
-                  </div>
-                </div>
-              </div>
             </div>
-
-            <div className="glass border border-white/10 rounded-[3.5rem] p-10 bg-white/[0.01]">
-              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-                <div className="grid sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] text-gray-500 font-black uppercase tracking-widest ml-4">Full Name</label>
-                    <input type="text" placeholder="YOUR NAME" className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-xs font-black uppercase tracking-widest focus:border-[#CDFF00] outline-none transition-all placeholder:text-gray-800" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] text-gray-500 font-black uppercase tracking-widest ml-4">Email Address</label>
-                    <input type="email" placeholder="YOUR EMAIL" className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-xs font-black uppercase tracking-widest focus:border-[#CDFF00] outline-none transition-all placeholder:text-gray-800" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] text-gray-500 font-black uppercase tracking-widest ml-4">Subject</label>
-                  <input type="text" placeholder="WHAT'S ON YOUR MIND?" className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-xs font-black uppercase tracking-widest focus:border-[#CDFF00] outline-none transition-all placeholder:text-gray-800" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] text-gray-500 font-black uppercase tracking-widest ml-4">Message</label>
-                  <textarea rows={5} placeholder="SEND YOUR SIGNAL..." className="w-full bg-white/5 border border-white/10 rounded-[2rem] px-6 py-6 text-white text-xs font-black uppercase tracking-widest focus:border-[#CDFF00] outline-none transition-all placeholder:text-gray-800 resize-none" />
-                </div>
-                <button className="w-full py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-[#CDFF00] hover:text-black hover:border-transparent transition-all shadow-xl group">
-                  Send Signal <Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                </button>
-              </form>
-            </div>
-
+            <motion.div whileHover={{ scale: 1.1 }}>
+              <Link to="/explore" className="flex items-center gap-2 px-6 py-3 rounded-full border-2 border-[#FF00FF] bg-transparent text-[#FF00FF] text-[10px] font-black uppercase tracking-widest hover:bg-[#FF00FF] hover:text-white transition-all shadow-[0_0_10px_#FF00FF]">
+                DISCOVER ALL <ArrowRight className="w-4 h-4" />
+              </Link>
+            </motion.div>
           </div>
+
+          {loading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="aspect-[3/4] rounded-3xl bg-white/5 border border-white/10 animate-pulse" />
+              ))}
+            </div>
+          ) : listings.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {listings.slice(0, 8).map((listing, i) => (
+                <motion.div
+                  key={listing.id}
+                  initial={{ opacity: 0, y: 50, rotateX: -20 }}
+                  whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ duration: 0.6, delay: i * 0.1, type: "spring" }}
+                  whileHover={{ y: -10 }}
+                >
+                  <Link 
+                    to={`/listing/${listing.id}`}
+                    className="group block rounded-[2rem] overflow-hidden border-2 border-[#00FFFF]/30 bg-[#0A0A0A] hover:border-[#00FFFF] transition-all shadow-[0_5px_15px_rgba(0,255,255,0.1)] hover:shadow-[0_10px_25px_rgba(0,255,255,0.3)]"
+                  >
+                    <div className="aspect-[3/4] overflow-hidden relative p-2">
+                      <img 
+                        src={listing.imageUrls?.[0] || listing.imageUrl || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60'} 
+                        alt={listing.title}
+                        className="w-full h-full object-cover rounded-[1.5rem] group-hover:scale-110 transition-transform duration-700"
+                      />
+                      <div className="absolute inset-2 bg-gradient-to-t from-[#FF00FF]/80 via-transparent to-transparent rounded-[1.5rem]" />
+                      {listing.negotiable && (
+                        <span className="absolute top-4 left-4 px-3 py-1 rounded-full bg-[#CDFF00] text-black text-[9px] font-black uppercase shadow-[0_0_10px_#CDFF00]">OBO</span>
+                      )}
+                      <div className="absolute bottom-2 left-2 right-2 p-4 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10">
+                        <h4 className="text-sm font-black text-white truncate mb-1">{listing.title}</h4>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#00FFFF] font-black text-sm">${listing.price}</span>
+                          <span className="text-[#FF00FF] text-[9px] font-black uppercase tracking-widest">{listing.type}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-24 rounded-[3rem] bg-gradient-to-b from-[#FF00FF]/10 to-transparent border-2 border-[#FF00FF]/20 border-dashed">
+              <Store className="w-16 h-16 mx-auto text-[#FF00FF] mb-4 drop-shadow-[0_0_10px_#FF00FF]" />
+              <p className="text-white text-lg font-black tracking-widest uppercase mb-6">Marketplace is Empty</p>
+              <Link to="/create" className="inline-block px-8 py-3 rounded-full bg-[#00FFFF] text-black text-[12px] font-black uppercase shadow-[0_0_15px_#00FFFF] hover:scale-105 transition-transform">Create Listing</Link>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* ── FOOTER STYLE END ── */}
-      <footer className="py-20 border-t border-white/5 text-center">
-        <p className="text-gray-600 font-black text-[10px] uppercase tracking-[0.5em]">&copy; 2026 HUSTLEUP DIGITAL SYNDICATE</p>
+      {/* ── HIGHLIGHT CARDS ── */}
+      <section className="py-20 bg-gradient-to-b from-[#050505] to-[#110011]">
+        <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+          
+          <motion.div 
+            initial={{ opacity: 0, x: -50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            whileHover={{ scale: 1.05, rotate: -2 }}
+            className="bg-gradient-to-br from-[#FF00FF] to-purple-600 rounded-[2.5rem] p-8 flex flex-col group shadow-[0_0_20px_#FF00FF] relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl pointer-events-none" />
+            <div className="flex justify-between items-start mb-6 relative z-10">
+              <span className="px-4 py-1.5 rounded-full border-2 border-white/30 bg-black/20 text-[10px] text-white font-black uppercase tracking-widest backdrop-blur-sm">
+                Connect
+              </span>
+              <Link to="/explore" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[#FF00FF] group-hover:scale-110 transition-all shadow-lg">
+                <ArrowUpRight className="w-4 h-4 font-black" />
+              </Link>
+            </div>
+            <h3 className="text-2xl font-black text-white leading-tight tracking-tighter mb-6 relative z-10 drop-shadow-[2px_2px_0_rgba(0,0,0,0.5)]">
+              Build your network with visionary creators.
+            </h3>
+            <div className="overflow-hidden rounded-[1.5rem] border-2 border-white/20 mt-auto relative z-10 bg-black">
+              <img src="/card_afro_1.png" alt="Creative Network" className="w-full h-48 object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ delay: 0.1 }}
+            whileHover={{ scale: 1.05 }}
+            className="bg-gradient-to-br from-[#00FFFF] to-blue-500 rounded-[2.5rem] p-8 flex flex-col group shadow-[0_0_20px_#00FFFF] relative overflow-hidden mt-0 md:mt-10"
+          >
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/30 rounded-full blur-2xl pointer-events-none" />
+            <div className="flex justify-between items-start mb-6 relative z-10">
+              <span className="px-4 py-1.5 rounded-full border-2 border-black/20 bg-white/30 text-[10px] text-black font-black uppercase tracking-widest backdrop-blur-sm">
+                Innovate
+              </span>
+              <Link to="/explore" className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-[#00FFFF] shadow-lg group-hover:scale-110 transition-all">
+                <ArrowUpRight className="w-4 h-4 font-black" />
+              </Link>
+            </div>
+            <h3 className="text-2xl font-black text-black leading-tight tracking-tighter mb-6 relative z-10 drop-shadow-[2px_2px_0_rgba(255,255,255,0.5)]">
+              Launch your ideas to a global audience.
+            </h3>
+            <div className="overflow-hidden rounded-[1.5rem] border-2 border-black/20 mt-auto relative z-10 bg-black">
+              <img src="/card_afro_2.png" alt="Innovation" className="w-full h-48 object-cover opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500" />
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, x: 50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ delay: 0.2 }}
+            whileHover={{ scale: 1.05, rotate: 2 }}
+            className="bg-gradient-to-br from-[#CDFF00] to-green-500 rounded-[2.5rem] p-8 flex flex-col group shadow-[0_0_20px_#CDFF00] relative overflow-hidden"
+          >
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-white/30 rounded-full blur-3xl pointer-events-none" />
+            <div className="flex justify-between items-start mb-6 relative z-10">
+              <span className="px-4 py-1.5 rounded-full border-2 border-black/20 bg-white/30 text-[10px] text-black font-black uppercase tracking-widest backdrop-blur-sm">
+                Create
+              </span>
+              <Link to="/feed" className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-[#CDFF00] shadow-lg group-hover:scale-110 transition-all">
+                <ArrowUpRight className="w-4 h-4 font-black" />
+              </Link>
+            </div>
+            <h3 className="text-2xl font-black text-black leading-tight tracking-tighter mb-6 relative z-10 drop-shadow-[2px_2px_0_rgba(255,255,255,0.5)]">
+              Showcase your unique aesthetic.
+            </h3>
+            <div className="overflow-hidden rounded-[1.5rem] border-2 border-black/20 mt-auto relative z-10 bg-black">
+              <img src="/card_afro_3.png" alt="Creative Style" className="w-full h-48 object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── JOIN CTA ── */}
+      <section className="py-24 relative overflow-hidden bg-[#050505]">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-gradient-to-r from-[#FF00FF]/20 to-[#00FFFF]/20 rounded-full blur-[100px] pointer-events-none" />
+        <div className="max-w-4xl mx-auto px-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="border-4 border-[#FF00FF] rounded-[3rem] p-12 text-center relative z-10 bg-[#0A0A0A] shadow-[0_0_40px_rgba(255,0,255,0.2)]"
+          >
+            <Sparkles className="w-12 h-12 text-[#FF00FF] mx-auto mb-6 drop-shadow-[0_0_10px_#FF00FF] animate-pulse" />
+            <h2 className="text-4xl sm:text-5xl font-black text-white uppercase tracking-tighter mb-4 drop-shadow-[3px_3px_0_#00FFFF]">
+              Ready to <span className="text-[#00FFFF]">Create?</span>
+            </h2>
+            <p className="text-[#CDFF00] text-base font-bold mb-10 max-w-lg mx-auto tracking-widest uppercase">
+              Join the movement and empower your journey.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <motion.div whileHover={{ scale: 1.1, rotate: -2 }}>
+                <Link to={isAuthenticated ? "/create" : "/register"} className="px-10 py-4 rounded-full bg-[#00FFFF] text-black font-black text-[12px] uppercase tracking-widest shadow-[0_0_20px_#00FFFF] flex items-center gap-2">
+                  <Zap className="w-4 h-4" /> {isAuthenticated ? 'START PROJECT' : 'GET STARTED'}
+                </Link>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.1, rotate: 2 }}>
+                <Link to="/explore" className="px-10 py-4 rounded-full border-2 border-[#FF00FF] bg-black text-[#FF00FF] font-black text-[12px] uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,255,0.3)] hover:bg-[#FF00FF] hover:text-white transition-colors">
+                  EXPLORE TALENT
+                </Link>
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer className="py-12 border-t-4 border-[#FF00FF]/20 text-center bg-[#050505]">
+        <p className="text-[#00FFFF] font-black text-[10px] uppercase tracking-[0.5em] drop-shadow-[0_0_5px_#00FFFF]">&copy; 2026 HUSTLEUP HUB</p>
       </footer>
     </div>
   );
 }
-

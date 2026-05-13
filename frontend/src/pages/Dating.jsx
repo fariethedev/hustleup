@@ -51,61 +51,62 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="w-full max-w-md bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 overflow-y-auto max-h-[90vh]"
+        className="w-full max-w-md bg-[#0A0A0A] border-2 border-[#00FFFF] rounded-[2.5rem] p-6 overflow-y-auto max-h-[90vh] shadow-[0_0_30px_rgba(0,255,255,0.2)]"
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-black text-white uppercase tracking-wide">Your Dating Profile</h2>
-          <button onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 transition-all">
+          <h2 className="text-xl font-black text-white uppercase tracking-widest drop-shadow-[2px_2px_0_#FF00FF]">Create Your Profile</h2>
+          <button onClick={onClose} className="p-2 rounded-full bg-black border border-white/10 hover:border-[#FF00FF] hover:bg-[#FF00FF]/10 text-white transition-all">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Avatar */}
-        <div className="flex justify-center mb-6">
-          <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-[#CDFF00] bg-[#111]">
+        <div className="flex justify-center mb-8">
+          <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-[#FF00FF] shadow-[0_0_15px_#FF00FF] bg-black">
             <img src={imagePreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.id}`} className="w-full h-full object-cover" alt="" />
-            <button onClick={() => fileRef.current?.click()} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-              <Camera className="w-6 h-6 text-white" />
+            <button onClick={() => fileRef.current?.click()} className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+              <Camera className="w-6 h-6 text-[#00FFFF] mb-1" />
+              <span className="text-[8px] font-black uppercase text-[#00FFFF]">UPLOAD</span>
             </button>
           </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
-            <label className="text-xs font-black text-gray-500 uppercase tracking-widest mb-1 block">Bio</label>
+            <label className="text-[10px] font-black text-[#00FFFF] uppercase tracking-widest mb-2 block">Your Vibe (Bio)</label>
             <textarea
               value={bio}
               onChange={e => setBio(e.target.value)}
-              placeholder="Tell others about yourself..."
-              className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none h-20 focus:outline-none focus:border-[#CDFF00]/50"
+              placeholder="Tell us about yourself..."
+              className="w-full bg-black border-2 border-white/10 rounded-2xl px-4 py-4 text-white text-sm resize-none h-24 focus:outline-none focus:border-[#FF00FF] focus:shadow-[0_0_10px_rgba(255,0,255,0.2)] transition-all font-bold"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-black text-gray-500 uppercase tracking-widest mb-1 block">Age</label>
-              <input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="e.g. 25" className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#CDFF00]/50" />
+              <label className="text-[10px] font-black text-[#00FFFF] uppercase tracking-widest mb-2 block">Age</label>
+              <input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="e.g. 25" className="w-full bg-black border-2 border-white/10 rounded-2xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#FF00FF] focus:shadow-[0_0_10px_rgba(255,0,255,0.2)] transition-all font-bold" />
             </div>
             <div>
-              <label className="text-xs font-black text-gray-500 uppercase tracking-widest mb-1 block">City</label>
-              <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. London" className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#CDFF00]/50" />
+              <label className="text-[10px] font-black text-[#00FFFF] uppercase tracking-widest mb-2 block">City</label>
+              <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Lagos" className="w-full bg-black border-2 border-white/10 rounded-2xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#FF00FF] focus:shadow-[0_0_10px_rgba(255,0,255,0.2)] transition-all font-bold" />
             </div>
           </div>
           <div>
-            <label className="text-xs font-black text-gray-500 uppercase tracking-widest mb-1 block">Looking For</label>
-            <select value={lookingFor} onChange={e => setLookingFor(e.target.value)} className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#CDFF00]/50">
+            <label className="text-[10px] font-black text-[#00FFFF] uppercase tracking-widest mb-2 block">Looking For</label>
+            <select value={lookingFor} onChange={e => setLookingFor(e.target.value)} className="w-full bg-black border-2 border-white/10 rounded-2xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#FF00FF] focus:shadow-[0_0_10px_rgba(255,0,255,0.2)] transition-all font-bold appearance-none">
               {['Networking', 'Collaboration', 'Partnership', 'Mentorship', 'Friends', 'Dating'].map(o => (
                 <option key={o} value={o}>{o}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-xs font-black text-gray-500 uppercase tracking-widest mb-1 block">Gender</label>
-            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#CDFF00]/50">
+            <label className="text-[10px] font-black text-[#00FFFF] uppercase tracking-widest mb-2 block">Identity</label>
+            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-black border-2 border-white/10 rounded-2xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#FF00FF] focus:shadow-[0_0_10px_rgba(255,0,255,0.2)] transition-all font-bold appearance-none">
               <option value="">Prefer not to say</option>
               {['Male', 'Female', 'Non-binary', 'Other'].map(o => (
                 <option key={o} value={o}>{o}</option>
@@ -117,9 +118,9 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full mt-6 py-3.5 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest text-sm hover:bg-[#b8e600] transition-all disabled:opacity-50"
+          className="w-full mt-8 py-4 rounded-full bg-[#FF00FF] text-white font-black uppercase tracking-widest text-[12px] hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 shadow-[0_0_15px_#FF00FF]"
         >
-          {saving ? 'Saving...' : 'Save Profile'}
+          {saving ? 'UPLOADING...' : 'SAVE PROFILE'}
         </button>
       </motion.div>
     </div>
@@ -209,70 +210,74 @@ export default function Dating() {
   );
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pb-24 relative">
-      <div className="pt-8 pb-6 px-4 max-w-7xl mx-auto text-center">
-        <span className="inline-block px-3 py-1 text-[10px] font-black uppercase tracking-widest bg-[#CDFF00]/10 text-[#CDFF00] border border-[#CDFF00]/20 rounded-full mb-3">ELITE NETWORKING HUB</span>
-        <h1 className="text-4xl font-black text-white uppercase tracking-tight">Hustle <span className="text-[#CDFF00]">Bond</span></h1>
-        <p className="text-gray-500 text-sm mt-1">Beyond professional boundaries. Forge meaningful connections that transcend the boardroom.</p>
+    <div className="min-h-screen bg-[#050505] text-white pb-24 relative font-sans overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 z-0 flex opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, #00FFFF 2px, transparent 0), radial-gradient(circle at 30px 30px, #FF00FF 2px, transparent 0)', backgroundSize: '60px 60px' }}></div>
+      <div className="absolute top-0 left-0 right-0 h-[30vh] bg-gradient-to-b from-[#FF00FF]/10 to-transparent z-0 pointer-events-none" />
+
+      <div className="pt-20 pb-8 px-4 max-w-7xl mx-auto text-center relative z-10">
+        <span className="inline-block px-4 py-1 text-[10px] font-black uppercase tracking-[0.4em] bg-black text-[#00FFFF] border-2 border-[#00FFFF] rounded-full mb-4 shadow-[0_0_10px_#00FFFF]">CONNECT & COLLAB</span>
+        <h1 className="text-5xl font-black text-white uppercase tracking-tighter drop-shadow-[2px_2px_0_#FF00FF]">Hustle <span className="text-[#00FFFF]">Bond</span></h1>
+        <p className="text-[#FF00FF] font-bold uppercase tracking-widest text-xs mt-3 drop-shadow-[1px_1px_0_#000]">Connect with creatives in your area.</p>
       </div>
 
       {/* Action Bar */}
-      <div className="z-10 w-full max-w-sm mx-auto mb-12 flex justify-center items-center gap-4 px-4">
+      <div className="z-10 w-full max-w-sm mx-auto mb-10 flex justify-center items-center gap-4 px-4 relative">
         <button
           onClick={() => setShowSetup(true)}
-          className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-xs font-black text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5"
+          className="px-6 py-3.5 rounded-full bg-black border-2 border-[#FF00FF]/50 text-[10px] font-black text-[#FF00FF] uppercase tracking-widest hover:bg-[#FF00FF] hover:text-white transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,0,255,0.2)]"
         >
-          <Edit3 className="w-3.5 h-3.5 text-[#CDFF00]" />
-          {myProfile ? 'Edit Profile' : 'Setup Profile'}
+          <Edit3 className="w-4 h-4" />
+          {myProfile ? 'EDIT PROFILE' : 'CREATE PROFILE'}
         </button>
-        <Link to="/dm" className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-xs font-black text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5">
-          <MessageCircle className="w-3.5 h-3.5 text-[#CDFF00]" />
-          Message Hub
+        <Link to="/dm" className="px-6 py-3.5 rounded-full bg-black border-2 border-[#00FFFF]/50 text-[10px] font-black text-[#00FFFF] uppercase tracking-widest hover:bg-[#00FFFF] hover:text-black transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(0,255,255,0.2)]">
+          <MessageCircle className="w-4 h-4" />
+          MESSAGES
         </Link>
       </div>
 
       {/* Setup your profile CTA if not set up */}
       {!myProfile && (
-        <div className="z-10 w-full max-w-sm px-4 mb-4">
+        <div className="z-10 w-full max-w-sm mx-auto px-4 mb-6 relative">
           <button
             onClick={() => setShowSetup(true)}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 hover:bg-[#CDFF00]/15 transition-all group"
+            className="w-full flex items-center justify-between px-5 py-4 rounded-[1.5rem] bg-black border-2 border-[#FF00FF] hover:shadow-[0_0_20px_#FF00FF] transition-all group"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-[#CDFF00]/20 flex items-center justify-center">
-                <User className="w-4 h-4 text-[#CDFF00]" />
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-[#FF00FF]/20 flex items-center justify-center">
+                <User className="w-5 h-5 text-[#FF00FF]" />
               </div>
               <div className="text-left">
-                <p className="text-xs font-black text-[#CDFF00] uppercase tracking-widest">Complete your profile</p>
-                <p className="text-[10px] text-gray-500 font-bold">Let others discover you</p>
+                <p className="text-[11px] font-black text-white uppercase tracking-widest">Setup Profile</p>
+                <p className="text-[9px] text-[#00FFFF] font-bold uppercase tracking-widest mt-0.5">Required to connect</p>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-[#CDFF00] group-hover:translate-x-1 transition-transform" />
+            <ChevronRight className="w-5 h-5 text-[#FF00FF] group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
       )}
 
       {/* Card stack */}
-      <div className="relative w-full max-w-sm h-[540px] z-10 px-4">
+      <div className="relative w-full max-w-sm mx-auto h-[540px] z-10 px-4 perspective-1000">
         {profiles.length === 0 ? (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-[#0d0d0d] border border-white/10 rounded-3xl p-8 text-center">
-            <Sparkles className="w-16 h-16 text-[#CDFF00] mb-6" />
-            <h3 className="text-2xl font-heading font-extrabold text-white uppercase tracking-wide mb-2">No profiles yet</h3>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-xs mb-6">
-              You're the only one here so far.<br/>Invite others to join HustleUp!
+          <div className="w-full h-full flex flex-col items-center justify-center bg-[#0A0A0A] border-2 border-dashed border-[#00FFFF]/50 rounded-[2.5rem] p-8 text-center shadow-[0_0_30px_rgba(0,255,255,0.1)]">
+            <Sparkles className="w-20 h-20 text-[#00FFFF] mb-6 drop-shadow-[0_0_15px_#00FFFF]" />
+            <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2 drop-shadow-[2px_2px_0_#FF00FF]">NO MATCHES</h3>
+            <p className="text-[#00FFFF] font-bold uppercase tracking-widest text-[10px] mb-8">
+              No creatives found in your area yet.
             </p>
             <button
               onClick={() => setShowSetup(true)}
-              className="px-6 py-2.5 rounded-xl bg-[#CDFF00] text-black text-xs font-black uppercase tracking-widest hover:bg-[#b8e600] transition-all"
+              className="px-8 py-3.5 rounded-full bg-[#FF00FF] text-white text-[11px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-transform shadow-[0_0_20px_#FF00FF]"
             >
-              {myProfile ? 'Update my profile' : 'Setup my profile'}
+              {myProfile ? 'EDIT PREFERENCES' : 'CREATE PROFILE'}
             </button>
           </div>
         ) : (
           <>
             {next && (
-              <div className="absolute inset-x-4 top-3 bottom-0 rounded-3xl overflow-hidden bg-[#111] border border-white/5 scale-95 opacity-60 pointer-events-none">
-                <img src={getAvatar(next)} className="w-full h-full object-cover" alt="" onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${next.id}`; }} />
+              <div className="absolute inset-x-4 top-4 bottom-0 rounded-[2.5rem] overflow-hidden bg-black border-2 border-[#00FFFF]/30 scale-[0.92] opacity-50 pointer-events-none transform -translate-y-4">
+                <img src={getAvatar(next)} className="w-full h-full object-cover filter grayscale blur-[2px]" alt="" onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${next.id}`; }} />
               </div>
             )}
 
@@ -295,7 +300,7 @@ export default function Dating() {
                   onTouchMove={onDragMove}
                   onTouchEnd={onDragEnd}
                 >
-                  <div className="w-full h-full rounded-3xl overflow-hidden bg-[#0d0d0d] border border-white/10 shadow-2xl relative">
+                  <div className="w-full h-full rounded-[2.5rem] overflow-hidden bg-black border-4 border-[#FF00FF] shadow-[0_0_40px_rgba(255,0,255,0.3)] relative">
                     <img
                       src={getAvatar(top)}
                       className="absolute inset-0 w-full h-full object-cover"
@@ -303,56 +308,56 @@ export default function Dating() {
                       onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(top.fullName || top.id)}`; }}
                       draggable={false}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
                     {/* LIKE / NOPE stamps */}
-                    <div className="absolute top-10 left-8 rotate-[-20deg] border-4 border-[#CDFF00] text-[#CDFF00] px-4 py-1 rounded-xl text-2xl font-black uppercase tracking-widest transition-opacity duration-100"
-                      style={{ opacity: likeOpacity }}>MATCH</div>
-                    <div className="absolute top-10 right-8 rotate-[20deg] border-4 border-red-500 text-red-500 px-4 py-1 rounded-xl text-2xl font-black uppercase tracking-widest transition-opacity duration-100"
-                      style={{ opacity: nopeOpacity }}>NOPE</div>
+                    <div className="absolute top-12 left-8 rotate-[-20deg] border-4 border-[#00FFFF] text-[#00FFFF] px-6 py-2 rounded-2xl text-3xl font-black uppercase tracking-[0.3em] transition-opacity duration-100 shadow-[0_0_15px_#00FFFF] bg-black/50 backdrop-blur-sm"
+                      style={{ opacity: likeOpacity }}>VIBE</div>
+                    <div className="absolute top-12 right-8 rotate-[20deg] border-4 border-red-500 text-red-500 px-6 py-2 rounded-2xl text-3xl font-black uppercase tracking-[0.3em] transition-opacity duration-100 shadow-[0_0_15px_red] bg-black/50 backdrop-blur-sm"
+                      style={{ opacity: nopeOpacity }}>PASS</div>
 
-                    <div className="absolute top-5 left-5">
-                      <span className="px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest border border-white/10">
-                        {top.lookingFor || 'Networking'}
+                    <div className="absolute top-6 left-6">
+                      <span className="px-4 py-2 rounded-full bg-black border-2 border-[#00FFFF] text-[#00FFFF] text-[9px] font-black uppercase tracking-[0.3em] shadow-[0_0_10px_rgba(0,255,255,0.5)]">
+                        OBJ: {top.lookingFor || 'NETWORKING'}
                       </span>
                     </div>
 
-                    <div className="absolute bottom-0 left-0 right-0 p-6 pb-24">
-                      <h2 className="text-3xl font-black text-white leading-none">
+                    <div className="absolute bottom-0 left-0 right-0 p-8 pb-28 bg-gradient-to-t from-black via-black/80 to-transparent">
+                      <h2 className="text-4xl font-black text-white leading-none uppercase tracking-tighter drop-shadow-[2px_2px_0_#FF00FF]">
                         {top.fullName}
-                        {top.age > 0 && <span className="text-[#CDFF00] ml-2">{top.age}</span>}
+                        {top.age > 0 && <span className="text-[#00FFFF] ml-3 text-3xl drop-shadow-none">[{top.age}]</span>}
                       </h2>
                       {top.location && (
-                        <p className="flex items-center gap-1.5 text-xs font-bold text-gray-400 uppercase tracking-widest mt-2">
-                          <MapPin className="w-3.5 h-3.5 text-[#CDFF00]" /> {top.location}
+                        <p className="flex items-center gap-2 text-[11px] font-black text-[#00FFFF] uppercase tracking-widest mt-3">
+                          <MapPin className="w-4 h-4" /> LOC: {top.location}
                         </p>
                       )}
                       {top.bio && (
-                        <p className="text-sm text-gray-400 mt-3 line-clamp-2 leading-relaxed">{top.bio}</p>
+                        <p className="text-sm text-gray-300 font-bold mt-4 line-clamp-3 leading-relaxed border-l-2 border-[#FF00FF] pl-3">{top.bio}</p>
                       )}
                     </div>
                   </div>
 
                   {/* Action buttons */}
-                  <div className="absolute bottom-5 left-0 right-0 flex justify-center gap-5 z-20">
+                  <div className="absolute bottom-6 left-0 right-0 flex justify-center items-center gap-6 z-20">
                     <button
                       onClick={(e) => { e.stopPropagation(); dismiss('left'); }}
-                      className="w-14 h-14 rounded-full bg-[#0d0d0d] border border-white/10 flex items-center justify-center text-red-400 hover:bg-red-500/10 hover:border-red-500/40 hover:scale-110 active:scale-95 transition-all shadow-xl"
+                      className="w-16 h-16 rounded-full bg-black border-4 border-[#0A0A0A] flex items-center justify-center text-gray-500 hover:text-red-500 hover:border-red-500 hover:scale-110 active:scale-95 transition-all shadow-2xl"
                     >
-                      <X className="w-7 h-7" />
+                      <X className="w-8 h-8 font-black" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); dismiss('right'); }}
-                      className="w-16 h-16 rounded-full bg-[#CDFF00] flex items-center justify-center text-black hover:bg-[#b8e600] hover:scale-110 active:scale-95 transition-all shadow-xl shadow-[#CDFF00]/30"
+                      className="w-20 h-20 rounded-full bg-[#FF00FF] border-4 border-black flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-all shadow-[0_0_30px_#FF00FF]"
                     >
-                      <Heart className="w-7 h-7 fill-black" />
+                      <Heart className="w-10 h-10 fill-white drop-shadow-md" />
                     </button>
                     <Link
                       to={`/dm/${top.id}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="w-14 h-14 rounded-full bg-[#0d0d0d] border border-white/10 flex items-center justify-center text-[#CDFF00] hover:bg-[#CDFF00]/10 hover:border-[#CDFF00]/40 hover:scale-110 active:scale-95 transition-all shadow-xl"
+                      className="w-16 h-16 rounded-full bg-black border-4 border-[#0A0A0A] flex items-center justify-center text-gray-500 hover:text-[#00FFFF] hover:border-[#00FFFF] hover:scale-110 active:scale-95 transition-all shadow-2xl"
                     >
-                      <MessageCircle className="w-6 h-6" />
+                      <MessageCircle className="w-8 h-8 font-black" />
                     </Link>
                   </div>
                 </motion.div>
@@ -363,8 +368,8 @@ export default function Dating() {
       </div>
 
       {profiles.length > 0 && (
-        <p className="z-10 mt-4 text-[10px] text-gray-700 font-black uppercase tracking-[0.3em]">
-          ← swipe or drag → to match
+        <p className="relative z-10 mt-8 text-center text-[10px] text-gray-600 font-black uppercase tracking-[0.4em]">
+          ← PASS &nbsp; || &nbsp; VIBE →
         </p>
       )}
 

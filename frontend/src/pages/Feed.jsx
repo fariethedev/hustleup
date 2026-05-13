@@ -161,306 +161,316 @@ export default function Feed() {
   }, [selectedPost]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 pb-24">
-      <HeroBrief 
-        pillText="REAL-TIME SYNDICATION"
-        title="HUSTLE FLOW"
-        subtitle={"Your window into the global pulse.\nEngagement, interaction, and growth in every scroll."}
-      />
-      <StoryBar />
-      
-
-
-      {isAuthenticated && (
-        <form onSubmit={handlePost} className="glass bg-black/40 border border-white/10 p-6 rounded-3xl mb-10 shadow-lg hover:border-white/10 transition-colors">
-          <div className="flex gap-4">
-            <div className="w-12 h-12 rounded-full bg-[#CDFF00] border border-[#CDFF00] flex items-center justify-center text-black font-bold text-lg shrink-0">
-              {user?.fullName?.[0] || '?'}
-            </div>
-            <div className="flex-1 space-y-4">
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="What's your next move?"
-                className="w-full bg-transparent text-white placeholder-gray-400 font-medium resize-none outline-none leading-relaxed"
-                rows={3}
-              />
-              
-              {mediaFiles.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                  {mediaFiles.map((file, idx) => (
-                    <div key={idx} className="relative shrink-0">
-                      {file.type.startsWith('video/') ? (
-                        <div className="w-24 h-24 rounded-xl bg-[#121212] flex items-center justify-center border border-white/10 group">
-                          <Film className="w-8 h-8 text-white/50" />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
-                            <span className="text-[10px] font-bold text-white uppercase">Video</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <img 
-                          src={URL.createObjectURL(file)} 
-                          alt="Preview" 
-                          className="w-24 h-24 rounded-xl object-cover border border-white/10" 
-                        />
-                      )}
-                      <button 
-                        type="button" 
-                        onClick={() => removeMedia(idx)} 
-                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex justify-center items-center hover:bg-red-600 transition-colors shadow-lg z-10"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                <label className="cursor-pointer text-gray-500 hover:text-[#CDFF00] transition-colors flex items-center gap-2 bg-[#121212] px-3 py-2 rounded-xl border border-white/5 hover:border-[#CDFF00]">
-                  <ImageIcon className="w-5 h-5" />
-                  <span className="text-xs font-bold uppercase tracking-widest">Add Media ({mediaFiles.length}/15)</span>
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*,video/*" 
-                    multiple 
-                    onChange={handleMediaChange} 
-                  />
-                </label>
-                <button
-                  type="submit"
-                  disabled={posting || (!content.trim() && mediaFiles.length === 0)}
-                  className="px-6 py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold uppercase tracking-widest text-xs hover:bg-[#CDFF00] disabled:opacity-50 transition-all shadow-md shadow-[#CDFF00]/20"
-                >
-                  {posting ? 'Posting...' : 'Share'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </form>
-      )}
-
-      <div className="space-y-10">
-        {loading ? (
-          [...Array(3)].map((_, i) => <div key={i} className="h-64 glass bg-black/40 border border-white/10 rounded-3xl animate-pulse shadow-sm" />)
-        ) : posts.length > 0 ? (
-          posts.map((item, idx) => {
-            if (item.type === 'LISTING') {
-              return (
-                <motion.div key={`list-${item.id}-${idx}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass bg-black/40 border border-white/10 p-0 rounded-3xl group overflow-hidden transition-all hover:border-white/20 shadow-xl">
-                  <div className="p-4 flex items-center justify-between border-b border-white/5">
-                    <div className="flex items-center gap-3">
-                      <Link to={`/profile/${item.sellerId}`} className="relative w-10 h-10 rounded-full bg-black border border-[#CDFF00]/20 flex items-center justify-center text-[#CDFF00] font-black tracking-tighter">
-                        {item.sellerName?.[0]}
-                        {item.sellerVerified && <BadgeCheck className="absolute -bottom-1 -right-1 w-4 h-4 text-black bg-[#CDFF00] rounded-full" />}
-                      </Link>
-                      <div>
-                        <Link to={`/profile/${item.sellerId}`} className="text-white font-bold tracking-wide hover:text-[#CDFF00] transition-colors flex items-center gap-1">
-                          {item.sellerName}
-                        </Link>
-                        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Marketplace Drop</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Link to={`/listing/${item.id}`} className="block relative bg-[#121212] aspect-square max-h-[500px] w-full flex items-center justify-center overflow-hidden border-b border-white/5">
-                    <img src={item.mediaUrls?.[0] || LISTING_FALLBACK_IMAGE} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                    <div className="absolute top-4 right-4 px-4 py-2 glass bg-black/60 border border-[#CDFF00]/20 rounded-full text-[#CDFF00] font-black text-sm shadow-xl backdrop-blur-xl">
-                      {formatPrice(item.price, item.currency)}
-                    </div>
-                  </Link>
-                  
-                  <div className="p-6">
-                    <h3 className="font-heading font-black text-white text-xl uppercase tracking-tight group-hover:text-[#CDFF00] transition-colors">{item.title}</h3>
-                    <p className="text-sm text-gray-400 mt-2 line-clamp-2 leading-relaxed">{item.description}</p>
-                    <Link to={`/listing/${item.id}`} className="mt-6 flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-[#CDFF00] hover:text-black hover:border-transparent transition-all">
-                      Secure this drop <ShoppingBag className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                </motion.div>
-              );
-            }
-
-            return (
-              <motion.div key={`post-${item.id}-${idx}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass bg-black/40 border border-white/10 p-0 rounded-3xl group overflow-hidden transition-all hover:border-white/20 shadow-xl">
-                <div className="p-4 flex items-center gap-3 border-b border-white/5">
-                  <Link to={`/profile/${item.authorId}`} className="relative w-10 h-10 rounded-full bg-black border border-[#CDFF00]/20 flex items-center justify-center text-[#CDFF00] font-black tracking-tighter">
-                    {item.authorName?.[0] || '?'}
-                  </Link>
-                  <div>
-                    <Link to={`/profile/${item.authorId}`} className="text-white font-bold tracking-wide hover:text-[#CDFF00] transition-colors">
-                      {item.authorName}
-                    </Link>
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
-                      {item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Just now'}
-                    </p>
-                  </div>
-                </div>
-                
-                {item.media && item.media.length > 0 ? (
-                  <PostMediaGallery 
-                    media={item.media} 
-                    author={{ 
-                      name: item.authorName, 
-                      avatar: item.authorAvatar,
-                      id: item.authorId 
-                    }} 
-                  />
-                ) : (item.imageUrl || extractUrl(item.content)) && (
-                  <div className="relative w-full aspect-[4/5] bg-black overflow-hidden">
-                    <img src={item.imageUrl || extractUrl(item.content)} alt="Post" className="w-full h-full object-cover" />
-                  </div>
-                )}
-                
-                <div className="p-6">
-                  <div className="flex items-center gap-6 mb-4">
-                    <button 
-                      onClick={() => handleLike(item.id)}
-                      disabled={likeInProgress[item.id]}
-                      className={`flex items-center gap-2.5 transition-all group ${item.likedByCurrentUser ? 'text-[#CDFF00]' : 'text-gray-500 hover:text-[#CDFF00]'}`}
-                    >
-                      <Heart className={`w-7 h-7 transition-all group-hover:scale-110 ${item.likedByCurrentUser ? 'fill-[#CDFF00] stroke-none' : ''}`} />
-                      <span className="text-sm font-black tracking-tighter">{item.likesCount || 0}</span>
-                    </button>
-                    <button onClick={() => openComments(item)} className="flex items-center gap-2.5 text-gray-500 hover:text-[#CDFF00] transition-all group">
-                      <MessageSquare className="w-7 h-7 group-hover:scale-110" />
-                      <span className="text-sm font-black tracking-tighter">{item.commentsCount || 0}</span>
-                    </button>
-                  </div>
-                  <div className="text-sm leading-relaxed text-gray-300">
-                    <Link to={`/profile/${item.authorId}`} className="font-bold text-white hover:text-[#CDFF00] mr-2 uppercase tracking-wide text-xs">{item.authorName || 'User'}</Link>
-                    <span className="font-medium">{item.content}</span>
-                  </div>
-                  <button onClick={() => openComments(item)} className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] mt-6 hover:text-[#CDFF00] transition-colors py-2 border-t border-white/5 w-full text-left">
-                    {item.commentsCount > 0 ? `Show all ${item.commentsCount} comments` : 'Leave a comment'}
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })
-        ) : (
-          <div className="text-center py-24 glass bg-black/40 border border-white/10 rounded-[3rem] shadow-sm">
-            <ImageIcon className="w-16 h-16 mx-auto opacity-30 mb-6 text-[#CDFF00]" />
-            <h3 className="text-2xl font-heading font-black text-white mb-2 uppercase tracking-tight">Quiet on the front</h3>
-            <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Ignite your own hustle story</p>
-          </div>
-        )}
+    <div className="min-h-screen bg-[#050505] font-sans pb-24">
+      {/* ── HEADER ── */}
+      <div className="relative overflow-hidden bg-[#0A0A0A] pt-24 pb-8 border-b-2 border-[#FF00FF]/30 shadow-[0_5px_30px_rgba(255,0,255,0.1)] mb-8">
+        <div className="absolute inset-0 z-0 flex opacity-[0.15] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, #FF00FF 2px, transparent 0), radial-gradient(circle at 30px 30px, #00FFFF 2px, transparent 0)', backgroundSize: '40px 40px' }}></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-[#00FFFF]/10 via-transparent to-[#0A0A0A] z-0" />
+        <div className="px-4 max-w-4xl mx-auto relative z-10">
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ type: 'spring' }}>
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#00FFFF] mb-2 block drop-shadow-[0_0_5px_#00FFFF]">Community Pulse</span>
+            <h1 className="text-5xl md:text-6xl font-black text-white uppercase tracking-tighter leading-none drop-shadow-[3px_3px_0_#FF00FF]">Creator <span className="text-[#00FFFF]">Feed</span></h1>
+            <p className="text-[#FF00FF] text-sm font-bold uppercase tracking-widest mt-3 drop-shadow-[1px_1px_0_#000]">Your window into the movement.</p>
+          </motion.div>
+        </div>
       </div>
 
-      {/* Global Comments Modal */}
-      <AnimatePresence>
-        {selectedPost && (
-          <div className="fixed inset-0 z-[400] flex items-center justify-center px-4">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedPost(null)}
-              className="absolute inset-0 bg-black/95 backdrop-blur-xl"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-2xl bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] shadow-[0_0_80px_rgba(205,255,0,0.1)] flex flex-col max-h-[85vh] overflow-hidden"
-            >
-              {/* Modal Header */}
-              <div className="p-6 border-b border-white/5 flex items-center justify-between">
-                <div>
-                  <h3 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-[#CDFF00]" /> Conversations
-                  </h3>
-                  <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">
-                    On {selectedPost.authorName}'s Drop
-                  </p>
-                </div>
-                <button onClick={() => setSelectedPost(null)} className="p-3 hover:bg-white/5 rounded-xl transition-colors">
-                  <X className="w-5 h-5 text-gray-400" />
-                </button>
-              </div>
+      <div className="max-w-4xl mx-auto px-4">
+        <StoryBar />
 
-              {/* Comments List */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {commentsLoading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="flex gap-4 animate-pulse">
-                        <div className="w-10 h-10 rounded-full bg-white/5" />
-                        <div className="flex-1 space-y-2">
-                          <div className="h-3 w-24 bg-white/5 rounded" />
-                          <div className="h-10 bg-white/5 rounded-xl" />
-                        </div>
+        {isAuthenticated && (
+          <form onSubmit={handlePost} className="bg-[#0A0A0A] border-2 border-[#00FFFF]/30 p-6 rounded-[2rem] mb-10 shadow-[0_5px_20px_rgba(0,255,255,0.1)] hover:border-[#00FFFF] transition-all relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF00FF]/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="flex gap-4 relative z-10">
+              <div className="w-12 h-12 rounded-full bg-[#FF00FF] border-2 border-[#FF00FF] flex items-center justify-center text-white font-black text-lg shrink-0 shadow-[0_0_15px_#FF00FF]">
+                {user?.fullName?.[0] || '?'}
+              </div>
+              <div className="flex-1 space-y-4">
+                <textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Share your creative vision..."
+                  className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white placeholder-[#00FFFF]/50 font-bold resize-none outline-none leading-relaxed focus:border-[#FF00FF] focus:shadow-[0_0_10px_#FF00FF] transition-all"
+                  rows={3}
+                />
+                
+                {mediaFiles.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    {mediaFiles.map((file, idx) => (
+                      <div key={idx} className="relative shrink-0">
+                        {file.type.startsWith('video/') ? (
+                          <div className="w-24 h-24 rounded-xl bg-black flex items-center justify-center border-2 border-[#00FFFF]/50 group">
+                            <Film className="w-8 h-8 text-[#00FFFF]" />
+                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
+                              <span className="text-[10px] font-black text-[#00FFFF] uppercase">Video</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <img 
+                            src={URL.createObjectURL(file)} 
+                            alt="Preview" 
+                            className="w-24 h-24 rounded-xl object-cover border-2 border-[#FF00FF]/50" 
+                          />
+                        )}
+                        <button 
+                          type="button" 
+                          onClick={() => removeMedia(idx)} 
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#FF00FF] text-white flex justify-center items-center hover:scale-110 transition-transform shadow-[0_0_10px_#FF00FF] z-10"
+                        >
+                          <X className="w-4 h-4 font-black" />
+                        </button>
                       </div>
                     ))}
                   </div>
-                ) : comments.length === 0 ? (
-                  <div className="py-20 text-center flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
-                      <MessageSquare className="w-8 h-8 text-gray-700" />
-                    </div>
-                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">No moves reported here yet.</p>
-                  </div>
-                ) : (
-                  comments.map((c, idx) => (
-                    <motion.div 
-                      key={c.id || idx}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="flex gap-4 items-start group"
-                    >
-                      <Link to={`/profile/${c.authorId}`} className="w-10 h-10 rounded-full bg-black border border-white/10 flex items-center justify-center text-[#CDFF00] font-black text-xs shrink-0 bg-white/[0.02]">
-                        {c.authorName?.[0]}
-                      </Link>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between gap-4 mb-1">
-                          <Link to={`/profile/${c.authorId}`} className="text-white font-black text-[10px] uppercase tracking-wider hover:text-[#CDFF00] transition-colors">{c.authorName}</Link>
-                          <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest">{new Date(c.createdAt || Date.now()).toLocaleTimeString()}</span>
-                        </div>
-                        <div className="bg-white/5 border border-white/5 rounded-2xl rounded-tl-none p-4 text-gray-300 text-sm leading-relaxed">
-                          {c.content}
+                )}
+
+                <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                  <label className="cursor-pointer text-[#00FFFF] hover:text-[#FF00FF] transition-colors flex items-center gap-2 bg-black px-4 py-2.5 rounded-full border border-[#00FFFF]/30 hover:border-[#FF00FF] hover:shadow-[0_0_10px_#FF00FF]">
+                    <ImageIcon className="w-5 h-5" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Attach Media ({mediaFiles.length}/15)</span>
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*,video/*" 
+                      multiple 
+                      onChange={handleMediaChange} 
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={posting || (!content.trim() && mediaFiles.length === 0)}
+                    className="px-8 py-3 rounded-full bg-[#FF00FF] text-white font-black uppercase tracking-widest text-[11px] shadow-[0_0_15px_#FF00FF] disabled:opacity-50 disabled:shadow-none hover:scale-105 transition-all"
+                  >
+                    {posting ? 'POSTING...' : 'POST'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        )}
+
+        <div className="space-y-10">
+          {loading ? (
+            [...Array(3)].map((_, i) => <div key={i} className="h-64 bg-gradient-to-b from-[#00FFFF]/10 to-transparent border-2 border-[#FF00FF]/20 rounded-[2rem] animate-pulse shadow-sm" />)
+          ) : posts.length > 0 ? (
+            posts.map((item, idx) => {
+              if (item.type === 'LISTING') {
+                return (
+                  <motion.div key={`list-${item.id}-${idx}`} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ type: "spring", bounce: 0.4 }} className="bg-[#0A0A0A] border-2 border-[#00FFFF]/30 p-0 rounded-[2.5rem] group overflow-hidden transition-all hover:border-[#00FFFF] shadow-[0_5px_20px_rgba(0,255,255,0.05)] hover:shadow-[0_10px_30px_rgba(0,255,255,0.2)] relative">
+                    <div className="p-5 flex items-center justify-between border-b-2 border-white/5 relative z-10 bg-black/50 backdrop-blur-md">
+                      <div className="flex items-center gap-4">
+                        <Link to={`/profile/${item.sellerId}`} className="relative w-12 h-12 rounded-full bg-[#FF00FF] border-2 border-[#FF00FF] shadow-[0_0_10px_#FF00FF] flex items-center justify-center text-white font-black text-lg">
+                          {item.sellerName?.[0]}
+                          {item.sellerVerified && <BadgeCheck className="absolute -bottom-1 -right-1 w-5 h-5 text-black bg-[#CDFF00] rounded-full" />}
+                        </Link>
+                        <div>
+                          <Link to={`/profile/${item.sellerId}`} className="text-white font-black text-sm tracking-wide hover:text-[#00FFFF] transition-colors drop-shadow-[1px_1px_0_#FF00FF]">
+                            {item.sellerName}
+                          </Link>
+                          <p className="text-[9px] text-[#00FFFF] font-black uppercase tracking-[0.2em] mt-0.5">Marketplace Drop</p>
                         </div>
                       </div>
-                    </motion.div>
-                  ))
-                )}
-              </div>
+                    </div>
+                    
+                    <Link to={`/listing/${item.id}`} className="block relative bg-black aspect-square max-h-[500px] w-full flex items-center justify-center overflow-hidden border-b-2 border-white/5">
+                      <img src={item.mediaUrls?.[0] || LISTING_FALLBACK_IMAGE} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-90 group-hover:opacity-100" />
+                      <div className="absolute top-4 right-4 px-5 py-2 bg-black/80 border-2 border-[#CDFF00] rounded-full text-[#CDFF00] font-black text-sm shadow-[0_0_15px_#CDFF00] backdrop-blur-xl">
+                        {formatPrice(item.price, item.currency)}
+                      </div>
+                    </Link>
+                    
+                    <div className="p-6 relative z-10 bg-[#0A0A0A]">
+                      <h3 className="font-black text-white text-2xl uppercase tracking-tighter group-hover:text-[#FF00FF] transition-colors drop-shadow-[2px_2px_0_rgba(0,0,0,1)]">{item.title}</h3>
+                      <p className="text-sm text-gray-400 mt-2 line-clamp-2 leading-relaxed font-bold">{item.description}</p>
+                      <Link to={`/listing/${item.id}`} className="mt-6 flex items-center justify-center gap-2 w-full py-4 rounded-full bg-transparent border-2 border-[#00FFFF] text-[10px] font-black uppercase tracking-[0.2em] text-[#00FFFF] hover:bg-[#00FFFF] hover:text-black hover:shadow-[0_0_20px_#00FFFF] transition-all">
+                        CHECK IT OUT <ShoppingBag className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  </motion.div>
+                );
+              }
 
-              {/* Comment Input */}
-              {isAuthenticated ? (
-                <div className="p-6 bg-black/40 border-t border-white/5">
-                  <div className="relative group">
-                    <input 
-                      type="text" 
-                      placeholder="Contribute to the conversation..." 
-                      value={commentInput}
-                      onChange={(e) => setCommentInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && submitComment()}
-                      className="w-full bg-[#121212] border border-white/10 rounded-2xl px-6 py-5 text-sm text-white placeholder-gray-500 outline-none focus:border-[#CDFF00] transition-all pr-16 shadow-2xl"
-                    />
-                    <button 
-                      onClick={submitComment}
-                      disabled={commenting || !commentInput.trim()}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-xl bg-[#CDFF00] text-black hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100 transition-all shadow-xl"
-                    >
-                      {commenting ? (
-                        <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Send className="w-5 h-5 stroke-[2.5px]" />
-                      )}
+              return (
+                <motion.div key={`post-${item.id}-${idx}`} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ type: "spring", bounce: 0.4 }} className="bg-[#0A0A0A] border-2 border-[#FF00FF]/30 p-0 rounded-[2.5rem] group overflow-hidden transition-all hover:border-[#FF00FF] shadow-[0_5px_20px_rgba(255,0,255,0.05)] hover:shadow-[0_10px_30px_rgba(255,0,255,0.2)]">
+                  <div className="p-5 flex items-center gap-4 border-b-2 border-white/5 bg-black/50 backdrop-blur-md">
+                    <Link to={`/profile/${item.authorId}`} className="relative w-12 h-12 rounded-full bg-[#00FFFF] border-2 border-[#00FFFF] shadow-[0_0_10px_#00FFFF] flex items-center justify-center text-black font-black text-lg">
+                      {item.authorName?.[0] || '?'}
+                    </Link>
+                    <div>
+                      <Link to={`/profile/${item.authorId}`} className="text-white font-black text-sm tracking-wide hover:text-[#FF00FF] transition-colors drop-shadow-[1px_1px_0_#00FFFF]">
+                        {item.authorName}
+                      </Link>
+                      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-0.5">
+                        {item.createdAt ? new Date(item.createdAt).toLocaleString() : 'System Log'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {item.media && item.media.length > 0 ? (
+                    <div className="border-b-2 border-white/5 relative bg-black">
+                      <PostMediaGallery 
+                        media={item.media} 
+                        author={{ 
+                          name: item.authorName, 
+                          avatar: item.authorAvatar,
+                          id: item.authorId 
+                        }} 
+                      />
+                    </div>
+                  ) : (item.imageUrl || extractUrl(item.content)) && (
+                    <div className="relative w-full aspect-[4/5] bg-black overflow-hidden border-b-2 border-white/5">
+                      <img src={item.imageUrl || extractUrl(item.content)} alt="Post" className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity" />
+                    </div>
+                  )}
+                  
+                  <div className="p-6 bg-[#0A0A0A]">
+                    <div className="flex items-center gap-8 mb-6">
+                      <button 
+                        onClick={() => handleLike(item.id)}
+                        disabled={likeInProgress[item.id]}
+                        className={`flex items-center gap-3 transition-all group ${item.likedByCurrentUser ? 'text-[#FF00FF]' : 'text-gray-500 hover:text-[#FF00FF]'}`}
+                      >
+                        <Heart className={`w-8 h-8 transition-all group-hover:scale-110 ${item.likedByCurrentUser ? 'fill-[#FF00FF] stroke-none drop-shadow-[0_0_10px_#FF00FF]' : ''}`} />
+                        <span className="text-base font-black tracking-tighter">{item.likesCount || 0}</span>
+                      </button>
+                      <button onClick={() => openComments(item)} className="flex items-center gap-3 text-gray-500 hover:text-[#00FFFF] transition-all group">
+                        <MessageSquare className="w-8 h-8 group-hover:scale-110" />
+                        <span className="text-base font-black tracking-tighter">{item.commentsCount || 0}</span>
+                      </button>
+                    </div>
+                    <div className="text-sm leading-relaxed text-gray-300 font-bold">
+                      <Link to={`/profile/${item.authorId}`} className="font-black text-white hover:text-[#00FFFF] mr-3 uppercase tracking-widest text-[10px] drop-shadow-[1px_1px_0_#FF00FF] bg-black px-2 py-1 rounded-md">{item.authorName || 'User'}</Link>
+                      <span>{item.content}</span>
+                    </div>
+                    <button onClick={() => openComments(item)} className="text-[10px] text-[#00FFFF] font-black uppercase tracking-[0.3em] mt-8 hover:text-white transition-colors py-3 border-t-2 border-white/5 w-full text-left flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4" /> {item.commentsCount > 0 ? `VIEW ALL ${item.commentsCount} COMMENTS` : 'JOIN THE CONVERSATION'}
                     </button>
                   </div>
-                  <p className="text-[8px] text-gray-600 font-black uppercase tracking-[0.3em] mt-4 text-center">Press Enter to drop your thought</p>
+                </motion.div>
+              );
+            })
+          ) : (
+            <div className="text-center py-32 bg-[#0A0A0A] border-2 border-dashed border-[#00FFFF]/30 rounded-[3rem] shadow-[0_0_30px_rgba(0,255,255,0.1)]">
+              <ImageIcon className="w-20 h-20 mx-auto opacity-50 mb-6 text-[#00FFFF] drop-shadow-[0_0_15px_#00FFFF]" />
+              <h3 className="text-3xl font-black text-white mb-3 uppercase tracking-tighter drop-shadow-[2px_2px_0_#FF00FF]">Timeline Empty</h3>
+              <p className="text-[10px] font-black text-[#CDFF00] uppercase tracking-[0.4em]">Be the first to post</p>
+            </div>
+          )}
+        </div>
+
+        {/* Global Comments Modal */}
+        <AnimatePresence>
+          {selectedPost && (
+            <div className="fixed inset-0 z-[400] flex items-center justify-center px-4">
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                onClick={() => setSelectedPost(null)}
+                className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 50 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 50 }}
+                className="relative w-full max-w-2xl bg-[#0A0A0A] border-4 border-[#FF00FF] rounded-[2.5rem] shadow-[0_0_50px_rgba(255,0,255,0.3)] flex flex-col max-h-[85vh] overflow-hidden"
+              >
+                {/* Modal Header */}
+                <div className="p-6 border-b-2 border-white/10 bg-black flex items-center justify-between">
+                  <div>
+                    <h3 className="text-[#00FFFF] font-black uppercase tracking-[0.3em] text-sm flex items-center gap-3 drop-shadow-[0_0_5px_#00FFFF]">
+                      <MessageSquare className="w-5 h-5" /> COMMENTS
+                    </h3>
+                    <p className="text-[9px] text-[#FF00FF] font-black uppercase tracking-widest mt-1">
+                      CREATOR: {selectedPost.authorName}
+                    </p>
+                  </div>
+                  <button onClick={() => setSelectedPost(null)} className="p-2 bg-white/10 hover:bg-[#FF00FF] rounded-full transition-colors text-white group">
+                    <X className="w-6 h-6 group-hover:rotate-90 transition-transform" />
+                  </button>
                 </div>
-              ) : (
-                <div className="p-8 text-center bg-black/40 border-t border-white/5">
-                  <Link to="/login" className="text-[#CDFF00] font-black uppercase tracking-widest text-[10px] hover:underline underline-offset-4">Authenticate to contribute</Link>
+
+                {/* Comments List */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                  {commentsLoading ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="flex gap-4 animate-pulse">
+                          <div className="w-12 h-12 rounded-full bg-[#00FFFF]/20 border border-[#00FFFF]/50" />
+                          <div className="flex-1 space-y-2">
+                            <div className="h-3 w-32 bg-[#FF00FF]/20 rounded" />
+                            <div className="h-12 bg-white/5 rounded-xl border border-white/10" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : comments.length === 0 ? (
+                    <div className="py-24 text-center flex flex-col items-center gap-4">
+                      <div className="w-20 h-20 rounded-full bg-black border-2 border-[#00FFFF]/30 flex items-center justify-center shadow-[0_0_15px_rgba(0,255,255,0.2)]">
+                        <MessageSquare className="w-10 h-10 text-[#00FFFF]/50" />
+                      </div>
+                      <p className="text-[10px] font-black text-[#FF00FF] uppercase tracking-[0.4em]">NO COMMENTS YET</p>
+                    </div>
+                  ) : (
+                    comments.map((c, idx) => (
+                      <motion.div 
+                        key={c.id || idx}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex gap-4 items-start group"
+                      >
+                        <Link to={`/profile/${c.authorId}`} className="w-12 h-12 rounded-full bg-black border-2 border-[#00FFFF] flex items-center justify-center text-[#00FFFF] font-black text-sm shrink-0 shadow-[0_0_10px_rgba(0,255,255,0.3)] hover:scale-110 transition-transform">
+                          {c.authorName?.[0]}
+                        </Link>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between gap-4 mb-2">
+                            <Link to={`/profile/${c.authorId}`} className="text-white font-black text-[10px] uppercase tracking-widest hover:text-[#FF00FF] transition-colors drop-shadow-[1px_1px_0_#00FFFF]">{c.authorName}</Link>
+                            <span className="text-[8px] text-[#CDFF00] font-black uppercase tracking-[0.2em]">{new Date(c.createdAt || Date.now()).toLocaleTimeString()}</span>
+                          </div>
+                          <div className="bg-black/80 border border-white/20 rounded-2xl rounded-tl-none p-5 text-white font-bold text-sm leading-relaxed backdrop-blur-sm shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+                            {c.content}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))
+                  )}
                 </div>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+
+                {/* Comment Input */}
+                {isAuthenticated ? (
+                  <div className="p-6 bg-black border-t-2 border-[#FF00FF]/50">
+                    <div className="relative group">
+                      <input 
+                        type="text" 
+                        placeholder="ADD A COMMENT..." 
+                        value={commentInput}
+                        onChange={(e) => setCommentInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && submitComment()}
+                        className="w-full bg-[#0A0A0A] border-2 border-[#00FFFF]/30 rounded-full px-8 py-5 text-sm font-black text-white placeholder-[#00FFFF]/40 outline-none focus:border-[#00FFFF] focus:shadow-[0_0_15px_rgba(0,255,255,0.3)] transition-all pr-20 uppercase tracking-widest"
+                      />
+                      <button 
+                        onClick={submitComment}
+                        disabled={commenting || !commentInput.trim()}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-[#FF00FF] text-white flex items-center justify-center hover:scale-110 active:scale-95 disabled:opacity-30 disabled:hover:scale-100 transition-all shadow-[0_0_15px_#FF00FF]"
+                      >
+                        {commenting ? (
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Send className="w-5 h-5 -ml-1 mt-1" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-black border-t-2 border-[#FF00FF]/50">
+                    <Link to="/login" className="text-[#00FFFF] font-black uppercase tracking-[0.3em] text-[11px] hover:text-[#FF00FF] transition-colors drop-shadow-[0_0_5px_#00FFFF]">SIGN IN TO COMMENT</Link>
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
