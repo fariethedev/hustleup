@@ -45,19 +45,26 @@ export default function Checkout() {
     setLoading(true);
     setError(null);
     try {
-      // Create a booking for each cart item
-      await Promise.all(
-        items.map((item) =>
+      // Shop items (from the curated storefronts) aren't backed by a real marketplace
+      // listing row, so there's nothing to book for them — only real listings get a
+      // booking created. This lets one cart mix items from multiple shops and sellers.
+      const bookableItems = items.filter((item) => !String(item.listingId).startsWith('shop:'));
+      const results = await Promise.allSettled(
+        bookableItems.map((item) =>
           bookingsApi.create({
             listingId: item.listingId,
             offeredPrice: item.negotiatedPrice ?? item.price,
           })
         )
       );
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length === bookableItems.length && bookableItems.length > 0) {
+        throw new Error('Failed to place order. Please try again.');
+      }
       dispatch(clearCart());
       navigate('/checkout/confirmation', { state: { customer, items, total, currency } });
     } catch (e) {
-      setError(e.response?.data?.message || 'Failed to place order. Please try again.');
+      setError(e.response?.data?.message || e.message || 'Failed to place order. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -156,13 +163,13 @@ export default function Checkout() {
                       layout
                       className="flex items-center gap-4 p-4 rounded-2xl bg-[#111] border border-white/5"
                     >
-                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-800 shrink-0">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-800 shrink-0 flex items-center justify-center">
                         {item.image ? (
                           <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                        ) : item.emoji ? (
+                          <span className="text-2xl">{item.emoji}</span>
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <ShoppingBag className="w-5 h-5 text-gray-600" />
-                          </div>
+                          <ShoppingBag className="w-5 h-5 text-gray-600" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">

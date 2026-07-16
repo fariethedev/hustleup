@@ -38,7 +38,7 @@ export default function App() {
       <ScrollToTop />
       <Navbar />
       <CartDrawer />
-      <main className={`flex-1 ${location.pathname === '/' ? 'pt-0 pb-0' : 'pt-14 md:pt-16 pb-16 md:pb-0'}`}>
+      <main className={`flex-1 ${location.pathname === '/' ? 'pt-0 pb-0' : location.pathname.startsWith('/dm') ? 'pt-14 md:pt-16 pb-0' : 'pt-14 md:pt-16 pb-16 md:pb-0'}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route element={<GuestOnlyRoute />}>
@@ -72,7 +72,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      {location.pathname !== '/' && <Footer />}
+      {location.pathname !== '/' && !location.pathname.startsWith('/dm') && <Footer />}
     </ToastProvider>
     </>
   );

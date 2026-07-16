@@ -47,11 +47,43 @@ public class ListingService {
     }
 
     public List<ListingDto> getAll(String q, ListingType type, String city, BigDecimal maxPrice, Boolean negotiable) {
+        return getAll(q, type, city, maxPrice, negotiable, "latest");
+    }
+
+    public List<ListingDto> getAll(String q, ListingType type, String city, BigDecimal maxPrice, Boolean negotiable, String sort) {
         if (q != null && q.trim().isEmpty()) {
             q = null;
         }
         List<Listing> listings = listingRepository.findWithFilters(q, type, city, maxPrice, negotiable);
+
+        if ("best_selling".equalsIgnoreCase(sort)) {
+            Map<String, Long> salesCounts = completedBookingCountsByListing();
+            listings = listings.stream()
+                    .sorted(Comparator.comparingLong(
+                            (Listing l) -> salesCounts.getOrDefault(l.getId().toString(), 0L)).reversed())
+                    .collect(Collectors.toList());
+        }
+
         return listings.stream().map(this::enrichDto).collect(Collectors.toList());
+    }
+
+    /**
+     * Maps listing id (as a String) to how many COMPLETED bookings reference it — i.e. how many
+     * times it has actually sold. Used to power "best selling" sorting on the browse endpoint.
+     */
+    private Map<String, Long> completedBookingCountsByListing() {
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT listing_id, COUNT(*) AS cnt " +
+                    "FROM bookings WHERE status = 'COMPLETED' GROUP BY listing_id");
+            Map<String, Long> counts = new HashMap<>();
+            for (Map<String, Object> row : rows) {
+                counts.put(((String) row.get("listing_id")).toLowerCase(), ((Number) row.get("cnt")).longValue());
+            }
+            return counts;
+        } catch (Exception e) {
+            return Collections.emptyMap();
+        }
     }
 
     public ListingDto getById(UUID id) {

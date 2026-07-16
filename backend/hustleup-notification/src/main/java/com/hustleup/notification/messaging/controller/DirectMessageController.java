@@ -29,9 +29,11 @@ import com.hustleup.notification.messaging.repository.DirectMessageRepository;
 import com.hustleup.common.model.Notification;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
+import com.hustleup.common.storage.FileStorageService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -63,18 +65,27 @@ public class DirectMessageController {
     private final NotificationRepository notificationRepo;
 
     /**
+     * Shared storage abstraction (local ./uploads or S3) used to persist images
+     * attached to direct messages.
+     */
+    private final FileStorageService fileStorageService;
+
+    /**
      * Constructor injection – preferred over field injection for testability
-     * and immutability (all three fields are {@code final} at the call site).
+     * and immutability (all fields are {@code final} at the call site).
      *
-     * @param dmRepo           repository for direct messages.
-     * @param userRepository   repository for user records.
-     * @param notificationRepo repository for in-app notifications.
+     * @param dmRepo             repository for direct messages.
+     * @param userRepository     repository for user records.
+     * @param notificationRepo   repository for in-app notifications.
+     * @param fileStorageService storage backend for DM image attachments.
      */
     public DirectMessageController(DirectMessageRepository dmRepo, UserRepository userRepository,
-                                   NotificationRepository notificationRepo) {
+                                   NotificationRepository notificationRepo,
+                                   FileStorageService fileStorageService) {
         this.dmRepo = dmRepo;
         this.userRepo = userRepository;
         this.notificationRepo = notificationRepo;
+        this.fileStorageService = fileStorageService;
     }
 
     /**
@@ -161,7 +172,17 @@ public class DirectMessageController {
                     partner.put("online", isOnline);
                     partner.put("unreadCount", 0);  // TODO: implement per-conversation unread counts
                     if (last != null) {
-                        partner.put("lastMessage", last.getContent());
+                        // Human-friendly preview: photos and stickers shouldn't show raw content.
+                        String previewText;
+                        if ("IMAGE".equals(last.getMessageType())) {
+                            previewText = last.getContent() != null && !last.getContent().isBlank()
+                                    ? "📷 " + last.getContent() : "📷 Photo";
+                        } else if ("STICKER".equals(last.getMessageType())) {
+                            previewText = last.getContent() + " Sticker";
+                        } else {
+                            previewText = last.getContent();
+                        }
+                        partner.put("lastMessage", previewText);
                         // Convert LocalDateTime to ISO-8601 string so JSON serialisation
                         // is consistent regardless of the Jackson date format config.
                         partner.put("lastMessageAt",
@@ -262,6 +283,10 @@ public class DirectMessageController {
         // Validate: reject empty or whitespace-only messages.
         if (content == null || content.trim().isEmpty()) return ResponseEntity.badRequest().build();
 
+        // Optional "type" field: TEXT (default) or STICKER. Anything else is coerced to TEXT
+        // so a malformed client can't invent new message kinds.
+        String type = "STICKER".equalsIgnoreCase(payload.get("type")) ? "STICKER" : "TEXT";
+
         String currentUserId = getCurrentUserId();
         if (currentUserId == null) return ResponseEntity.status(401).build();
 
@@ -271,6 +296,7 @@ public class DirectMessageController {
                 .senderId(currentUserId)
                 .receiverId(partnerId)
                 .content(content)
+                .messageType(type)
                 .build();
 
         // Persist the message. save() issues an INSERT and returns the managed
@@ -301,6 +327,65 @@ public class DirectMessageController {
             // UUID, or the notification repo throws, we still return the saved
             // message successfully.  Logging this exception would be advisable
             // in a production system.
+        }
+
+        return ResponseEntity.ok(saved);
+    }
+
+    /**
+     * Sends an image message. Accepts multipart form data with the photo under
+     * {@code image} and an optional text {@code caption}. The file is persisted via
+     * {@link FileStorageService} (local ./uploads or S3) and the message is stored
+     * with {@code messageType = IMAGE} and {@code mediaUrl} pointing at it.
+     *
+     * <pre>
+     * HTTP Method : POST (multipart/form-data)
+     * Path        : /api/v1/direct-messages/{partnerId}/media
+     * Parts       : image  – required, must have an image/* content type
+     *               caption – optional text shown under the photo
+     * Response    : 200 OK – the persisted {@link DirectMessage}
+     *               400 Bad Request – missing file or non-image content type
+     *               401 Unauthorized – if not authenticated
+     * </pre>
+     */
+    @PostMapping("/{partnerId}/media")
+    public ResponseEntity<?> sendImageMessage(
+            @PathVariable String partnerId,
+            @RequestParam("image") MultipartFile image,
+            @RequestParam(value = "caption", required = false) String caption) {
+
+        if (image == null || image.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "No image provided"));
+        String contentType = image.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Only image uploads are allowed"));
+        }
+
+        String currentUserId = getCurrentUserId();
+        if (currentUserId == null) return ResponseEntity.status(401).build();
+
+        String mediaUrl = fileStorageService.store(image);
+
+        DirectMessage saved = dmRepo.save(DirectMessage.builder()
+                .senderId(currentUserId)
+                .receiverId(partnerId)
+                .content(caption != null ? caption.trim() : "")
+                .messageType("IMAGE")
+                .mediaUrl(mediaUrl)
+                .build());
+
+        // Best-effort notification, mirroring the text-message flow.
+        try {
+            String senderName = userRepo.findById(UUID.fromString(currentUserId))
+                    .map(u -> u.getFullName())
+                    .orElse("Someone");
+            notificationRepo.save(Notification.builder()
+                    .userId(UUID.fromString(partnerId))
+                    .title("New message from " + senderName)
+                    .message("📷 Photo")
+                    .notificationType("DIRECT_MESSAGE")
+                    .referenceId(UUID.fromString(currentUserId))
+                    .build());
+        } catch (Exception ignored) {
         }
 
         return ResponseEntity.ok(saved);

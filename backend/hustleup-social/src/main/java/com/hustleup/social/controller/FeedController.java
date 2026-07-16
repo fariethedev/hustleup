@@ -48,8 +48,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -354,6 +356,64 @@ public class FeedController {
     public ResponseEntity<?> getComments(@PathVariable String postId) {
         // Chronological ordering (oldest first) makes sense for threaded discussions.
         return ResponseEntity.ok(commentRepository.findByPostIdOrderByCreatedAtAsc(postId));
+    }
+
+    /**
+     * Lists exactly who liked a post, newest like first.
+     *
+     * <p><b>GET /api/v1/feed/{postId}/likes</b> — public.
+     *
+     * @return 200 OK with a JSON array of {@code {id, name, avatarUrl, verified, likedAt}}
+     */
+    @GetMapping("/{postId}/likes")
+    public ResponseEntity<?> getLikers(@PathVariable String postId) {
+        List<PostLike> likes = postLikeRepository.findByIdPostId(postId);
+        // Newest like first, matching how Instagram orders its likers sheet.
+        likes.sort((a, b) -> {
+            if (a.getCreatedAt() == null || b.getCreatedAt() == null) return 0;
+            return b.getCreatedAt().compareTo(a.getCreatedAt());
+        });
+
+        List<Map<String, Object>> likers = new ArrayList<>();
+        for (PostLike like : likes) {
+            try {
+                userRepository.findById(UUID.fromString(like.getId().getUserId())).ifPresent(u -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", u.getId().toString());
+                    row.put("name", u.getFullName());
+                    String avatar = u.getAvatarUrl();
+                    row.put("avatarUrl", avatar != null ? storageService.refreshUrl(avatar) : null);
+                    row.put("verified", u.isIdVerified());
+                    row.put("likedAt", like.getCreatedAt() != null ? like.getCreatedAt().toString() : null);
+                    likers.add(row);
+                });
+            } catch (IllegalArgumentException ignored) {
+                // Malformed user id in the like row — skip rather than fail the list.
+            }
+        }
+        return ResponseEntity.ok(likers);
+    }
+
+    /**
+     * The authenticated user's like activity: every post they have liked,
+     * newest post first. Powers the profile "Likes" tab.
+     *
+     * <p><b>GET /api/v1/feed/liked/me</b> — auth required.
+     */
+    @GetMapping("/liked/me")
+    public ResponseEntity<?> myLikedPosts() {
+        User currentUser = requireCurrentUser();
+        List<String> likedIds = postLikeRepository.findLikedPostIdsByUserId(currentUser.getId().toString());
+        if (likedIds.isEmpty()) return ResponseEntity.ok(List.of());
+
+        List<PostDto> liked = postRepository.findAllById(likedIds).stream()
+                .sorted((a, b) -> {
+                    if (a.getCreatedAt() == null || b.getCreatedAt() == null) return 0;
+                    return b.getCreatedAt().compareTo(a.getCreatedAt());
+                })
+                .map(p -> PostDto.from(p, true, storageService::refreshUrl))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(liked);
     }
 
     /**

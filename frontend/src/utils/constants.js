@@ -26,6 +26,16 @@ export const POLISH_CITIES = [
   'Gdynia', 'Toruń', 'Rzeszów', 'Bydgoszcz', 'Olsztyn',
 ];
 
+// Approximate fixed exchange rates used only to keep cart totals arithmetically
+// correct when items from different shops/listings are combined in one cart —
+// not a live FX feed, this app has no real payment processing behind it.
+const FX_TO_GBP = { GBP: 1, PLN: 0.2, EUR: 0.86, USD: 0.79 };
+
+export function convertToGBP(amount, currency = 'GBP') {
+  const rate = FX_TO_GBP[currency] ?? 1;
+  return Math.round(Number(amount) * rate * 100) / 100;
+}
+
 export function formatPrice(amount, currency = 'PLN') {
   const num = Number(amount);
   if (isNaN(num)) return `${currency} 0`;

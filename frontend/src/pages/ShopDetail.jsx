@@ -1,14 +1,35 @@
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useDispatch, useSelector } from 'react-redux';
 import { getShopById} from '../utils/shopData';
-import { formatPrice } from '../utils/constants';
-import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, Heart } from 'lucide-react';
+import { formatPrice, convertToGBP } from '../utils/constants';
+import { addToCart, selectCartItems } from '../store/cartSlice';
+import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, Heart, Check } from 'lucide-react';
 import { useState } from 'react';
 
 export default function ShopDetail() {
   const { id } = useParams();
   const shop = getShopById(id);
   const [activeCategory, setActiveCategory] = useState('All');
+  const dispatch = useDispatch();
+  const cartItems = useSelector(selectCartItems);
+  const [justAdded, setJustAdded] = useState(null);
+
+  const addProductToCart = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dispatch(addToCart({
+      listingId: `shop:${shop.id}:${product.id}`,
+      title: product.name,
+      price: convertToGBP(product.price, product.currency),
+      currency: 'GBP',
+      emoji: product.image,
+      sellerId: `shop:${shop.id}`,
+      sellerName: shop.name,
+    }));
+    setJustAdded(product.id);
+    setTimeout(() => setJustAdded((cur) => (cur === product.id ? null : cur)), 1500);
+  };
 
   if (!shop) {
     return (
@@ -33,7 +54,7 @@ export default function ShopDetail() {
   return (
     <div className="min-h-screen bg-[#050505] text-white">
       {/* Immersive Shop Banner & Header */}
-      <section className="relative h-[450px] sm:h-[500px] overflow-hidden">
+      <section className="relative h-[260px] sm:h-[320px] overflow-hidden">
         <motion.img
           initial={{ scale: 1.1 }}
           animate={{ scale: 1 }}
@@ -48,7 +69,7 @@ export default function ShopDetail() {
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#050505] to-transparent" />
         
         {/* Navigation Bar Over Banner */}
-        <div className="absolute top-24 left-0 right-0 px-6 sm:px-12 flex items-center justify-between z-20">
+        <div className="absolute top-16 left-0 right-0 px-6 sm:px-12 flex items-center justify-between z-20">
           <Link
             to="/"
             className="flex items-center gap-2 px-5 py-2.5 rounded-2xl glass-violet text-white font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all active:scale-95"
@@ -66,8 +87,8 @@ export default function ShopDetail() {
         </div>
 
         {/* Shop Info Main Focus */}
-        <div className="absolute bottom-10 left-0 right-0 px-6 sm:px-12">
-          <div className="max-w-7xl mx-auto flex flex-col items-start gap-3">
+        <div className="absolute bottom-6 left-0 right-0 px-6 sm:px-12">
+          <div className="max-w-7xl mx-auto flex flex-col items-start gap-2">
             <motion.span
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -75,14 +96,14 @@ export default function ShopDetail() {
             >
               {shop.category}
             </motion.span>
-            <motion.h1 
+            <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-5xl sm:text-7xl font-black text-white mb-2 tracking-tighter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
+              className="text-3xl sm:text-5xl font-black text-white mb-1 tracking-tighter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
             >
               {shop.name}
             </motion.h1>
-            <motion.div 
+            <motion.div
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                transition={{ delay: 0.3 }}
@@ -104,27 +125,27 @@ export default function ShopDetail() {
       </section>
 
       {/* Main Content Area */}
-      <div className="max-w-7xl mx-auto px-6 sm:px-12 py-16">
-        <div className="grid lg:grid-cols-[1fr_320px] gap-16 items-start">
-          
+      <div className="max-w-7xl mx-auto px-6 sm:px-12 py-10">
+        <div className="grid lg:grid-cols-[1fr_320px] gap-10 items-start">
+
           {/* Left Column: Feed & Explore */}
           <div>
-            <div className="mb-14">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-4">Store Mandate</h4>
-              <p className="text-2xl font-bold text-gray-200 leading-tight italic max-w-4xl opacity-80">
+            <div className="mb-8">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">Store Mandate</h4>
+              <p className="text-lg font-bold text-gray-200 leading-tight italic max-w-4xl opacity-80">
                 "{shop.description}"
               </p>
             </div>
 
             {/* Breadcrumb Navigation */}
-            <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-500 mb-12">
+            <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-500 mb-6">
               <Link to="/" className="hover:text-[#CDFF00] transition-colors">Marketplace</Link>
               <ChevronRight className="w-3 h-3" />
               <span className="text-[#CDFF00]">{shop.name}</span>
             </div>
 
             {/* Premium Category Filter Bar */}
-            <div className="flex flex-wrap gap-3 mb-16 p-2 rounded-[32px] glass-strong w-fit border-white/5">
+            <div className="flex flex-wrap gap-3 mb-8 p-2 rounded-[32px] glass-strong w-fit border-white/5">
               {categories.map((cat) => (
                 <button
                   key={cat}
@@ -155,7 +176,7 @@ export default function ShopDetail() {
                   >
                   {/* Visual Presentation Area */}
                   <div
-                    className="h-56 flex items-center justify-center text-7xl relative overflow-hidden bg-black/40 border-b border-white/5"
+                    className="h-36 flex items-center justify-center text-6xl relative overflow-hidden bg-black/40 border-b border-white/5"
                   >
                     <span className="z-10 group-hover:scale-125 transition-transform duration-700 ease-out drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
                       {product.image}
@@ -167,26 +188,35 @@ export default function ShopDetail() {
                     />
                   </div>
 
-                  <div className="p-8">
-                    <div className="flex items-center gap-2 mb-3">
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 mb-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[#CDFF00] opacity-40">{product.category}</span>
                       <div className="h-px bg-white/10 flex-1" />
                     </div>
-                    <h3 className="text-xl font-black text-white mb-6 leading-tight group-hover:text-[#CDFF00] transition-colors line-clamp-2 uppercase tracking-tighter">
+                    <h3 className="text-lg font-black text-white mb-3 leading-tight group-hover:text-[#CDFF00] transition-colors line-clamp-2 uppercase tracking-tighter">
                       {product.name}
                     </h3>
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
                         <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 mb-0.5">Price Point</span>
-                        <span className="text-3xl font-black text-white tracking-tighter">
+                        <span className="text-2xl font-black text-white tracking-tighter">
                           {formatPrice(product.price, product.currency)}
                         </span>
                       </div>
                       <button
-                        className="w-14 h-14 rounded-2xl flex items-center justify-center text-black bg-[#CDFF00] transition-all hover:scale-110 active:scale-95 shadow-[0_10px_20px_rgba(205,255,0,0.2)]"
-                        title="Acquire with Negotiation"
+                        onClick={(e) => addProductToCart(e, product)}
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-[0_10px_20px_rgba(205,255,0,0.2)] ${
+                          justAdded === product.id || cartItems.some((i) => i.listingId === `shop:${shop.id}:${product.id}`)
+                            ? 'bg-white text-black'
+                            : 'bg-[#CDFF00] text-black'
+                        }`}
+                        title="Add to cart"
                       >
-                        <ShoppingCart className="w-5 h-5" />
+                        {justAdded === product.id || cartItems.some((i) => i.listingId === `shop:${shop.id}:${product.id}`) ? (
+                          <Check className="w-5 h-5" />
+                        ) : (
+                          <ShoppingCart className="w-5 h-5" />
+                        )}
                       </button>
                     </div>
                   </div>

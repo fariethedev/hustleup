@@ -85,4 +85,7 @@ public interface PostLikeRepository extends JpaRepository<PostLike, PostLike.Pos
      */
     @Query("SELECT pl.id.postId FROM PostLike pl WHERE pl.id.userId = :userId")
     List<String> findLikedPostIdsByUserId(@Param("userId") String userId);
+
+    /** All like rows for one post — used to list exactly who liked it. */
+    List<PostLike> findByIdPostId(String postId);
 }

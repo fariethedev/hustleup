@@ -158,6 +158,19 @@ public class DirectMessage {
     private String content;
 
     /**
+     * Kind of message: {@code TEXT} (default), {@code IMAGE} (mediaUrl points at an
+     * uploaded photo, content is an optional caption), or {@code STICKER} (content
+     * holds the sticker glyph, rendered large without a bubble).
+     */
+    @Column(name = "message_type", nullable = false)
+    @Builder.Default
+    private String messageType = "TEXT";
+
+    /** URL of the attached media for IMAGE messages (e.g. /uploads/uuid.jpg); null otherwise. */
+    @Column(name = "media_url")
+    private String mediaUrl;
+
+    /**
      * The UTC timestamp of when this message was persisted.
      *
      * <p>{@code @CreationTimestamp} is a Hibernate-specific annotation that

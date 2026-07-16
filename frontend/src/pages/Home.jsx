@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { listingsApi } from '../api/client';
+import { formatPrice } from '../utils/constants';
 
 export default function Home() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
@@ -15,7 +16,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    listingsApi.browse({}).then(r => {
+    listingsApi.recommended().then(r => {
       setListings(r.data?.slice(0, 8) || []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -33,7 +34,7 @@ export default function Home() {
     <div className="bg-[#050505] min-h-screen font-sans">
       
       {/* ── HERO ── */}
-      <section className="relative w-full overflow-hidden bg-[#0A0A0A] pt-16 md:pt-24 pb-20 md:pb-32 lg:min-h-[85vh] flex items-center">
+      <section className="relative w-full overflow-hidden bg-[#0A0A0A] pt-20 md:pt-24 pb-10 md:pb-14 flex items-center">
         {/* Subtle Geometric Afro Pattern */}
         <div className="absolute inset-0 z-0 flex opacity-[0.15] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, #FF00FF 2px, transparent 0), radial-gradient(circle at 30px 30px, #00FFFF 2px, transparent 0)', backgroundSize: '40px 40px' }}>
         </div>
@@ -51,11 +52,11 @@ export default function Home() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.3em] text-white border-2 border-[#FF00FF] bg-[#FF00FF]/20 mb-5 shadow-[0_0_15px_#FF00FF]">
                 <Sparkles className="w-4 h-4 text-[#FF00FF]" /> CREATOR MARKETPLACE
               </div>
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[1.05] uppercase tracking-tighter mb-4 drop-shadow-[4px_4px_0_#FF00FF]">
+              <h1 className="text-4xl sm:text-5xl font-black text-white leading-[1.05] uppercase tracking-tighter mb-3 drop-shadow-[4px_4px_0_#FF00FF]">
                 Buy, Sell &<br />
                 <span className="text-[#00FFFF] drop-shadow-[4px_4px_0_#CDFF00]">Elevate.</span>
               </h1>
-              <p className="text-[#CDFF00] text-base font-bold max-w-md mb-6 leading-relaxed tracking-wider">
+              <p className="text-[#CDFF00] text-sm font-bold max-w-md mb-5 leading-relaxed tracking-wider">
                 The ultimate platform for modern creatives. List your brand, discover fresh talent, and connect with the movement.
               </p>
             </motion.div>
@@ -72,11 +73,11 @@ export default function Home() {
               >
                 DISCOVER
               </Link>
-              <Link 
-                to={isAuthenticated ? "/create" : "/register"} 
+              <Link
+                to={isAuthenticated ? "/create" : "/register"}
                 className="px-8 py-4 rounded-full border-2 border-[#00FFFF] bg-transparent text-[#00FFFF] font-black text-[12px] uppercase tracking-widest hover:bg-[#00FFFF] hover:text-black hover:scale-110 hover:rotate-2 transition-all shadow-[0_0_15px_#00FFFF]"
               >
-                JOIN THE MOVEMENT
+                START A HUSTLE
               </Link>
             </motion.div>
 
@@ -85,7 +86,7 @@ export default function Home() {
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex items-center gap-6 mt-10 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm w-max"
+              className="flex items-center gap-6 mt-6 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm w-max"
             >
               <div className="flex flex-col items-center">
                 <span className="text-[#FF00FF] font-black text-xl drop-shadow-[1px_1px_0_#fff]">12.4K</span>
@@ -112,10 +113,10 @@ export default function Home() {
             className="relative perspective-1000 w-full"
           >
             <div className="relative overflow-hidden rounded-[2rem] border-4 border-[#FF00FF] shadow-[0_0_30px_#FF00FF] p-1 bg-black transform hover:rotate-y-12 hover:scale-105 transition-all duration-500 w-full">
-              <img 
-                src="/hero_afro.png" 
-                alt="Youth Marketplace" 
-                className="w-full aspect-[4/5] sm:aspect-square md:aspect-[4/5] object-cover rounded-3xl"
+              <img
+                src="/hero_afro.png"
+                alt="Youth Marketplace"
+                className="w-full aspect-[4/3] max-h-[420px] object-cover rounded-3xl"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#FF00FF]/40 via-transparent to-transparent rounded-3xl pointer-events-none" />
             </div>
@@ -189,10 +190,11 @@ export default function Home() {
                     className="group block rounded-[2rem] overflow-hidden border-2 border-[#00FFFF]/30 bg-[#0A0A0A] hover:border-[#00FFFF] transition-all shadow-[0_5px_15px_rgba(0,255,255,0.1)] hover:shadow-[0_10px_25px_rgba(0,255,255,0.3)]"
                   >
                     <div className="aspect-[3/4] overflow-hidden relative p-2">
-                      <img 
-                        src={listing.imageUrls?.[0] || listing.imageUrl || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60'} 
+                      <img
+                        src={listing.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60'}
                         alt={listing.title}
                         className="w-full h-full object-cover rounded-[1.5rem] group-hover:scale-110 transition-transform duration-700"
+                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60'; }}
                       />
                       <div className="absolute inset-2 bg-gradient-to-t from-[#FF00FF]/80 via-transparent to-transparent rounded-[1.5rem]" />
                       {listing.negotiable && (
@@ -201,8 +203,8 @@ export default function Home() {
                       <div className="absolute bottom-2 left-2 right-2 p-4 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10">
                         <h4 className="text-sm font-black text-white truncate mb-1">{listing.title}</h4>
                         <div className="flex items-center justify-between">
-                          <span className="text-[#00FFFF] font-black text-sm">${listing.price}</span>
-                          <span className="text-[#FF00FF] text-[9px] font-black uppercase tracking-widest">{listing.type}</span>
+                          <span className="text-[#00FFFF] font-black text-sm">{formatPrice(listing.price, listing.currency)}</span>
+                          <span className="text-[#FF00FF] text-[9px] font-black uppercase tracking-widest">{listing.listingType}</span>
                         </div>
                       </div>
                     </div>
@@ -320,7 +322,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               <motion.div whileHover={{ scale: 1.1, rotate: -2 }}>
                 <Link to={isAuthenticated ? "/create" : "/register"} className="px-10 py-4 rounded-full bg-[#00FFFF] text-black font-black text-[12px] uppercase tracking-widest shadow-[0_0_20px_#00FFFF] flex items-center gap-2">
-                  <Zap className="w-4 h-4" /> {isAuthenticated ? 'START PROJECT' : 'GET STARTED'}
+                  <Zap className="w-4 h-4" /> START A HUSTLE
                 </Link>
               </motion.div>
               <motion.div whileHover={{ scale: 1.1, rotate: 2 }}>

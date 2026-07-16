@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useDispatch } from 'react-redux';
 import { ArrowLeft, ArrowRight, HandCoins, MessageSquareText, ShoppingBag } from 'lucide-react';
-import { formatPrice } from '../utils/constants';
+import { formatPrice, convertToGBP } from '../utils/constants';
 import { getProductByShopAndProductId } from '../utils/shopData';
-
-const STORAGE_KEY = 'hustleup_shop_checkout_draft';
+import { addToCart } from '../store/cartSlice';
 
 export default function ShopNegotiation() {
   const { id, productId } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const entry = getProductByShopAndProductId(id, productId);
   const [quantity, setQuantity] = useState(1);
   const [offer, setOffer] = useState('');
@@ -34,15 +35,20 @@ export default function ShopNegotiation() {
   const { shop, product } = entry;
 
   const continueToCheckout = () => {
-    const draft = {
-      shopId: shop.id,
-      productId: product.id,
+    const unitPrice = offer ? Number(offer) : Number(product.price);
+    dispatch(addToCart({
+      listingId: `shop:${shop.id}:${product.id}`,
+      title: product.name,
+      price: convertToGBP(product.price, product.currency),
+      negotiatedPrice: offer ? convertToGBP(unitPrice, product.currency) : undefined,
+      currency: 'GBP',
+      emoji: product.image,
+      sellerId: `shop:${shop.id}`,
+      sellerName: shop.name,
       quantity,
-      offer: offer ? Number(offer) : null,
       notes,
-    };
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-    navigate(`/shop/${shop.id}/product/${product.id}/checkout`);
+    }));
+    navigate('/checkout');
   };
 
   return (

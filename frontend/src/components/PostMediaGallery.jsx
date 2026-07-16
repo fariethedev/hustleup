@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Volume2, VolumeX, Play, Pause, ChevronLeft, ChevronRight, Share, Heart, SkipBack, SkipForward, User } from 'lucide-react';
 
 function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author }) {
+  const containerRef = useRef(null);
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -11,18 +12,37 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author }) {
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [inView, setInView] = useState(false);
   const controlsTimer = useRef(null);
+  // Tracks an explicit user pause so scrolling this video back into view doesn't
+  // override their choice. Each VideoPlayer instance owns its own ref, so play/pause
+  // state and this flag are never shared across videos in the feed.
+  const userPausedRef = useRef(false);
 
   // Sync mute
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = isMuted;
   }, [isMuted]);
 
-  // Auto-play/pause
+  // Only the video actually scrolled into view is considered "on screen" — this is what
+  // makes play/pause unique per video instead of every mounted video racing to autoplay.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting && entry.intersectionRatio >= 0.6),
+      { threshold: [0, 0.6, 1] }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Auto-play/pause: requires both the carousel slide being active AND the video
+  // being visible in the viewport, and never overrides an explicit user pause.
   useEffect(() => {
     const video = videoRef.current;
     if (!video || hasError) return;
-    if (isActive) {
+    if (isActive && inView && !userPausedRef.current) {
       video.muted = isMuted;
       const tryPlay = () => video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
       if (video.readyState >= 2) tryPlay();
@@ -31,15 +51,17 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author }) {
       video.pause();
       setIsPlaying(false);
     }
-  }, [isActive, hasError, isMuted]);
+  }, [isActive, inView, hasError, isMuted]);
 
   const togglePlay = useCallback((e) => {
     e.stopPropagation();
     const video = videoRef.current;
     if (!video || hasError) return;
     if (video.paused) {
+      userPausedRef.current = false;
       video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
     } else {
+      userPausedRef.current = true;
       video.pause();
       setIsPlaying(false);
     }
@@ -95,8 +117,9 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author }) {
   }
 
   return (
-    <div 
-      className="relative w-full h-full bg-black select-none overflow-hidden rounded-[2.5rem]" 
+    <div
+      ref={containerRef}
+      className="relative w-full h-full bg-black select-none overflow-hidden rounded-[2.5rem]"
       onClick={togglePlay}
       onMouseMove={triggerControls}
       onTouchStart={triggerControls}
@@ -110,7 +133,7 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author }) {
         muted={isMuted}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={() => { setDuration(videoRef.current?.duration || 0); setIsLoading(false); }}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain"
       />
 
       {/* Floating Overlays */}
@@ -242,7 +265,7 @@ export default function PostMediaGallery({ media = [], className = '', author })
     <div className={`relative bg-[#0a0a0a] overflow-hidden rounded-[2.5rem] shadow-2xl border border-white/5 ${className}`}>
       {/* Carousel track */}
       <div
-        className={`relative w-full ${media.length === 1 ? 'aspect-[4/5]' : 'aspect-square'} overflow-hidden`}
+        className="relative w-full aspect-[4/5] max-h-[600px] bg-black overflow-hidden"
         onMouseDown={handleDragStart}
         onMouseUp={handleDragEnd}
         onTouchStart={handleDragStart}
@@ -267,11 +290,11 @@ export default function PostMediaGallery({ media = [], className = '', author })
                   author={author}
                 />
               ) : (
-                <div className="w-full h-full">
+                <div className="w-full h-full bg-black">
                   <img
                     src={item.url}
                     alt={`Post media ${index + 1}`}
-                    className="w-full h-full object-cover rounded-[2.5rem]"
+                    className="w-full h-full object-contain rounded-[2.5rem]"
                     onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=60'; }}
                     draggable={false}
                   />

@@ -1,6 +1,10 @@
 spring:
   application:
     name: hustleup-notification
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 20MB
   datasource:
     url: jdbc:mysql://localhost:3306/hustleup?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
@@ -18,6 +22,8 @@ server:
   port: 8085
 
 app:
+  upload:
+    dir: ${UPLOAD_DIR:./uploads}
   jwt:
     secret: ${JWT_SECRET}
     access-token-expiration-ms: 900000

@@ -3,15 +3,33 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectUser, selectIsAuthenticated, logout } from '../store/authSlice';
 import { notificationsApi } from '../api/client';
-import { LogOut, Home, Compass, LayoutDashboard, MessageSquare, User, Heart, Image as ImageIcon, Search } from 'lucide-react';
+import { selectCartCount, openCart } from '../store/cartSlice';
+import GlobalSearch from './GlobalSearch';
+import { LogOut, Home, Compass, LayoutDashboard, MessageSquare, User, Heart, Image as ImageIcon, Search, ShoppingBag, Bell, CheckCheck } from 'lucide-react';
+
+// Compact relative time for the notification dropdown ("5m", "3h", "2d").
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'now';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
 
 export default function Navbar() {
   const dispatch = useDispatch();
   const user = useSelector(selectUser);
   const isAuthenticated = useSelector(selectIsAuthenticated);
-  
+  const cartCount = useSelector(selectCartCount);
+
   const [scrolled, setScrolled] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -19,6 +37,18 @@ export default function Navbar() {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Ctrl+K / Cmd+K opens global search from anywhere
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   useEffect(() => {
@@ -29,13 +59,36 @@ export default function Navbar() {
 
   const handleLogout = () => { dispatch(logout()); navigate('/'); };
 
+  const openNotifications = () => {
+    if (notifOpen) { setNotifOpen(false); return; }
+    setNotifOpen(true);
+    setNotifLoading(true);
+    notificationsApi.getAll()
+      .then((r) => setNotifications((r.data || []).slice(0, 20)))
+      .catch(() => setNotifications([]))
+      .finally(() => setNotifLoading(false));
+  };
+
+  const markAllRead = () => {
+    notificationsApi.markAllRead().catch(() => {});
+    setNotifications((list) => list.map((n) => ({ ...n, read: true })));
+    setUnread(0);
+  };
+
+  const markOneRead = (n) => {
+    if (n.read) return;
+    notificationsApi.markRead(n.id).catch(() => {});
+    setNotifications((list) => list.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+    setUnread((u) => Math.max(0, u - 1));
+  };
+
   // Reduced nav items — Jobs & News removed
   const navItems = [
     { to: '/',        icon: Home,         label: 'Home',    always: true },
     { to: '/explore', icon: Compass,      label: 'Explore', auth: true },
     { to: '/feed',    icon: ImageIcon,    label: 'Feed',    auth: true },
     { to: '/dating',  icon: Heart,        label: 'Bond',    auth: true, accent: true },
-    { to: '/dm',      icon: MessageSquare,label: 'DMs',     auth: true, badge: unread },
+    { to: '/dm',      icon: MessageSquare,label: 'DMs',     auth: true },
   ];
 
   const visibleItems = navItems.filter(item => item.always || (item.auth && isAuthenticated));
@@ -45,7 +98,7 @@ export default function Navbar() {
     { to: '/',        icon: Home,          label: 'Home',     always: true },
     { to: '/explore', icon: Compass,       label: 'Explore',  auth: true },
     { to: '/feed',    icon: ImageIcon,     label: 'Feed',     auth: true },
-    { to: '/dm',      icon: MessageSquare, label: 'DMs',      auth: true, badge: unread },
+    { to: '/dm',      icon: MessageSquare, label: 'DMs',      auth: true },
   ];
   const visibleTabs = bottomTabs.filter(item => item.always || (item.auth && isAuthenticated));
 
@@ -103,6 +156,7 @@ export default function Navbar() {
                 <div className="w-px h-5 bg-white/10 mx-1" />
                 <button
                   id="global-search-trigger"
+                  onClick={() => setSearchOpen(true)}
                   className="flex items-center justify-center w-9 h-9 rounded-lg text-gray-500 hover:text-[#CDFF00] hover:bg-white/5 transition-all"
                 >
                   <Search className="w-4 h-4" />
@@ -110,8 +164,82 @@ export default function Navbar() {
               </div>
             </div>
 
-            {/* Desktop right — user menu */}
-            <div className="hidden md:flex items-center gap-2 w-[160px] justify-end">
+            {/* Desktop right — notifications + cart + user menu */}
+            <div className="hidden md:flex items-center gap-2 w-[200px] justify-end">
+              {isAuthenticated && (
+                <div className="relative">
+                  <button
+                    id="nav-notif-trigger"
+                    onClick={openNotifications}
+                    className={`relative flex items-center justify-center w-9 h-9 rounded-lg transition-all ${
+                      notifOpen ? 'text-[#CDFF00] bg-white/5' : 'text-gray-500 hover:text-[#CDFF00] hover:bg-white/5'
+                    }`}
+                  >
+                    <Bell className="w-4 h-4" />
+                    {unread > 0 && (
+                      <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-0.5 text-[8px] font-black text-black bg-[#FF00FF] rounded-full ring-2 ring-black">
+                        {unread > 9 ? '9+' : unread}
+                      </span>
+                    )}
+                  </button>
+                  {notifOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+                      <div className="absolute right-0 top-full mt-2 w-80 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-3xl">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+                          <p className="text-xs text-white font-black uppercase tracking-widest">Notifications</p>
+                          {notifications.some((n) => !n.read) && (
+                            <button onClick={markAllRead} className="flex items-center gap-1 text-[10px] font-bold text-[#CDFF00] hover:underline">
+                              <CheckCheck className="w-3 h-3" /> Mark all read
+                            </button>
+                          )}
+                        </div>
+                        <div className="max-h-[380px] overflow-y-auto">
+                          {notifLoading ? (
+                            <div className="py-10 text-center">
+                              <div className="w-6 h-6 border-2 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin mx-auto" />
+                            </div>
+                          ) : notifications.length === 0 ? (
+                            <div className="py-10 text-center">
+                              <Bell className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                              <p className="text-xs text-gray-500 font-semibold">No notifications yet</p>
+                            </div>
+                          ) : (
+                            notifications.map((n) => (
+                              <button
+                                key={n.id}
+                                onClick={() => markOneRead(n)}
+                                className={`w-full text-left px-4 py-3 flex gap-3 border-b border-white/5 last:border-0 transition-colors hover:bg-white/[0.04] ${
+                                  n.read ? 'opacity-60' : ''
+                                }`}
+                              >
+                                <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.read ? 'bg-transparent' : 'bg-[#CDFF00]'}`} />
+                                <span className="flex-1 min-w-0">
+                                  <span className="block text-xs text-white font-bold truncate">{n.title}</span>
+                                  {n.message && <span className="block text-[11px] text-gray-400 leading-snug line-clamp-2 mt-0.5">{n.message}</span>}
+                                </span>
+                                <span className="text-[10px] text-gray-600 font-bold shrink-0">{timeAgo(n.createdAt)}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              <button
+                id="nav-cart-trigger"
+                onClick={() => dispatch(openCart())}
+                className="relative flex items-center justify-center w-9 h-9 rounded-lg text-gray-500 hover:text-[#CDFF00] hover:bg-white/5 transition-all"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-0.5 text-[8px] font-black text-black bg-[#CDFF00] rounded-full ring-2 ring-black">
+                    {cartCount > 9 ? '9+' : cartCount}
+                  </span>
+                )}
+              </button>
               {isAuthenticated ? (
                 <div className="relative group">
                   <button
@@ -143,8 +271,25 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Mobile right — avatar or sign-in */}
+            {/* Mobile right — search + cart + avatar or sign-in */}
             <div className="flex md:hidden items-center gap-1.5">
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-[#CDFF00] hover:bg-white/5 transition-all"
+              >
+                <Search className="w-4.5 h-4.5" />
+              </button>
+              <button
+                onClick={() => dispatch(openCart())}
+                className="relative flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-[#CDFF00] hover:bg-white/5 transition-all"
+              >
+                <ShoppingBag className="w-4.5 h-4.5" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-0.5 text-[8px] font-black text-black bg-[#CDFF00] rounded-full ring-2 ring-black">
+                    {cartCount > 9 ? '9+' : cartCount}
+                  </span>
+                )}
+              </button>
               {isAuthenticated ? (
                 <Link to={`/profile/${user?.id}`} className="w-7 h-7 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-[10px] uppercase overflow-hidden border border-white/10">
                   {user?.avatarUrl
@@ -218,6 +363,9 @@ export default function Navbar() {
           )}
         </div>
       </div>
+
+      {/* ── GLOBAL SEARCH OVERLAY ── */}
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }

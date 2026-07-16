@@ -9,6 +9,7 @@ import { formatPrice } from '../utils/constants';
 import PostMediaGallery from '../components/PostMediaGallery';
 import StoryBar from '../components/stories/StoryBar';
 import HeroBrief from '../components/HeroBrief';
+import { lockBodyScroll } from '../utils/lockBodyScroll';
 
 const POST_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1920&q=80';
 const LISTING_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1920&q=80';
@@ -37,7 +38,26 @@ export default function Feed() {
   const [commentInput, setCommentInput] = useState('');
   const [commenting, setCommenting] = useState(false);
 
+  // Likers Modal State ("who liked this")
+  const [likersPost, setLikersPost] = useState(null);
+  const [likers, setLikers] = useState([]);
+  const [likersLoading, setLikersLoading] = useState(false);
+
   const [likeInProgress, setLikeInProgress] = useState({});
+
+  const openLikers = async (post) => {
+    setLikersPost(post);
+    setLikers([]);
+    setLikersLoading(true);
+    try {
+      const res = await feedApi.getLikers(post.id);
+      setLikers(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Failed to load likers:', err);
+    } finally {
+      setLikersLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadFeed();
@@ -155,43 +175,43 @@ export default function Feed() {
   };
 
   useEffect(() => {
-    if (!selectedPost) return;
+    if (!selectedPost && !likersPost) return;
     const unlock = lockBodyScroll();
     return () => unlock();
-  }, [selectedPost]);
+  }, [selectedPost, likersPost]);
 
   return (
     <div className="min-h-screen bg-[#050505] font-sans pb-24">
       {/* ── HEADER ── */}
-      <div className="relative overflow-hidden bg-[#0A0A0A] pt-24 pb-8 border-b-2 border-[#FF00FF]/30 shadow-[0_5px_30px_rgba(255,0,255,0.1)] mb-8">
+      <div className="relative overflow-hidden bg-[#0A0A0A] pt-14 pb-4 border-b-2 border-[#FF00FF]/30 shadow-[0_5px_30px_rgba(255,0,255,0.1)] mb-5">
         <div className="absolute inset-0 z-0 flex opacity-[0.15] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, #FF00FF 2px, transparent 0), radial-gradient(circle at 30px 30px, #00FFFF 2px, transparent 0)', backgroundSize: '40px 40px' }}></div>
         <div className="absolute inset-0 bg-gradient-to-b from-[#00FFFF]/10 via-transparent to-[#0A0A0A] z-0" />
-        <div className="px-4 max-w-4xl mx-auto relative z-10">
+        <div className="px-4 max-w-xl mx-auto relative z-10">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ type: 'spring' }}>
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#00FFFF] mb-2 block drop-shadow-[0_0_5px_#00FFFF]">Community Pulse</span>
-            <h1 className="text-5xl md:text-6xl font-black text-white uppercase tracking-tighter leading-none drop-shadow-[3px_3px_0_#FF00FF]">Creator <span className="text-[#00FFFF]">Feed</span></h1>
-            <p className="text-[#FF00FF] text-sm font-bold uppercase tracking-widest mt-3 drop-shadow-[1px_1px_0_#000]">Your window into the movement.</p>
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#00FFFF] mb-1 block drop-shadow-[0_0_5px_#00FFFF]">Community Pulse</span>
+            <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter leading-none drop-shadow-[3px_3px_0_#FF00FF]">Creator <span className="text-[#00FFFF]">Feed</span></h1>
+            <p className="text-[#FF00FF] text-xs font-bold uppercase tracking-widest mt-2 drop-shadow-[1px_1px_0_#000]">Your window into the movement.</p>
           </motion.div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="max-w-xl mx-auto px-4">
         <StoryBar />
 
         {isAuthenticated && (
-          <form onSubmit={handlePost} className="bg-[#0A0A0A] border-2 border-[#00FFFF]/30 p-6 rounded-[2rem] mb-10 shadow-[0_5px_20px_rgba(0,255,255,0.1)] hover:border-[#00FFFF] transition-all relative overflow-hidden">
+          <form onSubmit={handlePost} className="bg-[#0A0A0A] border-2 border-[#00FFFF]/30 p-5 rounded-[2rem] mb-6 shadow-[0_5px_20px_rgba(0,255,255,0.1)] hover:border-[#00FFFF] transition-all relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF00FF]/5 rounded-full blur-3xl pointer-events-none" />
             <div className="flex gap-4 relative z-10">
               <div className="w-12 h-12 rounded-full bg-[#FF00FF] border-2 border-[#FF00FF] flex items-center justify-center text-white font-black text-lg shrink-0 shadow-[0_0_15px_#FF00FF]">
                 {user?.fullName?.[0] || '?'}
               </div>
-              <div className="flex-1 space-y-4">
+              <div className="flex-1 space-y-3">
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Share your creative vision..."
-                  className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white placeholder-[#00FFFF]/50 font-bold resize-none outline-none leading-relaxed focus:border-[#FF00FF] focus:shadow-[0_0_10px_#FF00FF] transition-all"
-                  rows={3}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white placeholder-[#00FFFF]/50 font-bold resize-none outline-none leading-relaxed focus:border-[#FF00FF] focus:shadow-[0_0_10px_#FF00FF] transition-all"
+                  rows={2}
                 />
                 
                 {mediaFiles.length > 0 && (
@@ -249,7 +269,7 @@ export default function Feed() {
           </form>
         )}
 
-        <div className="space-y-10">
+        <div className="space-y-6">
           {loading ? (
             [...Array(3)].map((_, i) => <div key={i} className="h-64 bg-gradient-to-b from-[#00FFFF]/10 to-transparent border-2 border-[#FF00FF]/20 rounded-[2rem] animate-pulse shadow-sm" />)
           ) : posts.length > 0 ? (
@@ -272,17 +292,17 @@ export default function Feed() {
                       </div>
                     </div>
                     
-                    <Link to={`/listing/${item.id}`} className="block relative bg-black aspect-square max-h-[500px] w-full flex items-center justify-center overflow-hidden border-b-2 border-white/5">
-                      <img src={item.mediaUrls?.[0] || LISTING_FALLBACK_IMAGE} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-90 group-hover:opacity-100" />
+                    <Link to={`/listing/${item.id}`} className="block relative bg-black aspect-[4/5] max-h-[500px] w-full flex items-center justify-center overflow-hidden border-b-2 border-white/5">
+                      <img src={item.mediaUrls?.[0] || LISTING_FALLBACK_IMAGE} alt={item.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700 opacity-90 group-hover:opacity-100" />
                       <div className="absolute top-4 right-4 px-5 py-2 bg-black/80 border-2 border-[#CDFF00] rounded-full text-[#CDFF00] font-black text-sm shadow-[0_0_15px_#CDFF00] backdrop-blur-xl">
                         {formatPrice(item.price, item.currency)}
                       </div>
                     </Link>
-                    
-                    <div className="p-6 relative z-10 bg-[#0A0A0A]">
-                      <h3 className="font-black text-white text-2xl uppercase tracking-tighter group-hover:text-[#FF00FF] transition-colors drop-shadow-[2px_2px_0_rgba(0,0,0,1)]">{item.title}</h3>
+
+                    <div className="p-5 relative z-10 bg-[#0A0A0A]">
+                      <h3 className="font-black text-white text-xl uppercase tracking-tighter group-hover:text-[#FF00FF] transition-colors drop-shadow-[2px_2px_0_rgba(0,0,0,1)]">{item.title}</h3>
                       <p className="text-sm text-gray-400 mt-2 line-clamp-2 leading-relaxed font-bold">{item.description}</p>
-                      <Link to={`/listing/${item.id}`} className="mt-6 flex items-center justify-center gap-2 w-full py-4 rounded-full bg-transparent border-2 border-[#00FFFF] text-[10px] font-black uppercase tracking-[0.2em] text-[#00FFFF] hover:bg-[#00FFFF] hover:text-black hover:shadow-[0_0_20px_#00FFFF] transition-all">
+                      <Link to={`/listing/${item.id}`} className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-full bg-transparent border-2 border-[#00FFFF] text-[10px] font-black uppercase tracking-[0.2em] text-[#00FFFF] hover:bg-[#00FFFF] hover:text-black hover:shadow-[0_0_20px_#00FFFF] transition-all">
                         CHECK IT OUT <ShoppingBag className="w-4 h-4" />
                       </Link>
                     </div>
@@ -292,8 +312,8 @@ export default function Feed() {
 
               return (
                 <motion.div key={`post-${item.id}-${idx}`} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ type: "spring", bounce: 0.4 }} className="bg-[#0A0A0A] border-2 border-[#FF00FF]/30 p-0 rounded-[2.5rem] group overflow-hidden transition-all hover:border-[#FF00FF] shadow-[0_5px_20px_rgba(255,0,255,0.05)] hover:shadow-[0_10px_30px_rgba(255,0,255,0.2)]">
-                  <div className="p-5 flex items-center gap-4 border-b-2 border-white/5 bg-black/50 backdrop-blur-md">
-                    <Link to={`/profile/${item.authorId}`} className="relative w-12 h-12 rounded-full bg-[#00FFFF] border-2 border-[#00FFFF] shadow-[0_0_10px_#00FFFF] flex items-center justify-center text-black font-black text-lg">
+                  <div className="p-4 flex items-center gap-3 border-b-2 border-white/5 bg-black/50 backdrop-blur-md">
+                    <Link to={`/profile/${item.authorId}`} className="relative w-10 h-10 rounded-full bg-[#00FFFF] border-2 border-[#00FFFF] shadow-[0_0_10px_#00FFFF] flex items-center justify-center text-black font-black text-lg">
                       {item.authorName?.[0] || '?'}
                     </Link>
                     <div>
@@ -305,44 +325,57 @@ export default function Feed() {
                       </p>
                     </div>
                   </div>
-                  
+
                   {item.media && item.media.length > 0 ? (
                     <div className="border-b-2 border-white/5 relative bg-black">
-                      <PostMediaGallery 
-                        media={item.media} 
-                        author={{ 
-                          name: item.authorName, 
+                      <PostMediaGallery
+                        media={item.media}
+                        author={{
+                          name: item.authorName,
                           avatar: item.authorAvatar,
-                          id: item.authorId 
-                        }} 
+                          id: item.authorId
+                        }}
                       />
                     </div>
                   ) : (item.imageUrl || extractUrl(item.content)) && (
-                    <div className="relative w-full aspect-[4/5] bg-black overflow-hidden border-b-2 border-white/5">
-                      <img src={item.imageUrl || extractUrl(item.content)} alt="Post" className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity" />
+                    <div className="relative w-full aspect-[4/5] max-h-[600px] bg-black overflow-hidden border-b-2 border-white/5">
+                      <img src={item.imageUrl || extractUrl(item.content)} alt="Post" className="w-full h-full object-contain opacity-90 hover:opacity-100 transition-opacity" />
                     </div>
                   )}
-                  
-                  <div className="p-6 bg-[#0A0A0A]">
-                    <div className="flex items-center gap-8 mb-6">
-                      <button 
-                        onClick={() => handleLike(item.id)}
-                        disabled={likeInProgress[item.id]}
-                        className={`flex items-center gap-3 transition-all group ${item.likedByCurrentUser ? 'text-[#FF00FF]' : 'text-gray-500 hover:text-[#FF00FF]'}`}
-                      >
-                        <Heart className={`w-8 h-8 transition-all group-hover:scale-110 ${item.likedByCurrentUser ? 'fill-[#FF00FF] stroke-none drop-shadow-[0_0_10px_#FF00FF]' : ''}`} />
-                        <span className="text-base font-black tracking-tighter">{item.likesCount || 0}</span>
-                      </button>
-                      <button onClick={() => openComments(item)} className="flex items-center gap-3 text-gray-500 hover:text-[#00FFFF] transition-all group">
-                        <MessageSquare className="w-8 h-8 group-hover:scale-110" />
-                        <span className="text-base font-black tracking-tighter">{item.commentsCount || 0}</span>
+
+                  <div className="p-4 bg-[#0A0A0A]">
+                    <div className="flex items-center gap-6 mb-2">
+                      <div className={`flex items-center gap-2 ${item.likedByCurrentUser ? 'text-[#FF00FF]' : 'text-gray-500'}`}>
+                        <button
+                          onClick={() => handleLike(item.id)}
+                          disabled={likeInProgress[item.id]}
+                          className="transition-all hover:scale-110 hover:text-[#FF00FF]"
+                        >
+                          <Heart className={`w-6 h-6 ${item.likedByCurrentUser ? 'fill-[#FF00FF] stroke-none drop-shadow-[0_0_10px_#FF00FF]' : ''}`} />
+                        </button>
+                        <button
+                          onClick={() => openLikers(item)}
+                          className="text-sm font-black tracking-tighter hover:text-white transition-colors"
+                          title="See who liked this"
+                        >
+                          {item.likesCount || 0}
+                        </button>
+                      </div>
+                      <button onClick={() => openComments(item)} className="flex items-center gap-2 text-gray-500 hover:text-[#00FFFF] transition-all group">
+                        <MessageSquare className="w-6 h-6 group-hover:scale-110" />
+                        <span className="text-sm font-black tracking-tighter">{item.commentsCount || 0}</span>
                       </button>
                     </div>
+                    {(item.likesCount || 0) > 0 && (
+                      <button onClick={() => openLikers(item)} className="text-xs text-gray-400 hover:text-white transition-colors mb-3 block">
+                        Liked by <b className="text-white">{item.likesCount}</b> {item.likesCount === 1 ? 'person' : 'people'} — see who
+                      </button>
+                    )}
                     <div className="text-sm leading-relaxed text-gray-300 font-bold">
                       <Link to={`/profile/${item.authorId}`} className="font-black text-white hover:text-[#00FFFF] mr-3 uppercase tracking-widest text-[10px] drop-shadow-[1px_1px_0_#FF00FF] bg-black px-2 py-1 rounded-md">{item.authorName || 'User'}</Link>
                       <span>{item.content}</span>
                     </div>
-                    <button onClick={() => openComments(item)} className="text-[10px] text-[#00FFFF] font-black uppercase tracking-[0.3em] mt-8 hover:text-white transition-colors py-3 border-t-2 border-white/5 w-full text-left flex items-center gap-2">
+                    <button onClick={() => openComments(item)} className="text-[10px] text-[#00FFFF] font-black uppercase tracking-[0.3em] mt-4 hover:text-white transition-colors py-2 border-t-2 border-white/5 w-full text-left flex items-center gap-2">
                       <MessageSquare className="w-4 h-4" /> {item.commentsCount > 0 ? `VIEW ALL ${item.commentsCount} COMMENTS` : 'JOIN THE CONVERSATION'}
                     </button>
                   </div>
@@ -466,6 +499,68 @@ export default function Feed() {
                     <Link to="/login" className="text-[#00FFFF] font-black uppercase tracking-[0.3em] text-[11px] hover:text-[#FF00FF] transition-colors drop-shadow-[0_0_5px_#00FFFF]">SIGN IN TO COMMENT</Link>
                   </div>
                 )}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Likers Modal — exactly who liked a post */}
+        <AnimatePresence>
+          {likersPost && (
+            <div className="fixed inset-0 z-[400] flex items-center justify-center px-4">
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setLikersPost(null)}
+                className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 24 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 24 }}
+                className="relative w-full max-w-sm bg-[#0A0A0A] border-2 border-[#FF00FF]/60 rounded-3xl shadow-[0_0_50px_rgba(255,0,255,0.2)] flex flex-col max-h-[70vh] overflow-hidden"
+              >
+                <div className="px-5 py-4 border-b border-white/10 bg-black flex items-center justify-between shrink-0">
+                  <h3 className="text-white font-black text-sm flex items-center gap-2">
+                    <Heart className="w-4 h-4 text-[#FF00FF] fill-[#FF00FF]" />
+                    Likes · {likersPost.likesCount || likers.length}
+                  </h3>
+                  <button onClick={() => setLikersPost(null)} className="p-1.5 rounded-full hover:bg-white/10 text-gray-500 hover:text-white transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto py-2">
+                  {likersLoading ? (
+                    <div className="p-4 space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex items-center gap-3 animate-pulse">
+                          <div className="w-10 h-10 rounded-full bg-white/5" />
+                          <div className="h-3 w-32 bg-white/5 rounded" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : likers.length === 0 ? (
+                    <p className="py-12 text-center text-xs text-gray-500 font-bold uppercase tracking-widest">No likes yet</p>
+                  ) : (
+                    likers.map((u) => (
+                      <Link
+                        key={u.id}
+                        to={`/profile/${u.id}`}
+                        onClick={() => setLikersPost(null)}
+                        className="flex items-center gap-3 px-5 py-2.5 hover:bg-white/5 transition-colors"
+                      >
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-black border border-[#FF00FF]/40 flex items-center justify-center shrink-0">
+                          {u.avatarUrl
+                            ? <img src={u.avatarUrl} className="w-full h-full object-cover" />
+                            : <span className="text-[#FF00FF] font-black text-sm">{u.name?.[0] || '?'}</span>}
+                        </div>
+                        <span className="text-sm font-bold text-white flex items-center gap-1.5 min-w-0">
+                          <span className="truncate">{u.name}</span>
+                          {u.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00FFFF] shrink-0" />}
+                        </span>
+                      </Link>
+                    ))
+                  )}
+                </div>
               </motion.div>
             </div>
           )}

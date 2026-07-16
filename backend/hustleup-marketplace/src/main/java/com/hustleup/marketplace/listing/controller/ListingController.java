@@ -34,7 +34,7 @@ public class ListingController {
             @RequestParam(required = false) Boolean negotiable,
             @RequestParam(required = false, defaultValue = "latest") String sort) {
         ListingType listingType = type != null ? ListingType.valueOf(type) : null;
-        return ResponseEntity.ok(listingService.getAll(q, listingType, city, maxPrice, negotiable));
+        return ResponseEntity.ok(listingService.getAll(q, listingType, city, maxPrice, negotiable, sort));
     }
 
     @GetMapping("/recommended")

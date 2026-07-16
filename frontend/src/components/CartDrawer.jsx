@@ -115,13 +115,13 @@ export default function CartDrawer() {
                       className="rounded-2xl border border-white/10 bg-[#111] p-4 flex gap-4"
                     >
                       {/* Image */}
-                      <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-800">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-800 flex items-center justify-center">
                         {item.image ? (
                           <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                        ) : item.emoji ? (
+                          <span className="text-3xl">{item.emoji}</span>
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-2xl">
-                            <ShoppingBag className="w-6 h-6 text-gray-600" />
-                          </div>
+                          <ShoppingBag className="w-6 h-6 text-gray-600" />
                         )}
                       </div>
 
@@ -193,26 +193,6 @@ export default function CartDrawer() {
         )}
       </AnimatePresence>
 
-      {/* Floating cart button (shown when closed and has items) */}
-      <AnimatePresence>
-        {!open && count > 0 && (
-          <motion.button
-            key="fab"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => dispatch({ type: 'cart/openCart' })}
-            className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-[#CDFF00] text-black flex items-center justify-center shadow-[0_8px_30px_rgba(205,255,0,0.4)]"
-          >
-            <ShoppingBag className="w-6 h-6" />
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-black text-[#CDFF00] text-[10px] font-black flex items-center justify-center">
-              {count}
-            </span>
-          </motion.button>
-        )}
-      </AnimatePresence>
     </>
   );
 }

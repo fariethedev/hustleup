@@ -73,6 +73,7 @@ export const authApi = {
 // Listings
 export const listingsApi = {
   browse: (params) => api.get('/listings', { params }),
+  recommended: () => api.get('/listings/recommended'),
   getById: (id) => api.get(`/listings/${id}`),
   create: (formData) =>
     api.post('/listings', formData, {
@@ -102,7 +103,15 @@ export const messagesApi = {
 export const directMessagesApi = {
   getPartners: () => api.get('/direct-messages/partners'),
   getConversation: (partnerId) => api.get(`/direct-messages/${partnerId}`),
-  sendMessage: (partnerId, content) => api.post(`/direct-messages/${partnerId}`, { content })
+  sendMessage: (partnerId, content, type = 'TEXT') => api.post(`/direct-messages/${partnerId}`, { content, type }),
+  sendImage: (partnerId, file, caption = '') => {
+    const formData = new FormData();
+    formData.append('image', file);
+    if (caption) formData.append('caption', caption);
+    return api.post(`/direct-messages/${partnerId}/media`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 // Reviews
@@ -124,14 +133,23 @@ export const notificationsApi = {
 export const usersApi = {
   getAll: () => api.get('/users'),
   getProfile: (id) => api.get(`/users/${id}/profile`),
-  updateProfile: (data) => {
-    const isMultipart = data instanceof FormData;
-    return api.patch('/users/me', data, {
-      headers: isMultipart ? { 'Content-Type': 'multipart/form-data' } : {}
+  // PATCH /users/me only accepts JSON (partial UserDto). Images go through
+  // the dedicated multipart endpoints below (form field must be named "file").
+  updateProfile: (data) => api.patch('/users/me', data),
+  uploadAvatar: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.patch('/users/me/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-  followUser: (id) => api.post(`/users/${id}/follow`),
-  unfollowUser: (id) => api.delete(`/users/${id}/follow`),
+  uploadBanner: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.patch('/users/me/banner', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 // Feed
@@ -142,6 +160,20 @@ export const feedApi = {
   addComment: (postId, content) => api.post(`/feed/${postId}/comments`, { content }),
   likePost: (postId) => api.post(`/feed/${postId}/likes`),
   unlikePost: (postId) => api.delete(`/feed/${postId}/likes`),
+  getLikers: (postId) => api.get(`/feed/${postId}/likes`),
+  myLiked: () => api.get('/feed/liked/me'),
+};
+
+// Social graph: follow/unfollow, relationship summary, block, report.
+// These live in the social service under /follows (NOT /users — the old
+// usersApi.followUser endpoints never existed on the backend).
+export const followsApi = {
+  follow: (userId) => api.post(`/follows/${userId}`),
+  unfollow: (userId) => api.delete(`/follows/${userId}`),
+  relationship: (userId) => api.get(`/follows/${userId}/relationship`),
+  block: (userId) => api.post(`/follows/${userId}/block`),
+  unblock: (userId) => api.delete(`/follows/${userId}/block`),
+  report: (userId, reason) => api.post(`/follows/${userId}/report`, { reason }),
 };
 
 // Dating

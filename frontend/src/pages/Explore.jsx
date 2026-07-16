@@ -3,10 +3,12 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { listingsApi } from '../api/client';
 import { LISTING_TYPES, formatPrice } from '../utils/constants';
+import { SHOPS } from '../utils/shopData';
 import ListingCard from '../components/ListingCard';
-import { 
-  Search, SearchX, Store, ShoppingBag, Calendar, Briefcase, 
-  Newspaper, MapPin, ChevronLeft, ChevronRight, Sparkles
+import ShopCard from '../components/ShopCard';
+import {
+  Search, SearchX, Store, ShoppingBag, Calendar, Briefcase,
+  Newspaper, MapPin, ChevronLeft, ChevronRight, Sparkles, Flame
 } from 'lucide-react';
 
 /* ── Horizontal Scroll Section Component ── */
@@ -71,7 +73,9 @@ function ScrollRow({ title, subtitle, icon: Icon, accentColor, children, isEmpty
 export default function Explore() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [allListings, setAllListings] = useState([]);
+  const [bestSelling, setBestSelling] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bestSellingLoading, setBestSellingLoading] = useState(true);
 
   const activeType = searchParams.get('type') || '';
 
@@ -83,6 +87,14 @@ export default function Explore() {
       })
       .catch(() => setAllListings([]))
       .finally(() => setLoading(false));
+
+    setBestSellingLoading(true);
+    listingsApi.browse({ sort: 'best_selling' })
+      .then((r) => {
+        setBestSelling(r.data || []);
+      })
+      .catch(() => setBestSelling([]))
+      .finally(() => setBestSellingLoading(false));
   }, []);
 
   const setFilter = (typeValue) => {
@@ -98,10 +110,12 @@ export default function Explore() {
     : allListings;
 
   // Segment current listings for vertical sections
-  const shops = filteredListings.filter(l => l.listingType === 'GOODS' || l.listingType === 'FASHION' || l.type === 'GOODS' || l.type === 'FASHION');
   const featuredListings = filteredListings; // all of them inside active scope
   const events = filteredListings.filter(l => l.listingType === 'EVENT' || l.type === 'EVENT');
   const jobs = filteredListings.filter(l => l.listingType === 'SKILL' || l.type === 'SKILL');
+  const filteredBestSelling = activeType
+    ? bestSelling.filter(l => l.listingType === activeType || l.type === activeType)
+    : bestSelling;
 
   const staticNews = [
     { title: 'Afro-Creators Rising Hub', desc: 'Connecting young creators with global venture tools.', date: 'May 2026', accent: '#FF00FF' },
@@ -160,11 +174,20 @@ export default function Explore() {
       <div className="mt-4 space-y-4">
         
         {/* SECTION 1: FEATURED SHOPS */}
-        <ScrollRow title="Featured Shops" subtitle="Vibrant Hubs" icon={Store} accentColor="#FF00FF" isEmpty={!loading && shops.length === 0}>
-          {loading ? (
+        <ScrollRow title="Featured Shops" subtitle="Vibrant Hubs" icon={Store} accentColor="#FF00FF" isEmpty={SHOPS.length === 0}>
+          {SHOPS.map((shop, i) => (
+            <div key={shop.id} className="snap-start shrink-0 w-[280px]">
+              <ShopCard shop={shop} index={i} />
+            </div>
+          ))}
+        </ScrollRow>
+
+        {/* SECTION 1.5: HIGH SELLING */}
+        <ScrollRow title="High Selling" subtitle="Most Bought On HustleUp" icon={Flame} accentColor="#CDFF00" isEmpty={!bestSellingLoading && filteredBestSelling.length === 0}>
+          {bestSellingLoading ? (
             [...Array(4)].map((_, i) => <div key={i} className="shrink-0 w-[240px] aspect-[4/5] bg-white/[0.02] border border-white/10 rounded-2xl animate-pulse" />)
           ) : (
-            shops.map((l, i) => (
+            filteredBestSelling.map((l, i) => (
               <div key={l.id} className="snap-start shrink-0 w-[240px]">
                 <ListingCard listing={l} index={i} />
               </div>

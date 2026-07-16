@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LISTING_TYPES, formatPrice } from '../utils/constants';
+import { LISTING_TYPES, formatPrice, convertToGBP } from '../utils/constants';
 import {
   MapPin, BadgeCheck, MessageSquare, ShieldCheck, ShoppingCart,
   ArrowLeft, Star, Heart, Share2, Zap, Package, Check,
@@ -27,11 +27,16 @@ export default function ListingDetail() {
   const [addedToCart, setAddedToCart] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [toast, setToast] = useState(null);
+  const [saved, setSaved] = useState(() => {
+    try { return (JSON.parse(localStorage.getItem('hustleup_saved')) || []).includes(id); }
+    catch { return false; }
+  });
 
   const inCart = cartItems.some((i) => i.listingId === id);
 
   useEffect(() => {
     setLoading(true);
+    try { setSaved((JSON.parse(localStorage.getItem('hustleup_saved')) || []).includes(id)); } catch {}
     listingsApi.getById(id)
       .then((r) => {
         const data = r.data;
@@ -49,13 +54,39 @@ export default function ListingDetail() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const toggleSave = () => {
+    let ids;
+    try { ids = JSON.parse(localStorage.getItem('hustleup_saved')) || []; } catch { ids = []; }
+    const next = saved ? ids.filter((x) => x !== id) : [...new Set([...ids, id])];
+    localStorage.setItem('hustleup_saved', JSON.stringify(next));
+    setSaved(!saved);
+    showToast(saved ? 'Removed from saved' : 'Saved!');
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: listing?.title || 'HustleUp listing', url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        showToast('Link copied!');
+      }
+    } catch (e) {
+      if (e?.name !== 'AbortError') {
+        try { await navigator.clipboard.writeText(url); showToast('Link copied!'); }
+        catch { showToast('Could not share', 'error'); }
+      }
+    }
+  };
+
   const handleAddToCart = () => {
     if (!listing) return;
     dispatch(addToCart({
       listingId: listing.id,
       title: listing.title,
-      price: Number(listing.price),
-      currency: listing.currency || 'GBP',
+      price: convertToGBP(listing.price, listing.currency || 'GBP'),
+      currency: 'GBP',
       image: listing.mediaUrls?.[0] || null,
       sellerId: listing.sellerId,
       sellerName: listing.sellerName || seller?.fullName || 'Seller',
@@ -94,8 +125,8 @@ export default function ListingDetail() {
     dispatch(addToCart({
       listingId: listing.id,
       title: listing.title,
-      price: Number(listing.price),
-      currency: listing.currency || 'GBP',
+      price: convertToGBP(listing.price, listing.currency || 'GBP'),
+      currency: 'GBP',
       image: listing.mediaUrls?.[0] || null,
       sellerId: listing.sellerId,
       sellerName: listing.sellerName || seller?.fullName || 'Seller',
@@ -132,7 +163,7 @@ export default function ListingDetail() {
   const isSeller = currentUser?.id === listing.sellerId;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pt-24 pb-20">
+    <div className="min-h-screen bg-[#050505] text-white pt-3 pb-10">
       {/* Toast */}
       <AnimatePresence>
         {toast && (
@@ -150,33 +181,41 @@ export default function ListingDetail() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-7xl mx-auto px-6 sm:px-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         {/* Header Row */}
-        <div className="flex items-center justify-between mb-12">
+        <div className="flex items-center justify-between mb-4">
           <Link
             to="/explore"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl glass-strong text-[10px] font-black uppercase tracking-widest hover:text-[#CDFF00] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black uppercase tracking-widest hover:text-[#CDFF00] transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" /> Explore
+            <ArrowLeft className="w-3.5 h-3.5" /> Explore
           </Link>
-          <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-6 py-2.5 rounded-2xl glass-strong text-[10px] font-black uppercase tracking-widest text-[#CDFF00] hover:bg-white/5 transition-all">
-              <Heart className="w-4 h-4" /> Save
+          <div className="flex gap-2">
+            <button
+              onClick={toggleSave}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black uppercase tracking-widest transition-all hover:bg-white/5 active:scale-95 ${
+                saved ? 'text-[#FF00FF]' : 'text-[#CDFF00]'
+              }`}
+            >
+              <Heart className={`w-3.5 h-3.5 ${saved ? 'fill-[#FF00FF]' : ''}`} /> {saved ? 'Saved' : 'Save'}
             </button>
-            <button className="flex items-center gap-2 px-6 py-2.5 rounded-2xl glass-strong text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/5 transition-all">
-              <Share2 className="w-4 h-4" /> Share
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/5 active:scale-95 transition-all"
+            >
+              <Share2 className="w-3.5 h-3.5" /> Share
             </button>
           </div>
         </div>
 
         {/* 2-Column Layout */}
-        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-16 items-start">
+        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-8 items-start">
           {/* Left: Media */}
-          <div className="space-y-8">
+          <div className="space-y-3">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="relative aspect-[4/3] rounded-[48px] overflow-hidden glass-strong border border-white/10"
+              className="relative aspect-[4/3] max-h-[380px] w-full rounded-2xl overflow-hidden glass-strong border border-white/10"
             >
               {listing.mediaUrls?.length > 0 ? (
                 <img
@@ -190,20 +229,20 @@ export default function ListingDetail() {
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-              <div className="absolute top-8 left-8">
-                <span className="flex items-center gap-2 px-5 py-2 rounded-2xl glass-violet text-[#CDFF00] font-black text-[10px] uppercase tracking-widest border border-white/10">
-                  <Zap className="w-4 h-4 fill-[#CDFF00]" /> {typeInfo.label}
+              <div className="absolute top-4 left-4">
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-violet text-[#CDFF00] font-black text-[9px] uppercase tracking-widest border border-white/10">
+                  <Zap className="w-3 h-3 fill-[#CDFF00]" /> {typeInfo.label}
                 </span>
               </div>
             </motion.div>
 
             {listing.mediaUrls?.length > 1 && (
-              <div className="flex gap-4 overflow-x-auto pb-4">
+              <div className="flex gap-2 overflow-x-auto pb-2">
                 {listing.mediaUrls.map((url, i) => (
                   <button
                     key={i}
                     onClick={() => setActiveMedia(i)}
-                    className={`w-24 h-24 rounded-2xl overflow-hidden shrink-0 transition-all duration-300 ${
+                    className={`w-16 h-16 rounded-xl overflow-hidden shrink-0 transition-all duration-300 ${
                       activeMedia === i
                         ? 'ring-2 ring-[#CDFF00] scale-105'
                         : 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0'
@@ -217,57 +256,56 @@ export default function ListingDetail() {
           </div>
 
           {/* Right: Info & Actions */}
-          <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-4">
             {/* Title */}
             <div>
               <motion.h1
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-5xl sm:text-6xl font-black text-white mb-6 uppercase tracking-tighter leading-tight"
+                className="text-xl sm:text-2xl font-black text-white mb-2 uppercase tracking-tighter leading-tight"
               >
                 {listing.title}
               </motion.h1>
-              <div className="flex flex-wrap items-center gap-6">
+              <div className="flex flex-wrap items-center gap-3">
                 {listing.avgRating > 0 && (
-                  <div className="flex items-center gap-2 bg-[#CDFF00] text-black px-3 py-1 rounded-xl text-sm font-black">
-                    <Star className="w-4 h-4 fill-black" /> {Number(listing.avgRating).toFixed(1)}
+                  <div className="flex items-center gap-1.5 bg-[#CDFF00] text-black px-2 py-0.5 rounded-lg text-xs font-black">
+                    <Star className="w-3 h-3 fill-black" /> {Number(listing.avgRating).toFixed(1)}
                   </div>
                 )}
                 {listing.locationCity && (
-                  <div className="flex items-center gap-2 text-gray-500 text-[10px] font-black uppercase tracking-widest">
-                    <MapPin className="w-4 h-4 text-[#CDFF00]" /> {listing.locationCity}
+                  <div className="flex items-center gap-1.5 text-gray-500 text-[9px] font-black uppercase tracking-widest">
+                    <MapPin className="w-3 h-3 text-[#CDFF00]" /> {listing.locationCity}
                   </div>
                 )}
                 {listing.sellerVerified && (
-                  <div className="flex items-center gap-2 text-[#A855F7] text-[10px] font-black uppercase tracking-widest">
-                    <ShieldCheck className="w-4 h-4" /> Trusted Merchant
+                  <div className="flex items-center gap-1.5 text-[#A855F7] text-[9px] font-black uppercase tracking-widest">
+                    <ShieldCheck className="w-3 h-3" /> Trusted Merchant
                   </div>
                 )}
               </div>
             </div>
 
             {/* Price & Actions */}
-            <div className="p-8 rounded-[40px] glass-strong border border-white/10 relative overflow-hidden">
+            <div className="p-4 rounded-2xl glass-strong border border-white/10 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-40 h-40 bg-violet-600/10 blur-[80px]" />
               <div className="relative z-10">
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Price</span>
-                <div className="flex items-baseline gap-3 mb-8">
-                  <span className="text-5xl font-black text-white tracking-widest">
+                <div className="flex items-baseline gap-2 mb-3">
+                  <span className="text-2xl sm:text-3xl font-black text-white tracking-wider">
                     {formatPrice(listing.price, listing.currency)}
                   </span>
                   {listing.negotiable && (
-                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-white/5 border border-white/10 text-[#CDFF00] rounded-lg">
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-white/5 border border-white/10 text-[#CDFF00] rounded-md">
                       Negotiable
                     </span>
                   )}
                 </div>
 
                 {!isSeller && (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {/* Add to Cart */}
                     <button
                       onClick={handleAddToCart}
-                      className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-95 ${
+                      className={`w-full py-2.5 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-95 ${
                         inCart || addedToCart
                           ? 'bg-green-500/20 border border-green-500/40 text-green-400'
                           : 'bg-white/10 border border-white/20 text-white hover:bg-white/15'
@@ -283,7 +321,7 @@ export default function ListingDetail() {
                     {/* Buy Now */}
                     <button
                       onClick={handleBuyNow}
-                      className="w-full py-4 rounded-2xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-[0.2em] shadow-[0_15px_35px_rgba(205,255,0,0.3)] hover:scale-[1.02] transition-transform active:scale-95 flex items-center justify-center gap-3 group"
+                      className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 group"
                     >
                       <ShoppingCart className="w-4 h-4 group-hover:rotate-12 transition-transform" /> Buy Now
                     </button>
@@ -293,7 +331,7 @@ export default function ListingDetail() {
                       <button
                         onClick={handleNegotiate}
                         disabled={bookingLoading}
-                        className="w-full py-4 rounded-2xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-[#CDFF00]/10 transition-all disabled:opacity-50"
+                        className="w-full py-2.5 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#CDFF00]/10 transition-all disabled:opacity-50"
                       >
                         {bookingLoading ? (
                           <span className="w-4 h-4 border-2 border-[#CDFF00]/40 border-t-[#CDFF00] rounded-full animate-spin" />
@@ -307,7 +345,7 @@ export default function ListingDetail() {
                 )}
 
                 {isSeller && (
-                  <div className="text-center py-3 text-gray-500 text-xs font-bold uppercase tracking-widest">
+                  <div className="text-center py-2 text-gray-500 text-xs font-bold uppercase tracking-widest">
                     This is your listing
                   </div>
                 )}
@@ -316,36 +354,35 @@ export default function ListingDetail() {
 
             {/* Description */}
             <div>
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-[#CDFF00] mb-4 opacity-40">About</h4>
-              <p className="text-lg text-gray-300 leading-relaxed font-medium opacity-90">
+              <h4 className="text-[9px] font-black uppercase tracking-widest text-[#CDFF00] mb-1.5 opacity-40">About</h4>
+              <p className="text-sm text-gray-300 leading-relaxed font-medium opacity-90">
                 {listing.description}
               </p>
             </div>
 
             {/* Seller Card */}
-            <div className="pt-8 border-t border-white/5">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-6">Seller</h4>
+            <div className="pt-3 border-t border-white/5">
               <div
                 onClick={() => listing.sellerId && navigate(`/profile/${listing.sellerId}`)}
-                className="flex items-center gap-5 p-6 rounded-3xl glass-violet border border-white/10 hover:border-white/20 transition-all cursor-pointer group"
+                className="flex items-center gap-3 p-3 rounded-2xl glass-violet border border-white/10 hover:border-white/20 transition-all cursor-pointer group"
               >
-                <div className="w-16 h-16 rounded-[24px] overflow-hidden bg-gray-800 border border-white/10 shrink-0">
+                <div className="w-11 h-11 rounded-full overflow-hidden bg-gray-800 border border-white/10 shrink-0">
                   {(listing.sellerAvatarUrl || seller?.avatarUrl) ? (
                     <img src={listing.sellerAvatarUrl || seller.avatarUrl} alt={listing.sellerName} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-2xl font-black text-[#CDFF00]">
+                    <div className="w-full h-full flex items-center justify-center text-lg font-black text-[#CDFF00]">
                       {(listing.sellerName || 'S')[0].toUpperCase()}
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h5 className="text-lg font-black text-white uppercase tracking-tight group-hover:text-[#CDFF00] transition-colors truncate">
+                  <div className="flex items-center gap-1.5">
+                    <h5 className="text-sm font-black text-white uppercase tracking-tight group-hover:text-[#CDFF00] transition-colors truncate">
                       {listing.sellerName || seller?.fullName || 'Seller'}
                     </h5>
-                    {listing.sellerVerified && <BadgeCheck className="w-4 h-4 text-[#CDFF00] shrink-0" />}
+                    {listing.sellerVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">
                     {listing.reviewCount > 0 ? `${listing.reviewCount} reviews` : 'Seller on HustleUp'}
                   </span>
                 </div>
@@ -354,9 +391,9 @@ export default function ListingDetail() {
                     e.stopPropagation();
                     if (listing.sellerId) navigate(`/dm/${listing.sellerId}`);
                   }}
-                  className="w-12 h-12 rounded-2xl glass-strong flex items-center justify-center group-hover:bg-[#CDFF00]/10 transition-colors shrink-0"
+                  className="w-9 h-9 rounded-xl glass-strong flex items-center justify-center group-hover:bg-[#CDFF00]/10 transition-colors shrink-0"
                 >
-                  <MessageSquare className="w-5 h-5 text-white group-hover:text-[#CDFF00]" />
+                  <MessageSquare className="w-4 h-4 text-white group-hover:text-[#CDFF00]" />
                 </button>
               </div>
             </div>

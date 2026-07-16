@@ -25,7 +25,11 @@ import com.hustleup.common.model.Notification;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.social.model.Follow;
+import com.hustleup.social.model.UserBlock;
+import com.hustleup.social.model.UserReport;
 import com.hustleup.social.repository.FollowRepository;
+import com.hustleup.social.repository.UserBlockRepository;
+import com.hustleup.social.repository.UserReportRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -56,11 +60,19 @@ public class FollowController {
      * Constructor injection is preferred because it makes the required dependencies
      * explicit and allows the class fields to be {@code final}.
      */
+    /** Repositories backing the block/report safety features. */
+    private final UserBlockRepository userBlockRepository;
+    private final UserReportRepository userReportRepository;
+
     public FollowController(FollowRepository followRepository, UserRepository userRepository,
-                            NotificationRepository notificationRepository) {
+                            NotificationRepository notificationRepository,
+                            UserBlockRepository userBlockRepository,
+                            UserReportRepository userReportRepository) {
         this.followRepository = followRepository;
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
+        this.userBlockRepository = userBlockRepository;
+        this.userReportRepository = userReportRepository;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -270,5 +282,105 @@ public class FollowController {
         UUID target = UUID.fromString(userId);
         boolean following = followRepository.existsByFollowerIdAndFollowingId(me, target);
         return ResponseEntity.ok(Map.of("isFollowing", following));
+    }
+
+    /**
+     * One-shot profile relationship summary: everything the profile header needs
+     * to render its social state in a single request.
+     *
+     * <p><b>GET /api/v1/follows/{userId}/relationship</b>
+     *
+     * <p>Works for anonymous viewers too — the viewer-specific flags simply come
+     * back {@code false} when there is no authenticated user.
+     *
+     * @return 200 OK with {@code {followers, following, isFollowing, blocked, blockedBy}}
+     */
+    @GetMapping("/{userId}/relationship")
+    public ResponseEntity<?> relationship(@PathVariable String userId) {
+        UUID target = UUID.fromString(userId);
+
+        boolean isFollowing = false;
+        boolean blocked = false;   // viewer has blocked the target
+        boolean blockedBy = false; // target has blocked the viewer
+        try {
+            UUID me = currentUserId();
+            isFollowing = followRepository.existsByFollowerIdAndFollowingId(me, target);
+            blocked = userBlockRepository.existsByBlockerIdAndBlockedId(me, target);
+            blockedBy = userBlockRepository.existsByBlockerIdAndBlockedId(target, me);
+        } catch (Exception ignored) {
+            // Anonymous viewer — viewer-specific flags stay false.
+        }
+
+        Map<String, Object> out = new HashMap<>();
+        out.put("followers", followRepository.countByFollowingId(target));
+        out.put("following", followRepository.countByFollowerId(target));
+        out.put("isFollowing", isFollowing);
+        out.put("blocked", blocked);
+        out.put("blockedBy", blockedBy);
+        return ResponseEntity.ok(out);
+    }
+
+    /**
+     * Blocks a user. Also severs any follow relationship in both directions so
+     * neither party remains in the other's follower lists.
+     *
+     * <p><b>POST /api/v1/follows/{targetId}/block</b> — auth required.
+     */
+    @PostMapping("/{targetId}/block")
+    public ResponseEntity<?> block(@PathVariable String targetId) {
+        UUID me = currentUserId();
+        UUID target = UUID.fromString(targetId);
+        if (me.equals(target)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "You cannot block yourself"));
+        }
+
+        if (!userBlockRepository.existsByBlockerIdAndBlockedId(me, target)) {
+            UserBlock blockRecord = new UserBlock();
+            blockRecord.setBlockerId(me);
+            blockRecord.setBlockedId(target);
+            userBlockRepository.save(blockRecord);
+        }
+
+        // Remove follow edges in both directions.
+        followRepository.findByFollowerIdAndFollowingId(me, target).ifPresent(followRepository::delete);
+        followRepository.findByFollowerIdAndFollowingId(target, me).ifPresent(followRepository::delete);
+
+        return ResponseEntity.ok(Map.of("status", "blocked"));
+    }
+
+    /**
+     * Removes a previously placed block.
+     *
+     * <p><b>DELETE /api/v1/follows/{targetId}/block</b> — auth required. Idempotent.
+     */
+    @DeleteMapping("/{targetId}/block")
+    public ResponseEntity<?> unblock(@PathVariable String targetId) {
+        UUID me = currentUserId();
+        UUID target = UUID.fromString(targetId);
+        userBlockRepository.findByBlockerIdAndBlockedId(me, target).ifPresent(userBlockRepository::delete);
+        return ResponseEntity.ok(Map.of("status", "unblocked"));
+    }
+
+    /**
+     * Files a safety report against a user for moderation review.
+     *
+     * <p><b>POST /api/v1/follows/{targetId}/report</b> — auth required.
+     * Body: {@code {"reason": "free text"}}
+     */
+    @PostMapping("/{targetId}/report")
+    public ResponseEntity<?> report(@PathVariable String targetId, @RequestBody(required = false) Map<String, String> payload) {
+        UUID me = currentUserId();
+        UUID target = UUID.fromString(targetId);
+        if (me.equals(target)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "You cannot report yourself"));
+        }
+
+        UserReport reportRecord = new UserReport();
+        reportRecord.setReporterId(me);
+        reportRecord.setReportedId(target);
+        reportRecord.setReason(payload != null ? payload.getOrDefault("reason", "") : "");
+        userReportRepository.save(reportRecord);
+
+        return ResponseEntity.ok(Map.of("status", "reported"));
     }
 }
