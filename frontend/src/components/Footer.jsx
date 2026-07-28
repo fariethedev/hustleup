@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Zap, Globe, ShieldCheck, Mail, Camera, MessageCircle, Code } from 'lucide-react';
+import { Globe, Camera, MessageCircle, Code } from 'lucide-react';
 import { LISTING_TYPES } from '../utils/constants';
 
 export default function Footer() {
@@ -20,7 +20,7 @@ export default function Footer() {
               <span className="text-2xl font-heading font-black text-white tracking-tighter">HustleUp.</span>
             </Link>
             <p className="text-gray-500 leading-relaxed max-w-sm mb-10 text-lg font-medium">
-              The premier marketplace for independent shops, professional services, and high-quality products. Building the future of the digital economy together.
+              The all-in-one platform where students buy, sell, find gigs and grow their hustle — built by students, for students.
             </p>
             <div className="flex gap-5">
               {[Globe, Camera, MessageCircle, Code].map((Icon, i) => (
@@ -46,19 +46,20 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-white font-black text-sm mb-8 uppercase tracking-[0.2em]">Statistic</h4>
+            <h4 className="text-white font-black text-sm mb-8 uppercase tracking-[0.2em]">Platform</h4>
             <ul className="space-y-4 text-gray-500 font-bold">
-              <li><Link to="/dashboard" className="hover:text-white transition-colors">Ranking</Link></li>
-              <li><Link to="/dashboard" className="hover:text-white transition-colors">Activity</Link></li>
+              <li><Link to="/jobs" className="hover:text-white transition-colors">Jobs &amp; Gigs</Link></li>
+              <li><Link to="/feed" className="hover:text-white transition-colors">Community Feed</Link></li>
+              <li><Link to="/news" className="hover:text-white transition-colors">Campus News</Link></li>
+              <li><Link to="/dashboard" className="hover:text-white transition-colors">Dashboard</Link></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="text-white font-black text-sm mb-8 uppercase tracking-[0.2em]">Resource</h4>
+            <h4 className="text-white font-black text-sm mb-8 uppercase tracking-[0.2em]">Company</h4>
             <ul className="space-y-4 text-gray-500 font-bold">
+              <li><Link to="/#about" className="hover:text-white transition-colors">About Us</Link></li>
               <li><Link to="/" className="hover:text-white transition-colors">Help Center</Link></li>
-              <li><Link to="/" className="hover:text-white transition-colors">Platform Status</Link></li>
-              <li><Link to="/" className="hover:text-white transition-colors">Partners</Link></li>
               <li><Link to="/" className="hover:text-white transition-colors">Blog</Link></li>
             </ul>
           </div>

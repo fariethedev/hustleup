@@ -3,22 +3,36 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated, selectIsSeller } from '../store/authSlice';
-import { bookingsApi, listingsApi, notificationsApi } from '../api/client';
+import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, dispatchToast } from '../api/client';
 import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constants';
-import { Settings2, Plus, Inbox, ClipboardList, Check, X, MessageSquare, ListTodo, PackageSearch, BellRing } from 'lucide-react';
+import {
+  Settings2, Plus, Inbox, ClipboardList, Check, X, MessageSquare, ListTodo, PackageSearch,
+  BellRing, TrendingUp, CalendarClock, Pencil, Store, Trash2, Ban, Landmark, CreditCard, ShieldCheck
+} from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
+
+// Listing categories with bespoke dashboard functionality beyond the standard buy/negotiate flow.
+const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
 
 export default function Dashboard() {
   const user = useSelector(selectUser);
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const isSeller = useSelector(selectIsSeller);
   const navigate = useNavigate();
-  
+
   const [tab, setTab] = useState('bookings');
   const [bookings, setBookings] = useState([]);
   const [listings, setListings] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingListing, setEditingListing] = useState(null); // listing being price-edited, or null
+  const [payoutStatus, setPayoutStatus] = useState(null); // { connected, payoutsEnabled, chargesEnabled, detailsSubmitted }
+  const [payoutBusy, setPayoutBusy] = useState(false);
+  const [payingBookingId, setPayingBookingId] = useState(null);
+
+  const hasServiceListing = listings.some((l) => SERVICE_TYPES.includes(l.listingType));
+  const hasEventListing = listings.some((l) => l.listingType === 'EVENT');
 
   useEffect(() => {
     if (!isAuthenticated) { navigate('/login'); return; }
@@ -37,9 +51,36 @@ export default function Dashboard() {
       if (isSeller) {
         const listRes = await listingsApi.my();
         setListings(listRes.data);
+        if (listRes.data.some((l) => SERVICE_TYPES.includes(l.listingType))) {
+          availabilityApi.my().then((r) => setSlots(r.data)).catch(() => setSlots([]));
+        }
+        payoutsApi.status().then((r) => setPayoutStatus(r.data)).catch(() => setPayoutStatus({ connected: false }));
       }
     } catch { /* fail silently */ }
     setLoading(false);
+  };
+
+  const handleConnectPayouts = async () => {
+    setPayoutBusy(true);
+    try {
+      const res = await payoutsApi.connect();
+      window.location.href = res.data.url;
+    } catch (e) {
+      dispatchToast(e.response?.data?.error || 'Could not start payout setup', 'error');
+    } finally {
+      setPayoutBusy(false);
+    }
+  };
+
+  const handlePayNow = async (bookingId) => {
+    setPayingBookingId(bookingId);
+    try {
+      const res = await bookingsApi.checkoutSession(bookingId);
+      window.location.href = res.data.url;
+    } catch (e) {
+      dispatchToast(e.response?.data?.error || 'Could not start payment', 'error');
+      setPayingBookingId(null);
+    }
   };
 
   const handleBookingAction = async (id, action) => {
@@ -58,36 +99,30 @@ export default function Dashboard() {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
+  const salesBookings = bookings.filter((b) => b.role === 'seller' && b.status === 'COMPLETED');
+  const totalRevenue = salesBookings.reduce((sum, b) => sum + (b.agreedPrice || 0), 0);
+
   const tabs = [
     { id: 'bookings', label: 'Bookings', icon: ListTodo, count: bookings.length },
     ...(isSeller ? [{ id: 'listings', label: 'Listings', icon: ClipboardList, count: listings.length }] : []),
+    ...(isSeller ? [{ id: 'sales', label: 'Sales', icon: TrendingUp, count: salesBookings.length }] : []),
+    ...(isSeller && hasServiceListing ? [{ id: 'availability', label: 'Availability', icon: CalendarClock, count: slots.length }] : []),
+    ...(isSeller ? [{ id: 'payouts', label: 'Payouts', icon: Landmark, count: payoutStatus?.payoutsEnabled ? 0 : 1 }] : []),
     { id: 'notifications', label: 'Alerts', icon: BellRing, count: notifications.filter((n) => !n.read).length },
   ];
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
-      <HeroBrief 
+    <div className="min-h-screen text-white">
+      <HeroBrief
         pillText="OPERATIONAL CONTROL CENTER"
         title="HUSTLE DASH"
-        subtitle={"Manage your empire in real-time.\nTrack bookings, listings, and alerts effortlessly."}
+        subtitle="Track bookings, listings and alerts in real-time."
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-32">
-        {/* Action Bar */}
-        <div className="flex justify-end gap-3 mb-12 relative z-10">
-          {isSeller && (
-            <Link to="/create" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest text-xs hover:bg-[#E0FF4D] hover:shadow-lg transition-all">
-              <Plus className="w-4 h-4" /> Post New
-            </Link>
-          )}
-          <Link to={`/profile/${user?.id}`} className="inline-flex items-center gap-2 px-6 py-3 rounded-xl glass border border-white/10 text-white font-bold uppercase tracking-widest text-xs hover:bg-white/5 transition-all">
-            <Settings2 className="w-4 h-4" /> Settings
-          </Link>
-        </div>
-
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-10">
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Tabs */}
-          <div className="flex gap-2 mb-10 overflow-x-auto pb-4 scrollbar-hide py-2 border-b border-white/5">
+          {/* Control row: tabs + actions, all centered */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-5 pb-4 border-b border-white/5">
             {tabs.map((t) => {
               const Icon = t.icon;
               const isActive = tab === t.id;
@@ -95,16 +130,16 @@ export default function Dashboard() {
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-2 px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border ${
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all border ${
                     isActive
-                      ? 'bg-[#CDFF00] text-black border-[#CDFF00] shadow-[0_0_30px_rgba(205,255,0,0.2)]'
+                      ? 'bg-[#CDFF00] text-black border-[#CDFF00] shadow-[0_0_20px_rgba(205,255,0,0.15)]'
                       : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/20'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3.5 h-3.5" />
                   {t.label}
                   {t.count > 0 && (
-                    <span className={`ml-2 inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded font-black ${
+                    <span className={`ml-1 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded font-black text-[8px] ${
                       isActive ? 'bg-black text-[#CDFF00]' : 'bg-gray-800 text-gray-300'
                     }`}>
                       {t.count}
@@ -113,14 +148,41 @@ export default function Dashboard() {
                 </button>
               );
             })}
+            <div className="w-px h-5 bg-white/10 mx-1.5" />
+            {isSeller && (
+              <Link to="/create" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase tracking-widest text-[9px] hover:bg-[#E0FF4D] transition-all">
+                <Plus className="w-3.5 h-3.5" /> Post New
+              </Link>
+            )}
+            <Link to={`/profile/${user?.id}`} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg glass border border-white/10 text-white font-bold uppercase tracking-widest text-[9px] hover:bg-white/5 transition-all">
+              <Settings2 className="w-3.5 h-3.5" /> Settings
+            </Link>
           </div>
 
+          {isSeller && !user?.shopCategory && (
+            <Link
+              to="/onboarding"
+              className="flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl bg-[#CDFF00]/5 border border-[#CDFF00]/30 hover:border-[#CDFF00]/60 transition-all mb-5 group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[#CDFF00]/15 flex items-center justify-center shrink-0">
+                  <Store className="w-4.5 h-4.5 text-[#CDFF00]" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Set up your shop</p>
+                  <p className="text-xs text-gray-500">Pick a category and add a banner to unlock category tools</p>
+                </div>
+              </div>
+              <span className="text-[9px] font-black uppercase tracking-widest text-[#CDFF00] group-hover:translate-x-0.5 transition-transform shrink-0">Set up →</span>
+            </Link>
+          )}
+
           {loading ? (
-            <div className="space-y-4">
+            <div className="space-y-2.5">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="glass rounded-3xl p-6 animate-pulse border border-white/5">
-                  <div className="h-5 bg-surface-50 rounded w-1/3 mb-3" />
-                  <div className="h-4 bg-surface-50 rounded w-1/2" />
+                <div key={i} className="glass rounded-2xl p-4 animate-pulse border border-white/5">
+                  <div className="h-4 bg-surface-50 rounded w-1/3 mb-2" />
+                  <div className="h-3 bg-surface-50 rounded w-1/2" />
                 </div>
               ))}
             </div>
@@ -128,7 +190,7 @@ export default function Dashboard() {
             <>
               {/* Bookings Tab */}
               {tab === 'bookings' && (
-                <div className="space-y-4">
+                <div className="space-y-2.5">
                   {bookings.length === 0 ? (
                     <EmptyState icon={Inbox} title="No Active Orders" desc="Your active purchasing or service bookings will appear here." />
                   ) : (
@@ -137,39 +199,69 @@ export default function Dashboard() {
                       const isBuyer = user?.id === booking.buyerId;
 
                       return (
-                        <div key={booking.id} className="glass rounded-3xl p-6 border border-white/5 hover:border-[#CDFF00]/20 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              <span className={`px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-[0.2em] ${status.color}`}>
+                        <div key={booking.id} className="glass rounded-2xl p-4 border border-white/5 hover:border-[#CDFF00]/20 transition-all flex flex-col md:flex-row md:items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-[0.15em] ${status.color}`}>
                                 {status.label}
                               </span>
-                              <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+                              <span className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">
                                 {new Date(booking.createdAt).toLocaleDateString()}
                               </span>
                             </div>
-                            
-                            <Link to={`/listing/${booking.listingId}`} className="text-xl font-black text-white hover:text-[#CDFF00] transition-colors uppercase tracking-tight mb-2 block">
+
+                            <Link to={`/listing/${booking.listingId}`} className="text-sm font-black text-white hover:text-[#CDFF00] transition-colors uppercase tracking-tight block truncate">
                               {booking.listingTitle || 'Project Title'}
                             </Link>
-                            
-                            <div className="flex flex-wrap items-center gap-4 text-[10px] font-black uppercase tracking-[0.1em] text-gray-500">
+
+                            <div className="flex flex-wrap items-center gap-3 mt-1 text-[9px] font-black uppercase tracking-[0.1em] text-gray-500">
                               <span className="flex items-center gap-1">
                                 <span className="text-gray-700">{isBuyer ? 'Seller:' : 'Buyer:'}</span>
                                 <span className="text-gray-400">{isBuyer ? booking.sellerName : booking.buyerName}</span>
                               </span>
                               {booking.agreedPrice && <span className="text-[#CDFF00]">Fee: {formatPrice(booking.agreedPrice, booking.currency)}</span>}
+                              {booking.paymentStatus && booking.paymentStatus !== 'PENDING' && (
+                                <span className={booking.paymentStatus === 'TRANSFERRED' || booking.paymentStatus === 'PAID' ? 'text-[#CDFF00]' : 'text-gray-500'}>
+                                  Payment: {booking.paymentStatus.replace('_', ' ').toLowerCase()}
+                                </span>
+                              )}
                             </div>
                           </div>
 
                           {/* Actions */}
                           <div className="flex items-center gap-2 shrink-0">
-                            <Link to={`/dm/${isBuyer ? booking.sellerId : booking.buyerId}`} className="px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-black uppercase text-[10px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
-                              <MessageSquare className="w-3.5 h-3.5" /> Wire
+                            <Link to={`/dm/${isBuyer ? booking.sellerId : booking.buyerId}`} className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black uppercase text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5">
+                              <MessageSquare className="w-3 h-3" /> Wire
                             </Link>
-                            
+
                             {booking.status === 'INQUIRED' && !isBuyer && (
-                              <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-5 py-3 rounded-xl bg-[#CDFF00] text-black font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
-                                <Check className="w-3.5 h-3.5" /> Accept
+                              <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Accept
+                              </button>
+                            )}
+
+                            {booking.status === 'BOOKED' && isBuyer && !['PAID', 'TRANSFERRED'].includes(booking.paymentStatus) && (
+                              <button
+                                onClick={() => handlePayNow(booking.id)}
+                                disabled={payingBookingId === booking.id}
+                                className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1 disabled:opacity-60"
+                              >
+                                <CreditCard className="w-3 h-3" /> {payingBookingId === booking.id ? 'Redirecting…' : 'Pay Now'}
+                              </button>
+                            )}
+
+                            {booking.status === 'BOOKED' && !isBuyer && (
+                              <button onClick={() => handleBookingAction(booking.id, 'complete')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Complete
+                              </button>
+                            )}
+
+                            {!['COMPLETED', 'CANCELLED'].includes(booking.status) && (
+                              <button
+                                onClick={() => { if (confirm('Cancel this booking?')) handleBookingAction(booking.id, 'cancel'); }}
+                                className="px-3.5 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 font-black uppercase text-[9px] tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-1"
+                              >
+                                <Ban className="w-3 h-3" /> Cancel
                               </button>
                             )}
                           </div>
@@ -182,7 +274,13 @@ export default function Dashboard() {
 
               {/* Listings Tab */}
               {tab === 'listings' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  {hasEventListing && (
+                    <p className="text-xs text-gray-500 px-1">
+                      Running an event? Open the listing itself to buy tickets, or post updates about it.
+                    </p>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                   {listings.length === 0 ? (
                     <div className="col-span-full">
                       <EmptyState icon={PackageSearch} title="Inventory Empty" desc="You don't have any active drops right now." cta={{ label: 'New Drop', to: '/create' }} />
@@ -192,27 +290,126 @@ export default function Dashboard() {
                       const typeInfo = LISTING_TYPES.find((t) => t.value === listing.listingType) || LISTING_TYPES[0];
                       const TypeIcon = typeInfo.icon;
                       return (
-                        <Link key={listing.id} to={`/listing/${listing.id}`} className="glass rounded-3xl p-6 border border-white/5 hover:border-[#CDFF00]/30 transition-all flex items-center gap-6 group block">
-                          <div className="w-16 h-16 rounded-2xl bg-black border border-white/5 flex items-center justify-center text-[#CDFF00] group-hover:bg-[#CDFF00] group-hover:text-black transition-all">
-                            <TypeIcon className="w-6 h-6" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-black text-white group-hover:text-[#CDFF00] transition-colors truncate uppercase tracking-tight mb-1">{listing.title}</h3>
-                            <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-600">
+                        <div key={listing.id} className="glass rounded-2xl p-3.5 border border-white/5 hover:border-[#CDFF00]/30 transition-all flex items-center gap-3.5 group">
+                          <Link to={`/listing/${listing.id}`} className="w-11 h-11 rounded-xl bg-black border border-white/5 flex items-center justify-center text-[#CDFF00] group-hover:bg-[#CDFF00] group-hover:text-black transition-all shrink-0">
+                            <TypeIcon className="w-5 h-5" />
+                          </Link>
+                          <Link to={`/listing/${listing.id}`} className="flex-1 min-w-0">
+                            <h3 className="text-sm font-black text-white group-hover:text-[#CDFF00] transition-colors truncate uppercase tracking-tight">{listing.title}</h3>
+                            <div className="flex items-center gap-2.5 mt-0.5 text-[9px] font-black uppercase tracking-widest text-gray-600">
                               <span>{typeInfo.label}</span>
                               <span className="text-[#CDFF00]">{formatPrice(listing.price, listing.currency)}</span>
                             </div>
-                          </div>
-                        </Link>
+                          </Link>
+                          <button
+                            onClick={() => setEditingListing(listing)}
+                            className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-white/20 transition-all shrink-0"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       );
                     })
                   )}
+                  </div>
+                </div>
+              )}
+
+              {/* Sales Tab */}
+              {tab === 'sales' && (
+                <div className="space-y-4">
+                  <div className="glass rounded-2xl p-5 border border-[#CDFF00]/20 flex items-center justify-between">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-500">Total revenue</p>
+                      <p className="text-2xl font-black text-[#CDFF00] mt-1">{formatPrice(totalRevenue, 'PLN')}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-500">Completed sales</p>
+                      <p className="text-2xl font-black text-white mt-1">{salesBookings.length}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {salesBookings.length === 0 ? (
+                      <EmptyState icon={TrendingUp} title="No Sales Yet" desc="Completed bookings will show up here as sales once you mark them complete." />
+                    ) : (
+                      salesBookings.map((b) => (
+                        <div key={b.id} className="glass rounded-2xl p-4 border border-white/5 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <Link to={`/listing/${b.listingId}`} className="text-sm font-black text-white hover:text-[#CDFF00] transition-colors truncate block">
+                              {b.listingTitle || 'Listing'}
+                            </Link>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 mt-0.5">
+                              {b.buyerName} · {new Date(b.createdAt).toLocaleDateString()}
+                              {b.quantity > 1 && ` · ${b.quantity}x`}
+                            </p>
+                          </div>
+                          <span className="text-sm font-black text-[#CDFF00] shrink-0">{formatPrice(b.agreedPrice, b.currency)}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Availability Tab */}
+              {tab === 'availability' && (
+                <AvailabilityTab listings={listings.filter((l) => SERVICE_TYPES.includes(l.listingType))} slots={slots} onChange={loadData} />
+              )}
+
+              {/* Payouts Tab */}
+              {tab === 'payouts' && (
+                <div className="max-w-lg mx-auto space-y-4">
+                  <div className="glass rounded-2xl p-5 border border-white/5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-[#CDFF00]/10 flex items-center justify-center shrink-0">
+                        <Landmark className="w-5 h-5 text-[#CDFF00]" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white">Bank account</p>
+                        <p className="text-xs text-gray-500">Payouts are handled securely by Stripe — we never see or store your bank details.</p>
+                      </div>
+                    </div>
+
+                    {payoutStatus?.payoutsEnabled ? (
+                      <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20">
+                        <ShieldCheck className="w-4 h-4 text-[#CDFF00] shrink-0" />
+                        <p className="text-xs font-bold text-[#CDFF00]">Connected — you'll be paid out automatically when bookings are completed.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 mb-3">
+                          <span className="text-xs text-gray-400">
+                            {payoutStatus?.connected
+                              ? "You've started setup but Stripe still needs a bit more information before payouts can begin."
+                              : "You haven't connected a payout account yet — do this before your bookings can be paid out."}
+                          </span>
+                        </div>
+                        <button
+                          onClick={handleConnectPayouts}
+                          disabled={payoutBusy}
+                          className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                        >
+                          {payoutBusy ? 'Redirecting…' : payoutStatus?.connected ? 'Finish setup with Stripe' : 'Connect bank account'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="glass rounded-2xl p-4 border border-white/5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">How payouts work</p>
+                    <ul className="text-xs text-gray-400 space-y-1.5 leading-relaxed list-disc list-inside">
+                      <li>Buyers pay when a booking is confirmed.</li>
+                      <li>You get paid automatically once you mark the booking Complete.</li>
+                      <li>HustleUp keeps a small platform fee — you receive the rest.</li>
+                    </ul>
+                  </div>
                 </div>
               )}
 
               {/* Notifications Tab */}
               {tab === 'notifications' && (
-                <div className="max-w-3xl mx-auto space-y-4">
+                <div className="max-w-3xl mx-auto space-y-2.5">
                   {notifications.length === 0 ? (
                     <EmptyState icon={BellRing} title="Node Silent" desc="You have no unread alerts at the moment." />
                   ) : (
@@ -220,11 +417,13 @@ export default function Dashboard() {
                       <div
                         key={notif.id}
                         onClick={() => markNotifRead(notif.id)}
-                        className={`glass rounded-3xl p-8 cursor-pointer border transition-all ${!notif.read ? 'border-[#CDFF00]/50 bg-[#CDFF00]/5' : 'border-white/5 bg-black/40 hover:border-white/10'}`}
+                        className={`glass rounded-2xl px-4 py-3 cursor-pointer border transition-all ${!notif.read ? 'border-[#CDFF00]/50 bg-[#CDFF00]/5' : 'border-white/5 bg-black/40 hover:border-white/10'}`}
                       >
-                        <h4 className={`text-sm tracking-[0.1em] uppercase ${!notif.read ? 'text-[#CDFF00] font-black' : 'text-gray-400 font-bold'}`}>{notif.title}</h4>
-                        <p className={`text-base mt-2 font-medium ${!notif.read ? 'text-white' : 'text-gray-500'}`}>{notif.message}</p>
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-700 mt-6">{new Date(notif.createdAt).toLocaleString()}</p>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <h4 className={`text-xs tracking-[0.1em] uppercase truncate ${!notif.read ? 'text-[#CDFF00] font-black' : 'text-gray-400 font-bold'}`}>{notif.title}</h4>
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-700 shrink-0">{new Date(notif.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <p className={`text-sm mt-1 font-medium ${!notif.read ? 'text-white' : 'text-gray-500'}`}>{notif.message}</p>
                       </div>
                     ))
                   )}
@@ -234,20 +433,173 @@ export default function Dashboard() {
           )}
         </motion.div>
       </div>
+
+      {editingListing && (
+        <EditPriceModal
+          listing={editingListing}
+          onClose={() => setEditingListing(null)}
+          onSaved={(updated) => {
+            setListings((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+            setEditingListing(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* Compact modal for updating a listing's price / negotiable flag from the dashboard. */
+function EditPriceModal({ listing, onClose, onSaved }) {
+  const [price, setPrice] = useState(listing.price);
+  const [negotiable, setNegotiable] = useState(listing.negotiable);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await listingsApi.update(listing.id, { price: Number(price), negotiable });
+      dispatchToast('Listing updated', 'success');
+      onSaved(res.data);
+    } catch (e) {
+      dispatchToast('Failed to update listing', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
+      <div onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+      <div className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-white truncate pr-2">{listing.title}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 shrink-0"><X className="w-4 h-4" /></button>
+        </div>
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Price ({listing.currency})</label>
+        <input
+          type="number" value={price} onChange={(e) => setPrice(e.target.value)}
+          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] mb-3"
+        />
+        <label className="flex items-center gap-2 text-sm text-gray-300 mb-5 cursor-pointer">
+          <input type="checkbox" checked={negotiable} onChange={(e) => setNegotiable(e.target.checked)} className="accent-[#CDFF00] w-4 h-4" />
+          Open to negotiation
+        </label>
+        <button
+          onClick={save} disabled={saving}
+          className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-60"
+        >
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* Seller's slot calendar: add an open slot for one of their service listings, see status. */
+function AvailabilityTab({ listings, slots, onChange }) {
+  const [listingId, setListingId] = useState(listings[0]?.id || '');
+  const [date, setDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const addSlot = async () => {
+    if (!listingId || !date || !startTime || !endTime) {
+      dispatchToast('Fill in the listing, date, and both times', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      await availabilityApi.create(listingId, `${date}T${startTime}:00`, `${date}T${endTime}:00`);
+      dispatchToast('Slot added', 'success');
+      setStartTime(''); setEndTime('');
+      onChange();
+    } catch (e) {
+      dispatchToast(e.response?.data?.error || 'Failed to add slot', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeSlot = async (id) => {
+    try {
+      await availabilityApi.remove(id);
+      onChange();
+    } catch (e) {
+      dispatchToast('Could not remove slot', 'error');
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Add slot form */}
+      <div className="glass rounded-2xl p-4 border border-white/5">
+        <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">Open a new slot</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-2.5">
+          <select
+            value={listingId} onChange={(e) => setListingId(e.target.value)}
+            className="bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:border-[#CDFF00] sm:col-span-2"
+          >
+            {listings.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}
+          </select>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            className="bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:border-[#CDFF00]" />
+          <div className="grid grid-cols-2 gap-2.5">
+            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+              className="bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-[#CDFF00]" />
+            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+              className="bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-[#CDFF00]" />
+          </div>
+        </div>
+        <button
+          onClick={addSlot} disabled={saving}
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-xs hover:bg-[#d9ff33] active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+        >
+          <Plus className="w-4 h-4" /> Add slot
+        </button>
+      </div>
+
+      {/* Slot list */}
+      <div className="space-y-2.5">
+        {slots.length === 0 ? (
+          <EmptyState icon={CalendarClock} title="No Slots Yet" desc="Open a slot above so buyers can book a specific appointment time." />
+        ) : (
+          slots.map((s) => (
+            <div key={s.id} className="glass rounded-2xl p-4 border border-white/5 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-white truncate">{s.listingTitle}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {new Date(s.startTime).toLocaleDateString()} · {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–{new Date(s.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${s.booked ? 'bg-[#CDFF00]/15 text-[#CDFF00]' : 'bg-white/5 text-gray-400'}`}>
+                  {s.booked ? 'Booked' : 'Open'}
+                </span>
+                {!s.booked && (
+                  <button onClick={() => removeSlot(s.id)} className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
 
 function EmptyState({ icon: Icon, title, desc, cta }) {
   return (
-    <div className="text-center py-24 glass rounded-[3rem] border border-white/5 bg-white/2">
-      <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-8 border border-white/5">
-        <Icon className="w-8 h-8 text-white/20" />
+    <div className="text-center py-10 glass rounded-2xl border border-white/5 bg-white/2">
+      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3 border border-white/5">
+        <Icon className="w-5 h-5 text-white/20" />
       </div>
-      <h3 className="text-2xl font-black text-white uppercase tracking-[0.1em] mb-3">{title}</h3>
-      <p className="text-gray-500 mb-10 font-bold uppercase tracking-widest text-xs max-w-xs mx-auto leading-relaxed">{desc}</p>
+      <h3 className="text-base font-black text-white uppercase tracking-[0.1em] mb-1.5">{title}</h3>
+      <p className="text-gray-500 mb-4 font-bold uppercase tracking-widest text-[10px] max-w-xs mx-auto leading-relaxed">{desc}</p>
       {cta && (
-        <Link to={cta.to} className="inline-flex px-10 py-4 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:scale-105 transition-all text-[10px]">
+        <Link to={cta.to} className="inline-flex px-6 py-2.5 rounded-lg bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:scale-105 transition-all text-[9px]">
           {cta.label}
         </Link>
       )}

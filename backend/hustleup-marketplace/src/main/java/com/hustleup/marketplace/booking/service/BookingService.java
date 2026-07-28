@@ -25,14 +25,21 @@
  */
 package com.hustleup.marketplace.booking.service;
 
+import com.hustleup.marketplace.availability.model.Availability;
+import com.hustleup.marketplace.availability.repository.AvailabilityRepository;
 import com.hustleup.marketplace.booking.dto.BookingDto;
 import com.hustleup.marketplace.booking.model.Booking;
 import com.hustleup.marketplace.booking.model.BookingStatus;
 import com.hustleup.marketplace.booking.repository.BookingRepository;
 import com.hustleup.marketplace.listing.model.Listing;
+import com.hustleup.marketplace.listing.model.ListingType;
 import com.hustleup.marketplace.listing.repository.ListingRepository;
+import com.hustleup.marketplace.payments.model.SellerPayoutAccount;
+import com.hustleup.marketplace.payments.repository.SellerPayoutAccountRepository;
+import com.hustleup.marketplace.payments.service.StripeConnectService;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
+import com.stripe.exception.StripeException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -54,6 +61,9 @@ public class BookingService {
     private final BookingRepository bookingRepository;    // CRUD for bookings table
     private final ListingRepository listingRepository;    // look up listing details at booking time
     private final UserRepository userRepository;          // look up buyer/seller display names
+    private final AvailabilityRepository availabilityRepository; // seller-defined slots for service bookings
+    private final SellerPayoutAccountRepository payoutAccountRepository; // seller's Stripe Connect account
+    private final StripeConnectService stripeConnectService; // payment collection + seller payouts
 
     /**
      * Constructor injection: Spring automatically resolves and injects these beans.
@@ -63,10 +73,15 @@ public class BookingService {
      * - Fields can be declared {@code final}, guaranteeing immutability
      */
     public BookingService(BookingRepository bookingRepository, ListingRepository listingRepository,
-                          UserRepository userRepository) {
+                          UserRepository userRepository, AvailabilityRepository availabilityRepository,
+                          SellerPayoutAccountRepository payoutAccountRepository,
+                          StripeConnectService stripeConnectService) {
         this.bookingRepository = bookingRepository;
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
+        this.availabilityRepository = availabilityRepository;
+        this.payoutAccountRepository = payoutAccountRepository;
+        this.stripeConnectService = stripeConnectService;
     }
 
     /**
@@ -86,13 +101,16 @@ public class BookingService {
      * {@code bookingRepository.save} write happen inside the same database transaction. If the
      * save fails (e.g. constraint violation), the read is also rolled back.
      *
-     * @param listingId    UUID of the listing to book
-     * @param offeredPrice the buyer's custom price offer, or {@code null} to use the listing price
-     * @param scheduledAt  requested delivery date/time, or {@code null} if flexible
+     * @param listingId          UUID of the listing to book
+     * @param offeredPrice       the buyer's custom price offer, or {@code null} to use the listing price
+     * @param scheduledAt        requested delivery date/time, or {@code null} if flexible
+     * @param availabilitySlotId a specific seller-defined open slot to reserve (service listings), or {@code null}
+     * @param quantity           number of units to purchase (EVENT ticket purchases), or {@code null} for 1
      * @return the newly created booking as an enriched DTO
      */
     @Transactional // wraps the entire method in a database transaction
-    public BookingDto create(UUID listingId, BigDecimal offeredPrice, LocalDateTime scheduledAt) {
+    public BookingDto create(UUID listingId, BigDecimal offeredPrice, LocalDateTime scheduledAt,
+                              UUID availabilitySlotId, Integer quantity) {
         User buyer = getCurrentUser(); // resolve authenticated buyer from Spring Security context
         Listing listing = listingRepository.findById(listingId)
                 .orElseThrow(() -> new RuntimeException("Listing not found"));
@@ -103,6 +121,58 @@ public class BookingService {
             throw new RuntimeException("Cannot book your own listing");
         }
 
+        int qty = quantity != null && quantity > 0 ? quantity : 1;
+
+        // ── Slot-based booking (e.g. a hair salon appointment) ──────────────────────────
+        // Reserving a specific seller-defined time slot doesn't fit the negotiate/counter/
+        // accept dance — the buyer is claiming an exact appointment time, so the booking is
+        // confirmed immediately rather than sitting in INQUIRED waiting on the seller.
+        if (availabilitySlotId != null) {
+            Availability slot = availabilityRepository.findById(availabilitySlotId)
+                    .orElseThrow(() -> new RuntimeException("Slot not found"));
+            if (!slot.getListingId().equals(listingId)) {
+                throw new RuntimeException("Slot does not belong to this listing");
+            }
+            if (slot.isBooked()) {
+                throw new RuntimeException("This slot has already been booked");
+            }
+            slot.setBooked(true);
+            availabilityRepository.save(slot);
+
+            Booking booking = Booking.builder()
+                    .buyerId(buyer.getId())
+                    .sellerId(listing.getSellerId())
+                    .listingId(listingId)
+                    .offeredPrice(listing.getPrice())
+                    .agreedPrice(listing.getPrice())
+                    .currency(listing.getCurrency())
+                    .scheduledAt(slot.getStartTime())
+                    .availabilitySlotId(slot.getId())
+                    .quantity(1)
+                    .status(BookingStatus.BOOKED)
+                    .build();
+            return enrichDto(bookingRepository.save(booking));
+        }
+
+        // ── Event ticket purchase ────────────────────────────────────────────────────────
+        // Buying a ticket is an instant purchase, not a negotiation — confirm immediately
+        // with the total price for the requested quantity.
+        if (listing.getListingType() == ListingType.EVENT) {
+            Booking booking = Booking.builder()
+                    .buyerId(buyer.getId())
+                    .sellerId(listing.getSellerId())
+                    .listingId(listingId)
+                    .offeredPrice(listing.getPrice())
+                    .agreedPrice(listing.getPrice().multiply(BigDecimal.valueOf(qty)))
+                    .currency(listing.getCurrency())
+                    .scheduledAt(scheduledAt)
+                    .quantity(qty)
+                    .status(BookingStatus.BOOKED)
+                    .build();
+            return enrichDto(bookingRepository.save(booking));
+        }
+
+        // ── Standard negotiated booking (unchanged) ─────────────────────────────────────
         // Construct the booking entity. @Builder.Default on the entity sets the initial status
         // to POSTED, but we explicitly override it to INQUIRED here to indicate a real request.
         Booking booking = Booking.builder()
@@ -113,10 +183,52 @@ public class BookingService {
                 .offeredPrice(offeredPrice != null ? offeredPrice : listing.getPrice())
                 .currency(listing.getCurrency()) // lock in the currency from the listing
                 .scheduledAt(scheduledAt)
+                .quantity(qty)
                 .status(BookingStatus.INQUIRED) // explicitly start at INQUIRED (formal request sent)
                 .build();
 
         return enrichDto(bookingRepository.save(booking));
+    }
+
+    /**
+     * Creates a Stripe Checkout Session so the buyer can actually pay for a confirmed
+     * booking. Only valid once the booking is {@code BOOKED} (a price has been agreed) and
+     * no payment has been started yet. The charge lands on HustleUp's own Stripe balance —
+     * the seller is only paid out later, once they mark the booking {@code COMPLETED}
+     * (see {@link #complete}).
+     *
+     * @param bookingId the booking to pay for
+     * @return the Stripe-hosted checkout URL to redirect the buyer to
+     */
+    @Transactional
+    public String createPaymentCheckoutSession(UUID bookingId) throws StripeException {
+        User buyer = getCurrentUser();
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (!booking.getBuyerId().equals(buyer.getId())) {
+            throw new RuntimeException("Only the buyer can pay for this booking");
+        }
+        if (booking.getStatus() != BookingStatus.BOOKED) {
+            throw new RuntimeException("This booking isn't confirmed yet — nothing to pay for");
+        }
+        // Allow retrying if a previous checkout session was started but never completed
+        // (e.g. the buyer closed the tab) — only a genuinely finished payment blocks a new one.
+        if (List.of("PAID", "TRANSFERRED", "REFUNDED").contains(booking.getPaymentStatus())) {
+            throw new RuntimeException("This booking has already been paid for");
+        }
+
+        String listingTitle = listingRepository.findById(booking.getListingId())
+                .map(Listing::getTitle).orElse("HustleUp booking");
+
+        StripeConnectService.CheckoutResult result =
+                stripeConnectService.createPaymentCheckoutSession(booking, listingTitle);
+
+        booking.setPaymentIntentId(result.paymentIntentId());
+        booking.setPaymentStatus("AWAITING_PAYMENT");
+        bookingRepository.save(booking);
+
+        return result.checkoutUrl();
     }
 
     /**
@@ -220,6 +332,30 @@ public class BookingService {
         booking.setStatus(BookingStatus.CANCELLED);
         booking.setCancelReason(reason); // record why it was cancelled (useful for dispute resolution)
         booking.setUpdatedAt(LocalDateTime.now());
+
+        // If this booking held a specific seller-defined slot, free it back up so another
+        // buyer can book that time — otherwise a cancelled appointment would stay "taken" forever.
+        if (booking.getAvailabilitySlotId() != null) {
+            availabilityRepository.findById(booking.getAvailabilitySlotId()).ifPresent(slot -> {
+                slot.setBooked(false);
+                availabilityRepository.save(slot);
+            });
+        }
+
+        // If the buyer had actually paid (not just started a checkout session), refund them
+        // in full — the seller was never transferred anything for a cancelled booking, since
+        // that only happens on completion, so a straight refund is always correct here.
+        if ("PAID".equals(booking.getPaymentStatus()) && booking.getPaymentIntentId() != null) {
+            try {
+                stripeConnectService.refundPayment(booking.getPaymentIntentId());
+                booking.setPaymentStatus("REFUNDED");
+            } catch (StripeException e) {
+                // Don't block the cancellation on a refund failure — surface it via the
+                // payment status staying PAID so it's visible as needing manual attention.
+                System.err.println("Refund failed for booking " + booking.getId() + ": " + e.getMessage());
+            }
+        }
+
         return enrichDto(bookingRepository.save(booking));
     }
 
@@ -247,6 +383,29 @@ public class BookingService {
 
         booking.setStatus(BookingStatus.COMPLETED);
         booking.setUpdatedAt(LocalDateTime.now());
+
+        // Pay the seller out now that the work is confirmed done — but only if the buyer
+        // actually paid (older bookings, or ones created before this system existed, simply
+        // have no payment to transfer) and the seller has finished Stripe Connect onboarding.
+        // Both checks fail closed: if either is missing, completion still succeeds, it just
+        // doesn't trigger a transfer — a seller who hasn't connected payouts yet shouldn't be
+        // blocked from marking work done, they just won't be paid out until they do.
+        if ("PAID".equals(booking.getPaymentStatus())) {
+            payoutAccountRepository.findBySellerId(booking.getSellerId())
+                    .filter(SellerPayoutAccount::isPayoutsEnabled)
+                    .ifPresent(payoutAccount -> {
+                        try {
+                            String transferId = stripeConnectService.transferToSeller(booking, payoutAccount.getStripeAccountId());
+                            booking.setTransferId(transferId);
+                            booking.setPaymentStatus("TRANSFERRED");
+                        } catch (StripeException e) {
+                            // Leave paymentStatus as PAID so this is visible as still owed —
+                            // don't block marking the booking complete on a payout hiccup.
+                            System.err.println("Payout failed for booking " + booking.getId() + ": " + e.getMessage());
+                        }
+                    });
+        }
+
         return enrichDto(bookingRepository.save(booking));
     }
 

@@ -51,6 +51,8 @@ import java.util.UUID;
     "com.hustleup.marketplace.listing.repository",
     "com.hustleup.marketplace.booking.repository",
     "com.hustleup.marketplace.review.repository",
+    "com.hustleup.marketplace.availability.repository",
+    "com.hustleup.marketplace.payments.repository",
     "com.hustleup.common.repository"
 })
 // Tell Hibernate which packages contain @Entity classes so it can map them to
@@ -59,6 +61,8 @@ import java.util.UUID;
     "com.hustleup.marketplace.listing.model",
     "com.hustleup.marketplace.booking.model",
     "com.hustleup.marketplace.review.model",
+    "com.hustleup.marketplace.availability.model",
+    "com.hustleup.marketplace.payments.model",
     "com.hustleup.common.model"
 })
 // Explicit component scan so that @Service, @RestController, @Repository beans

@@ -2,10 +2,12 @@ package com.hustleup.social.controller;
 
 import com.hustleup.common.model.Role;
 import com.hustleup.common.model.User;
+import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.common.storage.FileStorageService;
 import com.hustleup.social.model.DatingProfile;
 import com.hustleup.social.repository.DatingProfileRepository;
+import com.hustleup.social.repository.DatingSwipeRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,12 @@ class DatingControllerTest {
     @Mock
     private FileStorageService fileStorageService;
 
+    @Mock
+    private DatingSwipeRepository datingSwipeRepository;
+
+    @Mock
+    private NotificationRepository notificationRepository;
+
     @InjectMocks
     private DatingController datingController;
 
@@ -63,6 +71,7 @@ class DatingControllerTest {
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
         when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser));
         when(datingProfileRepository.findAll()).thenReturn(List.of(currentProfile, femaleProfile, maleProfile));
+        when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
 
         ResponseEntity<List<DatingProfile>> response = datingController.getProfiles();
 
@@ -89,6 +98,7 @@ class DatingControllerTest {
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
         when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser));
         when(datingProfileRepository.findAll()).thenReturn(List.of(currentProfile, femaleProfile, maleProfile));
+        when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
 
         ResponseEntity<List<DatingProfile>> response = datingController.getProfiles();
 
@@ -116,6 +126,7 @@ class DatingControllerTest {
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
         when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser, noProfileUser));
         when(datingProfileRepository.findAll()).thenReturn(List.of(currentProfile, femaleProfile, maleProfile));
+        when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
 
         ResponseEntity<List<DatingProfile>> response = datingController.getProfiles();
 

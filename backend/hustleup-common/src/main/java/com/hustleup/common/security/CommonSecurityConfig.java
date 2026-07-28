@@ -204,9 +204,16 @@ public class CommonSecurityConfig {
                 // Auth endpoints (login, register, token refresh) must be publicly accessible
                 .requestMatchers("/api/v1/auth/**", "/api/v1/public/**").permitAll()
                 // Public read-only access to marketplace content — guests can browse without logging in
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/listings/**", "/api/v1/reviews/**", "/api/v1/users/**", "/api/v1/users").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/listings/**", "/api/v1/reviews/**", "/api/v1/users/**", "/api/v1/users", "/api/v1/availability/**").permitAll()
                 // Social features (feed, stories, dating) can be read by guests
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/feed/**", "/api/v1/stories/**", "/api/v1/dating/**").permitAll()
+                // Stripe webhooks: the caller is Stripe's servers, not a logged-in user, so
+                // there is no JWT to check — authenticity is verified via the Stripe-Signature
+                // header inside each service instead (see StripeService/StripeConnectService).
+                // NOTE: /api/payments/webhook (subscription checkout events) was missing from
+                // this list entirely before, meaning real Stripe webhook calls to it would have
+                // been rejected with 401 — fixed here alongside the new Connect payout webhook.
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/payments/webhook", "/api/v1/payouts/webhook").permitAll()
                 // SECURITY: notifications, DMs, and messages require authentication — never expose user data publicly
                 // All other requests (POST, PUT, DELETE, authenticated GETs) require a valid JWT
                 .anyRequest().authenticated()

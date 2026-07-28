@@ -5,10 +5,10 @@ import { formatPrice } from '../utils/constants';
 
 export default function CheckoutConfirmation() {
   const { state } = useLocation();
-  const { customer, items = [], total = 0, currency = 'GBP' } = state || {};
+  const { customer, items = [], total = 0, currency = 'PLN' } = state || {};
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center pt-20 pb-20 px-6">
+    <div className="min-h-screen text-white flex items-center justify-center pt-20 pb-20 px-6">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}

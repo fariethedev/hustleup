@@ -1,16 +1,19 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { LISTING_TYPES, formatPrice, convertToGBP } from '../utils/constants';
+import { motion } from 'framer-motion';
+import { LISTING_TYPES, formatPrice, convertToPLN } from '../utils/constants';
 import {
   MapPin, BadgeCheck, MessageSquare, ShieldCheck, ShoppingCart,
   ArrowLeft, Star, Heart, Share2, Zap, Package, Check,
-  HandCoins, Plus
+  HandCoins, Plus, CalendarClock, Ticket, Minus, Image as ImageIcon, Send
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { listingsApi, usersApi, bookingsApi } from '../api/client';
+import { listingsApi, usersApi, bookingsApi, availabilityApi, feedApi } from '../api/client';
 import { addToCart, selectCartItems } from '../store/cartSlice';
 import { selectUser } from '../store/authSlice';
+import { useToast } from '../context/ToastContext';
+
+const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
 
 export default function ListingDetail() {
   const { id } = useParams();
@@ -18,6 +21,7 @@ export default function ListingDetail() {
   const dispatch = useDispatch();
   const currentUser = useSelector(selectUser);
   const cartItems = useSelector(selectCartItems);
+  const { showToast: globalToast } = useToast();
 
   const [listing, setListing] = useState(null);
   const [seller, setSeller] = useState(null);
@@ -26,11 +30,24 @@ export default function ListingDetail() {
   const [activeMedia, setActiveMedia] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
-  const [toast, setToast] = useState(null);
   const [saved, setSaved] = useState(() => {
     try { return (JSON.parse(localStorage.getItem('hustleup_saved')) || []).includes(id); }
     catch { return false; }
   });
+
+  // HAIR_BEAUTY/SKILL: seller-defined appointment slots
+  const [slots, setSlots] = useState([]);
+  const [selectedSlotId, setSelectedSlotId] = useState(null);
+  const [slotBooking, setSlotBooking] = useState(false);
+
+  // EVENT: ticket purchase + event update posts
+  const [ticketQty, setTicketQty] = useState(1);
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [eventUpdates, setEventUpdates] = useState([]);
+  const [updateText, setUpdateText] = useState('');
+  const [updateImage, setUpdateImage] = useState(null);
+  const [updateImagePreview, setUpdateImagePreview] = useState('');
+  const [postingUpdate, setPostingUpdate] = useState(false);
 
   const inCart = cartItems.some((i) => i.listingId === id);
 
@@ -44,15 +61,20 @@ export default function ListingDetail() {
         if (data.sellerId) {
           usersApi.getProfile(data.sellerId).then((u) => setSeller(u.data)).catch(() => {});
         }
+        if (SERVICE_TYPES.includes(data.listingType)) {
+          availabilityApi.listByListing(id).then((r2) => setSlots(r2.data)).catch(() => setSlots([]));
+        } else if (data.listingType === 'EVENT') {
+          feedApi.getByListing(id).then((r2) => setEventUpdates(r2.data)).catch(() => setEventUpdates([]));
+        }
       })
       .catch(() => setError('Listing not found or unavailable.'))
       .finally(() => setLoading(false));
   }, [id]);
 
-  const showToast = (msg, type = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  // Delegates to the shared app-wide toast (bottom-of-screen, always above the navbar)
+  // instead of a local page toast — the old local one rendered at the top of the page
+  // with a lower z-index than the navbar, so it was invisible behind the nav bar.
+  const showToast = (msg, type = 'success') => globalToast(msg, type);
 
   const toggleSave = () => {
     let ids;
@@ -85,8 +107,8 @@ export default function ListingDetail() {
     dispatch(addToCart({
       listingId: listing.id,
       title: listing.title,
-      price: convertToGBP(listing.price, listing.currency || 'GBP'),
-      currency: 'GBP',
+      price: convertToPLN(listing.price, listing.currency || 'PLN'),
+      currency: 'PLN',
       image: listing.mediaUrls?.[0] || null,
       sellerId: listing.sellerId,
       sellerName: listing.sellerName || seller?.fullName || 'Seller',
@@ -120,13 +142,70 @@ export default function ListingDetail() {
     }
   };
 
+  const handleBookSlot = async () => {
+    if (!selectedSlotId) return;
+    setSlotBooking(true);
+    try {
+      await bookingsApi.create({ listingId: listing.id, availabilitySlotId: selectedSlotId });
+      setSlots((prev) => prev.map((s) => (s.id === selectedSlotId ? { ...s, booked: true } : s)));
+      setSelectedSlotId(null);
+      showToast('Slot booked! Check your dashboard for details.');
+    } catch (e) {
+      showToast(e.response?.data?.error || 'Could not book that slot', 'error');
+    } finally {
+      setSlotBooking(false);
+    }
+  };
+
+  const handleBuyTickets = async () => {
+    if (!listing) return;
+    setTicketLoading(true);
+    try {
+      await bookingsApi.create({ listingId: listing.id, quantity: ticketQty });
+      showToast(`${ticketQty} ticket${ticketQty > 1 ? 's' : ''} booked! Check your dashboard.`);
+      setTicketQty(1);
+    } catch (e) {
+      showToast(e.response?.data?.error || 'Could not complete ticket purchase', 'error');
+    } finally {
+      setTicketLoading(false);
+    }
+  };
+
+  const handleUpdateImage = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUpdateImage(file);
+    setUpdateImagePreview(URL.createObjectURL(file));
+  };
+
+  const handlePostUpdate = async () => {
+    if (!updateText.trim() && !updateImage) return;
+    setPostingUpdate(true);
+    try {
+      const fd = new FormData();
+      fd.append('content', updateText.trim());
+      fd.append('linkedListingId', listing.id);
+      if (updateImage) fd.append('media', updateImage);
+      const res = await feedApi.createPost(fd);
+      setEventUpdates((prev) => [res.data, ...prev]);
+      setUpdateText('');
+      setUpdateImage(null);
+      setUpdateImagePreview('');
+      showToast('Update posted!');
+    } catch (e) {
+      showToast('Could not post update', 'error');
+    } finally {
+      setPostingUpdate(false);
+    }
+  };
+
   const handleBuyNow = () => {
     if (!listing) return;
     dispatch(addToCart({
       listingId: listing.id,
       title: listing.title,
-      price: convertToGBP(listing.price, listing.currency || 'GBP'),
-      currency: 'GBP',
+      price: convertToPLN(listing.price, listing.currency || 'PLN'),
+      currency: 'PLN',
       image: listing.mediaUrls?.[0] || null,
       sellerId: listing.sellerId,
       sellerName: listing.sellerName || seller?.fullName || 'Seller',
@@ -136,7 +215,7 @@ export default function ListingDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin mx-auto" />
           <p className="text-gray-500 font-bold text-sm uppercase tracking-widest">Loading listing…</p>
@@ -147,7 +226,7 @@ export default function ListingDetail() {
 
   if (error || !listing) {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center px-4">
+      <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <Package className="w-16 h-16 mx-auto text-gray-700" />
           <h2 className="text-2xl font-black text-white uppercase tracking-tight">{error || 'Not found'}</h2>
@@ -161,26 +240,12 @@ export default function ListingDetail() {
 
   const typeInfo = LISTING_TYPES.find((t) => t.value === listing.listingType) || LISTING_TYPES[0];
   const isSeller = currentUser?.id === listing.sellerId;
+  const isEventType = listing.listingType === 'EVENT';
+  const openSlots = slots.filter((s) => !s.booked);
+  const showSlotPicker = SERVICE_TYPES.includes(listing.listingType) && openSlots.length > 0;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pt-3 pb-10">
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            key="toast"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl ${
-              toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-[#CDFF00] text-black'
-            }`}
-          >
-            {toast.msg}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+    <div className="min-h-screen text-white pt-3 pb-10">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         {/* Header Row */}
         <div className="flex items-center justify-between mb-4">
@@ -300,7 +365,74 @@ export default function ListingDetail() {
                   )}
                 </div>
 
-                {!isSeller && (
+                {!isSeller && showSlotPicker && (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {openSlots.map((s) => {
+                        const active = selectedSlotId === s.id;
+                        const start = new Date(s.startTime);
+                        const end = new Date(s.endTime);
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => setSelectedSlotId(s.id)}
+                            className={`px-3 py-2 rounded-xl border text-left transition-all ${
+                              active ? 'bg-[#CDFF00] border-[#CDFF00] text-black' : 'bg-white/5 border-white/10 text-white hover:border-white/25'
+                            }`}
+                          >
+                            <span className="block text-[10px] font-black uppercase tracking-widest">{start.toLocaleDateString()}</span>
+                            <span className="block text-xs font-bold">
+                              {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–{end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={handleBookSlot}
+                      disabled={!selectedSlotId || slotBooking}
+                      className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
+                    >
+                      {slotBooking ? (
+                        <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      ) : (
+                        <CalendarClock className="w-4 h-4" />
+                      )}
+                      Book this slot
+                    </button>
+                  </div>
+                )}
+
+                {!isSeller && isEventType && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Tickets</span>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => setTicketQty((q) => Math.max(1, q - 1))} className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors">
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-sm font-black text-white w-5 text-center">{ticketQty}</span>
+                        <button onClick={() => setTicketQty((q) => q + 1)} className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors">
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleBuyTickets}
+                      disabled={ticketLoading}
+                      className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {ticketLoading ? (
+                        <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      ) : (
+                        <Ticket className="w-4 h-4" />
+                      )}
+                      Buy {ticketQty > 1 ? `${ticketQty} Tickets` : 'Ticket'} — {formatPrice(listing.price * ticketQty, listing.currency)}
+                    </button>
+                  </div>
+                )}
+
+                {!isSeller && !showSlotPicker && !isEventType && (
                   <div className="space-y-2">
                     {/* Add to Cart */}
                     <button
@@ -359,6 +491,60 @@ export default function ListingDetail() {
                 {listing.description}
               </p>
             </div>
+
+            {/* Event Updates */}
+            {isEventType && (
+              <div>
+                <h4 className="text-[9px] font-black uppercase tracking-widest text-[#CDFF00] mb-2.5 opacity-40">Event Updates</h4>
+
+                {isSeller && (
+                  <div className="mb-3 p-3 rounded-2xl border border-white/10 bg-white/[0.03]">
+                    <textarea
+                      value={updateText}
+                      onChange={(e) => setUpdateText(e.target.value)}
+                      placeholder="Post an update about your event…"
+                      rows={2}
+                      className="w-full bg-transparent text-sm text-white placeholder-gray-500 outline-none resize-none"
+                    />
+                    {updateImagePreview && (
+                      <img src={updateImagePreview} alt="" className="mt-2 max-h-32 rounded-xl object-cover" />
+                    )}
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
+                      <label className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white cursor-pointer transition-colors">
+                        <ImageIcon className="w-4 h-4" />
+                        <input type="file" accept="image/*" hidden onChange={handleUpdateImage} />
+                      </label>
+                      <button
+                        onClick={handlePostUpdate}
+                        disabled={postingUpdate || (!updateText.trim() && !updateImage)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#d9ff33] transition-all disabled:opacity-50"
+                      >
+                        <Send className="w-3 h-3" /> Post
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {eventUpdates.length === 0 ? (
+                  <p className="text-xs text-gray-500">No updates posted yet.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {eventUpdates.map((post) => (
+                      <div key={post.id} className="p-3 rounded-2xl border border-white/10 bg-white/[0.02]">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-xs font-bold text-white">{post.authorName}</span>
+                          <span className="text-[10px] text-gray-600">{new Date(post.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        {post.content && <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{post.content}</p>}
+                        {post.media?.[0]?.url && (
+                          <img src={post.media[0].url} alt="" className="mt-2 max-h-56 w-full rounded-xl object-cover" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Seller Card */}
             <div className="pt-3 border-t border-white/5">

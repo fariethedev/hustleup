@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -64,17 +65,20 @@ public class ListingController {
                 price, currency, negotiable, city, agentFee, meta, images));
     }
 
+    // JSON body (not @RequestParam/form fields) — matches how the dashboard's price/negotiable
+    // edit and every other partial-update endpoint in this app (bookings, availability, etc.)
+    // actually send data. Only include the keys you want to change; "negotiable" always applies
+    // since it's a primitive on the entity (mirrors ListingService.update's existing contract).
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ListingDto> update(
-            @PathVariable UUID id,
-            @RequestParam(required = false) String title,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) BigDecimal price,
-            @RequestParam(defaultValue = "false") boolean negotiable,
-            @RequestParam(required = false) String city,
-            @RequestParam(required = false) String meta,
-            @RequestParam(required = false) String status) {
+    public ResponseEntity<ListingDto> update(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
+        String title = (String) body.get("title");
+        String description = (String) body.get("description");
+        BigDecimal price = body.get("price") != null ? new BigDecimal(body.get("price").toString()) : null;
+        boolean negotiable = Boolean.TRUE.equals(body.get("negotiable"));
+        String city = (String) body.get("city");
+        String meta = (String) body.get("meta");
+        String status = (String) body.get("status");
         return ResponseEntity.ok(listingService.update(id, title, description, price, negotiable, city, meta, status));
     }
 

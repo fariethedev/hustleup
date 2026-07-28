@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { getShopById} from '../utils/shopData';
-import { formatPrice, convertToGBP } from '../utils/constants';
+import { formatPrice, convertToPLN } from '../utils/constants';
 import { addToCart, selectCartItems } from '../store/cartSlice';
 import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, Heart, Check } from 'lucide-react';
 import { useState } from 'react';
@@ -21,8 +21,8 @@ export default function ShopDetail() {
     dispatch(addToCart({
       listingId: `shop:${shop.id}:${product.id}`,
       title: product.name,
-      price: convertToGBP(product.price, product.currency),
-      currency: 'GBP',
+      price: convertToPLN(product.price, product.currency),
+      currency: 'PLN',
       emoji: product.image,
       sellerId: `shop:${shop.id}`,
       sellerName: shop.name,
@@ -52,7 +52,7 @@ export default function ShopDetail() {
     : shop.products.filter(p => p.category === activeCategory);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
+    <div className="min-h-screen text-white">
       {/* Immersive Shop Banner & Header */}
       <section className="relative h-[260px] sm:h-[320px] overflow-hidden">
         <motion.img
@@ -112,7 +112,7 @@ export default function ShopDetail() {
               <span className="flex items-center gap-2">
                 <div className="w-fit px-2 py-1 bg-[#CDFF00] text-black rounded-lg flex items-center gap-1">
                   <Star className="w-3.5 h-3.5 fill-black" />
-                  {shop.rating}
+                  {shop.rating.toFixed(1)}
                 </div>
                 ({shop.reviewCount} <span className="opacity-50">Reviews</span>)
               </span>

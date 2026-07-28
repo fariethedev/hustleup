@@ -105,12 +105,44 @@ public class Booking {
     // ISO 4217 currency code; inherited from the listing's currency at booking creation time
     // so the price context is preserved even if the listing is later edited.
     @Builder.Default
-    private String currency = "GBP"; // currency of all price fields
+    private String currency = "PLN"; // currency of all price fields, defaults to Polish Złoty
 
     // When the buyer wants the service to be delivered.
     // Optional — not all services require a specific time slot.
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt; // requested delivery date/time, or null if flexible
+
+    // Links this booking to a specific seller-defined slot (see
+    // com.hustleup.marketplace.availability.model.Availability) when the listing is a
+    // service type (HAIR_BEAUTY/SKILL) booked via the slot picker rather than negotiated
+    // freely. Null for standard negotiated bookings and for event ticket purchases.
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "availability_slot_id", columnDefinition = "VARCHAR(36)")
+    private UUID availabilitySlotId;
+
+    // Number of units purchased — used for EVENT ticket purchases (buy N tickets at once).
+    // Defaults to 1 for every other booking type where "quantity" isn't a meaningful concept.
+    @Builder.Default
+    private Integer quantity = 1;
+
+    // --- Stripe Connect payment tracking ---
+    // Populated once the buyer starts paying via the Stripe Checkout Session created for
+    // this booking (see StripeConnectService#createPaymentCheckoutSession). Null until then.
+    @Column(name = "payment_intent_id")
+    private String paymentIntentId;
+
+    // Populated once the seller's share has actually been transferred to their connected
+    // Stripe account (see StripeConnectService#transferToSeller, triggered on COMPLETED).
+    @Column(name = "transfer_id")
+    private String transferId;
+
+    // PENDING (no charge yet) → PAID (buyer's payment captured, funds held on the platform's
+    // Stripe balance) → TRANSFERRED (seller has been paid out) / REFUNDED (buyer refunded on
+    // cancellation) / FAILED. Plain String rather than an enum so the payment side can evolve
+    // independently of the booking status enum above.
+    @Column(name = "payment_status")
+    @Builder.Default
+    private String paymentStatus = "PENDING";
 
     // The current state in the booking lifecycle state machine.
     // @Enumerated(EnumType.STRING) stores it as "INQUIRED" etc. rather than a number.

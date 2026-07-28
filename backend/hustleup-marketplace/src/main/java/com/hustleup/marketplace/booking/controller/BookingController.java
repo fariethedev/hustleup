@@ -19,6 +19,7 @@ package com.hustleup.marketplace.booking.controller;
 
 import com.hustleup.marketplace.booking.dto.BookingDto;
 import com.hustleup.marketplace.booking.service.BookingService;
+import com.stripe.exception.StripeException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -74,7 +75,14 @@ public class BookingController {
         // scheduledAt is optional — parse ISO-8601 datetime string if present
         LocalDateTime scheduledAt = body.containsKey("scheduledAt") ?
                 LocalDateTime.parse((String) body.get("scheduledAt")) : null;
-        return ResponseEntity.ok(bookingService.create(listingId, offeredPrice, scheduledAt));
+        // availabilitySlotId (optional) — booking a specific seller-defined time slot for a
+        // service listing (e.g. a hair salon appointment) instead of a freely negotiated time.
+        UUID availabilitySlotId = body.containsKey("availabilitySlotId") && body.get("availabilitySlotId") != null ?
+                UUID.fromString((String) body.get("availabilitySlotId")) : null;
+        // quantity (optional) — number of units for an EVENT ticket purchase; defaults to 1.
+        Integer quantity = body.containsKey("quantity") ?
+                Integer.valueOf(body.get("quantity").toString()) : null;
+        return ResponseEntity.ok(bookingService.create(listingId, offeredPrice, scheduledAt, availabilitySlotId, quantity));
     }
 
     /**
@@ -167,5 +175,28 @@ public class BookingController {
     @GetMapping("/my") // handles GET /api/v1/bookings/my
     public ResponseEntity<List<BookingDto>> myBookings() {
         return ResponseEntity.ok(bookingService.getMyBookings());
+    }
+
+    /**
+     * Creates a Stripe Checkout Session so the buyer can pay for a confirmed booking.
+     *
+     * <p><b>HTTP:</b> {@code POST /api/v1/bookings/{id}/checkout-session}
+     * <br><b>Auth:</b> Required — must be the buyer on this booking.
+     * <p>The booking must already be {@code BOOKED}. Returns a Stripe-hosted payment page
+     * URL; the frontend should redirect the buyer there. The charge lands on HustleUp's own
+     * Stripe balance — the seller is only paid out once the booking is marked
+     * {@code COMPLETED} (see {@code /complete}).
+     *
+     * @param id the UUID of the booking to pay for
+     * @return 200 OK with {@code {"url": "https://checkout.stripe.com/..."}}, or 502 if Stripe is unreachable
+     */
+    @PostMapping("/{id}/checkout-session")
+    public ResponseEntity<?> checkoutSession(@PathVariable UUID id) {
+        try {
+            String url = bookingService.createPaymentCheckoutSession(id);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (StripeException e) {
+            return ResponseEntity.status(502).body(Map.of("error", "Could not reach Stripe: " + e.getMessage()));
+        }
     }
 }

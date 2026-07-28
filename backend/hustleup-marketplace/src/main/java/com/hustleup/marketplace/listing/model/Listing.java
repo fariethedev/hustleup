@@ -102,7 +102,7 @@ public class Listing {
     // @Builder.Default provides a default value when using the Lombok builder pattern.
     // Without it, builder().build() would leave currency as null.
     @Builder.Default
-    private String currency = "GBP"; // ISO 4217 currency code, defaults to British Pound
+    private String currency = "PLN"; // ISO 4217 currency code, defaults to Polish Złoty (primary market)
 
     // Maps to a column named "is_negotiable" rather than "negotiable" to follow the
     // SQL convention of using "is_" prefix for boolean columns.

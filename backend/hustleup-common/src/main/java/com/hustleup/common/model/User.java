@@ -158,6 +158,16 @@ public class User {
     private String shopBannerUrl;
 
     /**
+     * The category of shop this seller runs (e.g. "HAIR_BEAUTY", "EVENT", "FOOD") — mirrors
+     * the {@code ListingType} values used by the marketplace service. Chosen during seller
+     * onboarding (or later from the dashboard) and drives which category-specific dashboard
+     * features are shown (e.g. availability management for HAIR_BEAUTY/SKILL shops, ticketing
+     * and event updates for EVENT shops). Null for buyers and for sellers who haven't set up
+     * their shop yet.
+     */
+    private String shopCategory;
+
+    /**
      * Short biography or description the user writes about themselves.
      *
      * <p>Displayed on their public profile page. No explicit column annotation — the

@@ -62,14 +62,14 @@ export default function News() {
   );
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pb-24">
+    <div className="min-h-screen text-white pb-24">
       <HeroBrief 
         pillText="COMMUNITY SYNDICATION"
         title="HUSTLE PULSE"
         subtitle={"Global perspectives, local impact.\nYour direct feed into the trends, laws, and events shaping the future of work."}
       />
 
-      <div className="max-w-7xl mx-auto px-4 -mt-16 relative z-20">
+      <div className="max-w-7xl mx-auto px-4 relative z-20">
         {/* Search & Stats Bar */}
         <div className="glass bg-black/60 border border-white/10 rounded-[3rem] p-4 flex flex-col md:flex-row items-center gap-4 shadow-2xl backdrop-blur-3xl mb-12">
           <div className="relative flex-1 w-full">

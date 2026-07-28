@@ -45,7 +45,7 @@ export default function CartDrawer() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => dispatch(closeCart())}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[400] bg-black/60 backdrop-blur-sm"
           />
         )}
       </AnimatePresence>
@@ -66,7 +66,7 @@ export default function CartDrawer() {
               y: window.innerWidth < 1024 ? '100%' : 0,
               transition: { duration: 0.3 }
             }}
-            className="fixed right-0 top-0 bottom-0 z-50 w-full lg:max-w-[420px] bg-[#050505] border-l border-white/10 flex flex-col shadow-[0_0_100px_rgba(0,0,0,1)]
+            className="fixed right-0 top-0 bottom-0 z-[410] w-full lg:max-w-[420px] bg-[#050505] border-l border-white/10 flex flex-col shadow-[0_0_100px_rgba(0,0,0,1)]
                        max-lg:top-auto max-lg:h-[85vh] max-lg:rounded-t-[3.5rem] max-lg:border-l-0 max-lg:border-t"
           >
             {/* Header */}
@@ -178,7 +178,7 @@ export default function CartDrawer() {
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 text-sm font-bold uppercase tracking-widest">Total</span>
                   <span className="text-white text-2xl font-black">
-                    {formatPrice(total, items[0]?.currency || 'GBP')}
+                    {formatPrice(total, items[0]?.currency || 'PLN')}
                   </span>
                 </div>
                 <button

@@ -50,6 +50,12 @@ public class BookingDto {
 
     // --- Schedule ---
     private LocalDateTime scheduledAt; // when the service is to be delivered; null if not specified
+    private UUID availabilitySlotId;   // linked seller-defined slot, for slot-based service bookings
+    private Integer quantity;          // number of units (used by EVENT ticket purchases)
+
+    // Payment status only — the raw Stripe paymentIntentId/transferId are internal
+    // reconciliation details and are deliberately not exposed to the client.
+    private String paymentStatus;      // PENDING / AWAITING_PAYMENT / PAID / TRANSFERRED / REFUNDED / FAILED
 
     // --- Status ---
     private String status;        // BookingStatus.name() — e.g. "BOOKED", "CANCELLED"
@@ -82,6 +88,9 @@ public class BookingDto {
                 .agreedPrice(booking.getAgreedPrice())
                 .currency(booking.getCurrency())
                 .scheduledAt(booking.getScheduledAt())
+                .availabilitySlotId(booking.getAvailabilitySlotId())
+                .quantity(booking.getQuantity())
+                .paymentStatus(booking.getPaymentStatus())
                 // .name() converts the enum constant to its string representation
                 .status(booking.getStatus().name())
                 .cancelReason(booking.getCancelReason())

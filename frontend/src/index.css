@@ -23,7 +23,13 @@
 @layer base {
   body {
     font-family: var(--font-body);
-    background: #000000;
+    /* Brand dotted backdrop — page roots stay transparent so it shows through. */
+    background-color: #050505;
+    background-image:
+      radial-gradient(circle at 10px 10px, rgba(255, 0, 255, 0.13) 2px, transparent 0),
+      radial-gradient(circle at 30px 30px, rgba(0, 255, 255, 0.11) 2px, transparent 0);
+    background-size: 40px 40px;
+    background-attachment: fixed;
     color: #FFFFFF;
     min-height: 100vh;
     overflow-x: hidden;

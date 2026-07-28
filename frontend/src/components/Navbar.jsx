@@ -126,7 +126,7 @@ export default function Navbar() {
               </span>
             </Link>
 
-            {/* Desktop Nav — compact pills */}
+            {/* Desktop Nav — icon + word label so the active section is never a guess */}
             <div className="hidden md:flex flex-1 items-center justify-center">
               <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 p-1 rounded-xl backdrop-blur-xl">
                 {visibleItems.map(({ to, icon: Icon, label, accent, badge }) => {
@@ -135,16 +135,14 @@ export default function Navbar() {
                     <Link
                       key={to}
                       to={to}
-                      className={`group relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200
+                      className={`relative flex items-center gap-1.5 px-3 h-9 rounded-lg transition-all duration-200
                         ${active
-                          ? 'bg-[#FF00FF] text-white shadow-md shadow-[#FF00FF]/40 scale-110'
-                          : 'text-gray-500 hover:text-white hover:bg-white/5 hover:scale-105'
+                          ? 'bg-[#FF00FF] text-white shadow-md shadow-[#FF00FF]/40'
+                          : 'text-gray-400 hover:text-white hover:bg-white/5'
                         }`}
                     >
                       <Icon className={`w-4 h-4 flex-shrink-0 ${accent && !active ? 'text-[#00FFFF]' : ''}`} />
-                      <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-[#FF00FF] text-white text-[9px] font-black px-2 py-1 rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all uppercase tracking-widest whitespace-nowrap z-50 shadow-[0_0_10px_#FF00FF]">
-                        {label}
-                      </span>
+                      <span className="text-[11px] font-black uppercase tracking-wide whitespace-nowrap">{label}</span>
                       {badge > 0 && (
                         <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-0.5 text-[8px] font-black text-black bg-[#00FFFF] rounded-full ring-2 ring-black">
                           {badge > 9 ? '9+' : badge}
@@ -310,13 +308,13 @@ export default function Navbar() {
       {/* ── MOBILE BOTTOM TAB BAR ── */}
       <div className="md:hidden fixed bottom-4 left-4 right-4 z-[250]">
         <div className="flex items-stretch justify-around h-14 bg-[#0a0a0a]/95 border border-white/10 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.8)] overflow-hidden backdrop-blur-xl">
-          {visibleTabs.map(({ to, icon: Icon, badge }) => {
+          {visibleTabs.map(({ to, icon: Icon, label, badge }) => {
             const active = isActive(to);
             return (
               <Link
                 key={to}
                 to={to}
-                className={`flex-1 flex items-center justify-center transition-all duration-200 ${
+                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 ${
                   active ? 'bg-[#CDFF00]' : 'hover:bg-white/5'
                 }`}
               >
@@ -332,15 +330,18 @@ export default function Navbar() {
                     </span>
                   )}
                 </div>
+                <span className={`text-[8px] font-black uppercase tracking-wide ${active ? 'text-black' : 'text-gray-500'}`}>
+                  {label}
+                </span>
               </Link>
             );
           })}
-          
+
           {/* Profile */}
           {isAuthenticated ? (
             <Link
               to={`/profile/${user?.id}`}
-              className={`flex-1 flex items-center justify-center transition-all ${
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-all ${
                 location.pathname.startsWith('/profile') ? 'bg-[#CDFF00]' : 'hover:bg-white/5'
               }`}
             >
@@ -352,13 +353,17 @@ export default function Navbar() {
                   : <div className="w-full h-full bg-gray-800 flex items-center justify-center text-[#CDFF00] font-black text-[8px]">{user?.fullName?.[0] || 'U'}</div>
                 }
               </div>
+              <span className={`text-[8px] font-black uppercase tracking-wide ${location.pathname.startsWith('/profile') ? 'text-black' : 'text-gray-500'}`}>
+                Profile
+              </span>
             </Link>
           ) : (
             <Link
               to="/register"
-              className="flex-1 flex items-center justify-center bg-white/5 hover:bg-white/10"
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 bg-white/5 hover:bg-white/10"
             >
               <User className="w-5 h-5 text-gray-500" />
+              <span className="text-[8px] font-black uppercase tracking-wide text-gray-500">Join</span>
             </Link>
           )}
         </div>

@@ -25,10 +25,14 @@
  */
 package com.hustleup.social.controller;
 
+import com.hustleup.common.model.Notification;
 import com.hustleup.common.model.User;
+import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.social.model.DatingProfile;
+import com.hustleup.social.model.DatingSwipe;
 import com.hustleup.social.repository.DatingProfileRepository;
+import com.hustleup.social.repository.DatingSwipeRepository;
 import com.hustleup.common.storage.FileStorageService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -57,15 +61,24 @@ public class DatingController {
     /** Handles profile image uploads to the configured storage backend. */
     private final FileStorageService storageService;
 
+    /** Persists like/pass swipes so discovery never re-shows an already-swiped profile. */
+    private final DatingSwipeRepository swipeRepo;
+
+    /** Used to notify both users when a swipe results in a mutual like ("match"). */
+    private final NotificationRepository notificationRepo;
+
     /**
      * Constructor injection: makes dependencies explicit, fields final, and
      * simplifies unit-testing by allowing mock injection.
      */
     public DatingController(DatingProfileRepository datingRepo, UserRepository userRepo,
-                            FileStorageService storageService) {
+                            FileStorageService storageService, DatingSwipeRepository swipeRepo,
+                            NotificationRepository notificationRepo) {
         this.datingRepo = datingRepo;
         this.userRepo = userRepo;
         this.storageService = storageService;
+        this.swipeRepo = swipeRepo;
+        this.notificationRepo = notificationRepo;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -128,10 +141,19 @@ public class DatingController {
 
             final UUID finalCurrentId = currentId; // must be effectively-final for lambda
 
+            // Profiles already liked or passed on should never reappear in discovery —
+            // previously nothing was persisted here, so every reload reset the whole stack.
+            final Set<UUID> swiped = finalCurrentId == null
+                    ? Set.of()
+                    : swipeRepo.findBySwiperId(finalCurrentId).stream()
+                        .map(DatingSwipe::getTargetId)
+                        .collect(Collectors.toSet());
+
             // Return all users as discoverable profiles, enriched with dating profile if they have one.
             List<DatingProfile> result = userRepo.findAll().stream()
-                    // Filter out the current user from the discovery list.
+                    // Filter out the current user and anyone already swiped on.
                     .filter(u -> finalCurrentId == null || !u.getId().equals(finalCurrentId))
+                    .filter(u -> !swiped.contains(u.getId()))
                     .map(u -> {
                         DatingProfile dp = profileMap.get(u.getId());
                         if (dp != null) return dp; // user has a rich profile — use it
@@ -241,24 +263,62 @@ public class DatingController {
     }
 
     /**
-     * Records a "like" swipe on a profile.
+     * Upserts a swipe row for (current user → target), setting its action.
+     * Re-swiping the same person updates the existing row instead of creating a duplicate.
+     */
+    private DatingSwipe recordSwipe(UUID swiperId, UUID targetId, String action) {
+        DatingSwipe swipe = swipeRepo.findBySwiperIdAndTargetId(swiperId, targetId)
+                .orElse(DatingSwipe.builder().swiperId(swiperId).targetId(targetId).build());
+        swipe.setAction(action);
+        return swipeRepo.save(swipe);
+    }
+
+    /**
+     * Records a "like" swipe on a profile, and detects a mutual match.
      *
      * <p><b>POST /api/v1/dating/like/{profileId}</b>
      *
-     * <p>Auth: required.
-     *
-     * <p><b>Note:</b> This is currently a stub. Match detection (mutual likes) has
-     * not been implemented yet. The response always returns {@code {"liked": true}}.
+     * <p>Auth: required. The swipe is persisted so the profile never resurfaces in
+     * discovery again. If the target has already liked the current user back, this is
+     * a match — both users get an in-app notification.
      *
      * @param profileId the UUID of the profile being liked
-     * @return 200 OK with {@code {"liked": true, "profileId": "..."}}
+     * @return 200 OK with {@code {"liked": true, "matched": bool, "profileId": "..."}}
      */
     @PostMapping("/like/{profileId}")
     public ResponseEntity<?> likeProfile(@PathVariable UUID profileId) {
         User user = getCurrentUser();
         if (user == null) return ResponseEntity.status(401).build();
-        // Stub: persist the swipe-right action here in a future implementation.
-        return ResponseEntity.ok(Map.of("liked", true, "profileId", profileId.toString()));
+
+        recordSwipe(user.getId(), profileId, "LIKE");
+
+        // Mutual like check: has the target already liked the current user?
+        boolean matched = swipeRepo.existsBySwiperIdAndTargetIdAndAction(profileId, user.getId(), "LIKE");
+
+        if (matched) {
+            // Notification failure must never break the like action itself.
+            try {
+                User target = userRepo.findById(profileId).orElse(null);
+                if (target != null) {
+                    notificationRepo.save(Notification.builder()
+                            .userId(user.getId())
+                            .title("It's a match!")
+                            .message("You and " + target.getFullName() + " liked each other")
+                            .notificationType("DATING_MATCH")
+                            .referenceId(profileId)
+                            .build());
+                    notificationRepo.save(Notification.builder()
+                            .userId(profileId)
+                            .title("It's a match!")
+                            .message("You and " + user.getFullName() + " liked each other")
+                            .notificationType("DATING_MATCH")
+                            .referenceId(user.getId())
+                            .build());
+                }
+            } catch (Exception ignored) {}
+        }
+
+        return ResponseEntity.ok(Map.of("liked", true, "matched", matched, "profileId", profileId.toString()));
     }
 
     /**
@@ -266,10 +326,8 @@ public class DatingController {
      *
      * <p><b>POST /api/v1/dating/pass/{profileId}</b>
      *
-     * <p>Auth: required.
-     *
-     * <p><b>Note:</b> This is currently a stub. The passed profile would ideally be
-     * hidden from the discovery list for a configurable period.
+     * <p>Auth: required. The swipe is persisted so the profile never resurfaces in
+     * this user's discovery feed again.
      *
      * @param profileId the UUID of the profile being passed on
      * @return 200 OK with {@code {"passed": true, "profileId": "..."}}
@@ -278,7 +336,7 @@ public class DatingController {
     public ResponseEntity<?> passProfile(@PathVariable UUID profileId) {
         User user = getCurrentUser();
         if (user == null) return ResponseEntity.status(401).build();
-        // Stub: persist the swipe-left action here in a future implementation.
+        recordSwipe(user.getId(), profileId, "PASS");
         return ResponseEntity.ok(Map.of("passed", true, "profileId", profileId.toString()));
     }
 }

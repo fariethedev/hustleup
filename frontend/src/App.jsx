@@ -10,6 +10,7 @@ import CreateListing from './pages/CreateListing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Onboarding from './pages/Onboarding';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
 import Feed from './pages/Feed';
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/checkout/confirmation" element={<CheckoutConfirmation />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:bookingId" element={<Messages />} />
             <Route path="/dm" element={<DirectMessages />} />
@@ -72,7 +74,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      {location.pathname !== '/' && !location.pathname.startsWith('/dm') && <Footer />}
+      {!location.pathname.startsWith('/dm') && <Footer />}
     </ToastProvider>
     </>
   );

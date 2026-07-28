@@ -38,6 +38,11 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- Stripe Connect: seller payout accounts + payment collection for bookings -->
+        <dependency>
+            <groupId>com.stripe</groupId>
+            <artifactId>stripe-java</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

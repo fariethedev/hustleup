@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CreditCard, Landmark, MailCheck, ShieldCheck, Wallet } from 'lucide-react';
+import { ArrowLeft, CreditCard, Landmark, MailCheck, ShieldCheck, Wallet, CircleDollarSign } from 'lucide-react';
 import { formatPrice } from '../utils/constants';
 import { getProductByShopAndProductId } from '../utils/shopData';
 
 const STORAGE_KEY = 'hustleup_shop_checkout_draft';
 
 const PAYMENT_METHODS = [
-  { id: 'stripe', label: 'Stripe', description: 'Primary gateway hook for cards and wallets.', icon: CreditCard },
+  { id: 'paypal', label: 'PayPal', description: 'Pay with your PayPal account.', icon: CircleDollarSign },
   { id: 'blik', label: 'BLIK', description: 'Fast Polish mobile checkout flow.', icon: Landmark },
   { id: 'apple_pay', label: 'Apple Pay', description: 'One-tap wallet checkout.', icon: Wallet },
   { id: 'card', label: 'Card', description: 'Direct card capture flow.', icon: CreditCard },
@@ -18,7 +18,7 @@ export default function ShopCheckout() {
   const { id, productId } = useParams();
   const navigate = useNavigate();
   const entry = getProductByShopAndProductId(id, productId);
-  const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '', paymentMethod: 'stripe' });
+  const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '', paymentMethod: 'paypal' });
 
   const draft = useMemo(() => {
     try {
@@ -159,7 +159,7 @@ export default function ShopCheckout() {
                 <ShieldCheck className="w-4 h-4" /> Integration Ready
               </div>
               <p className="text-sm text-gray-400 leading-relaxed mt-3">
-                This screen is ready for Stripe, BLIK, Apple Pay, card payment capture, and confirmation email triggers. Right now it advances to an order confirmation step without charging.
+                This screen is ready for PayPal, BLIK, Apple Pay, card payment capture, and confirmation email triggers. Right now it advances to an order confirmation step without charging.
               </p>
             </div>
 

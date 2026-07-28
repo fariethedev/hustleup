@@ -320,6 +320,7 @@ public class UserController {
         if (profileData.getWebsite() != null)       user.setWebsite(profileData.getWebsite());
         if (profileData.getAvatarUrl() != null)     user.setAvatarUrl(profileData.getAvatarUrl());
         if (profileData.getShopBannerUrl() != null) user.setShopBannerUrl(profileData.getShopBannerUrl());
+        if (profileData.getShopCategory() != null)  user.setShopCategory(profileData.getShopCategory());
 
         // Manually stamp the last-updated time. In a more elaborate setup this would
         // be handled by @LastModifiedDate + Spring Data Auditing, but an explicit set

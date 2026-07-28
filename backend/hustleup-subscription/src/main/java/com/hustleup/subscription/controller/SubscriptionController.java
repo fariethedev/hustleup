@@ -29,11 +29,13 @@ import java.util.Map;
  * mobile app), all our controllers return JSON.</p>
  *
  * <h2>Security model</h2>
- * <p>Both endpoints require the caller to be authenticated and to hold the
- * {@code SELLER} role. This is enforced by {@code @PreAuthorize} method-level
- * security annotations, which run before the method body executes. If the check
- * fails, Spring Security throws an {@code AccessDeniedException} and returns
- * HTTP 403 Forbidden — the method body is never reached.</p>
+ * <p>Both endpoints only require the caller to be authenticated — Premium is a
+ * platform-wide plan available to every account (buyers included, e.g. for
+ * premium-gated features like Hustle Bond), not just sellers. This is enforced
+ * by {@code @PreAuthorize} method-level security annotations, which run before
+ * the method body executes. If the check fails, Spring Security throws an
+ * {@code AccessDeniedException} and returns HTTP 403 Forbidden — the method
+ * body is never reached.</p>
  *
  * <h2>Base path</h2>
  * <p>All endpoints in this controller are prefixed with {@code /api/v1/subscriptions}.
@@ -91,7 +93,7 @@ public class SubscriptionController {
      * <ul>
      *   <li><b>HTTP method:</b> GET (read-only, idempotent, cacheable)</li>
      *   <li><b>Path:</b> {@code GET /api/v1/subscriptions/my}</li>
-     *   <li><b>Auth:</b> Bearer JWT required; caller must have role {@code SELLER}</li>
+     *   <li><b>Auth:</b> Bearer JWT required — any authenticated user</li>
      *   <li><b>Response 200:</b> JSON representation of the {@link Subscription} entity,
      *       or {@code {"plan":"FREE"}} if no subscription record exists yet.</li>
      * </ul>
@@ -105,12 +107,11 @@ public class SubscriptionController {
     // Maps HTTP GET requests to /api/v1/subscriptions/my to this method.
     @GetMapping("/my")
 
-    // Spring Security method-level guard. The SpEL expression 'hasRole('SELLER')'
-    // is evaluated before the method runs. If the JWT does not contain ROLE_SELLER,
-    // the request is rejected with 403 Forbidden before any DB query is made.
-    @PreAuthorize("hasRole('SELLER')")
+    // Spring Security method-level guard. Any authenticated user may check their
+    // own subscription — Premium is not restricted to sellers.
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getMySubscription() {
-        // Resolve the currently authenticated seller from the security context.
+        // Resolve the currently authenticated user from the security context.
         User user = getCurrentUser();
 
         // Attempt to find their subscription in the DB.
@@ -130,7 +131,7 @@ public class SubscriptionController {
      * <ul>
      *   <li><b>HTTP method:</b> POST (mutating operation; not idempotent)</li>
      *   <li><b>Path:</b> {@code POST /api/v1/subscriptions/upgrade}</li>
-     *   <li><b>Auth:</b> Bearer JWT required; caller must have role {@code SELLER}</li>
+     *   <li><b>Auth:</b> Bearer JWT required — any authenticated user</li>
      *   <li><b>Request body:</b> none required</li>
      *   <li><b>Response 200:</b> {@code {"success":true,"plan":"VERIFIED","expiresAt":"..."}}</li>
      * </ul>
@@ -149,10 +150,10 @@ public class SubscriptionController {
     // Maps HTTP POST requests to /api/v1/subscriptions/upgrade to this method.
     @PostMapping("/upgrade")
 
-    // Same role guard as above — only authenticated SELLER users may upgrade.
-    @PreAuthorize("hasRole('SELLER')")
+    // Same guard as above — any authenticated user may upgrade to Premium.
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> upgrade() {
-        // Resolve the currently authenticated seller.
+        // Resolve the currently authenticated user.
         User user = getCurrentUser();
 
         // Find an existing subscription or create a new one.

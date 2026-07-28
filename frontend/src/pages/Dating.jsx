@@ -2,13 +2,27 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
-import { datingApi, dispatchToast } from '../api/client';
-import { Heart, X, Sparkles, MapPin, Briefcase, MessageCircle, User, Edit3, Camera, ChevronRight } from 'lucide-react';
+import { datingApi, subscriptionsApi, dispatchToast } from '../api/client';
+import {
+  Heart, X, Sparkles, MapPin, MessageCircle, User, Edit3, Camera,
+  ChevronRight, Crown, Users, Zap
+} from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import HeroBrief from '../components/HeroBrief';
+import { formatPrice } from '../utils/constants';
 
 const getAvatar = (p) =>
   p?.imageUrl ||
   `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(p?.fullName || 'user')}`;
+
+// A subscription only counts as Premium if the plan is VERIFIED, the status
+// isn't cancelled/expired, and (when set) the expiry date hasn't passed yet.
+const isPremiumActive = (sub) => {
+  if (!sub || sub.plan !== 'VERIFIED') return false;
+  if (sub.status && sub.status !== 'ACTIVE') return false;
+  if (sub.expiresAt && new Date(sub.expiresAt).getTime() < Date.now()) return false;
+  return true;
+};
 
 // ── Profile Setup Modal ─────────────────────────────────────────────────────
 function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
@@ -53,60 +67,60 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
       <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
+        initial={{ scale: 0.96, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="w-full max-w-md bg-[#0A0A0A] border-2 border-[#00FFFF] rounded-[2.5rem] p-6 overflow-y-auto max-h-[90vh] shadow-[0_0_30px_rgba(0,255,255,0.2)]"
+        className="w-full max-w-md bg-[#0A0A0A] border border-white/10 rounded-2xl p-6 overflow-y-auto max-h-[90vh]"
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-black text-white uppercase tracking-widest drop-shadow-[2px_2px_0_#FF00FF]">Create Your Profile</h2>
-          <button onClick={onClose} className="p-2 rounded-full bg-black border border-white/10 hover:border-[#FF00FF] hover:bg-[#FF00FF]/10 text-white transition-all">
-            <X className="w-5 h-5" />
+          <h2 className="text-lg font-bold text-white">Your Bond profile</h2>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">
+            <X className="w-4.5 h-4.5" />
           </button>
         </div>
 
         {/* Avatar */}
-        <div className="flex justify-center mb-8">
-          <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-[#FF00FF] shadow-[0_0_15px_#FF00FF] bg-black">
+        <div className="flex justify-center mb-7">
+          <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white/10 bg-black">
             <img src={imagePreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.id}`} className="w-full h-full object-cover" alt="" />
             <button onClick={() => fileRef.current?.click()} className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-              <Camera className="w-6 h-6 text-[#00FFFF] mb-1" />
-              <span className="text-[8px] font-black uppercase text-[#00FFFF]">UPLOAD</span>
+              <Camera className="w-5 h-5 text-[#CDFF00] mb-1" />
+              <span className="text-[9px] font-bold uppercase text-[#CDFF00]">Upload</span>
             </button>
           </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
           <div>
-            <label className="text-[10px] font-black text-[#00FFFF] uppercase tracking-widest mb-2 block">Your Vibe (Bio)</label>
+            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Bio</label>
             <textarea
               value={bio}
               onChange={e => setBio(e.target.value)}
-              placeholder="Tell us about yourself..."
-              className="w-full bg-black border-2 border-white/10 rounded-2xl px-4 py-4 text-white text-sm resize-none h-24 focus:outline-none focus:border-[#FF00FF] focus:shadow-[0_0_10px_rgba(255,0,255,0.2)] transition-all font-bold"
+              placeholder="Tell people what you do..."
+              className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none h-24 focus:outline-none focus:border-[#CDFF00] transition-colors"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-black text-[#00FFFF] uppercase tracking-widest mb-2 block">Age</label>
-              <input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="e.g. 25" className="w-full bg-black border-2 border-white/10 rounded-2xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#FF00FF] focus:shadow-[0_0_10px_rgba(255,0,255,0.2)] transition-all font-bold" />
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Age</label>
+              <input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="e.g. 25" className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors" />
             </div>
             <div>
-              <label className="text-[10px] font-black text-[#00FFFF] uppercase tracking-widest mb-2 block">City</label>
-              <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Lagos" className="w-full bg-black border-2 border-white/10 rounded-2xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#FF00FF] focus:shadow-[0_0_10px_rgba(255,0,255,0.2)] transition-all font-bold" />
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">City</label>
+              <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Warszawa" className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors" />
             </div>
           </div>
           <div>
-            <label className="text-[10px] font-black text-[#00FFFF] uppercase tracking-widest mb-2 block">Looking For</label>
-            <select value={lookingFor} onChange={e => setLookingFor(e.target.value)} className="w-full bg-black border-2 border-white/10 rounded-2xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#FF00FF] focus:shadow-[0_0_10px_rgba(255,0,255,0.2)] transition-all font-bold appearance-none">
+            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Looking for</label>
+            <select value={lookingFor} onChange={e => setLookingFor(e.target.value)} className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors appearance-none">
               {['Networking', 'Collaboration', 'Partnership', 'Mentorship', 'Friends', 'Dating'].map(o => (
                 <option key={o} value={o}>{o}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-[10px] font-black text-[#00FFFF] uppercase tracking-widest mb-2 block">Identity</label>
-            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-black border-2 border-white/10 rounded-2xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#FF00FF] focus:shadow-[0_0_10px_rgba(255,0,255,0.2)] transition-all font-bold appearance-none">
+            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Identity</label>
+            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors appearance-none">
               <option value="">Prefer not to say</option>
               {['Male', 'Female', 'Non-binary', 'Other'].map(o => (
                 <option key={o} value={o}>{o}</option>
@@ -118,11 +132,58 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full mt-8 py-4 rounded-full bg-[#FF00FF] text-white font-black uppercase tracking-widest text-[12px] hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 shadow-[0_0_15px_#FF00FF]"
+          className="w-full mt-7 py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50"
         >
-          {saving ? 'UPLOADING...' : 'SAVE PROFILE'}
+          {saving ? 'Saving…' : 'Save profile'}
         </button>
       </motion.div>
+    </div>
+  );
+}
+
+// ── Premium Paywall ──────────────────────────────────────────────────────────
+function PremiumPaywall({ onUpgrade, upgrading }) {
+  const perks = [
+    { icon: Heart, text: 'Unlimited swipes on creatives near you' },
+    { icon: Users, text: 'See mutual matches and message instantly' },
+    { icon: Zap, text: 'Priority placement in other members’ stacks' },
+  ];
+
+  return (
+    <div className="max-w-sm mx-auto px-4">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-7 text-center">
+        <div className="w-14 h-14 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-4">
+          <Crown className="w-6 h-6 text-[#CDFF00]" />
+        </div>
+        <h2 className="text-lg font-bold text-white mb-1.5">Bond is a Premium feature</h2>
+        <p className="text-sm text-gray-400 leading-relaxed mb-6">
+          Upgrade to connect with creatives and hustlers near you.
+        </p>
+
+        <div className="space-y-3 text-left mb-6">
+          {perks.map((p) => (
+            <div key={p.text} className="flex items-start gap-3">
+              <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
+                <p.icon className="w-3.5 h-3.5 text-[#CDFF00]" />
+              </div>
+              <span className="text-sm text-gray-300 leading-snug">{p.text}</span>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={onUpgrade}
+          disabled={upgrading}
+          className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+        >
+          {upgrading ? (
+            <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+          ) : (
+            <>Upgrade to Premium — {formatPrice(20, 'PLN')}/mo</>
+          )}
+        </button>
+        <p className="text-[11px] text-gray-500 mt-3">Cancel anytime. No commitment.</p>
+      </div>
     </div>
   );
 }
@@ -132,6 +193,10 @@ export default function Dating() {
   const user = useSelector(selectUser);
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const navigate = useNavigate();
+
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [premium, setPremium] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
 
   const [profiles, setProfiles] = useState([]);
   const [myProfile, setMyProfile] = useState(null);
@@ -144,8 +209,38 @@ export default function Dating() {
 
   useEffect(() => {
     if (!isAuthenticated) { navigate('/login'); return; }
-    loadData();
+    checkAccess();
   }, [isAuthenticated]);
+
+  // Bond is Premium-gated: only load the discovery feed once an active
+  // subscription is confirmed. Anyone else sees the paywall instead.
+  const checkAccess = async () => {
+    setCheckingAccess(true);
+    try {
+      const res = await subscriptionsApi.my();
+      const active = isPremiumActive(res.data);
+      setPremium(active);
+      if (active) await loadData();
+    } catch (e) {
+      setPremium(false);
+    } finally {
+      setCheckingAccess(false);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    setUpgrading(true);
+    try {
+      await subscriptionsApi.upgrade();
+      dispatchToast('Welcome to Premium!', 'success');
+      setPremium(true);
+      await loadData();
+    } catch (e) {
+      dispatchToast('Could not upgrade — try again', 'error');
+    } finally {
+      setUpgrading(false);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -165,18 +260,30 @@ export default function Dating() {
     }
   };
 
+  // Persist the swipe so the profile never resurfaces, and surface a real match
+  // when both sides have liked each other. Previously this only updated local
+  // state — nothing was saved, so every reload reset the whole discovery stack.
   const dismiss = (dir) => {
+    const target = profiles[0];
     setSwipeDir(dir);
-    setTimeout(() => {
-      setSwipeDir(null);
-      setDragX(0);
-      if (dir === 'right') {
-        const top = profiles[0];
-        if (top) navigate(`/dm/${top.id}`);
-      } else {
-        setProfiles(prev => prev.slice(1));
-      }
-    }, 350);
+    setTimeout(() => setSwipeDir(null), 350);
+    setTimeout(() => { setDragX(0); setProfiles(prev => prev.slice(1)); }, 350);
+    if (!target) return;
+
+    if (dir === 'right') {
+      datingApi.like(target.id)
+        .then((res) => {
+          if (res.data?.matched) {
+            dispatchToast(`It's a match with ${target.fullName}! 🎉`, 'success');
+            navigate(`/dm/${target.id}`);
+          } else {
+            dispatchToast(`Liked ${target.fullName} — you'll be notified if it's mutual`, 'success');
+          }
+        })
+        .catch(() => {});
+    } else {
+      datingApi.pass(target.id).catch(() => {});
+    }
   };
 
   const onDragStart = (e) => {
@@ -201,176 +308,180 @@ export default function Dating() {
   const likeOpacity = Math.min(dragX / 80, 1);
   const nopeOpacity = Math.min(-dragX / 80, 1);
 
-  if (loading) return (
-    <div className="min-h-[85vh] flex items-center justify-center">
-      <div className="text-center animate-pulse text-[#CDFF00] font-bold uppercase tracking-widest text-sm">
-        <Heart className="w-8 h-8 mx-auto mb-3 animate-bounce" /> Loading matches...
-      </div>
+  if (checkingAccess) return (
+    <div className="min-h-[70vh] flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pb-24 relative font-sans overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 z-0 flex opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, #00FFFF 2px, transparent 0), radial-gradient(circle at 30px 30px, #FF00FF 2px, transparent 0)', backgroundSize: '60px 60px' }}></div>
-      <div className="absolute top-0 left-0 right-0 h-[30vh] bg-gradient-to-b from-[#FF00FF]/10 to-transparent z-0 pointer-events-none" />
+    <div className="min-h-screen text-white pb-16 font-sans">
+      <HeroBrief
+        pillText="Connect & Collab"
+        title="Hustle Bond"
+        subtitle="Connect with creatives in your area."
+      />
 
-      <div className="pt-20 pb-8 px-4 max-w-7xl mx-auto text-center relative z-10">
-        <span className="inline-block px-4 py-1 text-[10px] font-black uppercase tracking-[0.4em] bg-black text-[#00FFFF] border-2 border-[#00FFFF] rounded-full mb-4 shadow-[0_0_10px_#00FFFF]">CONNECT & COLLAB</span>
-        <h1 className="text-5xl font-black text-white uppercase tracking-tighter drop-shadow-[2px_2px_0_#FF00FF]">Hustle <span className="text-[#00FFFF]">Bond</span></h1>
-        <p className="text-[#FF00FF] font-bold uppercase tracking-widest text-xs mt-3 drop-shadow-[1px_1px_0_#000]">Connect with creatives in your area.</p>
-      </div>
-
-      {/* Action Bar */}
-      <div className="z-10 w-full max-w-sm mx-auto mb-10 flex justify-center items-center gap-4 px-4 relative">
-        <button
-          onClick={() => setShowSetup(true)}
-          className="px-6 py-3.5 rounded-full bg-black border-2 border-[#FF00FF]/50 text-[10px] font-black text-[#FF00FF] uppercase tracking-widest hover:bg-[#FF00FF] hover:text-white transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,0,255,0.2)]"
-        >
-          <Edit3 className="w-4 h-4" />
-          {myProfile ? 'EDIT PROFILE' : 'CREATE PROFILE'}
-        </button>
-        <Link to="/dm" className="px-6 py-3.5 rounded-full bg-black border-2 border-[#00FFFF]/50 text-[10px] font-black text-[#00FFFF] uppercase tracking-widest hover:bg-[#00FFFF] hover:text-black transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(0,255,255,0.2)]">
-          <MessageCircle className="w-4 h-4" />
-          MESSAGES
-        </Link>
-      </div>
-
-      {/* Setup your profile CTA if not set up */}
-      {!myProfile && (
-        <div className="z-10 w-full max-w-sm mx-auto px-4 mb-6 relative">
-          <button
-            onClick={() => setShowSetup(true)}
-            className="w-full flex items-center justify-between px-5 py-4 rounded-[1.5rem] bg-black border-2 border-[#FF00FF] hover:shadow-[0_0_20px_#FF00FF] transition-all group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-[#FF00FF]/20 flex items-center justify-center">
-                <User className="w-5 h-5 text-[#FF00FF]" />
-              </div>
-              <div className="text-left">
-                <p className="text-[11px] font-black text-white uppercase tracking-widest">Setup Profile</p>
-                <p className="text-[9px] text-[#00FFFF] font-bold uppercase tracking-widest mt-0.5">Required to connect</p>
-              </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-[#FF00FF] group-hover:translate-x-1 transition-transform" />
-          </button>
+      {!premium ? (
+        <PremiumPaywall onUpgrade={handleUpgrade} upgrading={upgrading} />
+      ) : loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-2 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin" />
         </div>
-      )}
-
-      {/* Card stack */}
-      <div className="relative w-full max-w-sm mx-auto h-[540px] z-10 px-4 perspective-1000">
-        {profiles.length === 0 ? (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-[#0A0A0A] border-2 border-dashed border-[#00FFFF]/50 rounded-[2.5rem] p-8 text-center shadow-[0_0_30px_rgba(0,255,255,0.1)]">
-            <Sparkles className="w-20 h-20 text-[#00FFFF] mb-6 drop-shadow-[0_0_15px_#00FFFF]" />
-            <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2 drop-shadow-[2px_2px_0_#FF00FF]">NO MATCHES</h3>
-            <p className="text-[#00FFFF] font-bold uppercase tracking-widest text-[10px] mb-8">
-              No creatives found in your area yet.
-            </p>
+      ) : (
+        <>
+          {/* Action Bar */}
+          <div className="w-full max-w-sm mx-auto mb-6 flex justify-center items-center gap-3 px-4">
             <button
               onClick={() => setShowSetup(true)}
-              className="px-8 py-3.5 rounded-full bg-[#FF00FF] text-white text-[11px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-transform shadow-[0_0_20px_#FF00FF]"
+              className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
             >
-              {myProfile ? 'EDIT PREFERENCES' : 'CREATE PROFILE'}
+              <Edit3 className="w-3.5 h-3.5" />
+              {myProfile ? 'Edit profile' : 'Create profile'}
             </button>
+            <Link to="/dm" className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
+              <MessageCircle className="w-3.5 h-3.5" />
+              Messages
+            </Link>
           </div>
-        ) : (
-          <>
-            {next && (
-              <div className="absolute inset-x-4 top-4 bottom-0 rounded-[2.5rem] overflow-hidden bg-black border-2 border-[#00FFFF]/30 scale-[0.92] opacity-50 pointer-events-none transform -translate-y-4">
-                <img src={getAvatar(next)} className="w-full h-full object-cover filter grayscale blur-[2px]" alt="" onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${next.id}`; }} />
-              </div>
-            )}
 
-            <AnimatePresence>
-              {top && (
-                <motion.div
-                  key={top.id}
-                  className="absolute inset-x-0 top-0 bottom-0 px-0 cursor-grab active:cursor-grabbing"
-                  animate={{
-                    x: swipeDir === 'left' ? -400 : swipeDir === 'right' ? 400 : dragX,
-                    rotate: swipeDir ? (swipeDir === 'left' ? -25 : 25) : rotate,
-                    opacity: swipeDir ? 0 : 1,
-                  }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  onMouseDown={onDragStart}
-                  onMouseMove={onDragMove}
-                  onMouseUp={onDragEnd}
-                  onMouseLeave={onDragEnd}
-                  onTouchStart={onDragStart}
-                  onTouchMove={onDragMove}
-                  onTouchEnd={onDragEnd}
+          {/* Setup your profile CTA if not set up */}
+          {!myProfile && (
+            <div className="w-full max-w-sm mx-auto px-4 mb-5">
+              <button
+                onClick={() => setShowSetup(true)}
+                className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#CDFF00]/40 transition-all group"
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-9 h-9 rounded-full bg-[#CDFF00]/10 flex items-center justify-center">
+                    <User className="w-4.5 h-4.5 text-[#CDFF00]" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-bold text-white">Set up your profile</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Required to start connecting</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4.5 h-4.5 text-gray-500 group-hover:translate-x-1 group-hover:text-[#CDFF00] transition-all" />
+              </button>
+            </div>
+          )}
+
+          {/* Card stack */}
+          <div className="relative w-full max-w-sm mx-auto h-[540px] px-4">
+            {profiles.length === 0 ? (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-white/[0.02] border border-dashed border-white/10 rounded-2xl p-8 text-center">
+                <Sparkles className="w-10 h-10 text-gray-600 mb-4" />
+                <h3 className="text-base font-bold text-white mb-1.5">No one new right now</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  No creatives found in your area yet.
+                </p>
+                <button
+                  onClick={() => setShowSetup(true)}
+                  className="px-6 py-2.5 rounded-xl bg-[#CDFF00] text-black text-sm font-bold hover:bg-[#d9ff33] active:scale-95 transition-all"
                 >
-                  <div className="w-full h-full rounded-[2.5rem] overflow-hidden bg-black border-4 border-[#FF00FF] shadow-[0_0_40px_rgba(255,0,255,0.3)] relative">
-                    <img
-                      src={getAvatar(top)}
-                      className="absolute inset-0 w-full h-full object-cover"
-                      alt={top.fullName}
-                      onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(top.fullName || top.id)}`; }}
-                      draggable={false}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-
-                    {/* LIKE / NOPE stamps */}
-                    <div className="absolute top-12 left-8 rotate-[-20deg] border-4 border-[#00FFFF] text-[#00FFFF] px-6 py-2 rounded-2xl text-3xl font-black uppercase tracking-[0.3em] transition-opacity duration-100 shadow-[0_0_15px_#00FFFF] bg-black/50 backdrop-blur-sm"
-                      style={{ opacity: likeOpacity }}>VIBE</div>
-                    <div className="absolute top-12 right-8 rotate-[20deg] border-4 border-red-500 text-red-500 px-6 py-2 rounded-2xl text-3xl font-black uppercase tracking-[0.3em] transition-opacity duration-100 shadow-[0_0_15px_red] bg-black/50 backdrop-blur-sm"
-                      style={{ opacity: nopeOpacity }}>PASS</div>
-
-                    <div className="absolute top-6 left-6">
-                      <span className="px-4 py-2 rounded-full bg-black border-2 border-[#00FFFF] text-[#00FFFF] text-[9px] font-black uppercase tracking-[0.3em] shadow-[0_0_10px_rgba(0,255,255,0.5)]">
-                        OBJ: {top.lookingFor || 'NETWORKING'}
-                      </span>
-                    </div>
-
-                    <div className="absolute bottom-0 left-0 right-0 p-8 pb-28 bg-gradient-to-t from-black via-black/80 to-transparent">
-                      <h2 className="text-4xl font-black text-white leading-none uppercase tracking-tighter drop-shadow-[2px_2px_0_#FF00FF]">
-                        {top.fullName}
-                        {top.age > 0 && <span className="text-[#00FFFF] ml-3 text-3xl drop-shadow-none">[{top.age}]</span>}
-                      </h2>
-                      {top.location && (
-                        <p className="flex items-center gap-2 text-[11px] font-black text-[#00FFFF] uppercase tracking-widest mt-3">
-                          <MapPin className="w-4 h-4" /> LOC: {top.location}
-                        </p>
-                      )}
-                      {top.bio && (
-                        <p className="text-sm text-gray-300 font-bold mt-4 line-clamp-3 leading-relaxed border-l-2 border-[#FF00FF] pl-3">{top.bio}</p>
-                      )}
-                    </div>
+                  {myProfile ? 'Edit preferences' : 'Create profile'}
+                </button>
+              </div>
+            ) : (
+              <>
+                {next && (
+                  <div className="absolute inset-x-3 top-3 bottom-0 rounded-2xl overflow-hidden bg-black border border-white/10 scale-[0.94] opacity-50 pointer-events-none">
+                    <img src={getAvatar(next)} className="w-full h-full object-cover filter grayscale blur-[2px]" alt="" onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${next.id}`; }} />
                   </div>
+                )}
 
-                  {/* Action buttons */}
-                  <div className="absolute bottom-6 left-0 right-0 flex justify-center items-center gap-6 z-20">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); dismiss('left'); }}
-                      className="w-16 h-16 rounded-full bg-black border-4 border-[#0A0A0A] flex items-center justify-center text-gray-500 hover:text-red-500 hover:border-red-500 hover:scale-110 active:scale-95 transition-all shadow-2xl"
+                <AnimatePresence>
+                  {top && (
+                    <motion.div
+                      key={top.id}
+                      className="absolute inset-x-0 top-0 bottom-0 cursor-grab active:cursor-grabbing"
+                      animate={{
+                        x: swipeDir === 'left' ? -400 : swipeDir === 'right' ? 400 : dragX,
+                        rotate: swipeDir ? (swipeDir === 'left' ? -18 : 18) : rotate,
+                        opacity: swipeDir ? 0 : 1,
+                      }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                      onMouseDown={onDragStart}
+                      onMouseMove={onDragMove}
+                      onMouseUp={onDragEnd}
+                      onMouseLeave={onDragEnd}
+                      onTouchStart={onDragStart}
+                      onTouchMove={onDragMove}
+                      onTouchEnd={onDragEnd}
                     >
-                      <X className="w-8 h-8 font-black" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); dismiss('right'); }}
-                      className="w-20 h-20 rounded-full bg-[#FF00FF] border-4 border-black flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-all shadow-[0_0_30px_#FF00FF]"
-                    >
-                      <Heart className="w-10 h-10 fill-white drop-shadow-md" />
-                    </button>
-                    <Link
-                      to={`/dm/${top.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-16 h-16 rounded-full bg-black border-4 border-[#0A0A0A] flex items-center justify-center text-gray-500 hover:text-[#00FFFF] hover:border-[#00FFFF] hover:scale-110 active:scale-95 transition-all shadow-2xl"
-                    >
-                      <MessageCircle className="w-8 h-8 font-black" />
-                    </Link>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </>
-        )}
-      </div>
+                      <div className="w-full h-full rounded-2xl overflow-hidden bg-black border border-white/10 relative">
+                        <img
+                          src={getAvatar(top)}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          alt={top.fullName}
+                          onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(top.fullName || top.id)}`; }}
+                          draggable={false}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
 
-      {profiles.length > 0 && (
-        <p className="relative z-10 mt-8 text-center text-[10px] text-gray-600 font-black uppercase tracking-[0.4em]">
-          ← PASS &nbsp; || &nbsp; VIBE →
-        </p>
+                        {/* LIKE / PASS indicators */}
+                        <div className="absolute top-8 left-6 rounded-lg border-2 border-[#CDFF00] text-[#CDFF00] px-3 py-1 text-sm font-bold uppercase tracking-widest bg-black/40 backdrop-blur-sm"
+                          style={{ opacity: likeOpacity }}>Like</div>
+                        <div className="absolute top-8 right-6 rounded-lg border-2 border-red-400 text-red-400 px-3 py-1 text-sm font-bold uppercase tracking-widest bg-black/40 backdrop-blur-sm"
+                          style={{ opacity: nopeOpacity }}>Pass</div>
+
+                        <div className="absolute top-4 left-4">
+                          <span className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest">
+                            {top.lookingFor || 'Networking'}
+                          </span>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 right-0 p-6 pb-24">
+                          <h2 className="text-2xl font-bold text-white leading-tight">
+                            {top.fullName}
+                            {top.age > 0 && <span className="text-gray-300 ml-2 font-semibold">{top.age}</span>}
+                          </h2>
+                          {top.location && (
+                            <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-300 mt-2">
+                              <MapPin className="w-3.5 h-3.5 text-[#CDFF00]" /> {top.location}
+                            </p>
+                          )}
+                          {top.bio && (
+                            <p className="text-sm text-gray-300 mt-3 line-clamp-2 leading-relaxed">{top.bio}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-5">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); dismiss('left'); }}
+                          className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-gray-300 hover:text-red-400 hover:border-red-400/50 hover:scale-105 active:scale-95 transition-all"
+                        >
+                          <X className="w-6 h-6" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); dismiss('right'); }}
+                          className="w-16 h-16 rounded-full bg-[#CDFF00] flex items-center justify-center text-black hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#CDFF00]/20"
+                        >
+                          <Heart className="w-7 h-7 fill-black" />
+                        </button>
+                        <Link
+                          to={`/dm/${top.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-gray-300 hover:text-[#00FFFF] hover:border-[#00FFFF]/50 hover:scale-105 active:scale-95 transition-all"
+                        >
+                          <MessageCircle className="w-6 h-6" />
+                        </Link>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
+            )}
+          </div>
+
+          {profiles.length > 0 && (
+            <p className="mt-6 text-center text-[11px] text-gray-600 font-semibold uppercase tracking-[0.3em]">
+              ← Pass &nbsp;·&nbsp; Like →
+            </p>
+          )}
+        </>
       )}
 
       {showSetup && (
@@ -384,4 +495,3 @@ export default function Dating() {
     </div>
   );
 }
-

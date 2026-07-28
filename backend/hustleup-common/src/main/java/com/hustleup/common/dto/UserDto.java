@@ -98,6 +98,12 @@ public class UserDto {
     private String shopBannerUrl;
 
     /**
+     * The seller's shop category (mirrors marketplace {@code ListingType} values, e.g.
+     * "HAIR_BEAUTY", "EVENT"). Drives category-specific dashboard features. Null until set.
+     */
+    private String shopCategory;
+
+    /**
      * Short bio or "about me" text written by the user.
      *
      * <p>Shown on the public profile page to give visitors context about who the user is.
@@ -212,6 +218,7 @@ public class UserDto {
                 .role(user.getRole() != null ? user.getRole().name() : null) // Enum → String conversion
                 .avatarUrl(user.getAvatarUrl())
                 .shopBannerUrl(user.getShopBannerUrl())
+                .shopCategory(user.getShopCategory())
                 .bio(user.getBio())
                 .city(user.getCity())
                 .addressLine1(user.getAddressLine1())

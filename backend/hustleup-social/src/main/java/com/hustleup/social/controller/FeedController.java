@@ -230,6 +230,36 @@ public class FeedController {
     }
 
     /**
+     * Returns every post linked to a specific marketplace listing, newest first.
+     *
+     * <p><b>GET /api/v1/feed/listing/{listingId}</b> — public, no auth required.
+     *
+     * <p>Used by an EVENT listing's detail page to show the seller's posted updates about
+     * the event (announcements, photos, schedule changes) below the listing description.
+     * Unlike the main feed, this is not Redis-cached — traffic to a single listing's update
+     * thread is low and freshness matters more (a seller just posted an update and expects
+     * buyers to see it immediately).
+     *
+     * @param listingId the UUID string of the listing to fetch updates for
+     * @return 200 OK with a JSON array of {@link PostDto}, newest first
+     */
+    @GetMapping("/listing/{listingId}")
+    public ResponseEntity<List<PostDto>> getByListing(@PathVariable String listingId) {
+        List<Post> posts = postRepository.findByLinkedListingIdOrderByCreatedAtDesc(listingId);
+        Set<String> likedPostIds = getCurrentUser()
+                .map(user -> postLikeRepository.findByIdUserIdAndIdPostIdIn(
+                                user.getId().toString(),
+                                posts.stream().map(Post::getId).toList())
+                        .stream()
+                        .map(postLike -> postLike.getId().getPostId())
+                        .collect(Collectors.toSet()))
+                .orElseGet(HashSet::new);
+        return ResponseEntity.ok(posts.stream()
+                .map(post -> PostDto.from(post, likedPostIds.contains(post.getId()), storageService::refreshUrl))
+                .toList());
+    }
+
+    /**
      * Creates a new post on behalf of the authenticated user.
      *
      * <p><b>POST /api/v1/feed</b> (multipart/form-data)
@@ -264,7 +294,10 @@ public class FeedController {
             @RequestParam(value = "content", required = false, defaultValue = "") String content,
             @RequestParam(value = "authorName", required = false) String authorName,
             @RequestParam(value = "anonymous", required = false, defaultValue = "false") boolean anonymous,
-            @RequestParam(value = "media", required = false) List<MultipartFile> mediaFiles) {
+            @RequestParam(value = "media", required = false) List<MultipartFile> mediaFiles,
+            // Optional link back to a marketplace listing — used by sellers posting an
+            // "event update" from their EVENT listing's page (see GET /feed/listing/{id}).
+            @RequestParam(value = "linkedListingId", required = false) String linkedListingId) {
 
         // This throws AccessDeniedException if no authenticated user is found,
         // which Spring Security converts to a 403 response.
@@ -289,6 +322,7 @@ public class FeedController {
         post.setAuthorName(authorName != null && !authorName.isBlank() ? authorName : currentUser.getFullName());
         post.setContent(content == null ? "" : content.trim());
         post.setAnonymous(anonymous);
+        post.setLinkedListingId(linkedListingId != null && !linkedListingId.isBlank() ? linkedListingId : null);
 
         if (!validMediaFiles.isEmpty()) {
             // Upload each file to storage and collect the resulting storage keys/URLs.

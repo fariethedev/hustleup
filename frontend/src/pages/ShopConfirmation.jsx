@@ -31,7 +31,7 @@ export default function ShopConfirmation() {
   const { shop, product } = entry;
   const quantity = Number(draft.quantity) || 1;
   const total = Number(draft.total) || Number(product.price);
-  const paymentMethod = draft.customer?.paymentMethod || 'stripe';
+  const paymentMethod = draft.customer?.paymentMethod || 'paypal';
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 mt-10">
@@ -74,7 +74,7 @@ export default function ShopConfirmation() {
             <div className="mt-5 space-y-4 text-sm text-gray-400">
               <div className="flex items-start gap-3">
                 <ShieldCheck className="w-4 h-4 text-[#CDFF00] mt-0.5 shrink-0" />
-                <span>Hook Stripe checkout sessions or payment intents into the final submit action.</span>
+                <span>Hook PayPal checkout sessions or payment intents into the final submit action.</span>
               </div>
               <div className="flex items-start gap-3">
                 <ShieldCheck className="w-4 h-4 text-[#CDFF00] mt-0.5 shrink-0" />

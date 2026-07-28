@@ -181,19 +181,13 @@ export default function Feed() {
   }, [selectedPost, likersPost]);
 
   return (
-    <div className="min-h-screen bg-[#050505] font-sans pb-24">
+    <div className="min-h-screen font-sans pb-24">
       {/* ── HEADER ── */}
-      <div className="relative overflow-hidden bg-[#0A0A0A] pt-14 pb-4 border-b-2 border-[#FF00FF]/30 shadow-[0_5px_30px_rgba(255,0,255,0.1)] mb-5">
-        <div className="absolute inset-0 z-0 flex opacity-[0.15] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, #FF00FF 2px, transparent 0), radial-gradient(circle at 30px 30px, #00FFFF 2px, transparent 0)', backgroundSize: '40px 40px' }}></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-[#00FFFF]/10 via-transparent to-[#0A0A0A] z-0" />
-        <div className="px-4 max-w-xl mx-auto relative z-10">
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ type: 'spring' }}>
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#00FFFF] mb-1 block drop-shadow-[0_0_5px_#00FFFF]">Community Pulse</span>
-            <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter leading-none drop-shadow-[3px_3px_0_#FF00FF]">Creator <span className="text-[#00FFFF]">Feed</span></h1>
-            <p className="text-[#FF00FF] text-xs font-bold uppercase tracking-widest mt-2 drop-shadow-[1px_1px_0_#000]">Your window into the movement.</p>
-          </motion.div>
-        </div>
-      </div>
+      <HeroBrief
+        pillText="Community Pulse"
+        title="Creator Feed"
+        subtitle="Your window into the movement."
+      />
 
       <div className="max-w-xl mx-auto px-4">
         <StoryBar />

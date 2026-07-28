@@ -28,6 +28,16 @@ app:
     refresh-token-expiration-ms: 604800000
   upload:
     dir: ${UPLOAD_DIR:./uploads}
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY}
+    # Separate webhook secret from the subscription service's — Connect events (account.updated,
+    # payment_intent.*, transfer.*) are registered as their own Stripe webhook endpoint.
+    connect-webhook-secret: ${STRIPE_CONNECT_WEBHOOK_SECRET:whsec_placeholder}
+    # Platform's cut of each completed booking, as a percentage (e.g. 8 = 8%). The seller
+    # receives agreedPrice minus this fee when a booking is marked COMPLETED.
+    platform-fee-percent: ${STRIPE_PLATFORM_FEE_PERCENT:8}
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:5174}
   aws:
     access-key: ${AWS_ACCESS_KEY_ID:}
     secret-key: ${AWS_SECRET_ACCESS_KEY:}

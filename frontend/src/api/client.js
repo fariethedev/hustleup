@@ -93,6 +93,25 @@ export const bookingsApi = {
   cancel: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }),
   complete: (id) => api.patch(`/bookings/${id}/complete`),
   my: () => api.get('/bookings/my'),
+  // Returns a Stripe-hosted checkout URL for the buyer to pay for a BOOKED booking.
+  checkoutSession: (id) => api.post(`/bookings/${id}/checkout-session`),
+};
+
+// Seller payout accounts (Stripe Connect). Sellers connect a bank account once via
+// Stripe's own hosted onboarding form — HustleUp never sees or stores the actual bank
+// details, only the resulting account status.
+export const payoutsApi = {
+  status: () => api.get('/payouts/status'),
+  connect: () => api.post('/payouts/connect'),
+};
+
+// Seller-defined booking slots — HAIR_BEAUTY/SKILL listings let buyers book a specific
+// open slot instead of negotiating a schedule freely.
+export const availabilityApi = {
+  create: (listingId, startTime, endTime) => api.post('/availability', { listingId, startTime, endTime }),
+  listByListing: (listingId) => api.get(`/availability/listing/${listingId}`),
+  my: () => api.get('/availability/my'),
+  remove: (id) => api.delete(`/availability/${id}`),
 };
 
 // Messages
@@ -162,6 +181,8 @@ export const feedApi = {
   unlikePost: (postId) => api.delete(`/feed/${postId}/likes`),
   getLikers: (postId) => api.get(`/feed/${postId}/likes`),
   myLiked: () => api.get('/feed/liked/me'),
+  // Posts a seller has linked to one of their listings (e.g. announcements about an EVENT).
+  getByListing: (listingId) => api.get(`/feed/listing/${listingId}`),
 };
 
 // Social graph: follow/unfollow, relationship summary, block, report.
@@ -181,6 +202,8 @@ export const datingApi = {
   getProfiles: () => api.get('/dating/profiles'),
   getMyProfile: () => api.get('/dating/profile/me'),
   saveProfile: (formData) => api.post('/dating/profile', formData),
+  like: (profileId) => api.post(`/dating/like/${profileId}`),
+  pass: (profileId) => api.post(`/dating/pass/${profileId}`),
 };
 
 // Subscriptions

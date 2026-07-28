@@ -1,15 +1,78 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { listingsApi } from '../api/client';
-import { LISTING_TYPES, formatPrice } from '../utils/constants';
+import { useSelector } from 'react-redux';
+import { listingsApi, usersApi, followsApi } from '../api/client';
+import { selectUser } from '../store/authSlice';
+import { LISTING_TYPES } from '../utils/constants';
 import { SHOPS } from '../utils/shopData';
 import ListingCard from '../components/ListingCard';
 import ShopCard from '../components/ShopCard';
 import {
-  Search, SearchX, Store, ShoppingBag, Calendar, Briefcase,
-  Newspaper, MapPin, ChevronLeft, ChevronRight, Sparkles, Flame
+  Store, ShoppingBag, Calendar, Briefcase,
+  Newspaper, MapPin, ChevronLeft, ChevronRight, Sparkles, Flame,
+  Compass, LayoutGrid, Users, BadgeCheck, UserPlus, Check
 } from 'lucide-react';
+
+/* ── Creator card: avatar + name + Follow / View profile actions ── */
+function CreatorCard({ u }) {
+  const [following, setFollowing] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const toggleFollow = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    const next = !following;
+    setFollowing(next); // optimistic
+    try {
+      if (next) await followsApi.follow(u.id);
+      else await followsApi.unfollow(u.id);
+    } catch {
+      setFollowing(!next); // roll back on failure
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="snap-start shrink-0 w-[116px] flex flex-col items-center text-center">
+      <Link to={`/profile/${u.id}`} className="group">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-black border border-white/10 flex items-center justify-center group-hover:border-white/25 transition-colors">
+          {u.avatarUrl
+            ? <img src={u.avatarUrl} alt={u.fullName} className="w-full h-full object-cover" />
+            : <span className="text-[#00FFFF] font-black text-xl uppercase">{u.fullName?.[0] || 'U'}</span>}
+        </div>
+      </Link>
+      <Link to={`/profile/${u.id}`} className="mt-2 flex items-center gap-1 text-[11px] font-black text-white leading-tight line-clamp-1 hover:text-[#00FFFF] transition-colors">
+        {u.fullName}
+        {u.idVerified && <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
+      </Link>
+      <span className="text-[8px] font-bold uppercase tracking-wider text-gray-500 mb-2">
+        {u.role === 'SELLER' ? 'Seller' : 'Hustler'}
+      </span>
+      <div className="flex items-center gap-1.5 w-full">
+        <button
+          onClick={toggleFollow}
+          disabled={busy}
+          className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all disabled:opacity-60 ${
+            following
+              ? 'bg-white/5 border border-white/10 text-gray-300'
+              : 'bg-[#CDFF00] text-black hover:bg-[#d9ff33]'
+          }`}
+        >
+          {following ? <><Check className="w-3 h-3" /> Following</> : <><UserPlus className="w-3 h-3" /> Follow</>}
+        </button>
+        <Link
+          to={`/profile/${u.id}`}
+          title="View profile"
+          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/25 transition-colors"
+        >
+          <ChevronRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 /* ── Horizontal Scroll Section Component ── */
 function ScrollRow({ title, subtitle, icon: Icon, accentColor, children, isEmpty }) {
@@ -41,18 +104,22 @@ function ScrollRow({ title, subtitle, icon: Icon, accentColor, children, isEmpty
           </div>
         ) : (
           <div className="relative">
-            {/* Scroll Buttons */}
-            <button 
-              onClick={() => scroll(-1)} 
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/80 border border-white/10 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 hover:scale-110"
+            {/* Scroll Buttons — always visible so users know the row scrolls */}
+            <button
+              onClick={() => scroll(-1)}
+              aria-label="Scroll left"
+              className="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-[#0A0A0A] border transition-all flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.6)] hover:scale-110 active:scale-95"
+              style={{ borderColor: `${accentColor}66` }}
             >
-              ‹
+              <ChevronLeft className="w-5 h-5" style={{ color: accentColor }} />
             </button>
-            <button 
-              onClick={() => scroll(1)} 
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/80 border border-white/10 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 hover:scale-110"
+            <button
+              onClick={() => scroll(1)}
+              aria-label="Scroll right"
+              className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-[#0A0A0A] border transition-all flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.6)] hover:scale-110 active:scale-95"
+              style={{ borderColor: `${accentColor}66` }}
             >
-              ›
+              <ChevronRight className="w-5 h-5" style={{ color: accentColor }} />
             </button>
 
             {/* Horizontal Scroll Area */}
@@ -71,13 +138,17 @@ function ScrollRow({ title, subtitle, icon: Icon, accentColor, children, isEmpty
 }
 
 export default function Explore() {
+  const currentUser = useSelector(selectUser);
   const [searchParams, setSearchParams] = useSearchParams();
   const [allListings, setAllListings] = useState([]);
   const [bestSelling, setBestSelling] = useState([]);
+  const [creators, setCreators] = useState([]);
   const [loading, setLoading] = useState(true);
   const [bestSellingLoading, setBestSellingLoading] = useState(true);
 
   const activeType = searchParams.get('type') || '';
+  // Section-type filter: '' (everything) | 'listings' | 'shops' | 'users'
+  const activeSection = searchParams.get('show') || '';
 
   useEffect(() => {
     setLoading(true);
@@ -95,7 +166,12 @@ export default function Explore() {
       })
       .catch(() => setBestSelling([]))
       .finally(() => setBestSellingLoading(false));
-  }, []);
+
+    // Creators row — needs auth; anonymous visitors just see the other sections.
+    usersApi.getAll()
+      .then((r) => setCreators((r.data || []).filter((u) => u.id !== currentUser?.id)))
+      .catch(() => setCreators([]));
+  }, [currentUser?.id]);
 
   const setFilter = (typeValue) => {
     const params = new URLSearchParams(searchParams);
@@ -103,6 +179,17 @@ export default function Explore() {
     else params.delete('type');
     setSearchParams(params);
   };
+
+  const setSection = (sectionValue) => {
+    const params = new URLSearchParams(searchParams);
+    if (sectionValue) params.set('show', sectionValue);
+    else params.delete('show');
+    setSearchParams(params);
+  };
+
+  const showShops = !activeSection || activeSection === 'shops';
+  const showListings = !activeSection || activeSection === 'listings';
+  const showUsers = !activeSection || activeSection === 'users';
 
   // Filter listings by active category filter first (if any)
   const filteredListings = activeType 
@@ -130,50 +217,88 @@ export default function Explore() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#050505] font-sans pb-16">
+    <div className="min-h-screen font-sans pb-16">
       
-      {/* ── HEADER (Smaller margins, centered) ── */}
-      <div className="relative overflow-hidden bg-[#0A0A0A] pt-20 pb-6 border-b border-white/5">
-        <div className="absolute inset-0 z-0 flex opacity-[0.1] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, #FF00FF 2px, transparent 0), radial-gradient(circle at 30px 30px, #00FFFF 2px, transparent 0)', backgroundSize: '40px 40px' }}></div>
-        <div className="absolute inset-0 bg-gradient-to-b from-[#FF00FF]/5 via-transparent to-[#0A0A0A] z-0" />
-        
-        <div className="px-4 max-w-7xl mx-auto relative z-10 text-center">
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-[#FF00FF] mb-1 block drop-shadow-[0_0_5px_#FF00FF]">Creator Directory</span>
-            <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter drop-shadow-[2px_2px_0_#00FFFF]">Explore <span className="text-[#FF00FF]">Vibes</span></h1>
-            <p className="text-[#00FFFF] text-xs font-bold uppercase tracking-widest mt-2">Discover the creative frontier.</p>
-          </motion.div>
-        </div>
-      </div>
+      {/* ── COMPACT ICON BAR: heading + section filter + category filter ── */}
+      <div className="sticky top-14 z-[100] bg-black/85 backdrop-blur-md border-b border-white/5 py-2">
+        <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-center gap-1.5">
 
-      {/* ── FILTER BAR (Categories in a single line, smaller) ── */}
-      <div className="sticky top-14 z-[100] bg-black/90 backdrop-blur-md border-b border-white/5 py-3">
-        <div className="max-w-7xl mx-auto px-4 flex justify-center">
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-1 px-4 max-w-full">
-            <button 
-              onClick={() => setFilter('')} 
-              className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all shrink-0 ${!activeType ? 'bg-[#FF00FF] text-white border-[#FF00FF] shadow-[0_0_10px_#FF00FF]' : 'bg-[#0A0A0A] text-white/70 border-white/10 hover:border-[#00FFFF]'}`}
+          {/* Heading as icon */}
+          <h1 className="flex items-center gap-1.5 text-sm font-black text-white uppercase tracking-tighter mr-1.5">
+            <Compass className="w-4 h-4 text-[#FF00FF]" /> Explore
+          </h1>
+          <div className="w-px h-5 bg-white/10" />
+
+          {/* Section-type filter: everything / listings / shops / creators */}
+          {[
+            { value: '', icon: LayoutGrid, label: 'All' },
+            { value: 'listings', icon: ShoppingBag, label: 'Listings' },
+            { value: 'shops', icon: Store, label: 'Shops' },
+            { value: 'users', icon: Users, label: 'Creators' },
+          ].map((s) => (
+            <button
+              key={s.value || 'all'}
+              onClick={() => setSection(s.value)}
+              title={s.label}
+              aria-label={s.label}
+              className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all shrink-0 ${
+                activeSection === s.value
+                  ? 'bg-[#00FFFF] text-black border-[#00FFFF] shadow-[0_0_10px_rgba(0,255,255,0.4)]'
+                  : 'bg-[#0A0A0A] text-white/70 border-white/10 hover:border-[#00FFFF] hover:text-white'
+              }`}
             >
-              ALL
+              <s.icon className="w-4 h-4" />
             </button>
-            {LISTING_TYPES.map((type) => (
-              <button 
-                key={type.value} 
-                onClick={() => setFilter(type.value)} 
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all shrink-0 ${activeType === type.value ? 'bg-[#FF00FF] text-white border-[#FF00FF] shadow-[0_0_10px_#FF00FF]' : 'bg-[#0A0A0A] text-white/70 border-white/10 hover:border-[#00FFFF]'}`}
+          ))}
+
+          {/* Listing category filter (icons only) — relevant when listings are visible */}
+          {showListings && (
+            <>
+              <div className="w-px h-5 bg-white/10" />
+              <button
+                onClick={() => setFilter('')}
+                title="All categories"
+                aria-label="All categories"
+                className={`flex items-center justify-center w-8 h-8 rounded-lg border text-[8px] font-black uppercase transition-all shrink-0 ${
+                  !activeType
+                    ? 'bg-[#FF00FF] text-white border-[#FF00FF] shadow-[0_0_10px_rgba(255,0,255,0.4)]'
+                    : 'bg-[#0A0A0A] text-white/70 border-white/10 hover:border-[#FF00FF]'
+                }`}
               >
-                <type.icon className="w-3 h-3" />
-                {type.label}
+                ALL
               </button>
-            ))}
-          </div>
+              {LISTING_TYPES.map((type) => (
+                <button
+                  key={type.value}
+                  onClick={() => setFilter(type.value)}
+                  title={type.label}
+                  aria-label={type.label}
+                  className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all shrink-0 ${
+                    activeType === type.value
+                      ? 'bg-[#FF00FF] text-white border-[#FF00FF] shadow-[0_0_10px_rgba(255,0,255,0.4)]'
+                      : 'bg-[#0A0A0A] text-white/70 border-white/10 hover:border-[#FF00FF] hover:text-white'
+                  }`}
+                >
+                  <type.icon className="w-4 h-4" />
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
       {/* ── MAIN VERTICAL SCROLL SECTIONS ── */}
       <div className="mt-4 space-y-4">
         
+        {/* SECTION 0: CREATORS */}
+        {showUsers && creators.length > 0 && (
+          <ScrollRow title="Creators" subtitle="People On HustleUp" icon={Users} accentColor="#00FFFF" isEmpty={false}>
+            {creators.map((u) => <CreatorCard key={u.id} u={u} />)}
+          </ScrollRow>
+        )}
+
         {/* SECTION 1: FEATURED SHOPS */}
+        {showShops && (
         <ScrollRow title="Featured Shops" subtitle="Vibrant Hubs" icon={Store} accentColor="#FF00FF" isEmpty={SHOPS.length === 0}>
           {SHOPS.map((shop, i) => (
             <div key={shop.id} className="snap-start shrink-0 w-[280px]">
@@ -181,8 +306,10 @@ export default function Explore() {
             </div>
           ))}
         </ScrollRow>
+        )}
 
         {/* SECTION 1.5: HIGH SELLING */}
+        {showListings && (
         <ScrollRow title="High Selling" subtitle="Most Bought On HustleUp" icon={Flame} accentColor="#CDFF00" isEmpty={!bestSellingLoading && filteredBestSelling.length === 0}>
           {bestSellingLoading ? (
             [...Array(4)].map((_, i) => <div key={i} className="shrink-0 w-[240px] aspect-[4/5] bg-white/[0.02] border border-white/10 rounded-2xl animate-pulse" />)
@@ -194,8 +321,10 @@ export default function Explore() {
             ))
           )}
         </ScrollRow>
+        )}
 
         {/* SECTION 2: FEATURED LISTINGS */}
+        {showListings && (
         <ScrollRow title="Featured Listings" subtitle="Hot Off The Press" icon={ShoppingBag} accentColor="#00FFFF" isEmpty={!loading && featuredListings.length === 0}>
           {loading ? (
             [...Array(4)].map((_, i) => <div key={i} className="shrink-0 w-[240px] aspect-[4/5] bg-white/[0.02] border border-white/10 rounded-2xl animate-pulse" />)
@@ -207,8 +336,10 @@ export default function Explore() {
             ))
           )}
         </ScrollRow>
+        )}
 
         {/* SECTION 3: FEATURED EVENTS */}
+        {showListings && (
         <ScrollRow title="Featured Events" subtitle="Gatherings & Meets" icon={Calendar} accentColor="#CDFF00" isEmpty={false}>
           {/* Dynamic Events from database */}
           {events.map((l, i) => (
@@ -233,8 +364,10 @@ export default function Explore() {
             </div>
           ))}
         </ScrollRow>
+        )}
 
-        {/* SECTION 4: FEATURED NEWS */}
+        {/* SECTION 4: FEATURED NEWS (only in the unfiltered view) */}
+        {!activeSection && (
         <ScrollRow title="Featured News" subtitle="The Culture Signal" icon={Newspaper} accentColor="#FF00FF" isEmpty={false}>
           {staticNews.map((n, i) => (
             <div key={i} className="snap-start shrink-0 w-[260px]">
@@ -252,8 +385,10 @@ export default function Explore() {
             </div>
           ))}
         </ScrollRow>
+        )}
 
         {/* SECTION 5: FEATURED JOBS */}
+        {showListings && (
         <ScrollRow title="Featured Jobs" subtitle="Hustle Gigs" icon={Briefcase} accentColor="#00FFFF" isEmpty={!loading && jobs.length === 0}>
           {loading ? (
             [...Array(4)].map((_, i) => <div key={i} className="shrink-0 w-[240px] aspect-[4/5] bg-white/[0.02] border border-white/10 rounded-2xl animate-pulse" />)
@@ -265,6 +400,7 @@ export default function Explore() {
             ))
           )}
         </ScrollRow>
+        )}
 
       </div>
     </div>

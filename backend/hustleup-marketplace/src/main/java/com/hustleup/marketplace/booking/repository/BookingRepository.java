@@ -20,6 +20,7 @@ package com.hustleup.marketplace.booking.repository;
 import com.hustleup.marketplace.booking.model.Booking;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 // JpaRepository<Booking, UUID>: manages Booking entities, primary key type is UUID.
@@ -58,4 +59,13 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * @return all bookings for the specified listing, in any order
      */
     List<Booking> findByListingId(UUID listingId);
+
+    /**
+     * Looks up the booking a Stripe PaymentIntent belongs to — used by the payout webhook
+     * to mark a booking PAID once the buyer's Checkout Session completes.
+     *
+     * @param paymentIntentId the Stripe PaymentIntent id stored when the checkout session was created
+     * @return the matching booking, if any
+     */
+    Optional<Booking> findByPaymentIntentId(String paymentIntentId);
 }

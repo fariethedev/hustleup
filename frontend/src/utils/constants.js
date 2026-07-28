@@ -29,10 +29,11 @@ export const POLISH_CITIES = [
 // Approximate fixed exchange rates used only to keep cart totals arithmetically
 // correct when items from different shops/listings are combined in one cart —
 // not a live FX feed, this app has no real payment processing behind it.
-const FX_TO_GBP = { GBP: 1, PLN: 0.2, EUR: 0.86, USD: 0.79 };
+// PLN is HustleUp's base/overall currency (Poland is the primary market).
+const FX_TO_PLN = { PLN: 1, GBP: 5, EUR: 4.3, USD: 3.95 };
 
-export function convertToGBP(amount, currency = 'GBP') {
-  const rate = FX_TO_GBP[currency] ?? 1;
+export function convertToPLN(amount, currency = 'PLN') {
+  const rate = FX_TO_PLN[currency] ?? 1;
   return Math.round(Number(amount) * rate * 100) / 100;
 }
 

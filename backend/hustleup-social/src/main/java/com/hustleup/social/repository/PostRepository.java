@@ -58,6 +58,15 @@ public interface PostRepository extends JpaRepository<Post, String> {
     List<Post> findByAuthorIdOrderByCreatedAtDesc(String authorId);
 
     /**
+     * Returns all posts linked to a specific marketplace listing, newest first — powers the
+     * "event updates" section a buyer sees on an EVENT listing's detail page.
+     *
+     * @param linkedListingId the UUID string of the listing to filter by
+     * @return posts linked to that listing, newest first
+     */
+    List<Post> findByLinkedListingIdOrderByCreatedAtDesc(String linkedListingId);
+
+    /**
      * Returns all posts ordered by like count (descending), then creation date (descending).
      *
      * <p>Used for the "trending" feed sort — posts with more likes appear first;

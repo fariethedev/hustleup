@@ -107,10 +107,9 @@ public class Subscription {
     @Builder.Default
     private BigDecimal pricePerMonth = new BigDecimal("20.00");
 
-    // ISO 4217 currency code. Defaults to South African Rand (ZAR) because
-    // HustleUp's primary market is South Africa.
+    // ISO 4217 currency code. Defaults to Polish Złoty (PLN) — HustleUp's primary market.
     @Builder.Default
-    private String currency = "ZAR";
+    private String currency = "PLN";
 
     // -------------------------------------------------------------------------
     // Temporal fields

@@ -54,7 +54,7 @@ export default function ShopCard({ shop, index = 0 }) {
             <div className="flex items-center gap-2 mb-1">
               <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10">
                 <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                <span className="text-xs font-bold text-white">{shop.rating}</span>
+                <span className="text-xs font-bold text-white">{shop.rating.toFixed(1)}</span>
               </div>
               <span className="text-[10px] font-bold text-white/60 tracking-wider uppercase">{shop.reviewCount} Reviews</span>
             </div>
