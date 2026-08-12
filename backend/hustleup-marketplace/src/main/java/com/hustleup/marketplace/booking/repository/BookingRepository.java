@@ -19,12 +19,57 @@ package com.hustleup.marketplace.booking.repository;
 
 import com.hustleup.marketplace.booking.model.Booking;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 // JpaRepository<Booking, UUID>: manages Booking entities, primary key type is UUID.
 public interface BookingRepository extends JpaRepository<Booking, UUID> {
+
+    /**
+     * Per-seller completed-sale totals: {@code [sellerId, salesCount, grossEarnings]}.
+     *
+     * <p>Powers both leaderboards and the hustle score in a single pass, so ranking every
+     * user costs one query rather than one per user.
+     *
+     * <p>Only {@code COMPLETED} counts. A booking that is merely {@code BOOKED} has been
+     * agreed but not delivered, and rewarding it would let someone farm the leaderboard by
+     * agreeing to sales they never fulfil. {@code COALESCE} keeps the sum at zero rather
+     * than null when agreed prices are missing.
+     */
+    @Query("""
+            SELECT b.sellerId, COUNT(b), COALESCE(SUM(b.agreedPrice), 0)
+            FROM Booking b
+            WHERE b.status = com.hustleup.marketplace.booking.model.BookingStatus.COMPLETED
+            GROUP BY b.sellerId
+            """)
+    List<Object[]> sellerSalesTotals();
+
+    /**
+     * Same shape as {@link #sellerSalesTotals()} but limited to bookings completed on or
+     * after {@code since} — used for the weekly/monthly leaderboard windows.
+     */
+    @Query("""
+            SELECT b.sellerId, COUNT(b), COALESCE(SUM(b.agreedPrice), 0)
+            FROM Booking b
+            WHERE b.status = com.hustleup.marketplace.booking.model.BookingStatus.COMPLETED
+              AND b.updatedAt >= :since
+            GROUP BY b.sellerId
+            """)
+    List<Object[]> sellerSalesTotalsSince(@Param("since") LocalDateTime since);
+
+    /** Most recent completed sale per seller — drives the hustle score's inactivity decay. */
+    @Query("""
+            SELECT b.sellerId, MAX(b.updatedAt)
+            FROM Booking b
+            WHERE b.status = com.hustleup.marketplace.booking.model.BookingStatus.COMPLETED
+            GROUP BY b.sellerId
+            """)
+    List<Object[]> lastCompletedSaleBySeller();
 
     /**
      * Returns all bookings where the given user is the <em>buyer</em>, newest first.

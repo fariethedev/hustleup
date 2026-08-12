@@ -22,6 +22,7 @@ package com.hustleup.social.repository;
 import com.hustleup.social.model.Comment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
+import java.util.Optional;
 
 public interface CommentRepository extends JpaRepository<Comment, String> {
 
@@ -44,4 +45,11 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
      * @return list of comments for that post, ordered by creation time ascending
      */
     List<Comment> findByPostIdOrderByCreatedAtAsc(String postId);
+
+    /**
+     * The single most recent comment on a post — used to render an Instagram-style
+     * "top comment" preview inline in the feed card, without the client needing to
+     * open the full comment thread first.
+     */
+    Optional<Comment> findFirstByPostIdOrderByCreatedAtDesc(String postId);
 }

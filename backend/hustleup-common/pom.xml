@@ -57,5 +57,11 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
         </dependency>
+
+        <!-- Resend transactional email — EmailService lives here so any service can send email -->
+        <dependency>
+            <groupId>com.resend</groupId>
+            <artifactId>resend-java</artifactId>
+        </dependency>
     </dependencies>
 </project>

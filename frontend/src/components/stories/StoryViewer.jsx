@@ -23,17 +23,21 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
   const [progress, setProgress] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [showControls, setShowControls] = useState(true);
   const [storiesLocal, setStoriesLocal] = useState([]);
   const [likeInProgress, setLikeInProgress] = useState(false);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [viewedIds, setViewedIds] = useState(new Set());
   const videoRef = useRef(null);
-  const controlsTimer = useRef(null);
   const loggedInUser = useSelector(selectUser);
 
   const currentUser = users[userIndex];
   const stories = currentUser?.stories || [];
+
+  // `userIndex` is seeded from the prop only on mount, so re-opening the tray on the
+  // same person would otherwise leave the viewer parked wherever it last advanced to.
+  useEffect(() => {
+    setUserIndex(initialUserIndex);
+  }, [initialUserIndex]);
 
   useEffect(() => {
     setStoriesLocal(stories);
@@ -43,19 +47,27 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
 
   const currentStory = storiesLocal[storyIndex] || stories[storyIndex];
 
-  const nextUser = useCallback(() => {
-    if (userIndex < users.length - 1) {
-      setUserIndex(userIndex + 1);
-    } else {
-      onClose();
+  // The tray hands us every person in the story bar, including the many who have no
+  // active story at all. Stepping onto one of them would leave the viewer rendering
+  // nothing while still counting as open, so skip past them and close out once there
+  // is nobody left with something to show.
+  const findUserWithStories = useCallback((from, step) => {
+    for (let i = from; i >= 0 && i < users.length; i += step) {
+      if (users[i]?.stories?.length) return i;
     }
-  }, [userIndex, users.length, onClose]);
+    return -1;
+  }, [users]);
+
+  const nextUser = useCallback(() => {
+    const next = findUserWithStories(userIndex + 1, 1);
+    if (next === -1) onClose();
+    else setUserIndex(next);
+  }, [userIndex, findUserWithStories, onClose]);
 
   const prevUser = useCallback(() => {
-    if (userIndex > 0) {
-      setUserIndex(userIndex - 1);
-    }
-  }, [userIndex]);
+    const prev = findUserWithStories(userIndex - 1, -1);
+    if (prev !== -1) setUserIndex(prev);
+  }, [userIndex, findUserWithStories]);
 
   const nextStory = useCallback(() => {
     if (storyIndex < storiesLocal.length - 1) {
@@ -95,14 +107,6 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
 
     return () => clearInterval(timer);
   }, [isPlaying, storyIndex, userIndex, nextStory]);
-
-  const triggerControls = () => {
-    setShowControls(true);
-    clearTimeout(controlsTimer.current);
-    controlsTimer.current = setTimeout(() => {
-      if (isPlaying) setShowControls(false);
-    }, 3000);
-  };
 
   const toggleLike = async (e) => {
     e.stopPropagation();
@@ -152,6 +156,20 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
     return () => unlock();
   }, [currentStory]);
 
+  // Record a view the first time each story is shown so the author's view count and
+  // the story-tray ring color (seen vs. unseen) actually update. Guarded by viewedIds
+  // so re-rendering the same story (e.g. progress ticking) doesn't re-fire the request,
+  // and skipped for your own stories since viewing your own content shouldn't count.
+  useEffect(() => {
+    if (!currentStory || viewedIds.has(currentStory.id)) return;
+    if (loggedInUser && currentStory.authorId === String(loggedInUser.id)) return;
+    const storyId = currentStory.id;
+    setViewedIds(prev => new Set(prev).add(storyId));
+    storiesApi.view(storyId)
+      .then(() => onViewed?.(storyId))
+      .catch(() => {});
+  }, [currentStory, loggedInUser]);
+
   if (!currentStory) return null;
 
   return createPortal(
@@ -165,11 +183,9 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
       </div>
 
       {/* Main Premium Card Player */}
-      <motion.div 
+      <motion.div
         layoutId={`story-${currentUser.id}`}
-        className="relative w-full max-w-[440px] aspect-[9/16] bg-[#050505] shadow-[0_50px_150px_rgba(0,0,0,0.8)] z-10 sm:rounded-[3rem] border border-white/10 overflow-hidden flex flex-col"
-        onMouseMove={triggerControls}
-        onTouchStart={triggerControls}
+        className="relative w-full h-full sm:w-auto sm:h-[90vh] sm:max-h-[820px] sm:aspect-[9/16] sm:max-w-[440px] bg-[#050505] shadow-[0_50px_150px_rgba(0,0,0,0.8)] z-10 sm:rounded-[3rem] border border-white/10 overflow-hidden flex flex-col"
       >
         {/* Media Block */}
         <div className="absolute inset-0 z-0" onClick={() => setIsPlaying(!isPlaying)}>
@@ -189,7 +205,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
         </div>
 
         {/* Floating Overlays */}
-        <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="absolute inset-0 z-10 pointer-events-none">
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 pointer-events-none" />
 
           {/* TOP: Progress + Author Pill */}
@@ -239,9 +255,9 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
           </div>
 
           {/* Persistent Exit Button (Always Visible) */}
-          <button 
+          <button
             onClick={(e) => { e.stopPropagation(); onClose(); }}
-            className="absolute top-12 right-6 z-[100] w-12 h-12 rounded-full bg-black/40 backdrop-blur-3xl border border-white/10 flex items-center justify-center text-white hover:bg-[#CDFF00] hover:text-black hover:border-transparent transition-all shadow-2xl active:scale-95"
+            className="absolute top-12 right-6 z-[100] pointer-events-auto w-12 h-12 rounded-full bg-black/40 backdrop-blur-3xl border border-white/10 flex items-center justify-center text-white hover:bg-[#CDFF00] hover:text-black hover:border-transparent transition-all shadow-2xl active:scale-95"
             title="Close Story"
           >
             <X className="w-6 h-6" />
@@ -284,8 +300,8 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
         </div>
 
         {/* Side Tap Regions */}
-        <div className="absolute inset-y-0 left-0 w-20 z-20 cursor-pointer" onClick={(e) => { e.stopPropagation(); prevStory(); }} />
-        <div className="absolute inset-y-0 right-0 w-20 z-20 cursor-pointer" onClick={(e) => { e.stopPropagation(); nextStory(); }} />
+        <div className="absolute inset-y-0 left-0 w-20 z-[5] cursor-pointer" onClick={(e) => { e.stopPropagation(); prevStory(); }} />
+        <div className="absolute inset-y-0 right-0 w-20 z-[5] cursor-pointer" onClick={(e) => { e.stopPropagation(); nextStory(); }} />
       </motion.div>
 
       {/* Large Navigation Arrows (Desktop) */}

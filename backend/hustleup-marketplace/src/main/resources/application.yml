@@ -21,6 +21,11 @@ spring:
 server:
   port: 8083
 
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENV:development}
+  traces-sample-rate: 0.2
+
 app:
   jwt:
     secret: ${JWT_SECRET}
@@ -44,3 +49,12 @@ app:
     region: ${AWS_REGION:us-east-1}
     s3:
       bucket: ${AWS_S3_BUCKET:hustle-up}
+  cdn:
+    domain: ${CDN_DOMAIN:}
+  resend:
+    api-key: ${RESEND_API_KEY:}
+  email:
+    from: ${EMAIL_FROM:HustleUp <notifications@hustleup.app>}
+  algolia:
+    app-id: ${ALGOLIA_APP_ID:}
+    admin-key: ${ALGOLIA_ADMIN_KEY:}

@@ -6,6 +6,7 @@ import { ArrowLeft, CreditCard, Landmark, Wallet, CircleDollarSign, ShieldCheck,
 import { selectCartItems, selectCartTotal, clearCart } from '../store/cartSlice';
 import { bookingsApi } from '../api/client';
 import { formatPrice } from '../utils/constants';
+import SmartImage from '../components/SmartImage';
 
 const PAYMENT_METHODS = [
   { id: 'paypal', label: 'PayPal', description: 'Pay with your account', icon: CircleDollarSign },
@@ -164,12 +165,15 @@ export default function Checkout() {
                       className="flex items-center gap-3 p-2.5 rounded-xl bg-[#111] border border-white/5"
                     >
                       <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-800 shrink-0 flex items-center justify-center">
-                        {item.image ? (
-                          <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-                        ) : item.emoji ? (
+                        {item.emoji ? (
                           <span className="text-lg">{item.emoji}</span>
                         ) : (
-                          <ShoppingBag className="w-4 h-4 text-gray-600" />
+                          <SmartImage
+                            src={item.image}
+                            alt={item.title}
+                            fallbackIcon={ShoppingBag}
+                            className="w-full h-full object-cover"
+                          />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">

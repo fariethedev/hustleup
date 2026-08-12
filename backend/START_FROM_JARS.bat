@@ -11,10 +11,40 @@ echo   HustleUp Microservices (Full Environment)
 echo =====================================
 echo.
 
-REM Set required environment variables
-set "MYSQL_PASSWORD=francis"
-set "JWT_SECRET=HustleUpSecretKeyForJWTTokenGenerationMustBe256BitsLongAtLeast!!2026"
-set "UPLOAD_DIR=./uploads"
+REM ── Secrets ───────────────────────────────────────────────────────────────
+REM SECURITY: the database password and JWT signing key used to be written literally
+REM in this file, which is committed to git. Anyone with repo access (or anyone who
+REM ever gets a copy of it) could sign their own JWTs for any account, so those values
+REM must be treated as compromised and rotated — generate a fresh JWT_SECRET and change
+REM the MySQL password before this runs against anything real.
+REM
+REM They are now read from backend\.env, which .gitignore excludes. Copy .env.example
+REM to .env and fill in your values. Every KEY=VALUE line in it becomes an env var.
+if exist "%~dp0.env" (
+    for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%~dp0.env") do (
+        if not "%%~A"=="" set "%%~A=%%~B"
+    )
+) else (
+    echo ERROR: backend\.env not found.
+    echo Copy backend\.env.example to backend\.env and fill in your values.
+    exit /b 1
+)
+
+if not defined MYSQL_PASSWORD (
+    echo ERROR: MYSQL_PASSWORD is not set in backend\.env
+    exit /b 1
+)
+if not defined JWT_SECRET (
+    echo ERROR: JWT_SECRET is not set in backend\.env ^(must be at least 32 characters^)
+    exit /b 1
+)
+
+REM UPLOAD_DIR must be an ABSOLUTE path shared by every service. Each service writes
+REM uploads here, but only the auth service serves /uploads/** back (the gateway routes
+REM that path to 8081) — so a relative "./uploads" resolves against each process's own
+REM working directory and images uploaded by marketplace/social/notification become
+REM unreachable. %~dp0 is this script's directory (…\hustleup\backend\), .. is the repo root.
+set "UPLOAD_DIR=%~dp0..\uploads"
 set "AWS_REGION=us-east-1"
 set "AWS_S3_BUCKET=hustle-up"
 

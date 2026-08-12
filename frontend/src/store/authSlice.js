@@ -41,6 +41,34 @@ export const loginUser = createAsyncThunk('auth/login', async (credentials, { re
   }
 });
 
+// Shared by googleLogin/facebookLogin — both hit an /auth/oauth/* endpoint that returns
+// the exact same AuthResponse shape as the password login endpoint.
+async function handleOAuthResponse(apiCall, rejectWithValue) {
+  try {
+    const res = await apiCall;
+    const { accessToken, refreshToken, role, fullName, userId } = res.data;
+    localStorage.setItem('hustleup_token', accessToken);
+    localStorage.setItem('hustleup_refresh', refreshToken);
+    let userData;
+    try {
+      const meRes = await authApi.me();
+      userData = { ...meRes.data, onboardingCompleted: true };
+    } catch {
+      userData = { id: userId, fullName, role, onboardingCompleted: true };
+    }
+    localStorage.setItem('hustleup_user', JSON.stringify(userData));
+    return userData;
+  } catch (err) {
+    return rejectWithValue(err.response?.data?.error || err.response?.data?.message || 'Sign-in failed');
+  }
+}
+
+export const googleLogin = createAsyncThunk('auth/googleLogin', async (idToken, { rejectWithValue }) =>
+  handleOAuthResponse(authApi.googleLogin(idToken), rejectWithValue));
+
+export const facebookLogin = createAsyncThunk('auth/facebookLogin', async (accessToken, { rejectWithValue }) =>
+  handleOAuthResponse(authApi.facebookLogin(accessToken), rejectWithValue));
+
 export const registerUser = createAsyncThunk('auth/register', async (data, { rejectWithValue }) => {
   try {
     const res = await authApi.register(data);
@@ -102,6 +130,13 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
+      // Google / Facebook sign-in
+      .addCase(googleLogin.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(googleLogin.fulfilled, (state, action) => { state.loading = false; state.isAuthenticated = true; state.user = action.payload; })
+      .addCase(googleLogin.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
+      .addCase(facebookLogin.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(facebookLogin.fulfilled, (state, action) => { state.loading = false; state.isAuthenticated = true; state.user = action.payload; })
+      .addCase(facebookLogin.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
       // Register
       .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(registerUser.fulfilled, (state, action) => {

@@ -7,10 +7,11 @@ import { usersApi, reviewsApi, listingsApi, feedApi, followsApi } from '../api/c
 import { useToast } from '../context/ToastContext';
 import ReviewStars from '../components/ReviewStars';
 import ListingCard from '../components/ListingCard';
+import DistanceBadge from '../components/DistanceBadge';
 import {
   MapPin, BadgeCheck, User2, MessageCircle, Settings, Camera,
   Image as ImageIcon, Check, X, AtSign, Globe,
-  Grid3X3, Star, Heart, MoreHorizontal, Ban, Flag, ShieldOff, FileText
+  Grid3X3, Star, Heart, MoreHorizontal, Ban, Flag, ShieldOff, FileText, Plus
 } from 'lucide-react';
 
 export default function Profile() {
@@ -235,12 +236,20 @@ export default function Profile() {
             <h1 className="text-xl sm:text-2xl font-bold text-white truncate">{profile.fullName || profile.username}</h1>
 
             {isOwn ? (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center gap-2"
-              >
-                <Settings className="w-4 h-4" /> Edit profile
-              </button>
+              <>
+                <Link
+                  to="/create"
+                  className="px-4 py-1.5 rounded-lg bg-[#CDFF00] hover:bg-[#d9ff33] text-black text-sm font-semibold transition-colors flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" /> Add listing
+                </Link>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center gap-2"
+                >
+                  <Settings className="w-4 h-4" /> Edit profile
+                </button>
+              </>
             ) : rel.blocked ? (
               <button
                 onClick={toggleBlock}
@@ -546,6 +555,7 @@ function ProfileBio({ profile }) {
             <MapPin className="w-3 h-3 text-[#CDFF00]" /> {profile.city}
           </span>
         )}
+        <DistanceBadge lat={profile.latitude} lng={profile.longitude} />
       </div>
       {profile.bio && <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>}
       <div className="flex flex-wrap items-center gap-3 text-xs">

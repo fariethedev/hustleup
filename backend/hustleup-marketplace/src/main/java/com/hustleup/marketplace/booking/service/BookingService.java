@@ -37,7 +37,12 @@ import com.hustleup.marketplace.listing.repository.ListingRepository;
 import com.hustleup.marketplace.payments.model.SellerPayoutAccount;
 import com.hustleup.marketplace.payments.repository.SellerPayoutAccountRepository;
 import com.hustleup.marketplace.payments.service.StripeConnectService;
+import com.hustleup.marketplace.ticket.service.TicketService;
+import com.hustleup.common.email.EmailService;
+import com.hustleup.common.push.ExpoPushService;
+import com.hustleup.common.model.Notification;
 import com.hustleup.common.model.User;
+import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import com.stripe.exception.StripeException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -64,6 +69,10 @@ public class BookingService {
     private final AvailabilityRepository availabilityRepository; // seller-defined slots for service bookings
     private final SellerPayoutAccountRepository payoutAccountRepository; // seller's Stripe Connect account
     private final StripeConnectService stripeConnectService; // payment collection + seller payouts
+    private final EmailService emailService; // booking confirmed/cancelled/completed notifications
+    private final ExpoPushService expoPushService; // same lifecycle events, as a mobile push
+    private final TicketService ticketService; // issues/voids digital tickets for EVENT bookings
+    private final NotificationRepository notificationRepository; // in-app alerts — powers the real-time negotiation popup
 
     /**
      * Constructor injection: Spring automatically resolves and injects these beans.
@@ -75,13 +84,81 @@ public class BookingService {
     public BookingService(BookingRepository bookingRepository, ListingRepository listingRepository,
                           UserRepository userRepository, AvailabilityRepository availabilityRepository,
                           SellerPayoutAccountRepository payoutAccountRepository,
-                          StripeConnectService stripeConnectService) {
+                          StripeConnectService stripeConnectService,
+                          EmailService emailService, ExpoPushService expoPushService,
+                          TicketService ticketService, NotificationRepository notificationRepository) {
         this.bookingRepository = bookingRepository;
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
         this.availabilityRepository = availabilityRepository;
         this.payoutAccountRepository = payoutAccountRepository;
         this.stripeConnectService = stripeConnectService;
+        this.emailService = emailService;
+        this.expoPushService = expoPushService;
+        this.ticketService = ticketService;
+        this.notificationRepository = notificationRepository;
+    }
+
+    /**
+     * Issues digital tickets for a confirmed EVENT booking and tells the buyer they're in.
+     *
+     * <p>Called from every path that can confirm an event booking: an instant ticket purchase,
+     * and an organiser accepting a request to join. {@code issueForBooking} is idempotent, so a
+     * booking that passes through here twice does not double an event's head count.
+     *
+     * <p>Ticket issuing is best-effort with respect to notification only — a failure to send the
+     * confirmation email must not roll back the tickets, which is why the notify calls are
+     * separately guarded inside {@link #notifyByEmail}.
+     *
+     * @param booking the booking that has just been confirmed
+     * @param listing its listing; ignored unless this is an EVENT
+     */
+    private void issueTicketsIfEvent(Booking booking, Listing listing) {
+        if (listing == null || listing.getListingType() != ListingType.EVENT) return;
+
+        int issued = ticketService.issueForBooking(booking, listing).size();
+
+        String plural = issued == 1 ? "ticket is" : "tickets are";
+        notifyByEmail(booking.getBuyerId(), "Your ticket for " + listing.getTitle(),
+                "<p>Your " + plural + " ready. Open HustleUp to view the QR code and show it at the door.</p>");
+        notifyByPush(booking.getBuyerId(), "Ticket ready",
+                issued + " " + plural + " ready for " + listing.getTitle() + ".");
+    }
+
+    /** Best-effort booking-lifecycle email — never lets a mail failure affect the booking flow. */
+    private void notifyByEmail(UUID userId, String subject, String htmlBody) {
+        try {
+            userRepository.findById(userId).ifPresent(u -> emailService.send(u.getEmail(), subject, htmlBody));
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Same booking-lifecycle events as {@link #notifyByEmail}, delivered as a mobile push. */
+    private void notifyByPush(UUID userId, String title, String body) {
+        try {
+            userRepository.findById(userId).ifPresent(u -> expoPushService.send(u.getPushToken(), title, body));
+        } catch (Exception ignored) {
+        }
+    }
+
+    /**
+     * Persists an in-app {@link Notification} for a booking-negotiation event (new request,
+     * counter-offer, or acceptance). Unlike email/push, this is what the frontend's real-time
+     * negotiation popup polls for — {@code type} drives which action buttons it renders
+     * (accept/decline/counter for a request or counter-offer; a plain heads-up for an
+     * acceptance), and {@code referenceId} is the booking ID those actions operate on.
+     */
+    private void notifyInApp(UUID userId, String title, String message, String type, UUID referenceId) {
+        try {
+            notificationRepository.save(Notification.builder()
+                    .userId(userId)
+                    .title(title)
+                    .message(message)
+                    .notificationType(type)
+                    .referenceId(referenceId)
+                    .build());
+        } catch (Exception ignored) {
+        }
     }
 
     /**
@@ -106,11 +183,14 @@ public class BookingService {
      * @param scheduledAt        requested delivery date/time, or {@code null} if flexible
      * @param availabilitySlotId a specific seller-defined open slot to reserve (service listings), or {@code null}
      * @param quantity           number of units to purchase (EVENT ticket purchases), or {@code null} for 1
+     * @param joinRequest        for EVENT listings only: true routes through the standard INQUIRED
+     *                           request/approve flow instead of an instant ticket purchase — used
+     *                           for free events where the organiser vets attendees before confirming
      * @return the newly created booking as an enriched DTO
      */
     @Transactional // wraps the entire method in a database transaction
     public BookingDto create(UUID listingId, BigDecimal offeredPrice, LocalDateTime scheduledAt,
-                              UUID availabilitySlotId, Integer quantity) {
+                              UUID availabilitySlotId, Integer quantity, boolean joinRequest) {
         User buyer = getCurrentUser(); // resolve authenticated buyer from Spring Security context
         Listing listing = listingRepository.findById(listingId)
                 .orElseThrow(() -> new RuntimeException("Listing not found"));
@@ -156,8 +236,10 @@ public class BookingService {
 
         // ── Event ticket purchase ────────────────────────────────────────────────────────
         // Buying a ticket is an instant purchase, not a negotiation — confirm immediately
-        // with the total price for the requested quantity.
-        if (listing.getListingType() == ListingType.EVENT) {
+        // with the total price for the requested quantity. Skipped when the buyer instead
+        // sent a "request to join" — that falls through to the standard INQUIRED flow below
+        // so the event's organiser can explicitly accept or decline it.
+        if (listing.getListingType() == ListingType.EVENT && !joinRequest) {
             Booking booking = Booking.builder()
                     .buyerId(buyer.getId())
                     .sellerId(listing.getSellerId())
@@ -169,25 +251,42 @@ public class BookingService {
                     .quantity(qty)
                     .status(BookingStatus.BOOKED)
                     .build();
-            return enrichDto(bookingRepository.save(booking));
+            Booking saved = bookingRepository.save(booking);
+            // The purchase is confirmed the moment it's made, so the buyer gets their scannable
+            // tickets immediately rather than waiting on the organiser.
+            issueTicketsIfEvent(saved, listing);
+            return enrichDto(saved);
         }
 
-        // ── Standard negotiated booking (unchanged) ─────────────────────────────────────
+        // ── Standard negotiated booking ──────────────────────────────────────────────────
         // Construct the booking entity. @Builder.Default on the entity sets the initial status
         // to POSTED, but we explicitly override it to INQUIRED here to indicate a real request.
+        BigDecimal offer = offeredPrice != null ? offeredPrice : listing.getPrice();
         Booking booking = Booking.builder()
                 .buyerId(buyer.getId())
                 .sellerId(listing.getSellerId())
                 .listingId(listingId)
                 // Use the buyer's custom offer if provided; otherwise default to the listing price
-                .offeredPrice(offeredPrice != null ? offeredPrice : listing.getPrice())
+                .offeredPrice(offer)
                 .currency(listing.getCurrency()) // lock in the currency from the listing
                 .scheduledAt(scheduledAt)
                 .quantity(qty)
                 .status(BookingStatus.INQUIRED) // explicitly start at INQUIRED (formal request sent)
                 .build();
 
-        return enrichDto(bookingRepository.save(booking));
+        Booking saved = bookingRepository.save(booking);
+
+        // This is the moment the seller needs to hear about immediately — everything downstream
+        // (accept/decline/counter) hinges on them seeing it, so it's the one booking event that
+        // gets a dedicated notification type the frontend's real-time popup polls for.
+        String buyerName = buyer.getFullName() != null && !buyer.getFullName().isBlank()
+                ? buyer.getFullName() : buyer.getEmail().split("@")[0];
+        notifyInApp(listing.getSellerId(),
+                buyerName + " wants to book " + listing.getTitle(),
+                buyerName + " offered " + offer + " " + listing.getCurrency() + " for \"" + listing.getTitle() + "\".",
+                "BOOKING_REQUEST", saved.getId());
+
+        return enrichDto(saved);
     }
 
     /**
@@ -259,7 +358,18 @@ public class BookingService {
         booking.setCounterPrice(counterPrice);
         booking.setStatus(BookingStatus.NEGOTIATING);
         booking.setUpdatedAt(LocalDateTime.now()); // record when this change was made
-        return enrichDto(bookingRepository.save(booking));
+        Booking saved = bookingRepository.save(booking);
+
+        String listingTitle = listingRepository.findById(booking.getListingId())
+                .map(Listing::getTitle).orElse("your booking");
+        String sellerName = seller.getFullName() != null && !seller.getFullName().isBlank()
+                ? seller.getFullName() : seller.getEmail().split("@")[0];
+        notifyInApp(booking.getBuyerId(),
+                sellerName + " countered on " + listingTitle,
+                sellerName + " proposed " + counterPrice + " " + booking.getCurrency() + " for \"" + listingTitle + "\".",
+                "BOOKING_COUNTER", saved.getId());
+
+        return enrichDto(saved);
     }
 
     /**
@@ -300,7 +410,28 @@ public class BookingService {
             booking.setAgreedPrice(agreed);   // lock in the agreed price
             booking.setStatus(BookingStatus.BOOKED);
             booking.setUpdatedAt(LocalDateTime.now());
-            return enrichDto(bookingRepository.save(booking));
+            Booking saved = bookingRepository.save(booking);
+
+            // An accepted request to join an event is the other route to a confirmed EVENT
+            // booking, so this is where those attendees get their tickets.
+            Listing bookedListing = listingRepository.findById(booking.getListingId()).orElse(null);
+            issueTicketsIfEvent(saved, bookedListing);
+
+            String listingTitle = bookedListing != null ? bookedListing.getTitle() : "your booking";
+            notifyByEmail(booking.getBuyerId(), "Booking confirmed: " + listingTitle,
+                    "<p>Your booking for <b>" + listingTitle + "</b> is confirmed at "
+                            + agreed + " " + booking.getCurrency() + ".</p>");
+            notifyByPush(booking.getBuyerId(), "Booking confirmed",
+                    listingTitle + " is confirmed at " + agreed + " " + booking.getCurrency() + ".");
+
+            // Let whichever party didn't just click "accept" know their offer/counter went
+            // through — closes the loop on the negotiation popup for both sides.
+            UUID otherParty = user.getId().equals(booking.getBuyerId()) ? booking.getSellerId() : booking.getBuyerId();
+            notifyInApp(otherParty, "Booking confirmed: " + listingTitle,
+                    listingTitle + " is confirmed at " + agreed + " " + booking.getCurrency() + ".",
+                    "BOOKING_ACCEPTED", saved.getId());
+
+            return enrichDto(saved);
         } catch (ObjectOptimisticLockingFailureException e) {
             // The @Version check failed: another request updated this booking between our read
             // and our save. Return a friendly error rather than a cryptic 500.
@@ -333,6 +464,10 @@ public class BookingService {
         booking.setCancelReason(reason); // record why it was cancelled (useful for dispute resolution)
         booking.setUpdatedAt(LocalDateTime.now());
 
+        // Void any event tickets this booking issued so a cancelled attendee can't walk in on
+        // an old QR code. No-op for non-event bookings, which never had tickets.
+        ticketService.voidForBooking(booking.getId());
+
         // If this booking held a specific seller-defined slot, free it back up so another
         // buyer can book that time — otherwise a cancelled appointment would stay "taken" forever.
         if (booking.getAvailabilitySlotId() != null) {
@@ -356,7 +491,20 @@ public class BookingService {
             }
         }
 
-        return enrichDto(bookingRepository.save(booking));
+        Booking saved = bookingRepository.save(booking);
+
+        // Notify whichever party didn't initiate the cancellation.
+        UUID notifyUserId = user.getId().equals(booking.getBuyerId()) ? booking.getSellerId() : booking.getBuyerId();
+        String listingTitle = listingRepository.findById(booking.getListingId())
+                .map(Listing::getTitle).orElse("a booking");
+        notifyByEmail(notifyUserId, "Booking cancelled: " + listingTitle,
+                "<p>The booking for <b>" + listingTitle + "</b> was cancelled"
+                        + (reason != null && !reason.isBlank() ? ": " + reason : ".") + "</p>");
+        notifyByPush(notifyUserId, "Booking cancelled",
+                listingTitle + " was cancelled"
+                        + (reason != null && !reason.isBlank() ? ": " + reason : "."));
+
+        return enrichDto(saved);
     }
 
     /**
@@ -406,7 +554,21 @@ public class BookingService {
                     });
         }
 
-        return enrichDto(bookingRepository.save(booking));
+        Booking saved = bookingRepository.save(booking);
+
+        String listingTitle = listingRepository.findById(booking.getListingId())
+                .map(Listing::getTitle).orElse("your booking");
+        notifyByEmail(booking.getBuyerId(), "Completed: " + listingTitle,
+                "<p><b>" + listingTitle + "</b> is marked complete. Leave a review to help other buyers!</p>");
+        notifyByPush(booking.getBuyerId(), "Booking completed",
+                listingTitle + " is marked complete. Leave a review to help other buyers!");
+        if ("TRANSFERRED".equals(saved.getPaymentStatus())) {
+            notifyByEmail(booking.getSellerId(), "Payout sent: " + listingTitle,
+                    "<p>You've been paid out for <b>" + listingTitle + "</b>.</p>");
+            notifyByPush(booking.getSellerId(), "Payout sent", "You've been paid out for " + listingTitle + ".");
+        }
+
+        return enrichDto(saved);
     }
 
     /**

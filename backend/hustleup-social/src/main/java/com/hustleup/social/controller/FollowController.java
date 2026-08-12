@@ -111,7 +111,11 @@ public class FollowController {
         Map<String, Object> m = new HashMap<>();
         m.put("id", u.getId());                             // UUID primary key
         m.put("fullName", u.getFullName());                 // display name
-        m.put("username", u.getEmail().split("@")[0]);      // derive username from email prefix
+        // Their chosen @handle, falling back to the display name. Deliberately NOT the
+        // email local part — this map is returned in follower/following lists, so that
+        // would leak part of every listed user's email address.
+        m.put("username", u.getUsername() != null && !u.getUsername().isBlank()
+                ? u.getUsername() : u.getFullName());
         m.put("avatarUrl", u.getAvatarUrl());               // profile picture URL
         m.put("bio", u.getBio());                           // short biography
         m.put("city", u.getCity());                         // location

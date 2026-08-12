@@ -18,6 +18,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Video, ResizeMode } from 'expo-av';
@@ -1492,6 +1493,32 @@ export default function HomeScreen() {
   const renderHeader = () => (
     <View style={styles.headerSection}>
 
+      {/* ── Greeting ── */}
+      <View style={styles.greetBanner}>
+        <LinearGradient
+          colors={['rgba(205,255,0,0.08)', 'transparent']}
+          style={styles.greetGlow}
+          pointerEvents="none"
+        />
+        <View style={styles.greetBannerRow}>
+          <View>
+            <Text style={styles.greetBannerSub}>{greeting},</Text>
+            <Text style={styles.greetBannerName}>{firstName} 👋</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.greetAvatar}
+            onPress={() => router.push(isAuthenticated ? '/(tabs)/profile' : '/login')}
+            activeOpacity={0.8}
+          >
+            {currentUser?.avatarUrl ? (
+              <Image source={{ uri: resolveMediaUrl(currentUser.avatarUrl) }} style={styles.greetAvatarImg} />
+            ) : (
+              <Text style={styles.greetAvatarText}>{firstName[0]?.toUpperCase() || 'H'}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* ── Stories ── */}
       <View style={styles.storiesBlock}>
         <StoryBar
@@ -1727,7 +1754,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22, paddingTop: 20, paddingBottom: 28,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.05)',
+    position: 'relative', overflow: 'hidden',
   },
+  greetGlow: { position: 'absolute', top: -60, left: -40, right: -40, height: 200 },
   greetBannerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   greetBannerSub: { color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: '600', marginBottom: 5, letterSpacing: 0.2 },
   greetBannerName: { color: '#FFF', fontSize: 30, fontWeight: '900', letterSpacing: -1 },
@@ -1752,11 +1781,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(205,255,0,0.1)',
     borderWidth: 1.5, borderColor: 'rgba(205,255,0,0.25)',
     justifyContent: 'center', alignItems: 'center',
+    overflow: 'hidden',
   },
   greetAvatarText: { color: LIME, fontSize: 18, fontWeight: '900' },
+  greetAvatarImg: { width: '100%', height: '100%', borderRadius: 24 },
 
   // Stories block
-  storiesBlock: { marginTop: 28, marginBottom: 4 },
+  storiesBlock: { marginTop: 16, marginBottom: 4 },
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 22, marginBottom: 12,

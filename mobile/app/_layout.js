@@ -4,8 +4,20 @@ import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-rout
 import { StatusBar } from 'expo-status-bar';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import * as Sentry from '@sentry/react-native';
 import { store } from '../src/store';
 import { setUser } from '../src/store/authSlice';
+import { registerForPushNotifications } from '../src/utils/pushNotifications';
+
+// No-ops safely if extra.sentryDsn is blank. Note: this captures JS-level errors
+// fine under Expo Go, but full native crash reporting needs an EAS dev build —
+// see INTEGRATIONS.md.
+Sentry.init({
+  dsn: Constants.expoConfig?.extra?.sentryDsn || undefined,
+  environment: __DEV__ ? 'development' : 'production',
+  tracesSampleRate: 0.2,
+});
 
 function AuthGate({ children }) {
   const router = useRouter();
@@ -38,6 +50,12 @@ function AuthGate({ children }) {
     }
   }, [hydrated, isAuthenticated, segments, navState?.key]);
 
+  // Register (or re-register, e.g. after a token refresh) this device for push
+  // notifications once the user is signed in. No-ops until Firebase/EAS are configured.
+  useEffect(() => {
+    if (hydrated && isAuthenticated) registerForPushNotifications();
+  }, [hydrated, isAuthenticated]);
+
   // Render children always so the Stack mounts and navState.key becomes available.
   // Show a lime spinner overlay while we haven't finished reading AsyncStorage.
   return (
@@ -62,7 +80,7 @@ function AuthGate({ children }) {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <Provider store={store}>
       <AuthGate>
@@ -82,4 +100,6 @@ export default function RootLayout() {
     </Provider>
   );
 }
+
+export default Sentry.wrap(RootLayout);
 

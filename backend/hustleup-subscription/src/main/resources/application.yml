@@ -17,6 +17,11 @@ spring:
 server:
   port: 8084
 
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENV:development}
+  traces-sample-rate: 0.2
+
 app:
   stripe:
     secret-key: ${STRIPE_SECRET_KEY}

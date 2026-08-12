@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { directMessagesApi, notificationsApi, usersApi } from '../api/client';
+import { formatPrice } from '../utils/constants';
 import {
   MessageSquareOff, User, BadgeCheck, ArrowLeft,
   Paperclip, Smile, MoreVertical, Search, Send,
-  Check, CheckCheck, Tag, X, Sticker as StickerIcon, RefreshCw
+  Check, CheckCheck, Tag, X, Sticker as StickerIcon, RefreshCw, Flame, ShoppingBag, Heart
 } from 'lucide-react';
 
 /* Curated emoji + sticker sets for the composer pickers (no external deps). */
@@ -106,6 +107,11 @@ export default function DirectMessages() {
   const [msgQuery, setMsgQuery] = useState('');
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  // Whether the open conversation started from a mutual Bond match — drives the heart
+  // badge in the header. Checked via a dedicated endpoint (not just the partners list'
+  // own isBondMatch field) so it's correct even the moment after a fresh match, before
+  // any message — and therefore any /partners entry — exists yet.
+  const [activeIsBondMatch, setActiveIsBondMatch] = useState(false);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const inputRef = useRef(null);
@@ -143,6 +149,13 @@ export default function DirectMessages() {
       const interval = setInterval(() => loadMessages(activePartner), 5000);
       return () => clearInterval(interval);
     }
+  }, [activePartner]);
+
+  useEffect(() => {
+    if (!activePartner) { setActiveIsBondMatch(false); return; }
+    directMessagesApi.checkBondMatch(activePartner)
+      .then((res) => setActiveIsBondMatch(!!res.data?.isBondMatch))
+      .catch(() => setActiveIsBondMatch(false));
   }, [activePartner]);
 
   const loadMessages = (id) => {
@@ -321,7 +334,7 @@ export default function DirectMessages() {
   }, [activePartner]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh-4rem)] overflow-hidden text-white font-sans flex flex-col">
+    <div className="h-[calc(100dvh-8.5rem-env(safe-area-inset-bottom))] md:h-[calc(100dvh-4rem)] overflow-hidden text-white font-sans flex flex-col">
       <div className="flex-1 min-h-0 w-full max-w-[1600px] mx-auto flex">
 
         {/* ── SIDEBAR (chat list) ── */}
@@ -384,6 +397,14 @@ export default function DirectMessages() {
                         <span className="flex items-center gap-1 min-w-0">
                           <span className="text-sm text-white font-bold truncate">{displayName}</span>
                           {p.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
+                          {p.isBondMatch && (
+                            <Heart className="w-3.5 h-3.5 text-pink-400 fill-pink-400 shrink-0" title="Matched on Bond — not a sale" />
+                          )}
+                          {p.streak > 1 && (
+                            <span className="flex items-center gap-0.5 text-[10px] font-bold text-orange-400 shrink-0" title={`${p.streak}-day streak`}>
+                              <Flame className="w-3 h-3 fill-orange-400" />{p.streak}
+                            </span>
+                          )}
                         </span>
                         <span className={`text-[10px] shrink-0 font-bold ${p.unreadCount > 0 ? 'text-[#CDFF00]' : 'text-gray-500'}`}>
                           {formatSidebarTime(p.lastMessageAt)}
@@ -427,8 +448,22 @@ export default function DirectMessages() {
                     <h3 className="text-sm font-bold text-white truncate flex items-center gap-1.5 leading-tight">
                       {activePartnerData.name || activePartnerData.fullName}
                       {activePartnerData.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00]" />}
+                      {activeIsBondMatch && (
+                        <Heart className="w-3.5 h-3.5 text-pink-400 fill-pink-400 shrink-0" title="Matched on Bond — not a sale" />
+                      )}
+                      {activePartnerData.streak > 1 && (
+                        <span className="flex items-center gap-0.5 text-[11px] font-bold text-orange-400 shrink-0">
+                          <Flame className="w-3.5 h-3.5 fill-orange-400" />{activePartnerData.streak}
+                        </span>
+                      )}
                     </h3>
-                    <p className="text-[11px] text-gray-500 truncate leading-tight mt-0.5">{getStatusLine(activePartnerData)}</p>
+                    <p className="text-[11px] truncate leading-tight mt-0.5 flex items-center gap-1">
+                      {activeIsBondMatch ? (
+                        <span className="text-pink-400 font-semibold">Matched on Bond</span>
+                      ) : (
+                        <span className="text-gray-500">{getStatusLine(activePartnerData)}</span>
+                      )}
+                    </p>
                   </div>
                 </Link>
                 <button
@@ -542,6 +577,88 @@ export default function DirectMessages() {
                                 <span className="text-[10px] text-gray-400 leading-none">{formatClock(msg.createdAt)}</span>
                                 {ticks}
                               </span>
+                            </div>
+                          </motion.div>
+                        );
+                      }
+
+                      // Shared listing: a compact card (thumbnail/title/price) instead of a
+                      // text bubble, tapping through to the live listing.
+                      if (msg.messageType === 'LISTING' && msg.sharedListingId) {
+                        return (
+                          <motion.div
+                            key={row.id}
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${startsRun ? 'mt-2.5' : 'mt-[3px]'}`}
+                          >
+                            <div className="max-w-[75%] md:max-w-[65%] space-y-1">
+                              <Link
+                                to={`/listing/${msg.sharedListingId}`}
+                                className={`flex items-center gap-3 p-2.5 rounded-2xl border transition-colors ${
+                                  isMe ? 'bg-gradient-to-br from-[#FF00FF]/25 to-[#7D39EB]/25 border-[#FF00FF]/30' : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
+                                }`}
+                              >
+                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
+                                  {msg.sharedListingImage
+                                    ? <img src={msg.sharedListingImage} alt="" className="w-full h-full object-cover" />
+                                    : <ShoppingBag className="w-5 h-5 text-gray-500" />}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-bold text-white truncate">{msg.sharedListingTitle || 'Listing'}</p>
+                                  {msg.sharedListingPrice != null && (
+                                    <p className="text-xs text-[#CDFF00] font-bold">{formatPrice(msg.sharedListingPrice, msg.sharedListingCurrency)}</p>
+                                  )}
+                                </div>
+                              </Link>
+                              {msg.content && (
+                                <p className={`text-[14.5px] leading-[19px] break-words px-1 ${isMe ? 'text-right' : ''} text-white`}>{msg.content}</p>
+                              )}
+                              <div className={`flex items-center gap-1 px-1 ${isMe ? 'justify-end' : ''}`}>
+                                <span className="text-[11px] text-gray-500 leading-none">{formatClock(msg.createdAt)}</span>
+                                {ticks}
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      }
+
+                      // Shared feed post: same card treatment as a shared listing, but links
+                      // to the author's profile since there's no dedicated single-post page.
+                      if (msg.messageType === 'POST' && msg.sharedPostId) {
+                        return (
+                          <motion.div
+                            key={row.id}
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${startsRun ? 'mt-2.5' : 'mt-[3px]'}`}
+                          >
+                            <div className="max-w-[75%] md:max-w-[65%] space-y-1">
+                              <Link
+                                to={msg.sharedPostAuthorId ? `/profile/${msg.sharedPostAuthorId}` : '#'}
+                                className={`flex items-center gap-3 p-2.5 rounded-2xl border transition-colors ${
+                                  isMe ? 'bg-gradient-to-br from-[#FF00FF]/25 to-[#7D39EB]/25 border-[#FF00FF]/30' : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
+                                }`}
+                              >
+                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
+                                  {msg.sharedPostImage
+                                    ? <img src={msg.sharedPostImage} alt="" className="w-full h-full object-cover" />
+                                    : <Send className="w-5 h-5 text-gray-500" />}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-bold text-white truncate">{msg.sharedPostContent || 'Post'}</p>
+                                  {msg.sharedPostAuthorName && (
+                                    <p className="text-xs text-gray-400 truncate">by {msg.sharedPostAuthorName}</p>
+                                  )}
+                                </div>
+                              </Link>
+                              {msg.content && (
+                                <p className={`text-[14.5px] leading-[19px] break-words px-1 ${isMe ? 'text-right' : ''} text-white`}>{msg.content}</p>
+                              )}
+                              <div className={`flex items-center gap-1 px-1 ${isMe ? 'justify-end' : ''}`}>
+                                <span className="text-[11px] text-gray-500 leading-none">{formatClock(msg.createdAt)}</span>
+                                {ticks}
+                              </div>
                             </div>
                           </motion.div>
                         );

@@ -3,15 +3,21 @@ import { motion } from 'framer-motion';
 import { LISTING_TYPES, formatPrice, convertToPLN } from '../utils/constants';
 import {
   MapPin, BadgeCheck, MessageSquare, ShieldCheck, ShoppingCart,
-  ArrowLeft, Star, Heart, Share2, Zap, Package, Check,
-  HandCoins, Plus, CalendarClock, Ticket, Minus, Image as ImageIcon, Send
+  ArrowLeft, Star, Heart, Share2, Package, Check,
+  HandCoins, Plus, CalendarClock, Ticket, Minus, Image as ImageIcon, Send, Repeat, ScanLine
 } from 'lucide-react';
+import SwapOfferModal from '../components/SwapOfferModal';
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { listingsApi, usersApi, bookingsApi, availabilityApi, feedApi } from '../api/client';
+import { listingsApi, usersApi, bookingsApi, availabilityApi, feedApi, ticketsApi } from '../api/client';
 import { addToCart, selectCartItems } from '../store/cartSlice';
 import { selectUser } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
+import ShareModal from '../components/ShareModal';
+import DistanceBadge from '../components/DistanceBadge';
+import ListingGallery from '../components/ListingGallery';
+import SmartImage from '../components/SmartImage';
+import { coverImage, mediaList } from '../utils/media';
 
 const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
 
@@ -27,7 +33,6 @@ export default function ListingDetail() {
   const [seller, setSeller] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeMedia, setActiveMedia] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [saved, setSaved] = useState(() => {
@@ -39,10 +44,14 @@ export default function ListingDetail() {
   const [slots, setSlots] = useState([]);
   const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [slotBooking, setSlotBooking] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
 
   // EVENT: ticket purchase + event update posts
   const [ticketQty, setTicketQty] = useState(1);
   const [ticketLoading, setTicketLoading] = useState(false);
+  // Tickets the viewer already holds for this event. Drives the "you're going" panel, so a
+  // buyer who has already booked sees their ticket instead of being sold to again.
+  const [myTickets, setMyTickets] = useState([]);
   const [eventUpdates, setEventUpdates] = useState([]);
   const [updateText, setUpdateText] = useState('');
   const [updateImage, setUpdateImage] = useState(null);
@@ -65,6 +74,8 @@ export default function ListingDetail() {
           availabilityApi.listByListing(id).then((r2) => setSlots(r2.data)).catch(() => setSlots([]));
         } else if (data.listingType === 'EVENT') {
           feedApi.getByListing(id).then((r2) => setEventUpdates(r2.data)).catch(() => setEventUpdates([]));
+          // 401s for a logged-out visitor, which is fine — they have no tickets to show.
+          ticketsApi.forEventMine(id).then((r2) => setMyTickets(r2.data)).catch(() => setMyTickets([]));
         }
       })
       .catch(() => setError('Listing not found or unavailable.'))
@@ -85,22 +96,7 @@ export default function ListingDetail() {
     showToast(saved ? 'Removed from saved' : 'Saved!');
   };
 
-  const handleShare = async () => {
-    const url = window.location.href;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: listing?.title || 'HustleUp listing', url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        showToast('Link copied!');
-      }
-    } catch (e) {
-      if (e?.name !== 'AbortError') {
-        try { await navigator.clipboard.writeText(url); showToast('Link copied!'); }
-        catch { showToast('Could not share', 'error'); }
-      }
-    }
-  };
+  const [shareOpen, setShareOpen] = useState(false);
 
   const handleAddToCart = () => {
     if (!listing) return;
@@ -109,7 +105,9 @@ export default function ListingDetail() {
       title: listing.title,
       price: convertToPLN(listing.price, listing.currency || 'PLN'),
       currency: 'PLN',
-      image: listing.mediaUrls?.[0] || null,
+      // coverImage, not mediaUrls[0]: if the seller led with a video clip the cart row would
+      // otherwise try to render it as an <img> and show nothing.
+      image: coverImage(listing),
       sellerId: listing.sellerId,
       sellerName: listing.sellerName || seller?.fullName || 'Seller',
     }));
@@ -162,7 +160,12 @@ export default function ListingDetail() {
     setTicketLoading(true);
     try {
       await bookingsApi.create({ listingId: listing.id, quantity: ticketQty });
-      showToast(`${ticketQty} ticket${ticketQty > 1 ? 's' : ''} booked! Check your dashboard.`);
+      // The booking confirms instantly, which means the backend has already issued the
+      // scannable tickets — pull them straight back so the buyer lands on "you're going"
+      // with a link to the QR rather than being told to go hunting in the dashboard.
+      const res = await ticketsApi.forEventMine(listing.id);
+      setMyTickets(res.data);
+      showToast(`${ticketQty} ticket${ticketQty > 1 ? 's' : ''} booked — your QR is ready.`);
       setTicketQty(1);
     } catch (e) {
       showToast(e.response?.data?.error || 'Could not complete ticket purchase', 'error');
@@ -206,7 +209,9 @@ export default function ListingDetail() {
       title: listing.title,
       price: convertToPLN(listing.price, listing.currency || 'PLN'),
       currency: 'PLN',
-      image: listing.mediaUrls?.[0] || null,
+      // coverImage, not mediaUrls[0]: if the seller led with a video clip the cart row would
+      // otherwise try to render it as an <img> and show nothing.
+      image: coverImage(listing),
       sellerId: listing.sellerId,
       sellerName: listing.sellerName || seller?.fullName || 'Seller',
     }));
@@ -243,6 +248,10 @@ export default function ListingDetail() {
   const isEventType = listing.listingType === 'EVENT';
   const openSlots = slots.filter((s) => !s.booked);
   const showSlotPicker = SERVICE_TYPES.includes(listing.listingType) && openSlots.length > 0;
+  // Cancelled tickets stay in the API response so the wallet can show them, but they're not
+  // a way into this event — only valid and already-admitted ones count as "you're going".
+  const liveTickets = myTickets.filter((t) => t.status !== 'CANCELLED');
+  const eventStart = listing.eventStartsAt ? new Date(listing.eventStartsAt) : null;
 
   return (
     <div className="min-h-screen text-white pt-3 pb-10">
@@ -265,7 +274,7 @@ export default function ListingDetail() {
               <Heart className={`w-3.5 h-3.5 ${saved ? 'fill-[#FF00FF]' : ''}`} /> {saved ? 'Saved' : 'Save'}
             </button>
             <button
-              onClick={handleShare}
+              onClick={() => setShareOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/5 active:scale-95 transition-all"
             >
               <Share2 className="w-3.5 h-3.5" /> Share
@@ -275,50 +284,13 @@ export default function ListingDetail() {
 
         {/* 2-Column Layout */}
         <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-8 items-start">
-          {/* Left: Media */}
-          <div className="space-y-3">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="relative aspect-[4/3] max-h-[380px] w-full rounded-2xl overflow-hidden glass-strong border border-white/10"
-            >
-              {listing.mediaUrls?.length > 0 ? (
-                <img
-                  src={listing.mediaUrls[activeMedia]}
-                  alt={listing.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-900">
-                  <Package className="w-20 h-20 text-gray-700" />
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-              <div className="absolute top-4 left-4">
-                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-violet text-[#CDFF00] font-black text-[9px] uppercase tracking-widest border border-white/10">
-                  <Zap className="w-3 h-3 fill-[#CDFF00]" /> {typeInfo.label}
-                </span>
-              </div>
-            </motion.div>
-
-            {listing.mediaUrls?.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {listing.mediaUrls.map((url, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveMedia(i)}
-                    className={`w-16 h-16 rounded-xl overflow-hidden shrink-0 transition-all duration-300 ${
-                      activeMedia === i
-                        ? 'ring-2 ring-[#CDFF00] scale-105'
-                        : 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0'
-                    }`}
-                  >
-                    <img src={url} alt="Variant" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Left: Media — images and video clips in one gallery, with a resilient
+              placeholder for anything that fails to load. */}
+          <ListingGallery
+            media={mediaList(listing)}
+            title={listing.title}
+            typeLabel={typeInfo.label}
+          />
 
           {/* Right: Info & Actions */}
           <div className="flex flex-col gap-4">
@@ -348,6 +320,26 @@ export default function ListingDetail() {
                   </div>
                 )}
               </div>
+
+              {/* When and where — only events publish these, and a ticket is worthless
+                  without them, so they sit right under the title rather than in the body. */}
+              {isEventType && (eventStart || listing.eventVenue) && (
+                <div className="flex flex-wrap items-center gap-3 mt-2.5">
+                  {eventStart && (
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#CDFF00]/10 border border-[#CDFF00]/25 text-[#CDFF00] text-[10px] font-black uppercase tracking-widest">
+                      <CalendarClock className="w-3 h-3" />
+                      {eventStart.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
+                      {' · '}
+                      {eventStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                  {listing.eventVenue && (
+                    <span className="flex items-center gap-1.5 text-gray-400 text-[10px] font-bold">
+                      <MapPin className="w-3 h-3 text-[#CDFF00]" /> {listing.eventVenue}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Price & Actions */}
@@ -403,10 +395,32 @@ export default function ListingDetail() {
                   </div>
                 )}
 
+                {!isSeller && isEventType && liveTickets.length > 0 && (
+                  // Already holding tickets for this event: lead with the way in, not another
+                  // sale. Buying more is still possible from the block underneath.
+                  <div className="mb-3 p-3 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#CDFF00] flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5" /> You're going
+                    </p>
+                    <p className="text-xs text-gray-300">
+                      {liveTickets.length} ticket{liveTickets.length > 1 ? 's' : ''} in your wallet.
+                      Show the QR at the door.
+                    </p>
+                    <Link
+                      to={`/tickets/${liveTickets[0].id}`}
+                      className="w-full py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#d9ff33] transition-colors"
+                    >
+                      <Ticket className="w-3.5 h-3.5" /> Open my ticket
+                    </Link>
+                  </div>
+                )}
+
                 {!isSeller && isEventType && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Tickets</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                        {liveTickets.length > 0 ? 'Buy more' : 'Tickets'}
+                      </span>
                       <div className="flex items-center gap-3">
                         <button onClick={() => setTicketQty((q) => Math.max(1, q - 1))} className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors">
                           <Minus className="w-3.5 h-3.5" />
@@ -473,10 +487,31 @@ export default function ListingDetail() {
                         Negotiate via DM
                       </button>
                     )}
+
+                    {/* Swap Mode — only when the seller opted this listing in to barter */}
+                    {listing.swapEnabled && (
+                      <button
+                        onClick={() => (currentUser ? setSwapOpen(true) : navigate('/login'))}
+                        className="w-full py-2.5 rounded-xl border border-[#FF00FF]/40 text-white font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF00FF]/10 to-[#00FFFF]/10 hover:from-[#FF00FF]/20 hover:to-[#00FFFF]/20 transition-all"
+                      >
+                        <Repeat className="w-4 h-4" /> Offer a swap
+                      </button>
+                    )}
                   </div>
                 )}
 
-                {isSeller && (
+                {isSeller && isEventType && (
+                  // The organiser's own view of their event: the useful action here isn't
+                  // buying a ticket, it's working the door.
+                  <Link
+                    to={`/events/${listing.id}/door`}
+                    className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-95 transition-transform"
+                  >
+                    <ScanLine className="w-4 h-4" /> Door & guest list
+                  </Link>
+                )}
+
+                {isSeller && !isEventType && (
                   <div className="text-center py-2 text-gray-500 text-xs font-bold uppercase tracking-widest">
                     This is your listing
                   </div>
@@ -537,7 +572,7 @@ export default function ListingDetail() {
                         </div>
                         {post.content && <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{post.content}</p>}
                         {post.media?.[0]?.url && (
-                          <img src={post.media[0].url} alt="" className="mt-2 max-h-56 w-full rounded-xl object-cover" />
+                          <SmartImage src={post.media[0].url} alt="" className="mt-2 max-h-56 w-full h-56 rounded-xl object-cover" />
                         )}
                       </div>
                     ))}
@@ -568,9 +603,12 @@ export default function ListingDetail() {
                     </h5>
                     {listing.sellerVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">
-                    {listing.reviewCount > 0 ? `${listing.reviewCount} reviews` : 'Seller on HustleUp'}
-                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">
+                      {listing.reviewCount > 0 ? `${listing.reviewCount} reviews` : 'Seller on HustleUp'}
+                    </span>
+                    <DistanceBadge lat={seller?.latitude} lng={seller?.longitude} />
+                  </div>
                 </div>
                 <button
                   onClick={(e) => {
@@ -586,6 +624,14 @@ export default function ListingDetail() {
           </div>
         </div>
       </div>
+
+      {shareOpen && <ShareModal type="listing" item={listing} onClose={() => setShareOpen(false)} />}
+      {swapOpen && (
+        <SwapOfferModal
+          listing={listing}
+          onClose={() => setSwapOpen(false)}
+        />
+      )}
     </div>
   );
 }

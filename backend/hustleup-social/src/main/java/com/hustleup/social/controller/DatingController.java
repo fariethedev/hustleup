@@ -25,8 +25,10 @@
  */
 package com.hustleup.social.controller;
 
+import com.hustleup.common.model.Match;
 import com.hustleup.common.model.Notification;
 import com.hustleup.common.model.User;
+import com.hustleup.common.repository.MatchRepository;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.social.model.DatingProfile;
@@ -68,17 +70,24 @@ public class DatingController {
     private final NotificationRepository notificationRepo;
 
     /**
+     * Persists mutual matches so other services (direct messaging) can tag a conversation
+     * as having started from a Bond match — see {@link com.hustleup.common.model.Match}.
+     */
+    private final MatchRepository matchRepo;
+
+    /**
      * Constructor injection: makes dependencies explicit, fields final, and
      * simplifies unit-testing by allowing mock injection.
      */
     public DatingController(DatingProfileRepository datingRepo, UserRepository userRepo,
                             FileStorageService storageService, DatingSwipeRepository swipeRepo,
-                            NotificationRepository notificationRepo) {
+                            NotificationRepository notificationRepo, MatchRepository matchRepo) {
         this.datingRepo = datingRepo;
         this.userRepo = userRepo;
         this.storageService = storageService;
         this.swipeRepo = swipeRepo;
         this.notificationRepo = notificationRepo;
+        this.matchRepo = matchRepo;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -300,6 +309,13 @@ public class DatingController {
             try {
                 User target = userRepo.findById(profileId).orElse(null);
                 if (target != null) {
+                    // Persist the match itself (idempotent — existsById guards against a
+                    // duplicate row if this ever ran twice for the same pair).
+                    Match.Pair pair = Match.Pair.of(user.getId(), profileId);
+                    if (!matchRepo.existsByUserIdAAndUserIdB(pair.smaller(), pair.larger())) {
+                        matchRepo.save(Match.builder().userIdA(pair.smaller()).userIdB(pair.larger()).build());
+                    }
+
                     notificationRepo.save(Notification.builder()
                             .userId(user.getId())
                             .title("It's a match!")

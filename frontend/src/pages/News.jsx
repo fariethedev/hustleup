@@ -63,11 +63,7 @@ export default function News() {
 
   return (
     <div className="min-h-screen text-white pb-24">
-      <HeroBrief 
-        pillText="COMMUNITY SYNDICATION"
-        title="HUSTLE PULSE"
-        subtitle={"Global perspectives, local impact.\nYour direct feed into the trends, laws, and events shaping the future of work."}
-      />
+      <HeroBrief title="Hustle Pulse" />
 
       <div className="max-w-7xl mx-auto px-4 relative z-20">
         {/* Search & Stats Bar */}

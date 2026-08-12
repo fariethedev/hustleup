@@ -1,21 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated, selectIsSeller } from '../store/authSlice';
 import { listingsApi } from '../api/client';
 import { LISTING_TYPES, CURRENCIES } from '../utils/constants';
-import { Lock, Image as ImageIcon, Check, X, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Lock, Image as ImageIcon, Check, X, ArrowRight, ArrowLeft, Play, CalendarClock } from 'lucide-react';
+import { isVideoUrl } from '../utils/media';
+
+/**
+ * How many photos/clips a listing should carry. Listings with a full gallery convert better,
+ * so the form asks for this many — but it isn't a hard gate: the backend tops any listing
+ * short of five up with category-matched supporting shots, so a seller with two good photos
+ * still gets a complete-looking page instead of being blocked from posting.
+ */
+const TARGET_MEDIA = 5;
+
+/** Hard cap on uploads, to keep a single listing from becoming a photo dump. */
+const MAX_MEDIA = 10;
 
 export default function CreateListing() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const isSeller = useSelector(selectIsSeller);
   const navigate = useNavigate();
-  
+
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     title: '', description: '', listingType: '', price: '', currency: 'PLN',
-    negotiable: false, city: '', meta: '',
+    negotiable: false, swapEnabled: false, city: '', meta: '',
+    eventStartsAt: '', eventVenue: '',
   });
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -52,7 +65,14 @@ export default function CreateListing() {
       formData.append('price', form.price);
       formData.append('currency', form.currency);
       formData.append('negotiable', form.negotiable);
+      formData.append('swapEnabled', form.swapEnabled);
       formData.append('city', form.city);
+      // EVENT-only. Sent as plain strings and parsed leniently server-side, so a blank
+      // value from a non-event listing is simply ignored rather than rejected.
+      if (form.listingType === 'EVENT') {
+        formData.append('eventStartsAt', form.eventStartsAt || '');
+        formData.append('eventVenue', form.eventVenue || '');
+      }
       if (form.meta) formData.append('meta', form.meta);
       images.forEach((img) => formData.append('images', img));
       
@@ -200,6 +220,24 @@ export default function CreateListing() {
                 </div>
               </button>
 
+              {/* Swap Mode opt-in — off by default, because a seller who only wants cash
+                  shouldn't have to field trade offers. */}
+              <button
+                type="button"
+                onClick={() => set('swapEnabled', !form.swapEnabled)}
+                className={`w-full p-5 rounded-xl border text-left flex items-center gap-4 transition-all outline-none ${
+                  form.swapEnabled ? 'bg-[#FF00FF]/10 border-[#FF00FF]' : 'bg-black/50 border-white/10 hover:border-white/30'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded flex items-center justify-center border shrink-0 ${form.swapEnabled ? 'bg-[#FF00FF] border-[#FF00FF]' : 'border-gray-600'}`}>
+                  {form.swapEnabled && <Check className="w-4 h-4 text-black" />}
+                </div>
+                <div>
+                  <span className={`block font-black uppercase tracking-widest text-sm mb-1 ${form.swapEnabled ? 'text-[#FF00FF]' : 'text-gray-400'}`}>Open to swaps</span>
+                  <p className="text-xs text-gray-500 font-medium">Let people trade an item or a skill for this instead of cash</p>
+                </div>
+              </button>
+
               <div>
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">City / Location</label>
                 <input
@@ -229,32 +267,101 @@ export default function CreateListing() {
           {/* Step 3: Images & Summary */}
           {step === 3 && (
             <div className="space-y-6">
+              {/* EVENT-only: a ticket has to print a date and a venue, so these are asked
+                  for here rather than buried in the free-text description. */}
+              {form.listingType === 'EVENT' && (
+                <div className="p-5 rounded-xl bg-[#CDFF00]/5 border border-[#CDFF00]/25 space-y-4">
+                  <h3 className="text-xs font-black text-[#CDFF00] uppercase tracking-widest flex items-center gap-2">
+                    <CalendarClock className="w-4 h-4" /> Event details
+                  </h3>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Starts</label>
+                    <input
+                      type="datetime-local"
+                      value={form.eventStartsAt}
+                      onChange={(e) => set('eventStartsAt', e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] outline-none transition-all font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Venue / address</label>
+                    <input
+                      type="text"
+                      value={form.eventVenue}
+                      onChange={(e) => set('eventVenue', e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] outline-none transition-all font-bold"
+                      placeholder="e.g. Klub Hybrydy, ul. Złota 7/9"
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">
+                    Both appear on every ticket, and buyers get a scannable QR code the moment they book.
+                    You scan them in from the listing's Door screen.
+                  </p>
+                </div>
+              )}
+
               <div>
-                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Photos (Optional)</label>
-                <label className="block w-full p-10 rounded-xl border-2 border-dashed border-white/20 text-center cursor-pointer hover:border-[#CDFF00]/50 hover:bg-[#CDFF00]/5 transition-all outline-none">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest">
+                    Photos & video
+                  </label>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${
+                    images.length >= TARGET_MEDIA ? 'text-[#CDFF00]' : 'text-gray-600'
+                  }`}>
+                    {images.length} / {TARGET_MEDIA}
+                  </span>
+                </div>
+
+                <label className={`block w-full p-10 rounded-xl border-2 border-dashed text-center transition-all outline-none ${
+                  images.length >= MAX_MEDIA
+                    ? 'border-white/10 opacity-40 cursor-not-allowed'
+                    : 'border-white/20 cursor-pointer hover:border-[#CDFF00]/50 hover:bg-[#CDFF00]/5'
+                }`}>
                   <ImageIcon className="w-10 h-10 mx-auto text-gray-500 mb-3" />
                   <p className="text-sm font-bold text-gray-300 uppercase tracking-widest mb-1">Upload Media</p>
-                  <p className="text-xs text-gray-600 font-medium">PNG, JPG to 10MB</p>
+                  <p className="text-xs text-gray-600 font-medium">
+                    {images.length >= MAX_MEDIA
+                      ? `Maximum ${MAX_MEDIA} items reached`
+                      : `Images or short clips — aim for ${TARGET_MEDIA}`}
+                  </p>
                   <input
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept="image/*,video/*"
                     className="hidden"
-                    onChange={(e) => setImages([...images, ...Array.from(e.target.files)])}
+                    disabled={images.length >= MAX_MEDIA}
+                    // slice() enforces the cap even when someone multi-selects past it in the
+                    // file picker, where the disabled attribute can't help.
+                    onChange={(e) => {
+                      setImages([...images, ...Array.from(e.target.files)].slice(0, MAX_MEDIA));
+                      // Clearing the input lets the same file be re-picked after a removal;
+                      // otherwise the browser suppresses the change event as a no-op.
+                      e.target.value = '';
+                    }}
                   />
                 </label>
+
+                {/* Honest about what happens with a thin gallery, rather than blocking the
+                    seller or quietly padding without telling them. */}
+                <p className={`text-[10px] mt-2 leading-relaxed ${
+                  images.length >= TARGET_MEDIA ? 'text-[#CDFF00]' : 'text-gray-500'
+                }`}>
+                  {images.length >= TARGET_MEDIA
+                    ? 'Great — your listing will show a full gallery of your own media.'
+                    : `Listings with ${TARGET_MEDIA}+ photos get noticed. Post fewer and we'll fill the rest of the gallery with ${
+                        LISTING_TYPES.find((t) => t.value === form.listingType)?.label.toLowerCase() || 'category'
+                      } stock shots behind yours.`}
+                </p>
+
                 {images.length > 0 && (
                   <div className="flex flex-wrap gap-3 mt-4">
-                    {images.map((img, i) => (
-                      <div key={i} className="relative group">
-                        <img src={URL.createObjectURL(img)} alt="" className="w-24 h-24 rounded-lg object-cover" />
-                        <button
-                          onClick={() => setImages(images.filter((_, idx) => idx !== i))}
-                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#CDFF00] text-white flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
+                    {images.map((file, i) => (
+                      <MediaThumb
+                        key={`${file.name}-${file.lastModified}-${i}`}
+                        file={file}
+                        isLead={i === 0}
+                        onRemove={() => setImages(images.filter((_, idx) => idx !== i))}
+                      />
                     ))}
                   </div>
                 )}
@@ -275,6 +382,20 @@ export default function CreateListing() {
                   <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Price</span>
                   <span className="text-white font-black">{form.price} {form.currency} {form.negotiable && <span className="text-[#CDFF00] ml-1">(OBO)</span>}</span>
                 </div>
+                {form.listingType === 'EVENT' && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Starts</span>
+                    <span className="text-white font-bold">
+                      {form.eventStartsAt ? new Date(form.eventStartsAt).toLocaleString() : 'Not set'}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Media</span>
+                  <span className="text-white font-bold">
+                    {images.length > 0 ? `${images.length} uploaded` : 'None — gallery will be filled for you'}
+                  </span>
+                </div>
               </div>
 
               <div className="flex gap-4 pt-4">
@@ -293,6 +414,59 @@ export default function CreateListing() {
           )}
         </div>
       </motion.div>
+    </div>
+  );
+}
+
+/**
+ * Preview tile for one file queued for upload — a still for images, a poster-less <video>
+ * for clips so the seller can confirm they picked the right take.
+ *
+ * The object URL is created in an effect and revoked on unmount. Calling
+ * `URL.createObjectURL` inline during render (as this form used to) allocates a fresh blob
+ * URL on every re-render and never releases any of them, which leaks the whole file in memory
+ * each time — noticeable fast when the files are video.
+ */
+function MediaThumb({ file, isLead, onRemove }) {
+  const [url, setUrl] = useState('');
+  const isVideo = file.type ? file.type.startsWith('video/') : isVideoUrl(file.name);
+
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+
+  return (
+    <div className="relative group">
+      {isVideo ? (
+        <video src={url} muted className="w-24 h-24 rounded-lg object-cover bg-black" />
+      ) : (
+        <img src={url} alt="" className="w-24 h-24 rounded-lg object-cover" />
+      )}
+
+      {isVideo && (
+        <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/80 text-[8px] font-black uppercase tracking-widest text-white flex items-center gap-1">
+          <Play className="w-2 h-2 fill-white" /> Clip
+        </span>
+      )}
+
+      {/* The first item is the one that shows on browse cards and shares, so it's worth
+          calling out which photo the seller is actually leading with. */}
+      {isLead && (
+        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-[#CDFF00] text-[8px] font-black uppercase tracking-widest text-black">
+          Cover
+        </span>
+      )}
+
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove this file"
+        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#CDFF00] text-black flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+      >
+        <X className="w-3 h-3" />
+      </button>
     </div>
   );
 }

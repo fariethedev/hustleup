@@ -24,9 +24,14 @@
  */
 package com.hustleup.notification.messaging.controller;
 
+import com.hustleup.notification.messaging.model.ChatStreak;
 import com.hustleup.notification.messaging.model.DirectMessage;
+import com.hustleup.notification.messaging.repository.ChatStreakRepository;
 import com.hustleup.notification.messaging.repository.DirectMessageRepository;
+import com.hustleup.common.model.Match;
 import com.hustleup.common.model.Notification;
+import com.hustleup.common.push.ExpoPushService;
+import com.hustleup.common.repository.MatchRepository;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.common.storage.FileStorageService;
@@ -35,6 +40,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -70,6 +77,20 @@ public class DirectMessageController {
      */
     private final FileStorageService fileStorageService;
 
+    /** Repository for {@link ChatStreak} rows — one per conversation pair. */
+    private final ChatStreakRepository streakRepo;
+
+    /** Mirrors each new-message in-app notification as a mobile push, if the recipient has one registered. */
+    private final ExpoPushService expoPushService;
+
+    /**
+     * Read-only lookup for whether a conversation partner is a mutual Bond match — powers the
+     * heart badge that distinguishes a Bond-originated chat from a cold DM or a marketplace
+     * negotiation thread. See {@link Match}'s javadoc for why this cross-feature entity lives
+     * in {@code hustleup-common} rather than the dating feature's own service.
+     */
+    private final MatchRepository matchRepo;
+
     /**
      * Constructor injection – preferred over field injection for testability
      * and immutability (all fields are {@code final} at the call site).
@@ -78,14 +99,75 @@ public class DirectMessageController {
      * @param userRepository     repository for user records.
      * @param notificationRepo   repository for in-app notifications.
      * @param fileStorageService storage backend for DM image attachments.
+     * @param streakRepo         repository for per-conversation messaging streaks.
+     * @param expoPushService    delivers the accompanying mobile push notification.
+     * @param matchRepo          repository for Bond matches, used to tag conversations.
      */
     public DirectMessageController(DirectMessageRepository dmRepo, UserRepository userRepository,
                                    NotificationRepository notificationRepo,
-                                   FileStorageService fileStorageService) {
+                                   FileStorageService fileStorageService,
+                                   ChatStreakRepository streakRepo,
+                                   ExpoPushService expoPushService,
+                                   MatchRepository matchRepo) {
         this.dmRepo = dmRepo;
         this.userRepo = userRepository;
         this.notificationRepo = notificationRepo;
         this.fileStorageService = fileStorageService;
+        this.streakRepo = streakRepo;
+        this.expoPushService = expoPushService;
+        this.matchRepo = matchRepo;
+    }
+
+    /** Whether the two given users are a mutual Bond match — see {@link Match}. */
+    private boolean isBondMatch(UUID userA, UUID userB) {
+        Match.Pair pair = Match.Pair.of(userA, userB);
+        return matchRepo.existsByUserIdAAndUserIdB(pair.smaller(), pair.larger());
+    }
+
+    /**
+     * Records that {@code userId1} and {@code userId2} exchanged a message today, updating
+     * their shared streak (see {@link ChatStreak}). Same-day repeats are a no-op; a gap of
+     * one day increments the streak; a gap of more than one day resets it to 1.
+     *
+     * @return the streak's new current-day count, for convenience (not currently returned
+     *         from the send endpoints, but available if a future response wants it).
+     */
+    private int updateStreak(String userId1, String userId2) {
+        String a = userId1.compareTo(userId2) <= 0 ? userId1 : userId2;
+        String b = userId1.compareTo(userId2) <= 0 ? userId2 : userId1;
+        LocalDate today = LocalDate.now();
+
+        ChatStreak streak = streakRepo.findByUserAIdAndUserBId(a, b).orElse(null);
+        if (streak == null) {
+            streak = ChatStreak.builder().userAId(a).userBId(b).currentStreak(1).lastMessageDate(today).build();
+        } else if (streak.getLastMessageDate().equals(today)) {
+            // Already counted a message today for this pair — no change.
+            return streak.getCurrentStreak();
+        } else if (streak.getLastMessageDate().equals(today.minusDays(1))) {
+            streak.setCurrentStreak(streak.getCurrentStreak() + 1);
+            streak.setLastMessageDate(today);
+        } else {
+            // More than a day of silence — the streak is broken, start over at 1.
+            streak.setCurrentStreak(1);
+            streak.setLastMessageDate(today);
+        }
+        return streakRepo.save(streak).getCurrentStreak();
+    }
+
+    /**
+     * Read-only view of a pair's current streak for display purposes. Unlike the stored
+     * {@link ChatStreak#getCurrentStreak()}, this returns 0 once more than a day has passed
+     * since the last message — the stored value only actually resets on the *next* message,
+     * so without this check the UI would keep showing a stale streak as "alive" during the
+     * gap instead of showing it as broken.
+     */
+    private int displayStreak(String userId1, String userId2) {
+        String a = userId1.compareTo(userId2) <= 0 ? userId1 : userId2;
+        String b = userId1.compareTo(userId2) <= 0 ? userId2 : userId1;
+        return streakRepo.findByUserAIdAndUserBId(a, b)
+                .filter(s -> !s.getLastMessageDate().isBefore(LocalDate.now().minusDays(1)))
+                .map(ChatStreak::getCurrentStreak)
+                .orElse(0);
     }
 
     /**
@@ -171,14 +253,21 @@ public class DirectMessageController {
                     partner.put("verified", user.isIdVerified());   // ID-verified badge
                     partner.put("online", isOnline);
                     partner.put("unreadCount", 0);  // TODO: implement per-conversation unread counts
+                    partner.put("streak", displayStreak(currentUserId, pid)); // 0 if never messaged or broken
+                    partner.put("isBondMatch", isBondMatch(UUID.fromString(currentUserId), user.getId()));
                     if (last != null) {
-                        // Human-friendly preview: photos and stickers shouldn't show raw content.
+                        // Human-friendly preview: photos, stickers, and shared listings
+                        // shouldn't show raw (possibly empty) content.
                         String previewText;
                         if ("IMAGE".equals(last.getMessageType())) {
                             previewText = last.getContent() != null && !last.getContent().isBlank()
                                     ? "📷 " + last.getContent() : "📷 Photo";
                         } else if ("STICKER".equals(last.getMessageType())) {
                             previewText = last.getContent() + " Sticker";
+                        } else if ("LISTING".equals(last.getMessageType())) {
+                            previewText = "🛍️ Shared a listing" + (last.getSharedListingTitle() != null ? ": " + last.getSharedListingTitle() : "");
+                        } else if ("POST".equals(last.getMessageType())) {
+                            previewText = "📤 Shared a post";
                         } else {
                             previewText = last.getContent();
                         }
@@ -246,6 +335,31 @@ public class DirectMessageController {
     }
 
     /**
+     * Whether the current user and {@code partnerId} are a mutual Bond match.
+     *
+     * <p><b>GET /api/v1/direct-messages/{partnerId}/bond-match</b>
+     *
+     * <p>{@code GET /partners} already includes this flag per-partner, but only for partners
+     * you've exchanged at least one message with. A brand-new match navigated to straight
+     * from the swipe screen (see {@code Dating.jsx}) has zero messages yet, so wouldn't show
+     * up there — this endpoint lets the DM view check a single partner directly, regardless
+     * of message history.
+     *
+     * @return 200 OK with {@code {"isBondMatch": bool}}; 401 if not authenticated
+     */
+    @GetMapping("/{partnerId}/bond-match")
+    public ResponseEntity<?> checkBondMatch(@PathVariable String partnerId) {
+        String currentUserId = getCurrentUserId();
+        if (currentUserId == null) return ResponseEntity.status(401).build();
+        try {
+            boolean matched = isBondMatch(UUID.fromString(currentUserId), UUID.fromString(partnerId));
+            return ResponseEntity.ok(Map.of("isBondMatch", matched));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(Map.of("isBondMatch", false));
+        }
+    }
+
+    /**
      * Sends a new direct message from the current user to a partner, and
      * creates a notification for the recipient.
      *
@@ -279,29 +393,72 @@ public class DirectMessageController {
             // dedicated DTO when the request shape is trivially simple.
             @RequestBody Map<String, String> payload) {
 
-        String content = payload.get("content");
-        // Validate: reject empty or whitespace-only messages.
-        if (content == null || content.trim().isEmpty()) return ResponseEntity.badRequest().build();
+        // Optional "type" field: TEXT (default), STICKER, or LISTING (in-app share of a
+        // marketplace listing). Anything else is coerced to TEXT so a malformed client
+        // can't invent new message kinds.
+        String rawType = payload.get("type");
+        String type = "STICKER".equalsIgnoreCase(rawType) ? "STICKER"
+                : "LISTING".equalsIgnoreCase(rawType) ? "LISTING"
+                : "POST".equalsIgnoreCase(rawType) ? "POST" : "TEXT";
+        boolean isListingShare = "LISTING".equals(type);
+        boolean isPostShare = "POST".equals(type);
 
-        // Optional "type" field: TEXT (default) or STICKER. Anything else is coerced to TEXT
-        // so a malformed client can't invent new message kinds.
-        String type = "STICKER".equalsIgnoreCase(payload.get("type")) ? "STICKER" : "TEXT";
+        String content = payload.get("content");
+        String listingId = payload.get("listingId");
+        String postId = payload.get("postId");
+        if (isListingShare) {
+            // A shared listing IS the content — the card renders from the snapshot fields
+            // below, so a text caption is optional. Only the listing reference is required.
+            if (listingId == null || listingId.isBlank()) return ResponseEntity.badRequest().build();
+            if (content == null) content = "";
+        } else if (isPostShare) {
+            if (postId == null || postId.isBlank()) return ResponseEntity.badRequest().build();
+            if (content == null) content = "";
+        } else if (content == null || content.trim().isEmpty()) {
+            // TEXT/STICKER still require real content.
+            return ResponseEntity.badRequest().build();
+        }
 
         String currentUserId = getCurrentUserId();
         if (currentUserId == null) return ResponseEntity.status(401).build();
 
         // Use the Lombok @Builder pattern to construct the entity.
         // createdAt is set automatically by @CreationTimestamp on the entity.
-        DirectMessage msg = DirectMessage.builder()
+        DirectMessage.DirectMessageBuilder builder = DirectMessage.builder()
                 .senderId(currentUserId)
                 .receiverId(partnerId)
                 .content(content)
-                .messageType(type)
-                .build();
+                .messageType(type);
+
+        if (isListingShare) {
+            builder.sharedListingId(listingId)
+                    .sharedListingTitle(payload.get("listingTitle"))
+                    .sharedListingCurrency(payload.getOrDefault("listingCurrency", "PLN"))
+                    .sharedListingImage(payload.get("listingImage"));
+            String priceStr = payload.get("listingPrice");
+            if (priceStr != null && !priceStr.isBlank()) {
+                try { builder.sharedListingPrice(new BigDecimal(priceStr)); } catch (NumberFormatException ignored) {}
+            }
+        } else if (isPostShare) {
+            builder.sharedPostId(postId)
+                    .sharedPostContent(payload.get("postContent"))
+                    .sharedPostImage(payload.get("postImage"))
+                    .sharedPostAuthorName(payload.get("postAuthorName"))
+                    .sharedPostAuthorAvatar(payload.get("postAuthorAvatar"))
+                    .sharedPostAuthorId(payload.get("postAuthorId"));
+        }
 
         // Persist the message. save() issues an INSERT and returns the managed
         // entity (with the generated id and createdAt populated).
-        DirectMessage saved = dmRepo.save(msg);
+        DirectMessage saved = dmRepo.save(builder.build());
+
+        // Every message — text, sticker, or a shared listing — counts toward the pair's
+        // daily streak (see updateStreak's Javadoc for the exact rule).
+        try {
+            updateStreak(currentUserId, partnerId);
+        } catch (Exception ignored) {
+            // Never let a streak bug block message delivery.
+        }
 
         // Create an in-app notification for the recipient so they see a badge
         // even if they are not currently viewing the DM screen.
@@ -311,9 +468,16 @@ public class DirectMessageController {
                     .map(u -> u.getFullName())
                     .orElse("Someone"); // fallback if the user record is missing
 
-            // Truncate the message preview to 60 characters to avoid long
-            // notification text in the UI.
-            String preview = content.length() > 60 ? content.substring(0, 60) + "…" : content;
+            String preview;
+            if (isListingShare) {
+                preview = "🛍️ Shared a listing" + (saved.getSharedListingTitle() != null ? ": " + saved.getSharedListingTitle() : "");
+            } else if (isPostShare) {
+                preview = "📤 Shared a post";
+            } else {
+                // Truncate the message preview to 60 characters to avoid long
+                // notification text in the UI.
+                preview = content.length() > 60 ? content.substring(0, 60) + "…" : content;
+            }
 
             notificationRepo.save(Notification.builder()
                     .userId(UUID.fromString(partnerId))          // recipient's UUID
@@ -322,6 +486,9 @@ public class DirectMessageController {
                     .notificationType("DIRECT_MESSAGE")          // type discriminator for the UI
                     .referenceId(UUID.fromString(currentUserId)) // sender's UUID for deep-linking
                     .build());
+
+            userRepo.findById(UUID.fromString(partnerId))
+                    .ifPresent(u -> expoPushService.send(u.getPushToken(), "New message from " + senderName, preview));
         } catch (Exception ignored) {
             // Notification creation is best-effort.  If partnerId is not a valid
             // UUID, or the notification repo throws, we still return the saved
@@ -373,6 +540,11 @@ public class DirectMessageController {
                 .mediaUrl(mediaUrl)
                 .build());
 
+        try {
+            updateStreak(currentUserId, partnerId);
+        } catch (Exception ignored) {
+        }
+
         // Best-effort notification, mirroring the text-message flow.
         try {
             String senderName = userRepo.findById(UUID.fromString(currentUserId))
@@ -385,6 +557,9 @@ public class DirectMessageController {
                     .notificationType("DIRECT_MESSAGE")
                     .referenceId(UUID.fromString(currentUserId))
                     .build());
+
+            userRepo.findById(UUID.fromString(partnerId))
+                    .ifPresent(u -> expoPushService.send(u.getPushToken(), "New message from " + senderName, "📷 Photo"));
         } catch (Exception ignored) {
         }
 

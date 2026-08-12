@@ -2,6 +2,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle, ShoppingBag, MessageSquare, ArrowRight } from 'lucide-react';
 import { formatPrice } from '../utils/constants';
+import SmartImage from '../components/SmartImage';
 
 export default function CheckoutConfirmation() {
   const { state } = useLocation();
@@ -38,11 +39,12 @@ export default function CheckoutConfirmation() {
             <div key={item.listingId} className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-800 shrink-0">
-                  {item.image ? (
-                    <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <ShoppingBag className="w-4 h-4 text-gray-600 m-auto mt-3" />
-                  )}
+                  <SmartImage
+                    src={item.image}
+                    alt={item.title}
+                    fallbackIcon={ShoppingBag}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div>
                   <p className="text-white font-black text-sm">{item.title}</p>

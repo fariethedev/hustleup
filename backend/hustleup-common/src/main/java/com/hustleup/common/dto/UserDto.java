@@ -177,6 +177,15 @@ public class UserDto {
     private int vouchCount;
 
     /**
+     * Approximate coordinates (rounded to ~1km, see {@link #fromEntity}) used by the
+     * frontend to show "X km away" — deliberately imprecise so a buyer can't derive a
+     * seller's exact address from this public-facing DTO. {@code null} if the seller
+     * hasn't set a city/address, or geocoding hasn't run yet.
+     */
+    private Double latitude;
+    private Double longitude;
+
+    /**
      * Factory method that converts a {@link User} entity into a {@link UserDto}.
      *
      * <p><b>Why a static factory method instead of a constructor?</b><br>
@@ -230,6 +239,62 @@ public class UserDto {
                 .idVerified(user.isIdVerified())         // boolean primitive — false if not verified
                 .onboardingCompleted(user.getOnboardingCompleted()) // Boolean — may be null for legacy accounts
                 .vouchCount(user.getVouchCount())
+                .latitude(roundForPrivacy(user.getLatitude()))
+                .longitude(roundForPrivacy(user.getLongitude()))
                 .build();
+    }
+
+    /**
+     * Converts a {@link User} entity into a DTO safe to show to <em>anyone else</em> —
+     * other users, and unauthenticated visitors browsing a public storefront.
+     *
+     * <p><b>Why this exists (security):</b><br>
+     * {@link #fromEntity} is the <em>self</em> view: it includes the account's email,
+     * phone number and full postal address so the owner can see them on their own
+     * settings page. Those fields are direct personal data and must never be returned
+     * for a user other than the caller. Endpoints that serve someone else's profile —
+     * {@code GET /api/v1/users}, {@code GET /api/v1/users/{id}/profile} — are reachable
+     * without a JWT so guests can browse seller shops, which previously meant an
+     * anonymous request could dump every registered user's email, phone and home
+     * address. This projection closes that by omitting them entirely.
+     *
+     * <p>Fields deliberately excluded relative to {@link #fromEntity}:
+     * {@code email}, {@code phone}, {@code addressLine1}, {@code addressLine2},
+     * {@code postcode}. The coarse ~1km {@code latitude}/{@code longitude} are kept —
+     * they are already rounded by {@link #roundForPrivacy} specifically so the "X km
+     * away" badge works without revealing an address.
+     *
+     * @param user the {@link User} entity to convert; may be {@code null}
+     * @return a {@link UserDto} containing only publicly-safe profile fields
+     */
+    public static UserDto publicView(User user) {
+        if (user == null) return new UserDto();
+        return UserDto.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .username(user.getUsername())
+                .role(user.getRole() != null ? user.getRole().name() : null)
+                .avatarUrl(user.getAvatarUrl())
+                .shopBannerUrl(user.getShopBannerUrl())
+                .shopCategory(user.getShopCategory())
+                .bio(user.getBio())
+                .city(user.getCity())     // city only — never the street address or postcode
+                .country(user.getCountry())
+                .website(user.getWebsite())
+                .idVerified(user.isIdVerified())
+                .vouchCount(user.getVouchCount())
+                .latitude(roundForPrivacy(user.getLatitude()))
+                .longitude(roundForPrivacy(user.getLongitude()))
+                .build();
+    }
+
+    /**
+     * Rounds a coordinate to 2 decimal places (~1.1km precision) before it ever leaves
+     * the server via this public-facing DTO — deliberately too coarse to identify a
+     * specific building, fine enough for a useful "X km away" estimate.
+     */
+    private static Double roundForPrivacy(Double coordinate) {
+        if (coordinate == null) return null;
+        return Math.round(coordinate * 100.0) / 100.0;
     }
 }

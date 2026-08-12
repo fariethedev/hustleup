@@ -1,14 +1,21 @@
 package com.hustleup.auth.controller;
 
 import com.hustleup.auth.dto.AuthDtos;
+import com.hustleup.auth.model.AuthToken;
 import com.hustleup.auth.model.RefreshToken;
+import com.hustleup.auth.repository.AuthTokenRepository;
 import com.hustleup.auth.repository.RefreshTokenRepository;
+import com.hustleup.auth.service.SocialAuthService;
+import com.hustleup.auth.service.TurnstileService;
+import com.hustleup.common.email.EmailService;
 import com.hustleup.common.security.JwtTokenProvider;
 import com.hustleup.common.dto.UserDto;
 import com.hustleup.common.model.Role;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
@@ -17,6 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -61,7 +69,15 @@ import java.util.UUID;
 // Versioning in the path (/v1/) is a best-practice: it lets us introduce /v2/ without
 // breaking existing clients.
 @RequestMapping("/api/v1/auth")
+@Slf4j
 public class AuthController {
+
+    // Same strength bar as AuthDtos.RegisterRequest.password (@Pattern there can't be
+    // reused directly since /reset-password takes a raw Map body, not a validated DTO).
+    private static final java.util.regex.Pattern PASSWORD_POLICY =
+            java.util.regex.Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$");
+    private static final String PASSWORD_POLICY_MESSAGE =
+            "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number";
 
     // -------------------------------------------------------------------------
     // Dependencies (injected by Spring at startup)
@@ -91,6 +107,21 @@ public class AuthController {
     // can be validated, rotated, or revoked (e.g., on logout or password change).
     private final RefreshTokenRepository refreshTokenRepository;
 
+    // AuthTokenRepository persists single-use email-verification / password-reset tokens.
+    private final AuthTokenRepository authTokenRepository;
+
+    // Shared Resend wrapper (hustleup-common) — no-ops (logs only) until RESEND_API_KEY is set.
+    private final EmailService emailService;
+
+    // Used to build links back to the web app inside verification/reset emails.
+    private final String frontendUrl;
+
+    // Verifies Cloudflare Turnstile tokens on registration (no-op until configured).
+    private final TurnstileService turnstileService;
+
+    // Verifies Google/Facebook OAuth access tokens against each provider directly.
+    private final SocialAuthService socialAuthService;
+
     /**
      * Constructor injection — Spring calls this constructor and supplies all
      * dependencies from the IoC container automatically.
@@ -100,15 +131,28 @@ public class AuthController {
      * @param authenticationManager  Spring Security authentication entry point
      * @param tokenProvider          JWT creation and validation utility
      * @param refreshTokenRepository data access for {@link RefreshToken}
+     * @param authTokenRepository    data access for {@link AuthToken}
+     * @param emailService           shared transactional email sender
+     * @param frontendUrl            base URL of the web app, for building email links
      */
     public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder,
                           AuthenticationManager authenticationManager, JwtTokenProvider tokenProvider,
-                          RefreshTokenRepository refreshTokenRepository) {
+                          RefreshTokenRepository refreshTokenRepository,
+                          AuthTokenRepository authTokenRepository,
+                          EmailService emailService,
+                          @Value("${app.frontend.url:http://localhost:5173}") String frontendUrl,
+                          TurnstileService turnstileService,
+                          SocialAuthService socialAuthService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.tokenProvider = tokenProvider;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.authTokenRepository = authTokenRepository;
+        this.emailService = emailService;
+        this.frontendUrl = frontendUrl;
+        this.turnstileService = turnstileService;
+        this.socialAuthService = socialAuthService;
     }
 
     // =========================================================================
@@ -146,6 +190,15 @@ public class AuthController {
             // a RegisterRequest object using Jackson.
             @Valid @RequestBody AuthDtos.RegisterRequest request) {
 
+        // Bot protection: no-op (always passes) until TURNSTILE_SECRET_KEY is configured.
+        if (!turnstileService.verify(request.getCaptchaToken())) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Captcha verification failed — please try again"));
+        }
+
+        if (!request.isTermsAccepted()) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "You must accept the Terms & Conditions to sign up"));
+        }
+
         // Guard: prevent duplicate accounts. existsByEmail is a Spring Data derived
         // query — Spring generates "SELECT COUNT(*) FROM users WHERE email = ?" for us.
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -165,10 +218,20 @@ public class AuthController {
                 .fullName(request.getFullName())
                 .phone(request.getPhone())
                 .role(Role.valueOf(request.getRole())) // convert "BUYER"/"SELLER" string to enum
+                .termsAcceptedAt(Instant.now().atZone(java.time.ZoneOffset.UTC).toLocalDateTime())
                 .build();
 
         // Persist the new user. JPA/Hibernate generates an INSERT statement.
         userRepository.save(user);
+
+        // Best-effort verification email — never let a broken email provider block
+        // registration itself (EmailService.send() already swallows its own failures,
+        // but token creation could theoretically fail too, so this whole block is guarded).
+        try {
+            sendVerificationEmail(user);
+        } catch (Exception e) {
+            log.warn("Could not send verification email to {}: {}", user.getEmail(), e.getMessage());
+        }
 
         // Authenticate the freshly-registered user immediately.
         // UsernamePasswordAuthenticationToken wraps credentials. AuthenticationManager
@@ -218,6 +281,79 @@ public class AuthController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return buildAuthResponse(auth, user);
+    }
+
+    /**
+     * Signs in (or silently creates an account for) a user via a Google OAuth access token.
+     *
+     * <p><strong>HTTP:</strong> {@code POST /api/v1/auth/oauth/google}</p>
+     * <p><strong>Body:</strong> {@code {"accessToken": "..."}} — from the frontend's
+     * {@code useGoogleLogin} implicit-flow hook.</p>
+     * <p>Publicly accessible (covered by the existing {@code /api/v1/auth/**} permitAll rule).</p>
+     */
+    @PostMapping("/oauth/google")
+    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) {
+        try {
+            SocialAuthService.SocialProfile profile = socialAuthService.verifyGoogle(body.get("accessToken"));
+            return oauthAuthResponse(profile, "google");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Signs in (or silently creates an account for) a user via a Facebook OAuth access token.
+     *
+     * <p><strong>HTTP:</strong> {@code POST /api/v1/auth/oauth/facebook}</p>
+     * <p><strong>Body:</strong> {@code {"accessToken": "..."}} — from the Facebook JS SDK
+     * via {@code @greatsumini/react-facebook-login}.</p>
+     */
+    @PostMapping("/oauth/facebook")
+    public ResponseEntity<?> facebookLogin(@RequestBody Map<String, String> body) {
+        try {
+            SocialAuthService.SocialProfile profile = socialAuthService.verifyFacebook(body.get("accessToken"));
+            return oauthAuthResponse(profile, "facebook");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Shared find-or-create logic for both OAuth providers: reuse the existing account if
+     * this email is already registered (however it was originally created), otherwise make
+     * a new one with a random unusable password and {@code emailVerified = true} — the
+     * provider already verified the address.
+     */
+    private ResponseEntity<?> oauthAuthResponse(SocialAuthService.SocialProfile profile, String provider) {
+        User user = userRepository.findByEmail(profile.email()).orElseGet(() -> {
+            User created = User.builder()
+                    .email(profile.email())
+                    .fullName(profile.name())
+                    .password(passwordEncoder.encode(UUID.randomUUID().toString())) // unusable — OAuth-only account
+                    .role(Role.BUYER) // default; can switch to SELLER via Onboarding
+                    .emailVerified(true) // the provider already verified this address
+                    .build();
+            return userRepository.save(created);
+        });
+
+        String accessToken = tokenProvider.generateAccessToken(user.getEmail(), user.getRole().name());
+        String refreshTokenStr = tokenProvider.generateRefreshToken(user.getEmail());
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(user.getId())
+                .token(refreshTokenStr)
+                .expiryDate(Instant.now().plusMillis(604800000))
+                .build());
+
+        log.info("OAuth sign-in via {}: userId={}", provider, user.getId());
+        return ResponseEntity.ok(AuthDtos.AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshTokenStr)
+                .tokenType("Bearer")
+                .role(user.getRole().name())
+                .fullName(user.getFullName())
+                .userId(user.getId().toString())
+                .avatarUrl(user.getAvatarUrl())
+                .build());
     }
 
     /**
@@ -317,9 +453,122 @@ public class AuthController {
         return ResponseEntity.ok(UserDto.fromEntity(user));
     }
 
+    /**
+     * Confirms an email address via the link sent by {@link #sendVerificationEmail}.
+     *
+     * <p><strong>HTTP:</strong> {@code GET /api/v1/auth/verify?token=...}</p>
+     * <p>Publicly accessible (already covered by the {@code /api/v1/auth/**} permitAll
+     * rule in CommonSecurityConfig) since the user clicks this link before they're
+     * necessarily able to log in on this device.</p>
+     */
+    @GetMapping("/verify")
+    public ResponseEntity<?> verifyEmail(@RequestParam String token) {
+        AuthToken authToken = authTokenRepository.findByTokenAndPurpose(token, AuthToken.Purpose.VERIFY_EMAIL)
+                .orElse(null);
+        if (authToken == null || authToken.getExpiryDate().isBefore(Instant.now())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "This verification link is invalid or has expired"));
+        }
+
+        User user = userRepository.findById(authToken.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setEmailVerified(true);
+        userRepository.save(user);
+        authTokenRepository.delete(authToken); // single-use
+
+        return ResponseEntity.ok(Map.of("message", "Email verified"));
+    }
+
+    /**
+     * Starts a password-reset flow. Always returns 200 regardless of whether the email
+     * is registered — this deliberately avoids leaking which addresses have accounts.
+     *
+     * <p><strong>HTTP:</strong> {@code POST /api/v1/auth/forgot-password}</p>
+     * <p><strong>Body:</strong> {@code {"email": "..."}}</p>
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email != null) {
+            userRepository.findByEmail(email).ifPresent(user -> {
+                try {
+                    authTokenRepository.deleteByUserIdAndPurpose(user.getId(), AuthToken.Purpose.RESET_PASSWORD);
+                    String token = UUID.randomUUID().toString();
+                    authTokenRepository.save(AuthToken.builder()
+                            .userId(user.getId())
+                            .token(token)
+                            .purpose(AuthToken.Purpose.RESET_PASSWORD)
+                            .expiryDate(Instant.now().plusSeconds(3600)) // 1 hour — shorter-lived than email verification
+                            .build());
+                    String resetLink = frontendUrl + "/reset-password?token=" + token;
+                    emailService.send(user.getEmail(), "Reset your HustleUp password",
+                            "<p>Someone requested a password reset for your HustleUp account.</p>"
+                                    + "<p><a href=\"" + resetLink + "\">Reset your password</a> (expires in 1 hour).</p>"
+                                    + "<p>If this wasn't you, you can safely ignore this email.</p>");
+                } catch (Exception e) {
+                    log.warn("Could not start password reset for {}: {}", email, e.getMessage());
+                }
+            });
+        }
+        return ResponseEntity.ok(Map.of("message", "If that email is registered, a reset link has been sent"));
+    }
+
+    /**
+     * Completes a password reset started by {@link #forgotPassword}.
+     *
+     * <p><strong>HTTP:</strong> {@code POST /api/v1/auth/reset-password}</p>
+     * <p><strong>Body:</strong> {@code {"token": "...", "newPassword": "..."}}</p>
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        String newPassword = body.get("newPassword");
+        if (token == null || newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "token and newPassword are required"));
+        }
+        if (!PASSWORD_POLICY.matcher(newPassword).matches()) {
+            return ResponseEntity.badRequest().body(Map.of("error", PASSWORD_POLICY_MESSAGE));
+        }
+
+        AuthToken authToken = authTokenRepository.findByTokenAndPurpose(token, AuthToken.Purpose.RESET_PASSWORD)
+                .orElse(null);
+        if (authToken == null || authToken.getExpiryDate().isBefore(Instant.now())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "This reset link is invalid or has expired"));
+        }
+
+        User user = userRepository.findById(authToken.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        authTokenRepository.delete(authToken); // single-use
+
+        // A password reset should also kill any existing sessions — force re-login everywhere.
+        refreshTokenRepository.deleteByUserId(user.getId());
+
+        return ResponseEntity.ok(Map.of("message", "Password updated — please log in again"));
+    }
+
     // =========================================================================
     // Private helpers
     // =========================================================================
+
+    /**
+     * Creates a single-use verification token and emails the confirmation link.
+     * Called from {@link #register}; failures are caught by the caller so a broken
+     * email provider never blocks account creation.
+     */
+    private void sendVerificationEmail(User user) {
+        String token = UUID.randomUUID().toString();
+        authTokenRepository.save(AuthToken.builder()
+                .userId(user.getId())
+                .token(token)
+                .purpose(AuthToken.Purpose.VERIFY_EMAIL)
+                .expiryDate(Instant.now().plusSeconds(86400)) // 24 hours
+                .build());
+        String verifyLink = frontendUrl + "/verify-email?token=" + token;
+        emailService.send(user.getEmail(), "Verify your HustleUp account",
+                "<p>Welcome to HustleUp! Confirm your email to finish setting up your account.</p>"
+                        + "<p><a href=\"" + verifyLink + "\">Verify your email</a> (expires in 24 hours).</p>");
+    }
 
     /**
      * Shared helper that creates tokens, persists the refresh token, and builds

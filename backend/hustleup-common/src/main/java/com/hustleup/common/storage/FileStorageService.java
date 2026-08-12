@@ -51,6 +51,44 @@ import java.util.UUID;
 public class FileStorageService {
 
     /**
+     * File extensions accepted by {@link #store}. Everything else is rejected outright.
+     *
+     * <p><b>Why an allowlist (security):</b> the stored filename previously kept whatever
+     * extension the client's filename ended in. Locally-stored uploads are served straight
+     * back from {@code /uploads/**} — a path deliberately excluded from the security filter
+     * chain — so the browser renders them on the application's own origin. Uploading
+     * {@code payload.html} therefore produced a same-origin HTML page under our domain, and
+     * {@code payload.svg} an image that browsers execute inline {@code <script>} inside.
+     * Either one is stored cross-site scripting, and since the SPA keeps its JWT in
+     * {@code localStorage}, that is a straightforward session-theft primitive.
+     *
+     * <p>Note {@code svg} is deliberately absent even though it is an image format: SVG is
+     * an XML document that can carry script, and it is the single most common stored-XSS
+     * vector in "images are safe" upload handlers.
+     */
+    private static final java.util.Set<String> ALLOWED_EXTENSIONS = java.util.Set.of(
+            // Raster images
+            "jpg", "jpeg", "png", "gif", "webp", "avif", "heic", "heif", "bmp",
+            // Video (stories and listing clips)
+            "mp4", "mov", "webm", "m4v"
+    );
+
+    /**
+     * MIME type prefixes accepted by {@link #store} — a second, independent check alongside
+     * {@link #ALLOWED_EXTENSIONS} so a mismatched pair (e.g. {@code text/html} bytes named
+     * {@code .png}) is refused rather than stored and later sniffed by a browser.
+     */
+    private static final java.util.Set<String> ALLOWED_CONTENT_TYPE_PREFIXES =
+            java.util.Set.of("image/", "video/");
+
+    /**
+     * Hard ceiling on a single upload, independent of the per-service
+     * {@code spring.servlet.multipart.max-file-size}. Keeps a misconfigured service from
+     * accepting an unbounded write to disk.
+     */
+    private static final long MAX_FILE_BYTES = 500L * 1024 * 1024; // 500 MB
+
+    /**
      * Absolute path to the local upload directory — used only when S3 is not configured.
      *
      * <p>Created automatically during construction if it does not already exist. The
@@ -94,6 +132,17 @@ public class FileStorageService {
     private final String awsRegion;
 
     /**
+     * CDN domain fronting the S3 bucket (e.g. a CloudFront distribution domain, or a custom
+     * subdomain like {@code cdn.yourdomain.com}). Empty string when not configured.
+     *
+     * <p>When set, {@link #presign} and {@link #uploadToS3} return stable CDN URLs instead
+     * of expiring presigned S3 URLs — this assumes the bucket is configured with Origin
+     * Access Control so it is only reachable through the CDN (see INTEGRATIONS.md), so
+     * objects no longer need per-request signing.
+     */
+    private final String cdnDomain;
+
+    /**
      * Constructs the service and initialises the correct storage backend.
      *
      * <p><b>Dual-mode initialisation logic:</b><br>
@@ -112,18 +161,21 @@ public class FileStorageService {
      * @param secretKey  AWS secret access key; empty string to use local storage
      * @param region     AWS region for the S3 bucket (defaults to "us-east-1")
      * @param bucket     S3 bucket name; empty string to use local storage
+     * @param cdnDomain  CDN domain fronting the bucket; empty string to serve straight from S3
      */
     public FileStorageService(
             @Value("${app.upload.dir:./uploads}") String uploadDir,
             @Value("${app.aws.access-key:}") String accessKey,
             @Value("${app.aws.secret-key:}") String secretKey,
             @Value("${app.aws.region:us-east-1}") String region,
-            @Value("${app.aws.s3.bucket:}") String bucket) {
+            @Value("${app.aws.s3.bucket:}") String bucket,
+            @Value("${app.cdn.domain:}") String cdnDomain) {
 
         // Resolve to absolute path and normalise (remove ".." segments) for safety
         this.uploadDir = Paths.get(uploadDir).toAbsolutePath().normalize();
         this.bucketName = bucket;
         this.awsRegion = region;
+        this.cdnDomain = cdnDomain;
 
         if (!accessKey.isBlank() && !secretKey.isBlank() && !bucket.isBlank()) {
             // All AWS config present — build an S3 client and presigner for cloud storage
@@ -157,13 +209,16 @@ public class FileStorageService {
      * access to a private object. The URL expires after {@code Duration.ofDays(7)} — the
      * client must request a new one (via {@link #refreshUrl}) before expiry.
      *
-     * <p>If S3 is not configured ({@code s3Presigner == null}), the key is returned as a
-     * local path prefixed with {@code /} to be served as a static resource.
+     * <p>If a CDN domain is configured, a stable (non-expiring) CDN URL is returned instead
+     * of a presigned S3 URL — see {@link #cdnDomain}. If S3 is not configured at all
+     * ({@code s3Presigner == null}), the key is returned as a local path prefixed with
+     * {@code /} to be served as a static resource.
      *
      * @param s3Key the S3 object key (e.g. {@code "uploads/uuid.jpg"})
-     * @return a time-limited presigned URL, or a local path if S3 is not configured
+     * @return a CDN URL, a time-limited presigned URL, or a local path, depending on config
      */
     public String presign(String s3Key) {
+        if (!cdnDomain.isBlank()) return "https://" + cdnDomain + "/" + s3Key;
         if (s3Presigner == null) return "/" + s3Key; // Local mode — return as a static resource URL
         GetObjectPresignRequest presignReq = GetObjectPresignRequest.builder()
                 .signatureDuration(Duration.ofDays(7)) // URL is valid for 7 days
@@ -197,7 +252,10 @@ public class FileStorageService {
     public String refreshUrl(String storedUrl) {
         if (storedUrl == null) return null;
         if (storedUrl.startsWith("/")) return storedUrl; // Local file — no expiry
-        if (s3Presigner == null) return storedUrl;       // S3 not configured — return as-is
+        if (!cdnDomain.isBlank() && storedUrl.startsWith("https://" + cdnDomain + "/")) {
+            return storedUrl; // Already a stable CDN URL — nothing to refresh
+        }
+        if (s3Presigner == null && cdnDomain.isBlank()) return storedUrl; // S3 not configured — return as-is
 
         String key = storedUrl;
         // Build the expected URL prefix for this bucket/region to detect full S3 URLs
@@ -233,15 +291,27 @@ public class FileStorageService {
      * @throws RuntimeException wrapping {@link IOException} if the file cannot be written
      */
     public String store(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("No file was uploaded");
+        }
+        if (file.getSize() > MAX_FILE_BYTES) {
+            throw new IllegalArgumentException("That file is too large — the maximum upload size is 500MB");
+        }
+
+        // Both checks must pass: the declared MIME type AND the extension. Validating only
+        // one lets an attacker satisfy it while the other carries the dangerous value.
+        String contentType = file.getContentType();
+        if (contentType == null || ALLOWED_CONTENT_TYPE_PREFIXES.stream().noneMatch(contentType::startsWith)) {
+            throw new IllegalArgumentException("Only image and video files can be uploaded");
+        }
+
+        String extension = safeExtension(file.getOriginalFilename());
+
         try {
-            String originalFilename = file.getOriginalFilename();
-            // Extract extension to preserve it in the stored filename (e.g. ".jpg", ".png")
-            String extension = "";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            }
-            // Use a UUID as the filename to ensure uniqueness and prevent path traversal attacks
-            String filename = UUID.randomUUID() + extension;
+            // The stored name is a server-generated UUID plus the validated extension. The
+            // client's filename never reaches the filesystem: it is only ever inspected to
+            // pick an extension out of the allowlist above.
+            String filename = UUID.randomUUID() + "." + extension;
 
             if (s3Client != null) {
                 return uploadToS3(file, filename);
@@ -254,19 +324,56 @@ public class FileStorageService {
     }
 
     /**
+     * Extracts a safe, allowlisted extension from a client-supplied filename.
+     *
+     * <p><b>Why this is not just {@code substring(lastIndexOf('.'))} (security):</b> that
+     * expression copies an arbitrary attacker-controlled tail into the name we hand to
+     * {@code Path.resolve()}. A filename such as {@code a.} + {@code ./../../../evil.jsp}
+     * yields an "extension" containing path separators, and resolving it escapes the upload
+     * directory entirely — an arbitrary file write anywhere the service user can reach.
+     * Matching against a fixed allowlist removes the whole class of problem: the returned
+     * value is always one of a handful of known-good literals, never client input.
+     *
+     * @param originalFilename the client-supplied name; may be {@code null}
+     * @return a lowercase extension from {@link #ALLOWED_EXTENSIONS}, without the leading dot
+     * @throws IllegalArgumentException if the name has no extension, or one that is not allowed
+     */
+    private String safeExtension(String originalFilename) {
+        if (originalFilename == null || originalFilename.isBlank()) {
+            throw new IllegalArgumentException("Uploaded file has no filename");
+        }
+        int dot = originalFilename.lastIndexOf('.');
+        if (dot < 0 || dot == originalFilename.length() - 1) {
+            throw new IllegalArgumentException("Uploaded file has no extension");
+        }
+
+        String candidate = originalFilename.substring(dot + 1)
+                .toLowerCase(java.util.Locale.ROOT)
+                .trim();
+
+        if (!ALLOWED_EXTENSIONS.contains(candidate)) {
+            throw new IllegalArgumentException(
+                    "Unsupported file type — allowed types are images (jpg, png, gif, webp, avif, heic, bmp) "
+                            + "and video (mp4, mov, webm, m4v)");
+        }
+        return candidate;
+    }
+
+    /**
      * Uploads a file to the configured S3 bucket and returns its permanent S3 URL.
      *
      * <p>The object is stored under the {@code uploads/} prefix in the bucket (e.g.
      * {@code uploads/550e8400-uuid.jpg}). The {@code contentType} is set so that
      * browsers can determine how to render the file without relying on the extension.
      *
-     * <p>The returned URL is the permanent S3 base URL (not a presigned URL) — it will
-     * only be directly accessible if the bucket is public. In a private-bucket setup,
+     * <p>If a CDN domain is configured, the stable CDN URL is returned directly (no signing
+     * needed — see {@link #cdnDomain}). Otherwise the permanent S3 base URL is returned; it
+     * will only be directly accessible if the bucket is public, so in a private-bucket setup
      * callers should pass this URL through {@link #refreshUrl} before serving it.
      *
      * @param file     the multipart file to upload
      * @param filename the UUID-based target filename (without path prefix)
-     * @return the permanent S3 URL of the uploaded object
+     * @return the CDN URL if configured, otherwise the permanent S3 URL of the uploaded object
      * @throws IOException if reading the file's input stream fails
      */
     private String uploadToS3(MultipartFile file, String filename) throws IOException {
@@ -282,6 +389,8 @@ public class FileStorageService {
 
         // Stream the file bytes to S3 — avoids loading the entire file into memory
         s3Client.putObject(req, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+
+        if (!cdnDomain.isBlank()) return "https://" + cdnDomain + "/" + key;
 
         // Return the standard S3 URL format — callers can presign this later via refreshUrl()
         return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, awsRegion, key);
@@ -306,7 +415,16 @@ public class FileStorageService {
      * @throws IOException if writing to disk fails (e.g. disk full, permission denied)
      */
     private String storeLocally(MultipartFile file, String filename) throws IOException {
-        Path targetPath = uploadDir.resolve(filename); // Full absolute path on disk
+        Path targetPath = uploadDir.resolve(filename).normalize(); // Full absolute path on disk
+
+        // Defence in depth: filename is already a server-generated UUID plus an allowlisted
+        // extension, so it cannot contain path separators. This asserts that invariant at the
+        // point it actually matters, so any future change to how names are built cannot
+        // silently reintroduce a write outside the upload directory.
+        if (!targetPath.startsWith(uploadDir)) {
+            throw new IllegalArgumentException("Invalid upload path");
+        }
+
         Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
         return "/uploads/" + filename; // Return web-accessible relative URL
     }

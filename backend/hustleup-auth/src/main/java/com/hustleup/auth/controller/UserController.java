@@ -1,6 +1,7 @@
 package com.hustleup.auth.controller;
 
 import com.hustleup.common.dto.UserDto;
+import com.hustleup.common.geo.GeocodingService;
 import com.hustleup.common.model.ProfileView;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.ProfileViewRepository;
@@ -61,6 +62,10 @@ public class UserController {
     // Returns a URL string that can be stored on the User entity and served back to clients.
     private final FileStorageService fileStorageService;
 
+    // Turns a city/address string into coordinates for the "X km away" distance feature.
+    // No-ops (returns empty) until GOOGLE_MAPS_SERVER_KEY is configured.
+    private final GeocodingService geocodingService;
+
     // -------------------------------------------------------------------------
     // Private utility
     // -------------------------------------------------------------------------
@@ -106,9 +111,14 @@ public class UserController {
     public ResponseEntity<List<UserDto>> getAllUsers() {
         // findAll() issues a SELECT * FROM users.
         // We stream the result, map each entity to its DTO, and collect into a List.
-        // The Java Stream API is used here for clean, declarative transformation.
+        //
+        // SECURITY: this endpoint is reachable without a JWT (guests use it to resolve
+        // author ids to names/avatars in search, stories and the feed), so it MUST use
+        // UserDto.publicView() and not UserDto.fromEntity(). fromEntity() includes the
+        // account's email, phone number and full postal address — mapping it here turned
+        // a single anonymous GET into a dump of every registered user's personal data.
         return ResponseEntity.ok(userRepository.findAll().stream()
-                .map(UserDto::fromEntity)    // method reference: equivalent to u -> UserDto.fromEntity(u)
+                .map(UserDto::publicView)    // method reference: equivalent to u -> UserDto.publicView(u)
                 .collect(Collectors.toList()));
     }
 
@@ -139,15 +149,23 @@ public class UserController {
         User user = userRepository.findById(UUID.fromString(id))
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // SECURITY: this endpoint is public (guests browse seller storefronts), so by
+        // default we return only publicly-safe fields. The owner looking at their own
+        // profile still gets the full view including email/phone/address.
+        boolean isSelf = false;
+
         // Record profile view (ignore self-views and unauthenticated access).
         // We wrap in try/catch so a failure here never breaks the main profile response.
         try {
             String viewerEmail = currentUserEmail();
 
             if (viewerEmail != null) {
-                userRepository.findByEmail(viewerEmail).ifPresent(viewer -> {
+                User viewer = userRepository.findByEmail(viewerEmail).orElse(null);
+                if (viewer != null) {
                     // Don't record a self-view (looking at your own profile).
-                    if (!viewer.getId().equals(UUID.fromString(id))) {
+                    if (viewer.getId().equals(user.getId())) {
+                        isSelf = true;
+                    } else {
                         // Delete any previous view by this viewer for this profile (upsert pattern).
                         profileViewRepository.deleteByProfileIdAndViewerId(id, viewer.getId().toString());
 
@@ -157,14 +175,15 @@ public class UserController {
                         pv.setViewerId(viewer.getId().toString());
                         profileViewRepository.save(pv); // timestamp is set automatically by the entity
                     }
-                });
+                }
             }
         } catch (Exception ignored) {
             // Intentionally swallowed: view tracking is best-effort and must not
             // prevent the profile response from being returned to the caller.
+            // isSelf stays false here, so a failure degrades to the *safer* public view.
         }
 
-        return ResponseEntity.ok(UserDto.fromEntity(user));
+        return ResponseEntity.ok(isSelf ? UserDto.fromEntity(user) : UserDto.publicView(user));
     }
 
     /**
@@ -206,8 +225,11 @@ public class UserController {
                     userRepository.findById(UUID.fromString(pv.getViewerId())).ifPresent(u -> {
                         m.put("id", u.getId());
                         m.put("fullName", u.getFullName());
-                        // Derive a simple display username from the email local part (before @).
-                        m.put("username", u.getEmail().split("@")[0]);
+                        // Use the user's chosen @handle. Falls back to their display name —
+                        // deliberately NOT to the email local part, which would leak part of
+                        // another user's email address to whoever is reading this list.
+                        m.put("username", u.getUsername() != null && !u.getUsername().isBlank()
+                                ? u.getUsername() : u.getFullName());
                         m.put("avatarUrl", u.getAvatarUrl());
                         // Default to "BUYER" if role is somehow null (defensive coding).
                         m.put("role", u.getRole() != null ? u.getRole().name() : "BUYER");
@@ -308,6 +330,12 @@ public class UserController {
         // Apply only non-null fields — this is the "partial update" pattern.
         // If a client sends {"bio": "Hello!"}, only bio is updated; all other
         // fields remain exactly as they were in the database.
+        // Track whether the location changed so we only re-geocode (an external API call)
+        // when there's actually something new to look up, not on every profile save.
+        boolean locationChanged =
+                (profileData.getCity() != null && !profileData.getCity().equals(user.getCity())) ||
+                (profileData.getAddressLine1() != null && !profileData.getAddressLine1().equals(user.getAddressLine1()));
+
         if (profileData.getFullName() != null)      user.setFullName(profileData.getFullName());
         if (profileData.getUsername() != null)      user.setUsername(profileData.getUsername());
         if (profileData.getBio() != null)           user.setBio(profileData.getBio());
@@ -322,6 +350,19 @@ public class UserController {
         if (profileData.getShopBannerUrl() != null) user.setShopBannerUrl(profileData.getShopBannerUrl());
         if (profileData.getShopCategory() != null)  user.setShopCategory(profileData.getShopCategory());
 
+        // Re-geocode in the background of this request — best-effort, never blocks the
+        // profile save itself (e.g. if Google's API is down or the key isn't configured).
+        if (locationChanged) {
+            try {
+                String address = (user.getAddressLine1() != null ? user.getAddressLine1() + ", " : "") + user.getCity();
+                geocodingService.geocode(address).ifPresent(coords -> {
+                    user.setLatitude(coords.lat());
+                    user.setLongitude(coords.lng());
+                });
+            } catch (Exception ignored) {
+            }
+        }
+
         // Manually stamp the last-updated time. In a more elaborate setup this would
         // be handled by @LastModifiedDate + Spring Data Auditing, but an explicit set
         // is perfectly correct and transparent.
@@ -330,5 +371,27 @@ public class UserController {
         // save() on an entity that already has an ID issues an UPDATE (not an INSERT).
         // JPA/Hibernate tracks whether an entity is "managed" (loaded from DB) or "new".
         return ResponseEntity.ok(UserDto.fromEntity(userRepository.save(user)));
+    }
+
+    /**
+     * Registers (or clears) the caller's Expo push token, so backend services can deliver
+     * mobile push notifications via {@link com.hustleup.common.push.ExpoPushService}.
+     *
+     * <p>Called by the mobile app once, after the user grants notification permission and
+     * Expo hands back a token. Sending {@code {"pushToken": null}} (or omitting it) clears
+     * the stored token, e.g. on logout, so a signed-out device stops receiving pushes for
+     * the account it just left.
+     *
+     * @param body a single-entry map, e.g. {@code {"pushToken": "ExponentPushToken[xxxx]"}}
+     * @return {@code 200 OK} with {@code {"success": true}}
+     */
+    @PatchMapping("/me/push-token")
+    public ResponseEntity<Map<String, Boolean>> updatePushToken(@RequestBody Map<String, String> body) {
+        String email = currentUserEmail();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setPushToken(body.get("pushToken"));
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of("success", true));
     }
 }

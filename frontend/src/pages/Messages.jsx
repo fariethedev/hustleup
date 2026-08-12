@@ -80,18 +80,18 @@ export default function Messages() {
   const peerName = activeBk ? (isBuyer ? activeBk.sellerName : activeBk.buyerName) : null;
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-10 h-[calc(100vh-100px)] flex flex-col">
-      <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }} 
-        className="flex-1 flex gap-8 overflow-hidden"
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-8 py-4 sm:py-10 h-[calc(100vh-8.5rem-env(safe-area-inset-bottom))] md:h-[calc(100vh-4rem)] flex flex-col">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex-1 min-h-0 flex gap-4 sm:gap-8 overflow-hidden"
       >
         {/* Sidebar: Inbound Feed */}
-        <aside className={`w-full lg:w-[400px] shrink-0 flex flex-col glass rounded-[3rem] border border-white/5 bg-black/40 backdrop-blur-2xl overflow-hidden transition-all duration-500 ${activeBooking ? 'hidden lg:flex' : 'flex'}`}>
-          <div className="p-10 border-b border-white/5 space-y-4">
-             <div className="flex items-center justify-between">
-                <h2 className="text-4xl font-black text-white uppercase tracking-tighter">INBOUND</h2>
-                <div className="p-3 bg-[#CDFF00]/10 border border-[#CDFF00]/20 rounded-2xl">
+        <aside className={`w-full lg:w-[400px] shrink-0 flex flex-col glass rounded-3xl sm:rounded-[3rem] border border-white/5 bg-black/40 backdrop-blur-2xl overflow-hidden transition-all duration-500 ${activeBooking ? 'hidden lg:flex' : 'flex'}`}>
+          <div className="p-5 sm:p-10 border-b border-white/5 space-y-4">
+             <div className="flex items-center justify-between gap-3">
+                <h2 className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tighter">INBOUND</h2>
+                <div className="p-3 bg-[#CDFF00]/10 border border-[#CDFF00]/20 rounded-2xl shrink-0">
                    <Signal className="w-5 h-5 text-[#CDFF00] animate-pulse" />
                 </div>
              </div>
@@ -125,14 +125,14 @@ export default function Messages() {
                   <button
                     key={b.id}
                     onClick={() => setActiveBooking(b.id)}
-                    className={`w-full text-left p-6 rounded-[2.5rem] transition-all relative group border-2 ${
-                      active 
-                        ? 'bg-[#CDFF00] border-[#CDFF00] shadow-[0_20px_40px_rgba(205,255,0,0.15)] scale-[1.02]' 
+                    className={`w-full text-left p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] transition-all relative group border-2 ${
+                      active
+                        ? 'bg-[#CDFF00] border-[#CDFF00] shadow-[0_20px_40px_rgba(205,255,0,0.15)] scale-[1.02]'
                         : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
                     }`}
                   >
-                    <div className="flex items-center gap-5">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl transition-all ${
+                    <div className="flex items-center gap-3 sm:gap-5">
+                      <div className={`w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-2xl flex items-center justify-center font-black text-lg sm:text-xl transition-all ${
                         active ? 'bg-black text-[#CDFF00]' : 'bg-black text-white border border-white/10'
                       }`}>
                         {pName?.[0] || '?'}
@@ -157,33 +157,33 @@ export default function Messages() {
         </aside>
 
         {/* Chat Control Center */}
-        <main className={`flex-1 flex flex-col glass rounded-[3rem] border border-white/5 bg-black/40 backdrop-blur-2xl overflow-hidden transition-all duration-500 ${activeBooking ? 'flex' : 'hidden lg:flex'}`}>
+        <main className={`flex-1 min-w-0 flex flex-col glass rounded-3xl sm:rounded-[3rem] border border-white/5 bg-black/40 backdrop-blur-2xl overflow-hidden transition-all duration-500 ${activeBooking ? 'flex' : 'hidden lg:flex'}`}>
           {activeBooking ? (
             <>
               {/* Cinematic Header */}
-              <header className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <div className="flex items-center gap-6">
-                   <button 
-                     onClick={() => setActiveBooking(null)} 
-                     className="lg:hidden p-4 rounded-2xl bg-white/5 border border-white/10 text-white"
+              <header className="p-4 sm:p-8 border-b border-white/5 flex items-center justify-between gap-3 bg-white/[0.02]">
+                <div className="flex items-center gap-3 sm:gap-6 min-w-0 flex-1">
+                   <button
+                     onClick={() => setActiveBooking(null)}
+                     className="lg:hidden shrink-0 p-3 sm:p-4 rounded-2xl bg-white/5 border border-white/10 text-white"
                    >
                      <ChevronLeft className="w-5 h-5" />
                    </button>
-                   <Link to={`/profile/${peerId}`} className="relative group cursor-pointer">
-                      <div className="w-16 h-16 rounded-3xl bg-black border-2 border-white/10 group-hover:border-[#CDFF00] shadow-[0_0_30px_rgba(205,255,0,0.1)] flex items-center justify-center text-[#CDFF00] font-black text-2xl transition-all">
+                   <Link to={`/profile/${peerId}`} className="relative group cursor-pointer shrink-0">
+                      <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-black border-2 border-white/10 group-hover:border-[#CDFF00] shadow-[0_0_30px_rgba(205,255,0,0.1)] flex items-center justify-center text-[#CDFF00] font-black text-base sm:text-2xl transition-all">
                         {peerName?.[0]}
                       </div>
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-lg bg-[#22C55E] border-4 border-black" />
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-[#22C55E] border-2 sm:border-4 border-black" />
                    </Link>
-                   <Link to={`/profile/${peerId}`} className="group cursor-pointer">
-                      <h3 className="text-2xl font-black text-white uppercase tracking-tighter group-hover:text-[#CDFF00] transition-colors">{peerName || 'Direct Signal'}</h3>
-                      <div className="flex items-center gap-3 mt-1 text-[10px] font-black text-[#CDFF00] uppercase tracking-[0.3em]">
-                         <SignalsIcon className="w-3 h-3" /> Encrypted Channel Active
+                   <Link to={`/profile/${peerId}`} className="group cursor-pointer min-w-0 flex-1">
+                      <h3 className="text-base sm:text-2xl font-black text-white uppercase tracking-tighter group-hover:text-[#CDFF00] transition-colors truncate">{peerName || 'Direct Signal'}</h3>
+                      <div className="flex items-center gap-2 sm:gap-3 mt-1 text-[9px] sm:text-[10px] font-black text-[#CDFF00] uppercase tracking-[0.15em] sm:tracking-[0.3em] truncate">
+                         <SignalsIcon className="w-3 h-3 shrink-0" /> <span className="truncate">Encrypted Channel Active</span>
                       </div>
                    </Link>
                 </div>
-                
-                <div className="hidden sm:flex items-center gap-4">
+
+                <div className="hidden sm:flex items-center gap-4 shrink-0">
                    <button className="p-4 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all">
                       <Info className="w-5 h-5" />
                    </button>
@@ -191,7 +191,7 @@ export default function Messages() {
               </header>
 
               {/* Data Feed (Messages) */}
-              <div className="flex-1 overflow-y-auto p-10 space-y-8 scrollbar-hide">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-10 space-y-4 sm:space-y-8 scrollbar-hide">
                 {messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-30">
                      <Zap className="w-20 h-20 text-[#CDFF00]" />
@@ -202,8 +202,8 @@ export default function Messages() {
                     const isMe = msg.senderId === user?.id;
                     return (
                       <div key={msg.id || i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                         <div className={`max-w-[70%] space-y-2`}>
-                            <div className={`px-6 py-4 rounded-[2rem] border-2 shadow-2xl transition-all ${
+                         <div className={`max-w-[85%] sm:max-w-[70%] space-y-2`}>
+                            <div className={`px-4 py-3 sm:px-6 sm:py-4 rounded-2xl sm:rounded-[2rem] border-2 shadow-2xl transition-all ${
                               isMe 
                                 ? 'bg-[#CDFF00] border-[#CDFF00] text-black rounded-br-sm' 
                                 : 'bg-white/[0.03] border-white/10 text-white rounded-bl-sm'
@@ -225,14 +225,14 @@ export default function Messages() {
               </div>
 
               {/* Input Matrix */}
-              <div className="p-8 bg-white/[0.02] border-t border-white/5">
-                <form onSubmit={sendMessage} className="flex gap-6 items-end group">
-                  <div className="flex-1 relative">
+              <div className="p-3 sm:p-8 bg-white/[0.02] border-t border-white/5">
+                <form onSubmit={sendMessage} className="flex gap-3 sm:gap-6 items-end group">
+                  <div className="flex-1 min-w-0 relative">
                      <textarea
                        value={newMsg}
                        onChange={(e) => setNewMsg(e.target.value)}
                        placeholder="Inject protocol sequence..."
-                       className="w-full bg-black border-2 border-white/10 rounded-[2rem] px-8 py-5 text-white placeholder-gray-700 outline-none focus:border-[#CDFF00] transition-all font-black text-xs uppercase tracking-widest resize-none min-h-[72px] max-h-[200px] scrollbar-hide"
+                       className="w-full bg-black border-2 border-white/10 rounded-2xl sm:rounded-[2rem] px-4 py-3 sm:px-8 sm:py-5 text-white placeholder-gray-700 outline-none focus:border-[#CDFF00] transition-all font-black text-xs uppercase tracking-widest resize-none min-h-[48px] sm:min-h-[72px] max-h-[200px] scrollbar-hide"
                        onKeyDown={(e) => {
                          if (e.key === 'Enter' && !e.shiftKey) {
                            e.preventDefault();
@@ -240,16 +240,16 @@ export default function Messages() {
                          }
                        }}
                      />
-                     <div className="absolute right-6 bottom-5 flex gap-2">
+                     <div className="hidden sm:flex absolute right-6 bottom-5 gap-2">
                         <Terminal className="w-4 h-4 text-gray-700 group-focus-within:text-[#CDFF00]" />
                      </div>
                   </div>
                   <button
                     type="submit"
                     disabled={!newMsg.trim()}
-                    className="p-6 rounded-[2rem] bg-[#CDFF00] text-black shadow-[0_10px_30px_rgba(205,255,0,0.3)] hover:scale-110 active:scale-95 transition-all disabled:opacity-20 disabled:scale-100"
+                    className="shrink-0 p-3 sm:p-6 rounded-2xl sm:rounded-[2rem] bg-[#CDFF00] text-black shadow-[0_10px_30px_rgba(205,255,0,0.3)] hover:scale-110 active:scale-95 transition-all disabled:opacity-20 disabled:scale-100"
                   >
-                    <Send className="w-6 h-6 stroke-[3px]" />
+                    <Send className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3px]" />
                   </button>
                 </form>
               </div>

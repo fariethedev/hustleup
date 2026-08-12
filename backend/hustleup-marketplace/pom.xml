@@ -43,6 +43,17 @@
             <groupId>com.stripe</groupId>
             <artifactId>stripe-java</artifactId>
         </dependency>
+        <!-- Sentry error monitoring -->
+        <dependency>
+            <groupId>io.sentry</groupId>
+            <artifactId>sentry-spring-boot-starter-jakarta</artifactId>
+        </dependency>
+        <!-- resend-java comes transitively via hustleup-common (EmailService lives there) -->
+        <!-- Algolia search indexing for listings -->
+        <dependency>
+            <groupId>com.algolia</groupId>
+            <artifactId>algoliasearch</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

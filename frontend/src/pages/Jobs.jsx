@@ -89,11 +89,7 @@ export default function Jobs() {
 
   return (
     <div className="min-h-screen text-white pb-16">
-      <HeroBrief
-        pillText="Marketplace of Opportunities"
-        title="Hustle Jobs"
-        subtitle="Direct connections to high-impact roles — no middlemen, no static."
-      />
+      <HeroBrief title="Hustle Jobs" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         {/* Stats row */}

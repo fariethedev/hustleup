@@ -56,6 +56,15 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- Sentry error monitoring -->
+        <dependency>
+            <groupId>io.sentry</groupId>
+            <artifactId>sentry-spring-boot-starter-jakarta</artifactId>
+        </dependency>
+        <!-- resend-java comes transitively via hustleup-common (EmailService lives there) -->
+        <!-- No Google SDK needed: the frontend sends an OAuth access token (implicit flow),
+             verified the same way as Facebook — a plain call to the provider's userinfo
+             endpoint via RestTemplate, no extra dependency required. -->
     </dependencies>
 
     <build>

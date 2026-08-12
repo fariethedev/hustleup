@@ -30,6 +30,7 @@
 package com.hustleup.social.dto;
 
 import com.hustleup.social.model.Post;
+import com.hustleup.social.model.SavedPost;
 import lombok.Builder;
 import lombok.Data;
 
@@ -97,6 +98,19 @@ public class PostDto {
      */
     boolean likedByCurrentUser;
 
+    /**
+     * Whether the currently authenticated user has saved/bookmarked this post.
+     * Computed the same way as {@link #likedByCurrentUser} — see {@link SavedPost}.
+     */
+    boolean savedByCurrentUser;
+
+    /**
+     * A lightweight preview of the single most recent comment, so the feed card can show
+     * an Instagram-style "authorName: content" line beneath the caption without the client
+     * having to open the full comment thread first. Null if the post has no comments.
+     */
+    TopCommentDto topComment;
+
     /** Whether this post was published anonymously. When true, authorId/authorName/authorAvatarUrl are masked. */
     boolean anonymous;
 
@@ -152,6 +166,26 @@ public class PostDto {
      * @return a fully populated PostDto ready to be serialised to JSON
      */
     public static PostDto from(Post post, boolean likedByCurrentUser, UnaryOperator<String> urlRefresher, String authorAvatarUrl) {
+        return from(post, likedByCurrentUser, false, urlRefresher, authorAvatarUrl, null);
+    }
+
+    /**
+     * Richest factory: adds the {@code savedByCurrentUser} flag and an optional
+     * {@code topComment} preview on top of everything {@link #from(Post, boolean, UnaryOperator, String)}
+     * computes. Used by the main feed listing endpoint, where both are worth the extra
+     * (batched) queries; the simpler overloads above default these to {@code false}/{@code null}
+     * for call sites that don't need them.
+     *
+     * @param post               the Post entity to convert
+     * @param likedByCurrentUser whether the current user has liked this post
+     * @param savedByCurrentUser whether the current user has saved/bookmarked this post
+     * @param urlRefresher       function to refresh/sign media URLs (e.g. S3 pre-signing)
+     * @param authorAvatarUrl    the post author's current profile picture URL (may be null)
+     * @param topComment         the most recent comment on this post, or null if none
+     * @return a fully populated PostDto ready to be serialised to JSON
+     */
+    public static PostDto from(Post post, boolean likedByCurrentUser, boolean savedByCurrentUser,
+                                UnaryOperator<String> urlRefresher, String authorAvatarUrl, TopCommentDto topComment) {
         // Parse the CSV media columns into a structured list of PostMediaDto objects.
         List<PostMediaDto> media = parseMedia(post, urlRefresher);
         // Refresh the legacy single-image URL if present.
@@ -172,6 +206,8 @@ public class PostDto {
                 .likesCount(post.getLikesCount() == null ? 0 : post.getLikesCount())
                 .commentsCount(post.getCommentsCount() == null ? 0 : post.getCommentsCount())
                 .likedByCurrentUser(likedByCurrentUser)
+                .savedByCurrentUser(savedByCurrentUser)
+                .topComment(topComment)
                 .anonymous(post.isAnonymous())
                 .createdAt(post.getCreatedAt())
                 .build();
@@ -276,5 +312,23 @@ public class PostDto {
 
         /** The media type: either {@code "IMAGE"} or {@code "VIDEO"}. */
         String type;
+    }
+
+    /**
+     * Nested DTO for the inline "top comment" preview (see {@link #topComment}).
+     * Deliberately minimal — just enough to render one line under the caption;
+     * the client opens the full comment thread for anything more.
+     */
+    @Data
+    @Builder
+    @lombok.AllArgsConstructor
+    @lombok.NoArgsConstructor
+    public static class TopCommentDto {
+
+        /** Display name of whoever wrote the comment. */
+        String authorName;
+
+        /** The comment's text content. */
+        String content;
     }
 }

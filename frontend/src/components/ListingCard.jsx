@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectUser } from '../store/authSlice';
 import { LISTING_TYPES, formatPrice, convertToPLN } from '../utils/constants';
-import { MapPin, Zap, BadgeCheck, ShoppingCart, Check, Star, HandCoins, Lock } from 'lucide-react';
+import { MapPin, Zap, BadgeCheck, ShoppingCart, Check, Star, HandCoins, Lock, Images } from 'lucide-react';
 import { addToCart, selectCartItems } from '../store/cartSlice';
 import { useState } from 'react';
+import SmartImage from './SmartImage';
+import { coverImage, mediaList } from '../utils/media';
 
 export default function ListingCard({ listing, index = 0, onDelete }) {
   const user = useSelector(selectUser);
@@ -13,7 +15,10 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
   const cartItems = useSelector(selectCartItems);
   const isOwn = user?.id === listing.sellerId;
   const typeInfo = LISTING_TYPES.find((t) => t.value === listing.listingType) || LISTING_TYPES[0];
-  const imageUrl = listing.mediaUrls?.[0] || null;
+  // coverImage prefers a still over a video: a card showing a clip's first frame is usually
+  // just a black rectangle.
+  const imageUrl = coverImage(listing);
+  const mediaCount = mediaList(listing).length;
   const TypeIcon = typeInfo.icon;
   const [added, setAdded] = useState(false);
   const inCart = cartItems.some((i) => i.listingId === listing.id);
@@ -36,21 +41,23 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
     >
       <div className="group flex flex-col h-full bg-[#0A0A0A] border border-white/10 hover:border-[#00FFFF]/60 rounded-2xl overflow-hidden transition-all duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.4)] hover:shadow-[0_8px_20px_rgba(0,255,255,0.15)]">
         <Link to={`/listing/${listing.id}`} className="block">
-          {/* Image */}
+          {/* Image — SmartImage falls back to a category-tinted placeholder rather than
+              hiding the element, which used to leave a black hole in the grid. */}
           <div className="relative h-40 overflow-hidden bg-black">
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={listing.title}
-                onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-              />
-            ) : (
-              <div className={`w-full h-full bg-gradient-to-br ${typeInfo.color} opacity-20 flex items-center justify-center`}>
-                <TypeIcon className="w-12 h-12 text-[#00FFFF] opacity-60" />
-              </div>
-            )}
+            <SmartImage
+              src={imageUrl}
+              alt={listing.title}
+              fallbackIcon={TypeIcon}
+              fallbackClassName={`bg-gradient-to-br ${typeInfo.color} opacity-30`}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+            />
             <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+
+            {mediaCount > 1 && (
+              <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/80 text-[8px] font-black uppercase tracking-widest text-white border border-white/20">
+                <Images className="w-2.5 h-2.5" /> {mediaCount}
+              </span>
+            )}
 
             {/* Type badge */}
             <span className="absolute top-2.5 left-2.5 flex items-center gap-1 px-2 py-1 rounded-md bg-black/80 text-[8px] font-black uppercase tracking-widest text-[#00FFFF] border border-[#00FFFF]/40">

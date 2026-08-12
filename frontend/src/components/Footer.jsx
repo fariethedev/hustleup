@@ -69,8 +69,8 @@ export default function Footer() {
         <div className="mt-24 pt-10 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 text-gray-600 font-bold text-sm">
           <p>© {new Date().getFullYear()} HustleUp. All rights reserved.</p>
           <div className="flex gap-8">
-            <Link to="/" className="hover:text-gray-400">Privacy Policy</Link>
-            <Link to="/" className="hover:text-gray-400">Terms of Service</Link>
+            <Link to="/privacy" className="hover:text-gray-400">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-gray-400">Terms of Service</Link>
           </div>
         </div>
       </div>

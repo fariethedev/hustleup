@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Volume2, VolumeX, Play, Pause, ChevronLeft, ChevronRight, Share, Heart, SkipBack, SkipForward, User } from 'lucide-react';
 
-function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author }) {
+function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author, onLike, onShare, liked }) {
   const containerRef = useRef(null);
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -107,7 +107,7 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author }) {
 
   if (hasError) {
     return (
-      <div className="relative w-full h-full bg-black flex items-center justify-center rounded-[2.5rem] border border-white/5">
+      <div className="relative w-full h-full bg-black flex items-center justify-center">
         <div className="text-center">
           <Play className="w-12 h-12 text-white/20 mx-auto mb-2" />
           <p className="text-white/40 text-xs font-black uppercase tracking-widest">Feed unavailable</p>
@@ -119,7 +119,7 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author }) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full bg-black select-none overflow-hidden rounded-[2.5rem]"
+      className="relative w-full h-full bg-black select-none overflow-hidden"
       onClick={togglePlay}
       onMouseMove={triggerControls}
       onTouchStart={triggerControls}
@@ -161,17 +161,19 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author }) {
               </div>
 
               <div className="flex items-center gap-2">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); /* share logic */ }}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onShare?.(); }}
                   className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white hover:bg-[#CDFF00] hover:text-black transition-all shadow-2xl"
                 >
                   <Share className="w-4 h-4" />
                 </button>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); /* like logic */ }}
-                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white hover:bg-red-500 hover:border-red-500 transition-all shadow-2xl"
+                <button
+                  onClick={(e) => { e.stopPropagation(); onLike?.(); }}
+                  className={`w-10 h-10 rounded-full bg-black/40 backdrop-blur-xl border flex items-center justify-center transition-all shadow-2xl ${
+                    liked ? 'border-red-500 text-red-500' : 'border-white/10 text-white hover:bg-red-500 hover:border-red-500 hover:text-white'
+                  }`}
                 >
-                  <Heart className="w-4 h-4" />
+                  <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
                 </button>
               </div>
             </div>
@@ -235,7 +237,7 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author }) {
   );
 }
 
-export default function PostMediaGallery({ media = [], className = '', author }) {
+export default function PostMediaGallery({ media = [], className = '', author, onLike, onShare, liked }) {
   const [current, setCurrent] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
   const dragStartX = useRef(0);
@@ -259,10 +261,8 @@ export default function PostMediaGallery({ media = [], className = '', author })
     else if (diff < -50) prev();
   };
 
-  const isVideo = media[current]?.type === 'VIDEO';
-
   return (
-    <div className={`relative bg-[#0a0a0a] overflow-hidden rounded-[2.5rem] shadow-2xl border border-white/5 ${className}`}>
+    <div className={`relative bg-[#0a0a0a] overflow-hidden ${className}`}>
       {/* Carousel track */}
       <div
         className="relative w-full aspect-[4/5] max-h-[600px] bg-black overflow-hidden"
@@ -288,27 +288,19 @@ export default function PostMediaGallery({ media = [], className = '', author })
                   onMuteToggle={() => setIsMuted(m => !m)}
                   isActive={index === current}
                   author={author}
+                  onLike={onLike}
+                  onShare={onShare}
+                  liked={liked}
                 />
               ) : (
                 <div className="w-full h-full bg-black">
                   <img
                     src={item.url}
                     alt={`Post media ${index + 1}`}
-                    className="w-full h-full object-contain rounded-[2.5rem]"
+                    className="w-full h-full object-cover"
                     onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=60'; }}
                     draggable={false}
                   />
-                  {/* Subtle Top Overlay for Images too */}
-                  {!isVideo && (
-                    <div className="absolute top-6 left-6 right-6 flex items-center justify-between">
-                      <div className="flex items-center gap-2 bg-black/40 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full pr-6">
-                        <div className="w-7 h-7 rounded-full bg-[#CDFF00] border border-black/20 flex items-center justify-center overflow-hidden">
-                          {author?.avatar ? <img src={author.avatar} alt="" className="w-full h-full object-cover" /> : <User className="w-4 h-4 text-black" />}
-                        </div>
-                        <span className="text-[9px] font-black text-white uppercase tracking-tight">{author?.name || 'Hustler'}</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>

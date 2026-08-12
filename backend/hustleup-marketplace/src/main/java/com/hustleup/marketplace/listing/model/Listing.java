@@ -120,6 +120,25 @@ public class Listing {
     @Builder.Default
     private boolean agentFee = false;
 
+    // Whether the seller will consider barter (Swap Mode) instead of cash. Opt-in rather
+    // than default-on: a seller who only wants money should not have to field trade offers.
+    @Column(name = "is_swap_enabled", nullable = false)
+    @Builder.Default
+    private boolean swapEnabled = false;
+
+    // --- EVENT-only fields ---
+    // When the event actually starts. Null for every other listing type, and null for EVENT
+    // listings posted before this field existed. Promoted to a real column rather than living
+    // in the `meta` JSON blob below because a digital ticket has to print the date and time,
+    // and the organiser's door list sorts by it.
+    @Column(name = "event_starts_at")
+    private LocalDateTime eventStartsAt;
+
+    // Where the event is held — a full address or venue name, more specific than locationCity
+    // (which stays as the city used for browse filtering). Null for non-EVENT listings.
+    @Column(name = "event_venue")
+    private String eventVenue;
+
     // Flexible JSON/string blob for category-specific extras (e.g. cuisine type for FOOD).
     // Stored as TEXT so any amount of metadata can be attached without schema changes.
     @Column(columnDefinition = "TEXT")

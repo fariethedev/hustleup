@@ -4,10 +4,11 @@ import {
   ArrowRight, Store, ShoppingBag, Briefcase, Newspaper,
   MessagesSquare, Users, Star, ShieldCheck, Sparkles, HeartHandshake
 } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
-import { listingsApi } from '../api/client';
+import { listingsApi, bookingsApi } from '../api/client';
+import { useToast } from '../context/ToastContext';
 import { formatPrice } from '../utils/constants';
 import { SHOPS } from '../utils/shopData';
 
@@ -16,9 +17,9 @@ const formatFollowers = (n) =>
   n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K` : `${n}`;
 
 const heroImages = {
-  main: 'https://images.unsplash.com/photo-1518288319310-99bc48891084?auto=format&fit=crop&w=900&q=80',
-  topRight: 'https://images.unsplash.com/photo-1748608684523-afa687945f5d?auto=format&fit=crop&w=600&q=80',
-  bottomRight: 'https://images.unsplash.com/photo-1651062108412-36a68f3748dd?auto=format&fit=crop&w=600&q=80',
+  main: 'https://images.unsplash.com/photo-1744320911030-1ab998d994d7?auto=format&fit=crop&w=900&q=80',
+  topRight: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=80',
+  bottomRight: 'https://images.unsplash.com/photo-1620829813573-7c9e1877706f?auto=format&fit=crop&w=600&q=80',
 };
 
 const aboutImage = 'https://images.unsplash.com/photo-1565703321618-2571b730ffe1?auto=format&fit=crop&w=1000&q=80';
@@ -41,14 +42,40 @@ const steps = [
 export default function Home() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [requestedIds, setRequestedIds] = useState(new Set());
 
   useEffect(() => {
     listingsApi.recommended().then(r => {
       setListings(r.data?.slice(0, 8) || []);
     }).catch(() => {}).finally(() => setLoading(false));
+
+    listingsApi.browse({ type: 'EVENT' }).then(r => {
+      setEvents(r.data || []);
+    }).catch(() => {}).finally(() => setEventsLoading(false));
   }, []);
+
+  const handleRequestJoin = async (event) => {
+    if (!isAuthenticated) { navigate('/login'); return; }
+    if (requestedIds.has(event.id)) return;
+    setRequestedIds((prev) => new Set(prev).add(event.id));
+    try {
+      await bookingsApi.create({ listingId: event.id, joinRequest: true });
+      showToast('Request sent  the organiser will review it', 'success');
+    } catch (e) {
+      setRequestedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(event.id);
+        return next;
+      });
+      showToast(e.response?.data?.message || 'Could not send request', 'error');
+    }
+  };
 
   useEffect(() => {
     if (location.hash === '#about') {
@@ -72,16 +99,14 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold text-[#CDFF00] border border-[#CDFF00]/30 bg-[#CDFF00]/10 mb-6">
-              <Sparkles className="w-3.5 h-3.5" /> Made for Poland's student hustlers
-            </div>
+           
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-black text-white leading-[1.05] tracking-tight mb-6">
-              Where Poland's students <span className="text-[#CDFF00]">hustle</span>, shop &amp; connect.
+              <span className="text-[#CDFF00]">Hustle</span> hard. Shop smart. Connect fast.
             </h1>
             <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-lg mb-8">
-              HustleUp is the all-in-one platform for students across Warsaw, Kraków and beyond
-              to sell what they make, find gigs that pay, discover campus shops and build a
-              community around their hustle — all in Złoty.
+              HustleUp is the all-in-one platform for students across Poland and beyond
+              to sell what they make, find gigs that pay, discover shops and build a
+              community around their hustle all in Złoty.
             </p>
 
             <div className="flex flex-wrap items-center gap-4">
@@ -89,7 +114,7 @@ export default function Home() {
                 to={isAuthenticated ? '/dashboard' : '/register'}
                 className="px-7 py-3.5 rounded-full bg-[#CDFF00] text-black font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(205,255,0,0.2)] inline-flex items-center gap-2"
               >
-                Get started free <ArrowRight className="w-4 h-4" />
+                Join the community <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 to="/explore"
@@ -107,26 +132,26 @@ export default function Home() {
             transition={{ duration: 0.7, delay: 0.15 }}
             className="relative"
           >
-            <div className="grid grid-cols-5 grid-rows-2 gap-4 h-[420px] sm:h-[480px]">
-              <div className="col-span-3 row-span-2 rounded-3xl overflow-hidden border border-white/10 bg-white/5">
+            <div className="grid grid-cols-2 sm:grid-cols-5 grid-rows-[3fr_2fr] sm:grid-rows-2 gap-3 sm:gap-4 h-[360px] sm:h-[480px]">
+              <div className="col-span-2 sm:col-span-3 sm:row-span-2 rounded-3xl overflow-hidden border border-white/10 bg-white/5">
                 <img
                   src={heroImages.main}
-                  alt="Students hustling at a cafe in downtown Warsaw"
+                  alt="Five Black students smiling together on their campus steps"
                   className="w-full h-full object-cover"
                 />
               </div>
-              <div className="col-span-2 rounded-3xl overflow-hidden border border-white/10 bg-white/5">
+              <div className="col-span-1 sm:col-span-2 rounded-3xl overflow-hidden border border-white/10 bg-white/5">
                 <img
                   src={heroImages.topRight}
-                  alt="Warsaw skyline by day"
+                  alt="Two Black students working together at a laptop"
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
               </div>
-              <div className="col-span-2 rounded-3xl overflow-hidden border border-white/10 bg-white/5">
+              <div className="col-span-1 sm:col-span-2 rounded-3xl overflow-hidden border border-white/10 bg-white/5">
                 <img
                   src={heroImages.bottomRight}
-                  alt="Warsaw skyline at night"
+                  alt="A Black student focused on his laptop between classes"
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
@@ -140,7 +165,7 @@ export default function Home() {
               </div>
               <div>
                 <p className="text-white text-sm font-bold leading-tight">Trusted by students</p>
-                <p className="text-gray-400 text-xs">from Warsaw to Kraków</p>
+                <p className="text-gray-400 text-xs">from Gdansk to Lublin</p>
               </div>
             </div>
           </motion.div>
@@ -156,7 +181,7 @@ export default function Home() {
               Everything you need to hustle in one place
             </h2>
             <p className="text-gray-400 leading-relaxed">
-              From selling your first product to landing your next gig — HustleUp brings the
+              From selling your first product to landing your next job, HustleUp brings the
               whole student economy together.
             </p>
           </div>
@@ -232,6 +257,77 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ── HAPPENING NOW (Events) ── */}
+      {!eventsLoading && events.length > 0 && (
+        <section className="py-16 border-t border-white/5">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
+              <div>
+                <p className="text-[#CDFF00] text-sm font-bold mb-3">Don't miss out</p>
+                <h2 className="text-3xl font-heading font-black text-white tracking-tight">Events happening now</h2>
+              </div>
+              <Link
+                to="/explore"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/15 text-white text-sm font-bold hover:bg-white/5 hover:border-white/30 transition-all"
+              >
+                View all <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {events.slice(0, 6).map((event, i) => {
+                const requested = requestedIds.has(event.id);
+                return (
+                  <motion.div
+                    key={event.id}
+                    initial={{ opacity: 0, y: 24 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '-40px' }}
+                    transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
+                    className="flex flex-col rounded-3xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-[#CDFF00]/40 transition-all"
+                  >
+                    <Link to={`/listing/${event.id}`} className="block">
+                      <div className="aspect-[16/9] overflow-hidden relative">
+                        <img
+                          src={event.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60'}
+                          alt={event.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                          onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60'; }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                        <span className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#CDFF00] text-black text-[10px] font-bold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" /> LIVE
+                        </span>
+                      </div>
+                    </Link>
+                    <div className="p-4 flex flex-col flex-1">
+                      <Link to={`/listing/${event.id}`}>
+                        <h4 className="text-sm font-bold text-white mb-1 line-clamp-1 hover:text-[#CDFF00] transition-colors">{event.title}</h4>
+                      </Link>
+                      {event.locationCity && (
+                        <p className="text-xs text-gray-500 mb-3">{event.locationCity}</p>
+                      )}
+                      <button
+                        onClick={() => handleRequestJoin(event)}
+                        disabled={requested}
+                        className={`mt-auto w-full py-2.5 rounded-xl text-xs font-bold transition-all ${
+                          requested
+                            ? 'bg-white/10 text-gray-400 cursor-default'
+                            : 'bg-[#CDFF00] text-black hover:brightness-110 active:scale-95'
+                        }`}
+                      >
+                        {requested ? 'Request sent' : 'Request to join'}
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── TRENDING LISTINGS ── */}
       <section className="py-16 md:py-20 border-t border-white/5">

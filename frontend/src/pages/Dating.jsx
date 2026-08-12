@@ -24,6 +24,73 @@ const isPremiumActive = (sub) => {
   return true;
 };
 
+// ── "It's a Match!" celebration ─────────────────────────────────────────────
+// Tinder's signature moment: a full-screen takeover with both avatars, shown once
+// per match instead of just a toast — so a match actually feels like an event.
+function MatchCelebrationModal({ currentUser, matchedProfile, onClose, onSendMessage }) {
+  return (
+    <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+      <motion.div
+        initial={{ scale: 0.85, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', bounce: 0.4, duration: 0.6 }}
+        className="w-full max-w-sm text-center"
+      >
+        <motion.div
+          initial={{ scale: 0, rotate: -20 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ delay: 0.15, type: 'spring', bounce: 0.6 }}
+        >
+          <Heart className="w-14 h-14 text-[#CDFF00] fill-[#CDFF00] mx-auto mb-3 drop-shadow-[0_0_20px_rgba(205,255,0,0.4)]" />
+        </motion.div>
+        <h1 className="text-4xl font-heading font-black text-white uppercase tracking-tight mb-2">
+          It's a match!
+        </h1>
+        <p className="text-gray-400 text-sm mb-9">
+          You and {matchedProfile?.fullName} liked each other
+        </p>
+
+        <div className="relative flex items-center justify-center h-28 mb-10">
+          <motion.div
+            initial={{ x: 0, rotate: 0, opacity: 0 }}
+            animate={{ x: -28, rotate: -8, opacity: 1 }}
+            transition={{ delay: 0.3, type: 'spring' }}
+            className="absolute w-24 h-24 rounded-full border-4 border-[#CDFF00] overflow-hidden bg-black shadow-2xl"
+          >
+            <img src={getAvatar(currentUser)} className="w-full h-full object-cover" alt="" />
+          </motion.div>
+          <motion.div
+            initial={{ x: 0, rotate: 0, opacity: 0 }}
+            animate={{ x: 28, rotate: 8, opacity: 1 }}
+            transition={{ delay: 0.4, type: 'spring' }}
+            className="absolute w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-black shadow-2xl"
+          >
+            <img
+              src={getAvatar(matchedProfile)}
+              className="w-full h-full object-cover"
+              alt=""
+              onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${matchedProfile?.id}`; }}
+            />
+          </motion.div>
+        </div>
+
+        <button
+          onClick={onSendMessage}
+          className="w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all mb-3 flex items-center justify-center gap-2"
+        >
+          <MessageCircle className="w-4 h-4" /> Send a message
+        </button>
+        <button
+          onClick={onClose}
+          className="w-full py-3.5 rounded-xl border border-white/15 text-white font-bold text-sm hover:bg-white/5 transition-all"
+        >
+          Keep swiping
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
 // ── Profile Setup Modal ─────────────────────────────────────────────────────
 function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
   const [bio, setBio] = useState(existing?.bio || '');
@@ -150,23 +217,23 @@ function PremiumPaywall({ onUpgrade, upgrading }) {
   ];
 
   return (
-    <div className="max-w-sm mx-auto px-4">
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-7 text-center">
-        <div className="w-14 h-14 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-4">
-          <Crown className="w-6 h-6 text-[#CDFF00]" />
+    <div className="w-full max-w-sm mx-auto px-4">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-center">
+        <div className="w-11 h-11 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-3">
+          <Crown className="w-5 h-5 text-[#CDFF00]" />
         </div>
-        <h2 className="text-lg font-bold text-white mb-1.5">Bond is a Premium feature</h2>
-        <p className="text-sm text-gray-400 leading-relaxed mb-6">
+        <h2 className="text-base font-bold text-white mb-1">Bond is a Premium feature</h2>
+        <p className="text-xs text-gray-400 leading-relaxed mb-4">
           Upgrade to connect with creatives and hustlers near you.
         </p>
 
-        <div className="space-y-3 text-left mb-6">
+        <div className="space-y-2 text-left mb-4">
           {perks.map((p) => (
-            <div key={p.text} className="flex items-start gap-3">
-              <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
-                <p.icon className="w-3.5 h-3.5 text-[#CDFF00]" />
+            <div key={p.text} className="flex items-start gap-2.5">
+              <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
+                <p.icon className="w-3 h-3 text-[#CDFF00]" />
               </div>
-              <span className="text-sm text-gray-300 leading-snug">{p.text}</span>
+              <span className="text-xs text-gray-300 leading-snug">{p.text}</span>
             </div>
           ))}
         </div>
@@ -174,7 +241,7 @@ function PremiumPaywall({ onUpgrade, upgrading }) {
         <button
           onClick={onUpgrade}
           disabled={upgrading}
-          className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+          className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
         >
           {upgrading ? (
             <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -182,7 +249,7 @@ function PremiumPaywall({ onUpgrade, upgrading }) {
             <>Upgrade to Premium — {formatPrice(20, 'PLN')}/mo</>
           )}
         </button>
-        <p className="text-[11px] text-gray-500 mt-3">Cancel anytime. No commitment.</p>
+        <p className="text-[10px] text-gray-500 mt-2">Cancel anytime. No commitment.</p>
       </div>
     </div>
   );
@@ -202,6 +269,7 @@ export default function Dating() {
   const [myProfile, setMyProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showSetup, setShowSetup] = useState(false);
+  const [matchData, setMatchData] = useState(null); // the profile just matched with, or null
   const [swipeDir, setSwipeDir] = useState(null);
   const [dragX, setDragX] = useState(0);
   const isDragging = useRef(false);
@@ -274,8 +342,9 @@ export default function Dating() {
       datingApi.like(target.id)
         .then((res) => {
           if (res.data?.matched) {
-            dispatchToast(`It's a match with ${target.fullName}! 🎉`, 'success');
-            navigate(`/dm/${target.id}`);
+            // Full-screen celebration instead of an immediate auto-navigate — the user
+            // chooses whether to message now or keep swiping (matches Tinder's flow).
+            setMatchData(target);
           } else {
             dispatchToast(`Liked ${target.fullName} — you'll be notified if it's mutual`, 'success');
           }
@@ -309,75 +378,75 @@ export default function Dating() {
   const nopeOpacity = Math.min(-dragX / 80, 1);
 
   if (checkingAccess) return (
-    <div className="min-h-[70vh] flex items-center justify-center">
+    <div className="h-[calc(100vh-8.5rem-env(safe-area-inset-bottom))] md:h-[calc(100vh-4rem)] flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen text-white pb-16 font-sans">
-      <HeroBrief
-        pillText="Connect & Collab"
-        title="Hustle Bond"
-        subtitle="Connect with creatives in your area."
-      />
+    <div className="h-[calc(100vh-8.5rem-env(safe-area-inset-bottom))] md:h-[calc(100vh-4rem)] text-white font-sans flex flex-col overflow-hidden">
+      <div className="shrink-0">
+        <HeroBrief title="Hustle Bond" />
+      </div>
 
       {!premium ? (
-        <PremiumPaywall onUpgrade={handleUpgrade} upgrading={upgrading} />
+        <div className="flex-1 min-h-0 flex items-center justify-center">
+          <PremiumPaywall onUpgrade={handleUpgrade} upgrading={upgrading} />
+        </div>
       ) : loading ? (
-        <div className="flex items-center justify-center py-20">
+        <div className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin" />
         </div>
       ) : (
-        <>
+        <div className="flex-1 min-h-0 flex flex-col w-full max-w-sm mx-auto px-4">
           {/* Action Bar */}
-          <div className="w-full max-w-sm mx-auto mb-6 flex justify-center items-center gap-3 px-4">
+          <div className="shrink-0 mb-2 flex justify-center items-center gap-2">
             <button
               onClick={() => setShowSetup(true)}
-              className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
+              className="px-3.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5"
             >
-              <Edit3 className="w-3.5 h-3.5" />
+              <Edit3 className="w-3 h-3" />
               {myProfile ? 'Edit profile' : 'Create profile'}
             </button>
-            <Link to="/dm" className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
-              <MessageCircle className="w-3.5 h-3.5" />
+            <Link to="/dm" className="px-3.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5">
+              <MessageCircle className="w-3 h-3" />
               Messages
             </Link>
           </div>
 
           {/* Setup your profile CTA if not set up */}
           {!myProfile && (
-            <div className="w-full max-w-sm mx-auto px-4 mb-5">
+            <div className="shrink-0 mb-2">
               <button
                 onClick={() => setShowSetup(true)}
-                className="w-full flex items-center justify-between px-5 py-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#CDFF00]/40 transition-all group"
+                className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 hover:border-[#CDFF00]/40 transition-all group"
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-9 h-9 rounded-full bg-[#CDFF00]/10 flex items-center justify-center">
-                    <User className="w-4.5 h-4.5 text-[#CDFF00]" />
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-[#CDFF00]/10 flex items-center justify-center">
+                    <User className="w-3.5 h-3.5 text-[#CDFF00]" />
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-bold text-white">Set up your profile</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Required to start connecting</p>
+                    <p className="text-xs font-bold text-white">Set up your profile</p>
+                    <p className="text-[10px] text-gray-500">Required to start connecting</p>
                   </div>
                 </div>
-                <ChevronRight className="w-4.5 h-4.5 text-gray-500 group-hover:translate-x-1 group-hover:text-[#CDFF00] transition-all" />
+                <ChevronRight className="w-4 h-4 text-gray-500 group-hover:translate-x-1 group-hover:text-[#CDFF00] transition-all" />
               </button>
             </div>
           )}
 
           {/* Card stack */}
-          <div className="relative w-full max-w-sm mx-auto h-[540px] px-4">
+          <div className="relative flex-1 min-h-0">
             {profiles.length === 0 ? (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-white/[0.02] border border-dashed border-white/10 rounded-2xl p-8 text-center">
-                <Sparkles className="w-10 h-10 text-gray-600 mb-4" />
-                <h3 className="text-base font-bold text-white mb-1.5">No one new right now</h3>
-                <p className="text-sm text-gray-500 mb-6">
+              <div className="w-full h-full flex flex-col items-center justify-center bg-white/[0.02] border border-dashed border-white/10 rounded-2xl p-5 text-center">
+                <Sparkles className="w-8 h-8 text-gray-600 mb-3" />
+                <h3 className="text-sm font-bold text-white mb-1">No one new right now</h3>
+                <p className="text-xs text-gray-500 mb-3">
                   No creatives found in your area yet.
                 </p>
                 <button
                   onClick={() => setShowSetup(true)}
-                  className="px-6 py-2.5 rounded-xl bg-[#CDFF00] text-black text-sm font-bold hover:bg-[#d9ff33] active:scale-95 transition-all"
+                  className="px-5 py-2 rounded-xl bg-[#CDFF00] text-black text-xs font-bold hover:bg-[#d9ff33] active:scale-95 transition-all"
                 >
                   {myProfile ? 'Edit preferences' : 'Create profile'}
                 </button>
@@ -431,42 +500,42 @@ export default function Dating() {
                           </span>
                         </div>
 
-                        <div className="absolute bottom-0 left-0 right-0 p-6 pb-24">
-                          <h2 className="text-2xl font-bold text-white leading-tight">
+                        <div className="absolute bottom-0 left-0 right-0 p-4 pb-16">
+                          <h2 className="text-lg font-bold text-white leading-tight">
                             {top.fullName}
                             {top.age > 0 && <span className="text-gray-300 ml-2 font-semibold">{top.age}</span>}
                           </h2>
                           {top.location && (
-                            <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-300 mt-2">
-                              <MapPin className="w-3.5 h-3.5 text-[#CDFF00]" /> {top.location}
+                            <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-300 mt-1">
+                              <MapPin className="w-3 h-3 text-[#CDFF00]" /> {top.location}
                             </p>
                           )}
                           {top.bio && (
-                            <p className="text-sm text-gray-300 mt-3 line-clamp-2 leading-relaxed">{top.bio}</p>
+                            <p className="text-xs text-gray-300 mt-1.5 line-clamp-1 leading-relaxed">{top.bio}</p>
                           )}
                         </div>
                       </div>
 
                       {/* Action buttons */}
-                      <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-5">
+                      <div className="absolute bottom-3 left-0 right-0 flex justify-center items-center gap-3">
                         <button
                           onClick={(e) => { e.stopPropagation(); dismiss('left'); }}
-                          className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-gray-300 hover:text-red-400 hover:border-red-400/50 hover:scale-105 active:scale-95 transition-all"
+                          className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-gray-300 hover:text-red-400 hover:border-red-400/50 hover:scale-105 active:scale-95 transition-all"
                         >
-                          <X className="w-6 h-6" />
+                          <X className="w-5 h-5" />
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); dismiss('right'); }}
-                          className="w-16 h-16 rounded-full bg-[#CDFF00] flex items-center justify-center text-black hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#CDFF00]/20"
+                          className="w-12 h-12 rounded-full bg-[#CDFF00] flex items-center justify-center text-black hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#CDFF00]/20"
                         >
-                          <Heart className="w-7 h-7 fill-black" />
+                          <Heart className="w-5 h-5 fill-black" />
                         </button>
                         <Link
                           to={`/dm/${top.id}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-gray-300 hover:text-[#00FFFF] hover:border-[#00FFFF]/50 hover:scale-105 active:scale-95 transition-all"
+                          className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-gray-300 hover:text-[#00FFFF] hover:border-[#00FFFF]/50 hover:scale-105 active:scale-95 transition-all"
                         >
-                          <MessageCircle className="w-6 h-6" />
+                          <MessageCircle className="w-5 h-5" />
                         </Link>
                       </div>
                     </motion.div>
@@ -477,11 +546,11 @@ export default function Dating() {
           </div>
 
           {profiles.length > 0 && (
-            <p className="mt-6 text-center text-[11px] text-gray-600 font-semibold uppercase tracking-[0.3em]">
+            <p className="shrink-0 mt-2 text-center text-[10px] text-gray-600 font-semibold uppercase tracking-[0.3em]">
               ← Pass &nbsp;·&nbsp; Like →
             </p>
           )}
-        </>
+        </div>
       )}
 
       {showSetup && (
@@ -490,6 +559,15 @@ export default function Dating() {
           existing={myProfile}
           onClose={() => setShowSetup(false)}
           onSaved={loadData}
+        />
+      )}
+
+      {matchData && (
+        <MatchCelebrationModal
+          currentUser={user}
+          matchedProfile={matchData}
+          onClose={() => setMatchData(null)}
+          onSendMessage={() => navigate(`/dm/${matchData.id}`)}
         />
       )}
     </div>

@@ -14,6 +14,10 @@ import { registerUser, clearError } from '../src/store/authSlice';
 const { width, height } = Dimensions.get('window');
 const LIME = '#CDFF00';
 
+// Mirrors the backend's password policy (AuthController.PASSWORD_POLICY / AuthDtos.java).
+const PASSWORD_POLICY = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+const PASSWORD_POLICY_MESSAGE = 'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number';
+
 const AVATARS = [
   'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&q=80',
   'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&q=80',
@@ -36,8 +40,8 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setLocalError('');
     dispatch(clearError());
-    if (form.password.length < 6) {
-      setLocalError('Password must be at least 6 characters');
+    if (!PASSWORD_POLICY.test(form.password)) {
+      setLocalError(PASSWORD_POLICY_MESSAGE);
       return;
     }
     const result = await dispatch(registerUser(form));

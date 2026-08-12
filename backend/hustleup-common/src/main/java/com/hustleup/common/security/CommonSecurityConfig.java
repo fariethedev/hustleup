@@ -203,10 +203,27 @@ public class CommonSecurityConfig {
                 .requestMatchers("/uploads/**").permitAll()
                 // Auth endpoints (login, register, token refresh) must be publicly accessible
                 .requestMatchers("/api/v1/auth/**", "/api/v1/public/**").permitAll()
-                // Public read-only access to marketplace content — guests can browse without logging in
+                // Authenticated-only user endpoints must be matched BEFORE the public
+                // /api/v1/users/** rule below, since rules are evaluated in order and the
+                // first match wins. "Who viewed my profile" is private to its owner.
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/users/me/**").authenticated()
+                // Public read-only access to marketplace content — guests can browse without logging in.
+                // NOTE: the user endpoints here return UserDto.publicView(), which omits email,
+                // phone and postal address. They must never be switched to UserDto.fromEntity()
+                // (the self view) while they remain publicly reachable.
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/listings/**", "/api/v1/reviews/**", "/api/v1/users/**", "/api/v1/users", "/api/v1/availability/**").permitAll()
-                // Social features (feed, stories, dating) can be read by guests
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/feed/**", "/api/v1/stories/**", "/api/v1/dating/**").permitAll()
+                // Social features (feed, stories) can be read by guests.
+                // SECURITY: /api/v1/dating/** is deliberately NOT here. It was, which made
+                // GET /api/v1/dating/profiles an anonymous dump of every dating profile on
+                // the platform — the most sensitive data the app holds, and exactly the kind
+                // a user expects to be visible only to other signed-in members. Bond is a
+                // logged-in feature, so it now falls through to .anyRequest().authenticated().
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/feed/**", "/api/v1/stories/**").permitAll()
+                // Leaderboards and the public swap chain are social proof — they only do their
+                // job if someone who has not signed up yet can see them. Note this is the
+                // narrow path "/api/v1/swaps/chain" and NOT "/api/v1/swaps/**": a user's own
+                // incoming/outgoing offers are private and must stay behind authentication.
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/leaderboard/**", "/api/v1/swaps/chain").permitAll()
                 // Stripe webhooks: the caller is Stripe's servers, not a logged-in user, so
                 // there is no JWT to check — authenticity is verified via the Stripe-Signature
                 // header inside each service instead (see StripeService/StripeConnectService).

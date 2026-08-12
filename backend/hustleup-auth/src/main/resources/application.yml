@@ -21,6 +21,11 @@ spring:
 server:
   port: 8081
 
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENV:development}
+  traces-sample-rate: 0.2
+
 app:
   jwt:
     secret: ${JWT_SECRET}
@@ -34,3 +39,19 @@ app:
     region: ${AWS_REGION:us-east-1}
     s3:
       bucket: ${AWS_S3_BUCKET:hustle-up}
+  cdn:
+    domain: ${CDN_DOMAIN:}
+  resend:
+    api-key: ${RESEND_API_KEY:}
+  email:
+    from: ${EMAIL_FROM:HustleUp <notifications@hustleup.app>}
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:5173}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    maps-server-key: ${GOOGLE_MAPS_SERVER_KEY:}
+  facebook:
+    app-id: ${FACEBOOK_APP_ID:}
+    app-secret: ${FACEBOOK_APP_SECRET:}
+  turnstile:
+    secret-key: ${TURNSTILE_SECRET_KEY:}

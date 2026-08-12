@@ -31,9 +31,11 @@ import com.hustleup.social.dto.PostDto;
 import com.hustleup.social.model.Comment;
 import com.hustleup.social.model.Post;
 import com.hustleup.social.model.PostLike;
+import com.hustleup.social.model.SavedPost;
 import com.hustleup.social.model.Follow;
 import com.hustleup.social.repository.CommentRepository;
 import com.hustleup.social.repository.PostLikeRepository;
+import com.hustleup.social.repository.SavedPostRepository;
 import com.hustleup.social.repository.PostRepository;
 import com.hustleup.social.repository.FollowRepository;
 import com.hustleup.common.storage.FileStorageService;
@@ -49,6 +51,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -80,6 +83,9 @@ public class FeedController {
 
     /** JPA repository for the PostLike join-table; tracks which user liked which post. */
     private final PostLikeRepository postLikeRepository;
+
+    /** JPA repository for the SavedPost join-table; tracks which user bookmarked which post. */
+    private final SavedPostRepository savedPostRepository;
 
     /**
      * Abstracts file uploads to the configured storage backend (local disk or S3).
@@ -123,6 +129,7 @@ public class FeedController {
     public FeedController(
             PostRepository postRepository,
             PostLikeRepository postLikeRepository,
+            SavedPostRepository savedPostRepository,
             FileStorageService storageService,
             UserRepository userRepository,
             CommentRepository commentRepository,
@@ -132,6 +139,7 @@ public class FeedController {
             RecommendationEngine recommendationEngine) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
+        this.savedPostRepository = savedPostRepository;
         this.storageService = storageService;
         this.userRepository = userRepository;
         this.commentRepository = commentRepository;
@@ -208,6 +216,24 @@ public class FeedController {
                         .collect(Collectors.toSet()))
                 .orElseGet(HashSet::new); // anonymous user has no likes
 
+        // Same batch pattern as likes, for the "did I save this?" flag.
+        Set<String> savedPostIds = getCurrentUser()
+                .map(user -> savedPostRepository.findByIdUserIdAndIdPostIdIn(
+                                user.getId().toString(),
+                                posts.stream().map(Post::getId).toList())
+                        .stream()
+                        .map(savedPost -> savedPost.getId().getPostId())
+                        .collect(Collectors.toSet()))
+                .orElseGet(HashSet::new);
+
+        // Top-comment preview per post (one indexed query per post — acceptable for a feed
+        // page's bounded size; see CommentRepository#findFirstByPostIdOrderByCreatedAtDesc).
+        Map<String, PostDto.TopCommentDto> topComments = posts.stream()
+                .map(post -> Map.entry(post.getId(), commentRepository.findFirstByPostIdOrderByCreatedAtDesc(post.getId())))
+                .filter(entry -> entry.getValue().isPresent())
+                .collect(Collectors.toMap(Map.Entry::getKey,
+                        entry -> new PostDto.TopCommentDto(entry.getValue().get().getAuthorName(), entry.getValue().get().getContent())));
+
         // Bulk-load author avatars so each feed card shows the author's profile picture.
         // Step 1: Collect all unique author IDs as UUIDs (safe parse, skip invalid).
         List<UUID> authorUUIDs = posts.stream()
@@ -225,7 +251,8 @@ public class FeedController {
         // Convert each Post entity to a PostDto.  The urlRefresher generates a fresh
         // pre-signed URL for each media file (important if using S3 with expiring URLs).
         return ResponseEntity.ok(posts.stream()
-                .map(post -> PostDto.from(post, likedPostIds.contains(post.getId()), storageService::refreshUrl, authorAvatarMap.get(post.getAuthorId())))
+                .map(post -> PostDto.from(post, likedPostIds.contains(post.getId()), savedPostIds.contains(post.getId()),
+                        storageService::refreshUrl, authorAvatarMap.get(post.getAuthorId()), topComments.get(post.getId())))
                 .toList());
     }
 
@@ -575,6 +602,102 @@ public class FeedController {
         }
 
         return ResponseEntity.ok(PostDto.from(post, false, storageService::refreshUrl));
+    }
+
+    /**
+     * Saves/bookmarks a post for the authenticated user.
+     *
+     * <p><b>POST /api/v1/feed/{postId}/save</b> — auth required, idempotent (mirrors
+     * {@link #likePost}: re-saving an already-saved post is a no-op, not an error).
+     *
+     * <p>Unlike likes/comments, saves are private — there is no "who saved this" list and
+     * no denormalised count on {@link Post}, so this never needs to touch the Post row itself.
+     *
+     * @param postId the UUID string of the post to save
+     * @return 200 OK with the updated {@link PostDto} (savedByCurrentUser = true)
+     */
+    @PostMapping("/{postId}/save")
+    @CacheEvict(value = "feed", allEntries = true)
+    public ResponseEntity<?> savePost(@PathVariable String postId) {
+        User currentUser = requireCurrentUser();
+        Post post = postRepository.findById(postId).orElseThrow();
+
+        SavedPost.SavedPostId saveId = new SavedPost.SavedPostId();
+        saveId.setPostId(postId);
+        saveId.setUserId(currentUser.getId().toString());
+
+        if (!savedPostRepository.existsById(saveId)) {
+            savedPostRepository.save(SavedPost.builder().id(saveId).build());
+        }
+
+        return ResponseEntity.ok(PostDto.from(post, false, true, storageService::refreshUrl, null, null));
+    }
+
+    /**
+     * Removes the current user's save/bookmark from a post.
+     *
+     * <p><b>DELETE /api/v1/feed/{postId}/save</b> — auth required, idempotent.
+     *
+     * @param postId the UUID string of the post to unsave
+     * @return 200 OK with the updated {@link PostDto} (savedByCurrentUser = false)
+     */
+    @DeleteMapping("/{postId}/save")
+    @CacheEvict(value = "feed", allEntries = true)
+    public ResponseEntity<?> unsavePost(@PathVariable String postId) {
+        User currentUser = requireCurrentUser();
+        Post post = postRepository.findById(postId).orElseThrow();
+
+        SavedPost.SavedPostId saveId = new SavedPost.SavedPostId();
+        saveId.setPostId(postId);
+        saveId.setUserId(currentUser.getId().toString());
+
+        savedPostRepository.deleteById(saveId);
+
+        return ResponseEntity.ok(PostDto.from(post, false, false, storageService::refreshUrl, null, null));
+    }
+
+    /**
+     * The authenticated user's saved posts, newest save first. Powers a "Saved" tab,
+     * mirroring {@link #myLikedPosts()}.
+     *
+     * <p><b>GET /api/v1/feed/saved/me</b> — auth required.
+     */
+    @GetMapping("/saved/me")
+    public ResponseEntity<?> mySavedPosts() {
+        User currentUser = requireCurrentUser();
+        List<String> savedIds = savedPostRepository.findSavedPostIdsByUserId(currentUser.getId().toString());
+        if (savedIds.isEmpty()) return ResponseEntity.ok(List.of());
+
+        // Preserve "most recently saved first" order — findAllById does not guarantee
+        // input order, so re-sort by the position of each post's id in savedIds.
+        Map<String, Integer> order = new java.util.HashMap<>();
+        for (int i = 0; i < savedIds.size(); i++) order.put(savedIds.get(i), i);
+
+        List<Post> posts = postRepository.findAllById(savedIds).stream()
+                .sorted(Comparator.comparingInt(p -> order.getOrDefault(p.getId(), Integer.MAX_VALUE)))
+                .toList();
+
+        // Same liked-state and avatar bulk-loading as the main feed, so a saved post looks
+        // identical whether it's rendered from the main feed or from this list.
+        Set<String> likedPostIds = new HashSet<>(postLikeRepository.findByIdUserIdAndIdPostIdIn(
+                        currentUser.getId().toString(), savedIds)
+                .stream().map(pl -> pl.getId().getPostId()).toList());
+        List<UUID> authorUUIDs = posts.stream()
+                .map(Post::getAuthorId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .map(id -> { try { return UUID.fromString(id); } catch (Exception e) { return null; } })
+                .filter(Objects::nonNull)
+                .toList();
+        Map<String, String> authorAvatarMap = userRepository.findAllById(authorUUIDs).stream()
+                .filter(u -> u.getAvatarUrl() != null && !u.getAvatarUrl().isBlank())
+                .collect(Collectors.toMap(u -> u.getId().toString(), User::getAvatarUrl));
+
+        List<PostDto> saved = posts.stream()
+                .map(p -> PostDto.from(p, likedPostIds.contains(p.getId()), true,
+                        storageService::refreshUrl, authorAvatarMap.get(p.getAuthorId()), null))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(saved);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

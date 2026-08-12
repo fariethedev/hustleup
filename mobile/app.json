@@ -38,10 +38,20 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      "@sentry/react-native",
+      [
+        "expo-notifications",
+        {
+          "color": "#CDFF00"
+        }
       ]
     ],
     "extra": {
-      "apiBaseUrl": "http://localhost:8000/api/v1"
+      "apiBaseUrl": "http://localhost:8000/api/v1",
+      "sentryDsn": "",
+      "googleClientId": "",
+      "facebookAppId": ""
     },
     "experiments": {
       "typedRoutes": true

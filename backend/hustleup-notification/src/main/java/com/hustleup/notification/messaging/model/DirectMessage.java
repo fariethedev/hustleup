@@ -170,6 +170,52 @@ public class DirectMessage {
     @Column(name = "media_url")
     private String mediaUrl;
 
+    // ── LISTING share fields (messageType = "LISTING") ──────────────────────────
+    // The marketplace listing lives in a different microservice (hustleup-marketplace),
+    // so rather than making a cross-service call to enrich every message on read, the
+    // sender's client sends a snapshot of what it already has loaded and we store it
+    // directly on the message — same idea as an order line item snapshotting price/title
+    // at purchase time rather than always live-joining. sharedListingId still lets the
+    // recipient click through to the live listing.
+    @Column(name = "shared_listing_id")
+    private String sharedListingId;
+
+    @Column(name = "shared_listing_title")
+    private String sharedListingTitle;
+
+    @Column(name = "shared_listing_price", precision = 12, scale = 4)
+    private java.math.BigDecimal sharedListingPrice;
+
+    @Column(name = "shared_listing_currency")
+    private String sharedListingCurrency;
+
+    @Column(name = "shared_listing_image")
+    private String sharedListingImage;
+
+    // ── POST share fields (messageType = "POST") ────────────────────────────────
+    // Same snapshot-at-share-time rationale as the LISTING fields above — Posts live
+    // in hustleup-social, a different microservice, so we avoid a cross-service call
+    // by having the sender's client (which already has the post loaded) send a copy.
+    @Column(name = "shared_post_id")
+    private String sharedPostId;
+
+    @Column(name = "shared_post_content", columnDefinition = "TEXT")
+    private String sharedPostContent;
+
+    @Column(name = "shared_post_image")
+    private String sharedPostImage;
+
+    @Column(name = "shared_post_author_name")
+    private String sharedPostAuthorName;
+
+    @Column(name = "shared_post_author_avatar")
+    private String sharedPostAuthorAvatar;
+
+    /** Author's UUID (as String) — lets the recipient tap through to their profile,
+     *  since there's no dedicated single-post page in this app to link to instead. */
+    @Column(name = "shared_post_author_id")
+    private String sharedPostAuthorId;
+
     /**
      * The UTC timestamp of when this message was persisted.
      *

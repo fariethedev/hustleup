@@ -68,10 +68,14 @@ public class AuthDtos {
         @Email(message = "Invalid email format")
         private String email; // the user's email — doubles as their login username
 
-        // @Size(min = 6) enforces a minimum password length.
-        // This is a basic security requirement; in production you'd also enforce complexity.
+        // Requires at least 8 characters with a mix of uppercase, lowercase, and a digit —
+        // a meaningfully stronger bar than a bare length check, without demanding a special
+        // character (which mostly just pushes people toward "Password1!" patterns).
         @NotBlank(message = "Password is required")
-        @Size(min = 6, message = "Password must be at least 6 characters")
+        @Pattern(
+                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$",
+                message = "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number"
+        )
         private String password; // plain-text password from the client; will be BCrypt-hashed before storage
 
         @NotBlank(message = "Full name is required")
@@ -85,6 +89,16 @@ public class AuthDtos {
         @NotBlank(message = "Role is required")
         @Pattern(regexp = "BUYER|SELLER", message = "Role must be BUYER or SELLER")
         private String role; // account type: "BUYER" or "SELLER" — stored as enum in the DB
+
+        // Cloudflare Turnstile response token from the frontend widget. Optional at the
+        // DTO level — TurnstileService only enforces it once TURNSTILE_SECRET_KEY is set,
+        // so registration isn't broken for anyone running without bot protection configured.
+        private String captchaToken;
+
+        // Must be true — enforced in the controller rather than with @AssertTrue so the
+        // error message can be a normal 400 JSON body consistent with the rest of this DTO's
+        // validation, rather than a generic Bean Validation failure.
+        private boolean termsAccepted;
     }
 
     /**

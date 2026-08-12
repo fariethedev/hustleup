@@ -128,7 +128,12 @@ public class CommonJwtFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token)) {
             try {
-                if (tokenProvider.validateToken(token)) {
+                // SECURITY: isValidAccessToken() checks the signature and expiry AND that the
+                // token carries typ=access. Using the bare validateToken() here would also
+                // accept refresh tokens — they are signed with the same key, so they are
+                // otherwise indistinguishable — turning a 7-day, refresh-only credential into
+                // a bearer token for every protected endpoint in every service.
+                if (tokenProvider.isValidAccessToken(token)) {
                     // Token signature is valid and it has not expired — extract claims
                     String email = tokenProvider.getEmailFromToken(token);
                     String role  = tokenProvider.getRoleFromToken(token);

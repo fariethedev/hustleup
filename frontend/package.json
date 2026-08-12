@@ -10,12 +10,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@greatsumini/react-facebook-login": "^3.4.0",
+    "@marsidev/react-turnstile": "^1.5.4",
+    "@react-oauth/google": "^0.13.5",
     "@reduxjs/toolkit": "^2.11.2",
+    "@sentry/react": "^10.69.0",
     "@stomp/stompjs": "^7.3.0",
     "@tailwindcss/vite": "^4.2.2",
+    "algoliasearch": "^5.56.0",
     "axios": "^1.14.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.7.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-redux": "^9.2.0",

@@ -55,9 +55,17 @@ public class BookingController {
      * {
      *   "listingId":    "uuid-of-the-listing",  // required
      *   "offeredPrice": 75.00,                   // optional — defaults to listing's asking price
-     *   "scheduledAt":  "2025-09-01T14:00:00"   // optional — ISO-8601 local datetime
+     *   "scheduledAt":  "2025-09-01T14:00:00",  // optional — ISO-8601 local datetime
+     *   "joinRequest":  true                     // optional — see below
      * }
      * }</pre>
+     *
+     * <p>{@code joinRequest}: for an EVENT listing, booking normally means an instant ticket
+     * purchase (see {@link BookingService#create}). Setting {@code joinRequest} to true instead
+     * files a plain {@code INQUIRED} request that the event's organiser must explicitly accept
+     * or decline (via the existing {@code /accept} and {@code /cancel} endpoints) — used for
+     * free "request to join" events rather than paid ticketed ones. It has no effect on
+     * non-EVENT listings, which already go through the INQUIRED flow by default.
      *
      * @param body the JSON request body parsed into a map
      * @return 200 OK with the new {@link BookingDto} in INQUIRED state
@@ -82,7 +90,10 @@ public class BookingController {
         // quantity (optional) — number of units for an EVENT ticket purchase; defaults to 1.
         Integer quantity = body.containsKey("quantity") ?
                 Integer.valueOf(body.get("quantity").toString()) : null;
-        return ResponseEntity.ok(bookingService.create(listingId, offeredPrice, scheduledAt, availabilitySlotId, quantity));
+        // joinRequest (optional) — forces an EVENT booking through the INQUIRED (request/approve)
+        // flow instead of the default instant ticket purchase.
+        boolean joinRequest = Boolean.TRUE.equals(body.get("joinRequest"));
+        return ResponseEntity.ok(bookingService.create(listingId, offeredPrice, scheduledAt, availabilitySlotId, quantity, joinRequest));
     }
 
     /**

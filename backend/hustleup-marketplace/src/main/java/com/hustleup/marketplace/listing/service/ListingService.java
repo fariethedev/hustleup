@@ -34,16 +34,21 @@ public class ListingService {
     private final FileStorageService fileStorageService;
     private final NotificationRepository notificationRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final AlgoliaIndexService algoliaIndexService;
+    private final ListingMediaLibrary mediaLibrary;
 
     public ListingService(ListingRepository listingRepository, UserRepository userRepository,
                           ReviewRepository reviewRepository, FileStorageService fileStorageService,
-                          NotificationRepository notificationRepository, JdbcTemplate jdbcTemplate) {
+                          NotificationRepository notificationRepository, JdbcTemplate jdbcTemplate,
+                          AlgoliaIndexService algoliaIndexService, ListingMediaLibrary mediaLibrary) {
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
         this.reviewRepository = reviewRepository;
         this.fileStorageService = fileStorageService;
         this.notificationRepository = notificationRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.algoliaIndexService = algoliaIndexService;
+        this.mediaLibrary = mediaLibrary;
     }
 
     public List<ListingDto> getAll(String q, ListingType type, String city, BigDecimal maxPrice, Boolean negotiable) {
@@ -101,6 +106,7 @@ public class ListingService {
 
     public ListingDto create(String title, String description, String listingType, BigDecimal price,
                               String currency, boolean negotiable, String city, boolean agentFee,
+                              boolean swapEnabled, String eventStartsAt, String eventVenue,
                               String meta, List<MultipartFile> images) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
@@ -113,23 +119,63 @@ public class ListingService {
                     .collect(Collectors.joining(","));
         }
 
+        ListingType type = ListingType.valueOf(listingType);
+        // Every listing ships with a full gallery: the seller's own uploads stay at the front,
+        // and anything short of ListingMediaLibrary.MIN_MEDIA is topped up with category-matched
+        // supporting shots. Done here (rather than when reading) so the gallery is persisted and
+        // stays stable for the life of the listing. The listing has no id yet, so the title is
+        // the variety seed — enough to stop two listings in the same category being padded with
+        // exactly the same supporting shots.
+        mediaUrlsCsv = mediaLibrary.padToMinimum(mediaUrlsCsv, type, title);
+
         Listing listing = Listing.builder()
                 .sellerId(seller.getId())
                 .title(title)
                 .description(description)
-                .listingType(ListingType.valueOf(listingType))
+                .listingType(type)
                 .price(price)
                 .currency(currency != null ? currency : "GBP")
                 .negotiable(negotiable)
                 .locationCity(city)
                 .agentFee(agentFee)
+                .swapEnabled(swapEnabled)
+                // Only meaningful for EVENT listings; parseEventStart returns null for the
+                // blank strings every other category's create form sends.
+                .eventStartsAt(type == ListingType.EVENT ? parseEventStart(eventStartsAt) : null)
+                .eventVenue(type == ListingType.EVENT ? blankToNull(eventVenue) : null)
                 .meta(meta)
                 .mediaUrls(mediaUrlsCsv)
                 .build();
 
         Listing saved = listingRepository.save(listing);
         notifyFollowersOfNewListing(seller, saved);
+        algoliaIndexService.indexListing(saved);
         return enrichDto(saved);
+    }
+
+    /**
+     * Parses the event start time submitted by the create form.
+     *
+     * <p>Lenient on purpose. The field arrives as a multipart form value, so an EVENT listing
+     * posted without a date sends an empty string rather than omitting the field, and an
+     * {@code <input type="datetime-local">} sends {@code 2026-09-14T19:30} with no seconds.
+     * Neither should fail the whole listing — an event with no published start time is still a
+     * usable listing, it just prints "Date TBC" on its tickets.
+     *
+     * @return the parsed timestamp, or null if absent or unparseable
+     */
+    private LocalDateTime parseEventStart(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return LocalDateTime.parse(raw.trim());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Treats a blank form field as absent, so empty strings don't reach the database. */
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private void notifyFollowersOfNewListing(User seller, Listing saved) {
@@ -158,7 +204,8 @@ public class ListingService {
     }
 
     public ListingDto update(UUID id, String title, String description, BigDecimal price,
-                              boolean negotiable, String city, String meta, String status) {
+                              boolean negotiable, String city, String meta, String status,
+                              Boolean swapEnabled) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -177,8 +224,11 @@ public class ListingService {
         if (city != null) listing.setLocationCity(city);
         if (meta != null) listing.setMeta(meta);
         if (status != null) listing.setStatus(ListingStatus.valueOf(status));
+        if (swapEnabled != null) listing.setSwapEnabled(swapEnabled);
 
-        return enrichDto(listingRepository.save(listing));
+        Listing saved = listingRepository.save(listing);
+        algoliaIndexService.indexListing(saved);
+        return enrichDto(saved);
     }
 
     public List<ListingDto> getMyListings() {
@@ -202,6 +252,7 @@ public class ListingService {
         }
 
         listingRepository.deleteById(id);
+        algoliaIndexService.deleteListing(id.toString());
     }
 
     private ListingDto enrichDto(Listing listing) {

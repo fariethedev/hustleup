@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authApi } from '../api/client';
+import { authApi, usersApi } from '../api/client';
 
 const initialState = {
   user: null,
@@ -71,6 +71,9 @@ export const fetchCurrentUser = createAsyncThunk('auth/fetchCurrentUser', async 
 });
 
 export const logoutUser = createAsyncThunk('auth/logout', async () => {
+  // Best-effort: stop this device from receiving pushes for the account it's leaving.
+  // Must happen before the token is cleared below, since it's an authenticated call.
+  try { await usersApi.updatePushToken(null); } catch {}
   await AsyncStorage.removeItem('hustleup_token');
   await AsyncStorage.removeItem('hustleup_refresh');
   await AsyncStorage.removeItem('hustleup_user');

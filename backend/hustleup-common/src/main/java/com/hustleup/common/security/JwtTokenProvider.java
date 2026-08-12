@@ -55,6 +55,28 @@ import java.util.Date;
 public class JwtTokenProvider {
 
     /**
+     * Name of the custom claim recording what kind of token this is.
+     *
+     * <p><b>Why this exists (security):</b> access tokens and refresh tokens are signed
+     * with the same key, so without a type marker they are cryptographically
+     * indistinguishable — anything {@link #validateToken} accepts, the JWT filter accepts.
+     * That made a 7-day refresh token usable as a bearer credential on every protected API
+     * endpoint, defeating the entire point of the 15-minute access token: a leaked refresh
+     * token was a full API session for a week rather than a value that only works at
+     * {@code /auth/refresh}, where it can be revoked via the database.
+     *
+     * <p>Every token now carries this claim, and
+     * {@link CommonJwtFilter} authenticates a request only when it reads {@link #TYPE_ACCESS}.
+     */
+    public static final String CLAIM_TOKEN_TYPE = "typ";
+
+    /** {@link #CLAIM_TOKEN_TYPE} value for short-lived tokens accepted on API requests. */
+    public static final String TYPE_ACCESS = "access";
+
+    /** {@link #CLAIM_TOKEN_TYPE} value for long-lived tokens accepted only at {@code /auth/refresh}. */
+    public static final String TYPE_REFRESH = "refresh";
+
+    /**
      * The cryptographic key used to sign and verify JWT signatures.
      *
      * <p>Derived from the {@code app.jwt.secret} configuration property at construction
@@ -129,7 +151,7 @@ public class JwtTokenProvider {
                 .findFirst()
                 .map(a -> a.getAuthority().replace("ROLE_", ""))
                 .orElse("BUYER"); // Default to BUYER if no role authority is present
-        return buildToken(userDetails.getUsername(), role, accessTokenExpirationMs);
+        return buildToken(userDetails.getUsername(), role, accessTokenExpirationMs, TYPE_ACCESS);
     }
 
     /**
@@ -143,7 +165,7 @@ public class JwtTokenProvider {
      * @return a signed JWT access token string
      */
     public String generateAccessToken(String email) {
-        return buildToken(email, null, accessTokenExpirationMs);
+        return buildToken(email, null, accessTokenExpirationMs, TYPE_ACCESS);
     }
 
     /**
@@ -158,7 +180,7 @@ public class JwtTokenProvider {
      * @return a signed JWT access token string
      */
     public String generateAccessToken(String email, String role) {
-        return buildToken(email, role, accessTokenExpirationMs);
+        return buildToken(email, role, accessTokenExpirationMs, TYPE_ACCESS);
     }
 
     /**
@@ -173,7 +195,7 @@ public class JwtTokenProvider {
      * @return a signed JWT refresh token string with a longer expiry than an access token
      */
     public String generateRefreshToken(String email) {
-        return buildToken(email, null, refreshTokenExpirationMs);
+        return buildToken(email, null, refreshTokenExpirationMs, TYPE_REFRESH);
     }
 
     /**
@@ -200,18 +222,57 @@ public class JwtTokenProvider {
      * @param subject      the JWT subject claim (user email)
      * @param role         optional role to embed as a custom claim; {@code null} omits it
      * @param expirationMs token lifetime in milliseconds from now
+     * @param tokenType    {@link #TYPE_ACCESS} or {@link #TYPE_REFRESH} — see {@link #CLAIM_TOKEN_TYPE}
      * @return the serialised, signed JWT string
      */
-    private String buildToken(String subject, String role, long expirationMs) {
+    private String buildToken(String subject, String role, long expirationMs, String tokenType) {
         Date now = new Date();
         var builder = Jwts.builder()
                 .subject(subject)                                    // "sub" claim — who the token belongs to
                 .issuedAt(now)                                       // "iat" claim — when it was issued
-                .expiration(new Date(now.getTime() + expirationMs)); // "exp" claim — when it expires
+                .expiration(new Date(now.getTime() + expirationMs))  // "exp" claim — when it expires
+                .claim(CLAIM_TOKEN_TYPE, tokenType);                 // access vs refresh — enforced by CommonJwtFilter
         if (role != null && !role.isBlank()) {
             builder.claim("role", role); // Custom claim — the user's platform role
         }
         return builder.signWith(key).compact(); // Sign with HMAC-SHA256 and serialise to string
+    }
+
+    /**
+     * Reads the {@link #CLAIM_TOKEN_TYPE} claim — {@link #TYPE_ACCESS}, {@link #TYPE_REFRESH},
+     * or {@code null} for a token minted before the claim was introduced.
+     *
+     * <p>Callers must treat {@code null} as "not an access token". Legacy access tokens are
+     * short-lived (15 minutes), so rejecting them simply sends the client through its normal
+     * refresh cycle once; being lenient instead would leave the refresh-token-as-access-token
+     * hole open for the full 7-day life of every already-issued refresh token.
+     *
+     * @param token the raw JWT string
+     * @return the token type claim, or {@code null} if absent or the token cannot be parsed
+     */
+    public String getTokenType(String token) {
+        try {
+            Object type = Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .get(CLAIM_TOKEN_TYPE);
+            return type != null ? type.toString() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Whether the token is a valid, unexpired, correctly-signed <em>access</em> token —
+     * the only kind that may authenticate an API request.
+     *
+     * @param token the raw JWT string
+     * @return {@code true} only for a valid token carrying {@code typ=access}
+     */
+    public boolean isValidAccessToken(String token) {
+        return validateToken(token) && TYPE_ACCESS.equals(getTokenType(token));
     }
 
     /**

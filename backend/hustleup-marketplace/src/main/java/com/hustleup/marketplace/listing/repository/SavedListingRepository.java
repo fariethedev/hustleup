@@ -4,6 +4,7 @@ import com.hustleup.marketplace.listing.model.SavedListing;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.List;
@@ -13,4 +14,7 @@ public interface SavedListingRepository extends JpaRepository<SavedListing, UUID
     List<SavedListing> findByUserId(UUID userId);
     Optional<SavedListing> findByUserIdAndListingId(UUID userId, UUID listingId);
     boolean existsByUserIdAndListingId(UUID userId, UUID listingId);
+
+    /** Batch check across a page of listings — avoids one query per card in a feed/browse grid. */
+    List<SavedListing> findByUserIdAndListingIdIn(UUID userId, Collection<UUID> listingIds);
 }

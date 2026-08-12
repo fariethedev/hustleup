@@ -61,6 +61,13 @@ public class ListingDto {
     // Whether a letting-agent fee applies (RENTAL listings only)
     private boolean agentFee;
 
+    // Whether the seller accepts barter offers on this listing (Swap Mode)
+    private boolean swapEnabled;
+
+    // --- EVENT-only fields (null for every other listing type) ---
+    private LocalDateTime eventStartsAt; // when the event starts — printed on every ticket
+    private String eventVenue;           // venue name or address, more specific than locationCity
+
     // --- Extra metadata ---
     private String meta;              // optional JSON blob for category-specific fields
     private List<String> mediaUrls;   // parsed image/video URLs (entity stores as CSV, DTO exposes as List)
@@ -71,6 +78,11 @@ public class ListingDto {
     // --- Review aggregates (not on the entity — added by ListingService.enrichDto) ---
     private double avgRating;  // average star rating across all reviews for this seller (0.0–5.0)
     private int reviewCount;   // total number of reviews for this seller
+
+    // Whether the current viewer has saved/bookmarked this listing — not on the entity,
+    // set by ListingController after fetching from ListingService (see saveByCurrentUser
+    // enrichment there), same pattern as sellerName/avgRating above.
+    private boolean savedByCurrentUser;
 
     // --- Timestamps ---
     private LocalDateTime createdAt; // when the listing was first published
@@ -111,6 +123,9 @@ public class ListingDto {
                 .negotiable(listing.isNegotiable())
                 .locationCity(listing.getLocationCity())
                 .agentFee(listing.isAgentFee())
+                .swapEnabled(listing.isSwapEnabled())
+                .eventStartsAt(listing.getEventStartsAt())
+                .eventVenue(listing.getEventVenue())
                 .meta(listing.getMeta())
                 // Parse the CSV string into a proper List<String>, applying the URL refresher to each
                 .mediaUrls(parseMediaUrls(listing.getMediaUrls(), urlRefresher))

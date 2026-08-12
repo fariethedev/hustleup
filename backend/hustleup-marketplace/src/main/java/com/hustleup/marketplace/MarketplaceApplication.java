@@ -26,15 +26,18 @@ import com.hustleup.marketplace.listing.model.Listing;
 import com.hustleup.marketplace.listing.model.ListingStatus;
 import com.hustleup.marketplace.listing.model.ListingType;
 import com.hustleup.marketplace.listing.repository.ListingRepository;
+import com.hustleup.marketplace.listing.service.ListingMediaLibrary;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.core.annotation.Order;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -53,6 +56,8 @@ import java.util.UUID;
     "com.hustleup.marketplace.review.repository",
     "com.hustleup.marketplace.availability.repository",
     "com.hustleup.marketplace.payments.repository",
+    "com.hustleup.marketplace.ticket.repository",
+    "com.hustleup.marketplace.swap.repository",
     "com.hustleup.common.repository"
 })
 // Tell Hibernate which packages contain @Entity classes so it can map them to
@@ -63,6 +68,8 @@ import java.util.UUID;
     "com.hustleup.marketplace.review.model",
     "com.hustleup.marketplace.availability.model",
     "com.hustleup.marketplace.payments.model",
+    "com.hustleup.marketplace.ticket.model",
+    "com.hustleup.marketplace.swap.model",
     "com.hustleup.common.model"
 })
 // Explicit component scan so that @Service, @RestController, @Repository beans
@@ -101,6 +108,7 @@ public class MarketplaceApplication {
      * @return the {@link CommandLineRunner} lambda that Spring will invoke after startup
      */
     @Bean // Declares this method's return value as a Spring-managed bean
+    @Order(1) // must run before backfillListingMedia so freshly seeded rows get padded too
     public CommandLineRunner seedListings(ListingRepository repo) {
         return args -> {
             // Guard: skip seeding entirely if the table already has data.
@@ -239,6 +247,50 @@ public class MarketplaceApplication {
 
             // Log confirmation so it shows up clearly in the startup log
             System.out.println("MARKETPLACE_SEEDER: 8 listings created.");
+        };
+    }
+
+    /**
+     * Brings every existing listing's gallery up to {@link ListingMediaLibrary#MIN_MEDIA}
+     * supporting images/videos, and strips any media URL that is known to have gone dead
+     * upstream.
+     *
+     * <p>New listings are padded at creation time (see
+     * {@link com.hustleup.marketplace.listing.service.ListingService#create}), but rows that
+     * predate that — including everything the seeder above inserts and anything a seller posted
+     * with a single photo — would otherwise stay at one image forever. This runner fixes them in
+     * place on boot.
+     *
+     * <p>It is safe to run on every startup: {@link ListingMediaLibrary#needsPadding} returns
+     * false once a listing is healthy, so the second and subsequent boots touch nothing and the
+     * runner costs one query. Deleted listings are skipped — there is no point rewriting media
+     * for a row nobody can see.
+     *
+     * @param repo    listing repository, used to read every row and save the ones that changed
+     * @param library the curated gallery pool and padding rules
+     */
+    @Bean
+    @Order(2) // runs after seedListings
+    public CommandLineRunner backfillListingMedia(ListingRepository repo, ListingMediaLibrary library) {
+        return args -> {
+            List<Listing> updated = new ArrayList<>();
+
+            for (Listing listing : repo.findAll()) {
+                if (listing.getStatus() == ListingStatus.DELETED) continue;
+                if (!library.needsPadding(listing.getMediaUrls())) continue;
+
+                // The listing id is a stable variety seed, so a given listing is always padded
+                // with the same supporting shots however many times this runner executes.
+                listing.setMediaUrls(library.padToMinimum(
+                        listing.getMediaUrls(), listing.getListingType(), listing.getId().toString()));
+                updated.add(listing);
+            }
+
+            if (!updated.isEmpty()) {
+                repo.saveAll(updated);
+                System.out.println("MARKETPLACE_MEDIA_BACKFILL: topped up " + updated.size()
+                        + " listing(s) to " + ListingMediaLibrary.MIN_MEDIA + " media items.");
+            }
         };
     }
 }

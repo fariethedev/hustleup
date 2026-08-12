@@ -284,6 +284,23 @@ public class User {
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     /**
+     * When the user accepted the current Terms & Conditions / Privacy Policy. Null for
+     * accounts created before this tracking existed, or (in principle) if that's ever
+     * needed to detect users who haven't re-accepted after a material terms change.
+     */
+    @Column(name = "terms_accepted_at")
+    private LocalDateTime termsAcceptedAt;
+
+    /**
+     * Geocoded coordinates for {@code city}/{@code addressLine1}, used to compute
+     * "X km away" for buyers browsing this seller's listings. Stored at full precision;
+     * {@link com.hustleup.common.dto.UserDto#fromEntity} rounds before exposing it
+     * publicly so a buyer can't pinpoint a seller's exact address from the API response.
+     */
+    private Double latitude;
+    private Double longitude;
+
+    /**
      * Timestamp of the user's most recent activity on the platform.
      *
      * <p>Updated by the auth or gateway service on each authenticated request (or at
@@ -306,4 +323,13 @@ public class User {
     @Column(name = "onboarding_completed")
     @Builder.Default
     private Boolean onboardingCompleted = true; // True by default so existing accounts aren't forced through onboarding
+
+    /**
+     * Expo push token for the user's mobile device (e.g. {@code ExponentPushToken[xxxx]}),
+     * used by {@link com.hustleup.common.push.ExpoPushService} to deliver push notifications
+     * via Expo's push API (which relays to FCM/APNs). {@code null} until the mobile app
+     * registers one — server-side only, never exposed via {@link com.hustleup.common.dto.UserDto}.
+     */
+    @Column(name = "push_token")
+    private String pushToken;
 }

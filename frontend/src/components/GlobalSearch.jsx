@@ -5,6 +5,7 @@ import { listingsApi, usersApi } from '../api/client';
 import { SHOPS } from '../utils/shopData';
 import { formatPrice } from '../utils/constants';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
+import { algoliaEnabled, searchListings } from '../utils/algolia';
 import { Search, X, ShoppingBag, Store, User, MapPin, SearchX } from 'lucide-react';
 
 const matches = (query, ...fields) =>
@@ -40,11 +41,27 @@ export default function GlobalSearch({ open, onClose }) {
 
   const q = query.trim().toLowerCase();
 
+  // When Algolia is configured, listing search is delegated to it (typo-tolerant, ranked)
+  // instead of the naive substring filter below. Hits are cross-referenced against the
+  // already-loaded `listings` array so results carry full display data (image, seller, price)
+  // without changing the Algolia record schema. Debounced to avoid a request per keystroke.
+  const [algoliaListings, setAlgoliaListings] = useState(null);
+  useEffect(() => {
+    if (!algoliaEnabled || !q) { setAlgoliaListings(null); return; }
+    const timer = setTimeout(async () => {
+      const hits = await searchListings(q);
+      if (!hits) { setAlgoliaListings(null); return; }
+      const byId = new Map(listings.map((l) => [l.id, l]));
+      setAlgoliaListings(hits.map((h) => byId.get(h.objectID)).filter(Boolean));
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [q, listings]);
+
   const results = useMemo(() => {
     if (!q) return { listings: [], shops: [], people: [] };
     return {
-      listings: listings
-        .filter((l) => matches(q, l.title, l.description, l.listingType, l.locationCity, l.sellerName))
+      listings: (algoliaListings ?? listings
+        .filter((l) => matches(q, l.title, l.description, l.listingType, l.locationCity, l.sellerName)))
         .slice(0, 6),
       shops: SHOPS
         .filter((s) => matches(q, s.name, s.category, s.tagline, s.location)
@@ -54,7 +71,7 @@ export default function GlobalSearch({ open, onClose }) {
         .filter((u) => matches(q, u.fullName, u.username, u.city, u.bio, u.role))
         .slice(0, 6),
     };
-  }, [q, listings, users]);
+  }, [q, listings, users, algoliaListings]);
 
   const total = results.listings.length + results.shops.length + results.people.length;
 

@@ -77,4 +77,14 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
      */
     @Query("SELECT AVG(r.rating) FROM Review r WHERE r.reviewedId = :userId")
     Double averageRatingForUser(@Param("userId") UUID userId);
+
+    /**
+     * Rating aggregates for every reviewed user at once: {@code [userId, avgRating, count]}.
+     *
+     * <p>The per-user {@link #averageRatingForUser} above is fine for a single profile, but
+     * the leaderboard scores every seller in one go — this keeps that a single query instead
+     * of N.
+     */
+    @Query("SELECT r.reviewedId, AVG(r.rating), COUNT(r) FROM Review r GROUP BY r.reviewedId")
+    List<Object[]> ratingTotalsByUser();
 }

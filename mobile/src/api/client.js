@@ -144,6 +144,7 @@ export const usersApi = {
   updateProfile: (data) => api.patch('/users/me', data),
   uploadAvatar: (formData) => api.patch('/users/me/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   uploadBanner: (formData) => api.patch('/users/me/banner', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  updatePushToken: (pushToken) => api.patch('/users/me/push-token', { pushToken }),
 };
 
 export const followsApi = {

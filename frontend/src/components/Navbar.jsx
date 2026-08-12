@@ -5,7 +5,16 @@ import { selectUser, selectIsAuthenticated, logout } from '../store/authSlice';
 import { notificationsApi } from '../api/client';
 import { selectCartCount, openCart } from '../store/cartSlice';
 import GlobalSearch from './GlobalSearch';
-import { LogOut, Home, Compass, LayoutDashboard, MessageSquare, User, Heart, Image as ImageIcon, Search, ShoppingBag, Bell, CheckCheck } from 'lucide-react';
+import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, Bell, CheckCheck, MoreHorizontal, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
+
+// Secondary links that don't get their own pill/tab (to avoid crowding the main
+// nav) but still need to be reachable from anywhere via the "More" menu.
+const MORE_LINKS = [
+  { to: '/swaps', icon: Repeat, label: 'Swaps' },
+  { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
+  { to: '/jobs', icon: Briefcase, label: 'Jobs & Gigs' },
+  { to: '/news', icon: Newspaper, label: 'Campus News' },
+];
 
 // Compact relative time for the notification dropdown ("5m", "3h", "2d").
 function timeAgo(dateStr) {
@@ -28,6 +37,7 @@ export default function Navbar() {
   const [unread, setUnread] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(false);
   const location = useLocation();
@@ -86,9 +96,9 @@ export default function Navbar() {
   const navItems = [
     { to: '/',        icon: Home,         label: 'Home',    always: true },
     { to: '/explore', icon: Compass,      label: 'Explore', auth: true },
-    { to: '/feed',    icon: ImageIcon,    label: 'Feed',    auth: true },
+    { to: '/feed',    icon: Layers,       label: 'Feed',    auth: true },
     { to: '/dating',  icon: Heart,        label: 'Bond',    auth: true, accent: true },
-    { to: '/dm',      icon: MessageSquare,label: 'DMs',     auth: true },
+    { to: '/dm',      icon: Send,         label: 'DMs',     auth: true },
   ];
 
   const visibleItems = navItems.filter(item => item.always || (item.auth && isAuthenticated));
@@ -97,8 +107,8 @@ export default function Navbar() {
   const bottomTabs = [
     { to: '/',        icon: Home,          label: 'Home',     always: true },
     { to: '/explore', icon: Compass,       label: 'Explore',  auth: true },
-    { to: '/feed',    icon: ImageIcon,     label: 'Feed',     auth: true },
-    { to: '/dm',      icon: MessageSquare, label: 'DMs',      auth: true },
+    { to: '/feed',    icon: Layers,        label: 'Feed',     auth: true },
+    { to: '/dm',      icon: Send,          label: 'DMs',      auth: true },
   ];
   const visibleTabs = bottomTabs.filter(item => item.always || (item.auth && isAuthenticated));
 
@@ -159,6 +169,33 @@ export default function Navbar() {
                 >
                   <Search className="w-4 h-4" />
                 </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setMoreOpen((v) => !v)}
+                    className={`flex items-center justify-center w-9 h-9 rounded-lg transition-all ${
+                      moreOpen ? 'text-[#CDFF00] bg-white/5' : 'text-gray-500 hover:text-[#CDFF00] hover:bg-white/5'
+                    }`}
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                  {moreOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
+                      <div className="absolute right-0 top-full mt-2 w-48 py-1.5 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl z-50 backdrop-blur-3xl">
+                        {MORE_LINKS.map(({ to, icon: Icon, label }) => (
+                          <Link
+                            key={to}
+                            to={to}
+                            onClick={() => setMoreOpen(false)}
+                            className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold"
+                          >
+                            <Icon className="w-4 h-4" /> {label}
+                          </Link>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -257,6 +294,7 @@ export default function Navbar() {
                     </div>
                     <Link to={`/profile/${user?.id}`} className="flex items-center px-3 py-1.5 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold"><User className="w-3.5 h-3.5 mr-2" /> Profile</Link>
                     <Link to="/dashboard" className="flex items-center px-3 py-1.5 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold"><LayoutDashboard className="w-3.5 h-3.5 mr-2" /> Dashboard</Link>
+                    <Link to="/tickets" className="flex items-center px-3 py-1.5 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold"><Ticket className="w-3.5 h-3.5 mr-2" /> My Tickets</Link>
                     <hr className="my-1.5 border-white/5" />
                     <button onClick={handleLogout} className="flex items-center w-full text-left px-3 py-1.5 text-xs text-[#CDFF00] hover:bg-[#CDFF00] hover:text-black transition-colors font-bold"><LogOut className="w-3.5 h-3.5 mr-2" /> Sign Out</button>
                   </div>
@@ -306,64 +344,85 @@ export default function Navbar() {
       </nav>
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
-      <div className="md:hidden fixed bottom-4 left-4 right-4 z-[250]">
-        <div className="flex items-stretch justify-around h-14 bg-[#0a0a0a]/95 border border-white/10 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.8)] overflow-hidden backdrop-blur-xl">
+      {/* Floating rounded island centred above the safe area (Instagram-style)
+          rather than a full-bleed bar welded to the screen edge. Icon-only so the
+          pill stays narrow enough to sit centred on small phones. */}
+      <div className="md:hidden fixed left-1/2 -translate-x-1/2 bottom-[calc(0.875rem+env(safe-area-inset-bottom))] z-[250]">
+        {moreOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 py-1.5 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl z-50 backdrop-blur-3xl">
+              {MORE_LINKS.map(({ to, icon: Icon, label }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  onClick={() => setMoreOpen(false)}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold"
+                >
+                  <Icon className="w-4 h-4" /> {label}
+                </Link>
+              ))}
+            </div>
+          </>
+        )}
+        <div className="flex items-center gap-0.5 h-[58px] px-2 rounded-full bg-[#0a0a0a]/85 border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
           {visibleTabs.map(({ to, icon: Icon, label, badge }) => {
             const active = isActive(to);
             return (
               <Link
                 key={to}
                 to={to}
-                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 ${
-                  active ? 'bg-[#CDFF00]' : 'hover:bg-white/5'
+                aria-label={label}
+                aria-current={active ? 'page' : undefined}
+                className={`relative flex items-center justify-center w-[46px] h-[46px] rounded-full transition-colors active:scale-90 ${
+                  active ? 'bg-white/10' : ''
                 }`}
               >
-                <div className="relative">
-                  <Icon className={`w-5 h-5 transition-colors ${
-                    active ? 'text-black' : 'text-gray-500'
-                  }`} />
-                  {badge > 0 && (
-                    <span className={`absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[14px] h-[14px] text-[8px] font-black rounded-full ring-1 ring-black ${
-                      active ? 'bg-black text-[#CDFF00]' : 'bg-[#CDFF00] text-black'
-                    }`}>
-                      {badge > 9 ? '9+' : badge}
-                    </span>
-                  )}
-                </div>
-                <span className={`text-[8px] font-black uppercase tracking-wide ${active ? 'text-black' : 'text-gray-500'}`}>
-                  {label}
-                </span>
+                <Icon className={`w-[22px] h-[22px] ${active ? 'text-[#CDFF00]' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 1.9} />
+                {badge > 0 && (
+                  <span className="absolute top-1.5 right-1.5 inline-flex items-center justify-center min-w-[15px] h-[15px] px-0.5 text-[8px] font-black rounded-full ring-2 ring-[#0a0a0a] bg-[#FF00FF] text-white">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                )}
               </Link>
             );
           })}
+
+          {/* More — Jobs & Gigs, Campus News */}
+          <button
+            onClick={() => setMoreOpen((v) => !v)}
+            aria-label="More"
+            aria-expanded={moreOpen}
+            className={`flex items-center justify-center w-[46px] h-[46px] rounded-full transition-colors active:scale-90 ${
+              moreOpen ? 'bg-white/10' : ''
+            }`}
+          >
+            <MoreHorizontal className={`w-[22px] h-[22px] ${moreOpen ? 'text-[#CDFF00]' : 'text-gray-400'}`} strokeWidth={moreOpen ? 2.5 : 1.9} />
+          </button>
 
           {/* Profile */}
           {isAuthenticated ? (
             <Link
               to={`/profile/${user?.id}`}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-all ${
-                location.pathname.startsWith('/profile') ? 'bg-[#CDFF00]' : 'hover:bg-white/5'
-              }`}
+              aria-label="Profile"
+              className="flex items-center justify-center w-[46px] h-[46px] rounded-full transition-transform active:scale-90"
             >
-              <div className={`w-6 h-6 rounded-full overflow-hidden border ${
-                location.pathname.startsWith('/profile') ? 'border-black' : 'border-white/20'
+              <div className={`w-[26px] h-[26px] rounded-full overflow-hidden ${
+                location.pathname.startsWith('/profile') ? 'ring-2 ring-[#CDFF00]' : 'ring-1 ring-white/25'
               }`}>
                 {user?.avatarUrl
                   ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full bg-gray-800 flex items-center justify-center text-[#CDFF00] font-black text-[8px]">{user?.fullName?.[0] || 'U'}</div>
+                  : <div className="w-full h-full bg-gray-800 flex items-center justify-center text-[#CDFF00] font-black text-[9px]">{user?.fullName?.[0] || 'U'}</div>
                 }
               </div>
-              <span className={`text-[8px] font-black uppercase tracking-wide ${location.pathname.startsWith('/profile') ? 'text-black' : 'text-gray-500'}`}>
-                Profile
-              </span>
             </Link>
           ) : (
             <Link
               to="/register"
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 bg-white/5 hover:bg-white/10"
+              aria-label="Join"
+              className="flex items-center justify-center w-[46px] h-[46px] rounded-full transition-transform active:scale-90"
             >
-              <User className="w-5 h-5 text-gray-500" />
-              <span className="text-[8px] font-black uppercase tracking-wide text-gray-500">Join</span>
+              <User className="w-[22px] h-[22px] text-gray-400" strokeWidth={1.9} />
             </Link>
           )}
         </div>

@@ -44,6 +44,11 @@ spring:
 server:
   port: 8082
 
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENV:development}
+  traces-sample-rate: 0.2
+
 app:
   jwt:
     secret: ${JWT_SECRET}
@@ -59,3 +64,5 @@ app:
     region: ${AWS_REGION:us-east-1}
     s3:
       bucket: ${AWS_S3_BUCKET:hustle-up}
+  cdn:
+    domain: ${CDN_DOMAIN:}

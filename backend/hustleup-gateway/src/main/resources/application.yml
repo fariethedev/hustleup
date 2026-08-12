@@ -8,7 +8,13 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "*"
+            # SECURITY: this was "*", which lets any website on the internet script
+            # authenticated-looking calls against this API from a visitor's browser and read
+            # the responses. Restricted to the app's own origins, overridable per-environment
+            # via CORS_ALLOWED_ORIGINS (comma-separated) for staging/production domains.
+            # allowedOriginPatterns (not allowedOrigins) so entries stay valid if credentials
+            # are ever enabled — a literal "*" is illegal in that combination.
+            allowedOriginPatterns: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:3000}
             allowedMethods:
               - GET
               - POST
@@ -17,9 +23,17 @@ spring:
               - DELETE
               - OPTIONS
               - HEAD
-            allowedHeaders: "*"
+            # Explicit list rather than "*" — these are the headers the web and mobile
+            # clients actually send.
+            allowedHeaders:
+              - "Authorization"
+              - "Content-Type"
+              - "Accept"
+              - "Origin"
+              - "X-Requested-With"
             exposedHeaders:
               - "Authorization"
+            maxAge: 3600
       routes:
         - id: uploads-service
           uri: http://localhost:8081
@@ -61,6 +75,25 @@ spring:
           predicates:
             - Path=/api/v1/listings/**,/api/v1/bookings/**,/api/v1/reviews/**,/api/v1/availability/**,/api/v1/payouts/**
 
+        # Swap Mode (barter offers) and the reputation/leaderboard endpoints both live in
+        # the marketplace service — they read the same listings and bookings tables.
+        - id: marketplace-swaps
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/v1/swaps/**,/api/v1/swaps
+
+        - id: marketplace-leaderboard
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/v1/leaderboard/**,/api/v1/leaderboard
+
+        # Digital event tickets — issued off the back of an EVENT booking, so they live
+        # alongside bookings and listings in the marketplace service.
+        - id: marketplace-tickets
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/v1/tickets/**,/api/v1/tickets
+
         - id: subscription-service
           uri: http://localhost:8084
           predicates:
@@ -75,3 +108,8 @@ spring:
 
 server:
   port: 8000
+
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENV:development}
+  traces-sample-rate: 0.2

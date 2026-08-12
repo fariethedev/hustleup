@@ -192,6 +192,33 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles {@link IllegalArgumentException} — input the caller got wrong.
+     *
+     * <p><b>Typical cause:</b><br>
+     * Rejected input validated in the service layer rather than by a Bean Validation
+     * annotation — most notably
+     * {@link com.hustleup.common.storage.FileStorageService#store}, which refuses uploads
+     * whose type is not on its allowlist.
+     *
+     * <p><b>Why a dedicated handler?</b><br>
+     * {@code IllegalArgumentException} extends {@code RuntimeException}, so without this it
+     * would fall through to the handler below and surface as a 500. That is both wrong
+     * (the server is fine; the request was not) and unhelpful — clients cannot distinguish
+     * "your file type is not supported" from a genuine outage, and retrying makes it worse.
+     * Logged at WARN, not ERROR: a rejected upload is expected traffic, not an incident.
+     *
+     * @param ex the rejected-input exception — its message is safe to return to the caller
+     * @return a 400 response carrying the validation message
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("Rejected invalid input: {}", ex.getMessage());
+        String msg = ex.getMessage();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", msg != null ? msg : "Invalid request"));
+    }
+
+    /**
      * Handles {@link RuntimeException} — a broad catch for unchecked application errors.
      *
      * <p><b>Typical cause:</b><br>

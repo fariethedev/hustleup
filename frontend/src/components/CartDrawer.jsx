@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
+import SmartImage from './SmartImage';
 import {
   selectCartItems,
   selectCartOpen,
@@ -116,12 +117,15 @@ export default function CartDrawer() {
                     >
                       {/* Image */}
                       <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-800 flex items-center justify-center">
-                        {item.image ? (
-                          <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-                        ) : item.emoji ? (
+                        {item.emoji ? (
                           <span className="text-3xl">{item.emoji}</span>
                         ) : (
-                          <ShoppingBag className="w-6 h-6 text-gray-600" />
+                          <SmartImage
+                            src={item.image}
+                            alt={item.title}
+                            fallbackIcon={ShoppingBag}
+                            className="w-full h-full object-cover"
+                          />
                         )}
                       </div>
 
