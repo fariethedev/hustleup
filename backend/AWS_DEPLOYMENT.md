@@ -510,12 +510,13 @@ aws elbv2 modify-load-balancer-attributes --load-balancer-arn $ALB `
 **Stripe webhooks.** In the Stripe dashboard, create two endpoints (the code expects them
 separately — `STRIPE_WEBHOOK_SECRET` and `STRIPE_CONNECT_WEBHOOK_SECRET` are distinct):
 
-- `https://api.hustleup.app/api/v1/payments/webhook` — subscription events
+- `https://api.hustleup.app/api/payments/webhook` — subscription events. Note there is
+  **no `/v1`**: `StripeController` is mapped at `/api/payments`. → `STRIPE_WEBHOOK_SECRET`
 - `https://api.hustleup.app/api/v1/payouts/webhook` — Connect events (`account.updated`,
-  `payment_intent.*`, `transfer.*`)
+  `payment_intent.*`, `transfer.*`). → `STRIPE_CONNECT_WEBHOOK_SECRET`
 
-Confirm the exact paths against the controllers before saving; copy each signing secret
-into `hustleup.env` and restart.
+The two secrets are not interchangeable; a mismatched one fails signature verification on
+every event. Copy each into `hustleup.env` and restart.
 
 **Frontend.** Repoint its API base URL from `http://localhost:8000` to
 `https://api.hustleup.app` and rebuild. Whatever origin the frontend is served from must

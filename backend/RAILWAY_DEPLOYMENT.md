@@ -464,14 +464,20 @@ Railway's proxy supports WebSocket upgrades with no extra configuration, and the
 
 ## Step 11 — Point Stripe and the frontend at Railway
 
-**Stripe webhooks** — two separate endpoints, since the code expects distinct secrets:
+**Stripe webhooks** — two separate endpoints, since the code expects distinct secrets.
+Paths verified against the controllers; note the subscription one has **no `/v1`**:
 
-- `https://api.hustleup.app/api/v1/payments/webhook` — subscription events
-- `https://api.hustleup.app/api/v1/payouts/webhook` — Connect events (`account.updated`,
-  `payment_intent.*`, `transfer.*`)
+| Endpoint | Controller | Secret variable | Service |
+|---|---|---|---|
+| `/api/payments/webhook` | `StripeController` (`@RequestMapping("/api/payments")`) | `STRIPE_WEBHOOK_SECRET` | subscription |
+| `/api/v1/payouts/webhook` | `PayoutController` (`@RequestMapping("/api/v1/payouts")`) | `STRIPE_CONNECT_WEBHOOK_SECRET` | marketplace |
 
-Confirm the exact paths against the controllers before saving, then copy each signing
-secret into the right service's variables.
+Both are already routed by the gateway (`/api/payments/**` → 8084, `/api/v1/payouts/**`
+→ 8083) and both are `permitAll` in `CommonSecurityConfig`, since Stripe authenticates by
+signature rather than by JWT.
+
+Copy each signing secret into the right service's variables — they are not
+interchangeable, and a mismatched secret fails signature verification on every event.
 
 **Frontend** — repoint the API base URL to `https://api.hustleup.app` and rebuild. Whatever
 origin serves the frontend must appear in `CORS_ALLOWED_ORIGINS`; the gateway no longer
