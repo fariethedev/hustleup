@@ -29,7 +29,7 @@ public class EmailService {
     private final boolean configured;
 
     public EmailService(@Value("${app.resend.api-key:}") String apiKey,
-                         @Value("${app.email.from:HustleUp <notifications@hustleup.app>}") String fromAddress) {
+                         @Value("${app.email.from:HustleSpace <notifications@hustleup.app>}") String fromAddress) {
         this.configured = apiKey != null && !apiKey.isBlank();
         this.resend = configured ? new Resend(apiKey) : null;
         this.fromAddress = fromAddress;

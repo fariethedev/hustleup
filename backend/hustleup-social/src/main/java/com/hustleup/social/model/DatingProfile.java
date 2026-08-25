@@ -118,4 +118,27 @@ public class DatingProfile {
      * The client is responsible for parsing and displaying these as tags.
      */
     private String interests;
+
+    /**
+     * Who this user wants to see in their discovery deck: {@code "Everyone"}, {@code "Men"},
+     * or {@code "Women"} (optional).
+     *
+     * <p>When left unset the controller falls back to showing the opposite of the user's own
+     * {@link #gender}, so an account that never opened the preferences still gets a sensible
+     * deck rather than every member on the platform.
+     */
+    private String showMe;
+
+    /**
+     * True when this profile has already liked the viewer, so the card can be badged
+     * "likes you" — swiping right on it is guaranteed to produce a match.
+     *
+     * <p>{@code @Transient} because it is not a property of the profile itself but of the
+     * relationship between the profile and whoever is asking: the same row is
+     * {@code likedYou = true} for one viewer and {@code false} for the next. It is computed
+     * per-request in {@link com.hustleup.social.controller.DatingController#getProfiles()}
+     * and never written to the {@code dating_profiles} table.
+     */
+    @Transient
+    private Boolean likedYou;
 }

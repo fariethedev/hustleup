@@ -500,8 +500,8 @@ public class AuthController {
                             .expiryDate(Instant.now().plusSeconds(3600)) // 1 hour — shorter-lived than email verification
                             .build());
                     String resetLink = frontendUrl + "/reset-password?token=" + token;
-                    emailService.send(user.getEmail(), "Reset your HustleUp password",
-                            "<p>Someone requested a password reset for your HustleUp account.</p>"
+                    emailService.send(user.getEmail(), "Reset your HustleSpace password",
+                            "<p>Someone requested a password reset for your HustleSpace account.</p>"
                                     + "<p><a href=\"" + resetLink + "\">Reset your password</a> (expires in 1 hour).</p>"
                                     + "<p>If this wasn't you, you can safely ignore this email.</p>");
                 } catch (Exception e) {
@@ -565,8 +565,8 @@ public class AuthController {
                 .expiryDate(Instant.now().plusSeconds(86400)) // 24 hours
                 .build());
         String verifyLink = frontendUrl + "/verify-email?token=" + token;
-        emailService.send(user.getEmail(), "Verify your HustleUp account",
-                "<p>Welcome to HustleUp! Confirm your email to finish setting up your account.</p>"
+        emailService.send(user.getEmail(), "Verify your HustleSpace account",
+                "<p>Welcome to HustleSpace! Confirm your email to finish setting up your account.</p>"
                         + "<p><a href=\"" + verifyLink + "\">Verify your email</a> (expires in 24 hours).</p>");
     }
 

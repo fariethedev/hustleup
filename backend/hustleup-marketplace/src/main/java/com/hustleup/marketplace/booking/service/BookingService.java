@@ -120,7 +120,7 @@ public class BookingService {
 
         String plural = issued == 1 ? "ticket is" : "tickets are";
         notifyByEmail(booking.getBuyerId(), "Your ticket for " + listing.getTitle(),
-                "<p>Your " + plural + " ready. Open HustleUp to view the QR code and show it at the door.</p>");
+                "<p>Your " + plural + " ready. Open HustleSpace to view the QR code and show it at the door.</p>");
         notifyByPush(booking.getBuyerId(), "Ticket ready",
                 issued + " " + plural + " ready for " + listing.getTitle() + ".");
     }
@@ -318,7 +318,7 @@ public class BookingService {
         }
 
         String listingTitle = listingRepository.findById(booking.getListingId())
-                .map(Listing::getTitle).orElse("HustleUp booking");
+                .map(Listing::getTitle).orElse("HustleSpace booking");
 
         StripeConnectService.CheckoutResult result =
                 stripeConnectService.createPaymentCheckoutSession(booking, listingTitle);

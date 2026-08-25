@@ -1,4 +1,4 @@
-package com.hustleup.subscription.model;
+package com.hustleup.common.model;
 
 import jakarta.persistence.*;
 import lombok.*;

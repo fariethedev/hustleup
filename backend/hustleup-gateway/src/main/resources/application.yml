@@ -36,73 +36,126 @@ spring:
             maxAge: 3600
       routes:
         - id: uploads-service
-          uri: http://localhost:8081
+          uri: ${AUTH_URI:http://localhost:8081}
           predicates:
             - Path=/uploads/**
 
         - id: auth-service
-          uri: http://localhost:8081
+          uri: ${AUTH_URI:http://localhost:8081}
           predicates:
             - Path=/api/v1/auth/**
 
         - id: users-service
-          uri: http://localhost:8081
+          uri: ${AUTH_URI:http://localhost:8081}
           predicates:
             - Path=/api/v1/users/**,/api/v1/users
 
         - id: social-stories
-          uri: http://localhost:8082
+          uri: ${SOCIAL_URI:http://localhost:8082}
           predicates:
             - Path=/api/v1/stories/**,/api/v1/stories
 
         - id: social-follows
-          uri: http://localhost:8082
+          uri: ${SOCIAL_URI:http://localhost:8082}
           predicates:
             - Path=/api/v1/follows/**,/api/v1/follows
 
         - id: social-feed
-          uri: http://localhost:8082
+          uri: ${SOCIAL_URI:http://localhost:8082}
           predicates:
             - Path=/api/v1/feed/**,/api/v1/feed
 
+        # News desk — articles published by verified outlets. Lives in the social service
+        # because it shares that service's content and moderation concerns, not the
+        # marketplace's transactional ones.
+        - id: social-news
+          uri: ${SOCIAL_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/news/**,/api/v1/news
+
         - id: social-dating
-          uri: http://localhost:8082
+          uri: ${SOCIAL_URI:http://localhost:8082}
           predicates:
             - Path=/api/v1/dating/**,/api/v1/dating
 
         - id: marketplace-service
-          uri: http://localhost:8083
+          uri: ${MARKETPLACE_URI:http://localhost:8083}
           predicates:
             - Path=/api/v1/listings/**,/api/v1/bookings/**,/api/v1/reviews/**,/api/v1/availability/**,/api/v1/payouts/**
+
+        # Jobs & Gigs board — posting is restricted to verified hiring companies.
+        - id: marketplace-jobs
+          uri: ${MARKETPLACE_URI:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/jobs/**,/api/v1/jobs
+
+        # ── Admin console ────────────────────────────────────────────────────
+        # The admin API is split across two services by where the data actually lives:
+        # users and publisher review in auth, orders and job moderation in marketplace.
+        # These two routes stitch it back into one /api/v1/admin/** surface for the
+        # console. The MORE SPECIFIC marketplace paths must be declared BEFORE the
+        # catch-all auth route below — Spring Cloud Gateway matches routes in order, so
+        # a leading /api/v1/admin/** would otherwise swallow /admin/orders.
+        - id: admin-marketplace
+          uri: ${MARKETPLACE_URI:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/admin/orders/**,/api/v1/admin/orders,/api/v1/admin/jobs,/api/v1/admin/marketplace-stats
+
+        - id: admin-auth
+          uri: ${AUTH_URI:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/admin/**
+
+        # Publisher applications (apply / my status / public directory) — auth service,
+        # since a publisher profile is an attribute of an account.
+        - id: auth-publishers
+          uri: ${AUTH_URI:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/publishers/**,/api/v1/publishers
+
+        # Seller storefronts and their product catalogues — they read the same users,
+        # listings and reviews tables as the rest of the marketplace service.
+        - id: marketplace-shops
+          uri: ${MARKETPLACE_URI:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/shops/**,/api/v1/shops
 
         # Swap Mode (barter offers) and the reputation/leaderboard endpoints both live in
         # the marketplace service — they read the same listings and bookings tables.
         - id: marketplace-swaps
-          uri: http://localhost:8083
+          uri: ${MARKETPLACE_URI:http://localhost:8083}
           predicates:
             - Path=/api/v1/swaps/**,/api/v1/swaps
 
         - id: marketplace-leaderboard
-          uri: http://localhost:8083
+          uri: ${MARKETPLACE_URI:http://localhost:8083}
           predicates:
             - Path=/api/v1/leaderboard/**,/api/v1/leaderboard
 
         # Digital event tickets — issued off the back of an EVENT booking, so they live
         # alongside bookings and listings in the marketplace service.
         - id: marketplace-tickets
-          uri: http://localhost:8083
+          uri: ${MARKETPLACE_URI:http://localhost:8083}
           predicates:
             - Path=/api/v1/tickets/**,/api/v1/tickets
 
         - id: subscription-service
-          uri: http://localhost:8084
+          uri: ${SUBSCRIPTION_URI:http://localhost:8084}
           predicates:
             - Path=/api/v1/payments/**,/api/payments/**,/api/v1/subscriptions/**
 
         - id: notification-service
-          uri: http://localhost:8085
+          uri: ${NOTIFICATION_URI:http://localhost:8085}
           predicates:
             - Path=/api/v1/notifications/**,/api/v1/direct-messages/**,/api/v1/messages/**
+
+        # STOMP/SockJS endpoint for real-time chat. The notification service registers it,
+        # but it had no gateway route — locally the client can reach port 8085 directly,
+        # which stops being possible once the gateway is the only public entry point.
+        - id: notification-websocket
+          uri: ${NOTIFICATION_URI:http://localhost:8085}
+          predicates:
+            - Path=/ws/**
 
 
 

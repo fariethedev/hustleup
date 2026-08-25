@@ -219,6 +219,34 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles {@link org.springframework.web.server.ResponseStatusException} — the exception
+     * a service throws when it already knows the exact HTTP status the caller deserves.
+     *
+     * <p><b>Why a dedicated handler?</b><br>
+     * {@code ResponseStatusException} extends {@code RuntimeException}, so without this it
+     * falls through to the broad handler below and every deliberate 400/403/404/409 is
+     * flattened into a 500. That silently destroys the API contract: a client cannot tell
+     * "you already made this offer" (retrying is pointless) from "the server broke"
+     * (retrying is correct), and the message never reaches the user's screen.
+     *
+     * <p>Logged at WARN rather than ERROR — a rejected request is expected traffic, not an
+     * incident, and paging on it would bury real failures.
+     *
+     * @param ex the exception carrying both the intended status and a caller-safe reason
+     * @return a response using the status the thrower asked for
+     */
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<Map<String, String>> handleResponseStatus(
+            org.springframework.web.server.ResponseStatusException ex) {
+        log.warn("Rejected request ({}): {}", ex.getStatusCode(), ex.getReason());
+        String msg = ex.getReason() != null ? ex.getReason() : "Request rejected";
+        // Both keys: "error" matches the other handlers here, "message" is what the
+        // frontend's axios interceptor reads when surfacing a toast.
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(Map.of("error", msg, "message", msg));
+    }
+
+    /**
      * Handles {@link RuntimeException} — a broad catch for unchecked application errors.
      *
      * <p><b>Typical cause:</b><br>

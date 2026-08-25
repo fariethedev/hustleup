@@ -42,11 +42,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 // Scan JPA repositories in BOTH the common library and this service's own repository package.
 // Without this, Spring Data would only pick up repositories under com.hustleup.social.
-@EnableJpaRepositories(basePackages = {"com.hustleup.common.repository", "com.hustleup.social.repository"})
+@EnableJpaRepositories(basePackages = {"com.hustleup.common.repository", "com.hustleup.social.repository",
+        // News lives in its own feature package, and these lists are explicit rather than
+        // package-root scans — a new feature package is invisible until it is named here.
+        "com.hustleup.social.news.repository"})
 
 // Tell Hibernate to discover @Entity classes in both the common model package (e.g. User)
 // and the social service's own models (Post, Story, Follow, etc.).
-@EntityScan(basePackages = {"com.hustleup.common.model", "com.hustleup.social.model"})
+@EntityScan(basePackages = {"com.hustleup.common.model", "com.hustleup.social.model",
+        "com.hustleup.social.news.model"})
 
 // Ensure Spring picks up @Service/@Component beans from the common library (e.g. FileStorageService).
 @ComponentScan(basePackages = {"com.hustleup.social", "com.hustleup.common"})

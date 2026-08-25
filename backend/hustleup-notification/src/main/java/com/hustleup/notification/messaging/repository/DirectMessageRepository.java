@@ -136,4 +136,57 @@ public interface DirectMessageRepository extends JpaRepository<DirectMessage, St
                    "ORDER BY created_at DESC LIMIT 1",
            nativeQuery = true) // nativeQuery = true → raw SQL, not JPQL
     java.util.Optional<DirectMessage> findLastMessage(String user1, String user2);
+
+    // ── Unread tracking ──────────────────────────────────────────────────────
+    // A message counts as unread when the caller is its RECEIVER and its readAt is
+    // still null. Filtering on receiverId is what stops your own outgoing messages
+    // from inflating your unread badge.
+
+    /**
+     * Total messages the given user has received but not yet opened — the number
+     * shown on the DMs tab and beside the "Chats" heading.
+     *
+     * <p>Derived query: Spring Data builds the SQL from the method name, so
+     * {@code ReceiverId} + {@code ReadAtIsNull} becomes
+     * {@code WHERE receiver_id = ? AND read_at IS NULL}. No {@code @Query} needed.
+     *
+     * @param receiverId UUID string of the user whose inbox is being counted
+     * @return how many unopened messages they have across every conversation
+     */
+    long countByReceiverIdAndReadAtIsNull(String receiverId);
+
+    /**
+     * Unread messages from one specific partner — the per-row badge in the chat list.
+     *
+     * @param senderId   UUID string of the partner who sent the messages
+     * @param receiverId UUID string of the user reading them (the caller)
+     * @return how many messages that partner sent which the caller has not opened
+     */
+    long countBySenderIdAndReceiverIdAndReadAtIsNull(String senderId, String receiverId);
+
+    /**
+     * Stamps every still-unread message the caller received in one conversation as
+     * read, in a single UPDATE.
+     *
+     * <p><b>Why bulk rather than load-and-save:</b> opening a chat with a long unread
+     * backlog would otherwise pull every row into the persistence context just to flip
+     * one field each. This touches only the rows that actually need it — the
+     * {@code readAt IS NULL} guard means reopening an already-read conversation is a
+     * no-op that updates nothing.
+     *
+     * <p>{@code @Modifying} tells Spring Data this query writes (so it uses
+     * {@code executeUpdate()} rather than expecting a result set), and
+     * {@code clearAutomatically} discards the now-stale first-level cache so a
+     * subsequent read in the same transaction sees the new values rather than the
+     * pre-update copies Hibernate is still holding.
+     *
+     * @param senderId   UUID string of the partner whose messages are being marked
+     * @param receiverId UUID string of the caller, who is opening the conversation
+     * @param readAt     the timestamp to stamp on those messages
+     * @return the number of messages actually marked read
+     */
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("UPDATE DirectMessage m SET m.readAt = :readAt " +
+           "WHERE m.senderId = :senderId AND m.receiverId = :receiverId AND m.readAt IS NULL")
+    int markConversationRead(String senderId, String receiverId, java.time.LocalDateTime readAt);
 }

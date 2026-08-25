@@ -242,7 +242,7 @@ public class TicketService {
         if (input.toUpperCase().startsWith(QR_PREFIX + ":")) {
             // Split into at most 3 so a secret that somehow contains a colon survives intact.
             String[] parts = input.split(":", 3);
-            if (parts.length < 3) return miss(listingId, "That QR code isn't a HustleUp ticket");
+            if (parts.length < 3) return miss(listingId, "That QR code isn't a HustleSpace ticket");
             code = parts[1].trim().toUpperCase();
             secret = parts[2].trim();
         } else {
@@ -428,9 +428,9 @@ public class TicketService {
     }
 
     private String displayName(User user) {
-        if (user == null) return "HustleUp user";
+        if (user == null) return "HustleSpace user";
         if (user.getFullName() != null && !user.getFullName().isBlank()) return user.getFullName();
-        return user.getEmail() != null ? user.getEmail().split("@")[0] : "HustleUp user";
+        return user.getEmail() != null ? user.getEmail().split("@")[0] : "HustleSpace user";
     }
 
     /** The exact string the ticket's QR code encodes. */

@@ -201,29 +201,71 @@ public class CommonSecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Uploaded static files are always public (images, etc.)
                 .requestMatchers("/uploads/**").permitAll()
+                // SECURITY: the admin console. This broad URL rule is the net that catches
+                // any endpoint later added to an admin package and forgotten; each admin
+                // controller ALSO carries @PreAuthorize("hasRole('ADMIN')") so the check
+                // survives a future route change that widens this matcher. Declared first
+                // so no permitAll rule below can ever shadow it.
+                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 // Auth endpoints (login, register, token refresh) must be publicly accessible
                 .requestMatchers("/api/v1/auth/**", "/api/v1/public/**").permitAll()
                 // Authenticated-only user endpoints must be matched BEFORE the public
                 // /api/v1/users/** rule below, since rules are evaluated in order and the
                 // first match wins. "Who viewed my profile" is private to its owner.
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/users/me/**").authenticated()
+                // Same ordering rule for shops: "my shop" is the caller's own storefront
+                // (including an unpublished one), so it must be matched before the public
+                // /api/v1/shops/** browse rule below.
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/shops/me").authenticated()
                 // Public read-only access to marketplace content — guests can browse without logging in.
                 // NOTE: the user endpoints here return UserDto.publicView(), which omits email,
                 // phone and postal address. They must never be switched to UserDto.fromEntity()
                 // (the self view) while they remain publicly reachable.
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/listings/**", "/api/v1/reviews/**", "/api/v1/users/**", "/api/v1/users", "/api/v1/availability/**").permitAll()
+                // Shop reads are public for the same reason listings are: Explore and a
+                // seller's storefront must work for a visitor who hasn't signed up yet.
+                // Only GET is opened — every shop/product write is ownership-checked in
+                // ShopController and falls through to .anyRequest().authenticated() below.
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/listings/**", "/api/v1/reviews/**", "/api/v1/users/**", "/api/v1/users", "/api/v1/availability/**", "/api/v1/shops/**", "/api/v1/shops").permitAll()
                 // Social features (feed, stories) can be read by guests.
                 // SECURITY: /api/v1/dating/** is deliberately NOT here. It was, which made
                 // GET /api/v1/dating/profiles an anonymous dump of every dating profile on
                 // the platform — the most sensitive data the app holds, and exactly the kind
                 // a user expects to be visible only to other signed-in members. Bond is a
                 // logged-in feature, so it now falls through to .anyRequest().authenticated().
+                // Who watched your story is private to you. This must precede the public
+                // stories rule below — matchers are evaluated in order and the first match
+                // wins, so "/api/v1/stories/**" would otherwise make the viewer list world
+                // readable. StoryController also enforces author-only on top of this.
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/stories/*/views").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/feed/**", "/api/v1/stories/**").permitAll()
                 // Leaderboards and the public swap chain are social proof — they only do their
                 // job if someone who has not signed up yet can see them. Note this is the
                 // narrow path "/api/v1/swaps/chain" and NOT "/api/v1/swaps/**": a user's own
                 // incoming/outgoing offers are private and must stay behind authentication.
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/leaderboard/**", "/api/v1/swaps/chain").permitAll()
+                // Private sub-paths of the otherwise-public jobs/publishers trees. These MUST
+                // come first: matchers are evaluated in order, so the broad permitAll below
+                // would otherwise expose them. In particular /jobs/*/applications returns
+                // applicants' cover notes and CV links, and /publishers/me returns the
+                // caller's own registration number and uploaded documents. The controllers
+                // enforce ownership as well; this is the layer that stops an anonymous
+                // request reaching them at all.
+                .requestMatchers(org.springframework.http.HttpMethod.GET,
+                        "/api/v1/jobs/*/applications",
+                        "/api/v1/jobs/applications/**",
+                        "/api/v1/jobs/mine",
+                        "/api/v1/news/mine",
+                        "/api/v1/publishers/me").authenticated()
+                // Jobs and News are public to READ — a job advert or article nobody can see
+                // is worthless to the company or outlet that published it, and guests
+                // browsing the board is how they find a reason to sign up. Posting is a
+                // different matter and is gated inside the controllers by PublisherGuard,
+                // which requires an approved publisher profile, not merely an account.
+                // The write verbs fall through to .anyRequest().authenticated() below.
+                .requestMatchers(org.springframework.http.HttpMethod.GET,
+                        "/api/v1/jobs/**", "/api/v1/jobs",
+                        "/api/v1/news/**", "/api/v1/news",
+                        "/api/v1/publishers", "/api/v1/publishers/**").permitAll()
                 // Stripe webhooks: the caller is Stripe's servers, not a logged-in user, so
                 // there is no JWT to check — authenticity is verified via the Stripe-Signature
                 // header inside each service instead (see StripeService/StripeConnectService).

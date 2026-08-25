@@ -1,6 +1,6 @@
-package com.hustleup.subscription.repository;
+package com.hustleup.common.repository;
 
-import com.hustleup.subscription.model.Subscription;
+import com.hustleup.common.model.Subscription;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,7 +42,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
      *
      * <p>Spring Data derives the SQL for this method entirely from its name:
      * {@code findBy} is the prefix, {@code SellerId} maps to the {@code seller_id}
-     * column defined in {@link com.hustleup.subscription.model.Subscription}.</p>
+     * column defined in {@link com.hustleup.common.model.Subscription}.</p>
      *
      * @param sellerId the UUID of the seller whose subscription is being queried
      * @return an Optional containing the seller's Subscription, or empty if none exists

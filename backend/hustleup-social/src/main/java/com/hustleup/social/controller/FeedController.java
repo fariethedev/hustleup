@@ -43,6 +43,7 @@ import com.hustleup.common.model.User;
 import com.hustleup.common.model.Notification;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.common.repository.NotificationRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -64,6 +65,7 @@ import java.util.stream.Collectors;
 
 import com.hustleup.social.event.FeedEventPublisher;
 import com.hustleup.social.service.RecommendationEngine;
+import com.hustleup.common.subscription.PremiumAccess;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -119,6 +121,13 @@ public class FeedController {
     private final RecommendationEngine recommendationEngine;
 
     /**
+     * Decides whether the caller holds Premium. Anonymous posting is a paid capability, and
+     * this is where that is actually enforced — the composer's toggle only controls what the
+     * UI offers, not what the API accepts.
+     */
+    private final PremiumAccess premiumAccess;
+
+    /**
      * Constructor injection is preferred over field injection (@Autowired) because:
      * <ul>
      *   <li>It makes dependencies explicit and testable (you can pass mocks in unit tests).</li>
@@ -136,7 +145,8 @@ public class FeedController {
             FeedEventPublisher feedEventPublisher,
             FollowRepository followRepository,
             NotificationRepository notificationRepository,
-            RecommendationEngine recommendationEngine) {
+            RecommendationEngine recommendationEngine,
+            PremiumAccess premiumAccess) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.savedPostRepository = savedPostRepository;
@@ -147,6 +157,7 @@ public class FeedController {
         this.followRepository = followRepository;
         this.notificationRepository = notificationRepository;
         this.recommendationEngine = recommendationEngine;
+        this.premiumAccess = premiumAccess;
     }
 
     // ── Endpoints ─────────────────────────────────────────────────────────────
@@ -339,6 +350,19 @@ public class FeedController {
         // A post must have at least some content or at least one media file.
         if ((content == null || content.isBlank()) && validMediaFiles.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Post content or media is required"));
+        }
+
+        // Anonymous posting is a Premium capability, enforced here rather than in the client.
+        //
+        // This REFUSES the request instead of quietly saving the post with the author's name
+        // attached. Downgrading silently would publish under someone's real identity content
+        // they only agreed to share anonymously — the one outcome this feature must never
+        // produce. A rejected post can be rewritten; an exposed one cannot be taken back.
+        if (anonymous && !premiumAccess.isPremium(currentUser.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "Anonymous posting is a Premium feature",
+                    "code", "PREMIUM_REQUIRED",
+                    "feature", "ANONYMOUS_POST"));
         }
 
         // Build the Post entity manually (no Lombok @Builder here because the class uses

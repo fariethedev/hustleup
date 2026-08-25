@@ -19,9 +19,11 @@
  * Profile browsing is available anonymously (degrades gracefully if no auth token is sent).
  * Profile creation/update and like/pass actions require authentication.
  *
- * <h2>Current limitations</h2>
- * The like/pass endpoints currently return a stub response.  Match detection and mutual
- * like notifications are planned for a future iteration.
+ * <h2>Swipes</h2>
+ * Every swipe is persisted, which is what lets discovery skip people you have already seen,
+ * detect a mutual like as a match, and undo the last one via {@code /rewind}.  A right swipe
+ * comes in two strengths: an ordinary like, which stays private until it turns out to be
+ * mutual, and a super like, which notifies the recipient immediately.
  */
 package com.hustleup.social.controller;
 
@@ -90,6 +92,15 @@ public class DatingController {
         this.matchRepo = matchRepo;
     }
 
+    // ── Constants ─────────────────────────────────────────────────────────────
+
+    /**
+     * The swipe actions that count as interest. A super like is stored under its own action
+     * so it can be presented differently, but everywhere the app asks "did they like me?"
+     * both actions must answer yes.
+     */
+    private static final List<String> LIKE_ACTIONS = List.of("LIKE", "SUPER_LIKE");
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
@@ -112,6 +123,51 @@ public class DatingController {
         }
         // getName() returns the email stored as the JWT subject.
         return userRepo.findByEmail(auth.getName()).orElse(null);
+    }
+
+    /**
+     * Builds the discovery card for a user: their {@link DatingProfile} when they have filled
+     * one in, otherwise a card synthesised from their main account so that members who never
+     * opened the Bond form are still discoverable.
+     *
+     * @param u  the account being turned into a card
+     * @param dp that account's dating profile, or {@code null} if they have none
+     */
+    private static DatingProfile toProfile(User u, DatingProfile dp) {
+        if (dp != null) return dp; // user has a rich profile — use it
+        return DatingProfile.builder()
+                .id(u.getId())
+                .fullName(u.getFullName())
+                .bio(u.getBio() != null ? u.getBio() : "Just a hustler on the grind.")
+                .location(u.getCity() != null ? u.getCity() : "")
+                .imageUrl(u.getAvatarUrl())
+                .lookingFor("Networking") // sensible default
+                .age(0)                   // unknown — profile not filled in
+                .build();
+    }
+
+    /**
+     * Whether a candidate belongs in the viewer's deck, given the viewer's "Show me" preference.
+     *
+     * <p>An explicit {@code "Men"}/{@code "Women"} preference is taken literally: only profiles
+     * with that gender are shown, and profiles with no stated gender are held back rather than
+     * guessed at. With no preference saved the deck falls back to the opposite of the viewer's
+     * own gender — but still includes members who never stated one, because most accounts have
+     * no Bond profile at all and excluding them would leave the deck empty.
+     *
+     * @param showMe          the viewer's preference: "Everyone", "Men", "Women", or null
+     * @param viewerGender    the viewer's own gender, used only for the no-preference fallback
+     * @param candidateGender the gender on the card being considered; may be null
+     */
+    private static boolean isDiscoverable(String showMe, String viewerGender, String candidateGender) {
+        if ("Men".equalsIgnoreCase(showMe))   return "Male".equalsIgnoreCase(candidateGender);
+        if ("Women".equalsIgnoreCase(showMe)) return "Female".equalsIgnoreCase(candidateGender);
+        if (showMe != null && !showMe.isBlank()) return true; // "Everyone" — no filtering at all
+
+        if (candidateGender == null || candidateGender.isBlank()) return true;
+        if ("Male".equalsIgnoreCase(viewerGender))   return "Female".equalsIgnoreCase(candidateGender);
+        if ("Female".equalsIgnoreCase(viewerGender)) return "Male".equalsIgnoreCase(candidateGender);
+        return true; // viewer's gender is unset or non-binary — show them everyone
     }
 
     // ── Endpoints ─────────────────────────────────────────────────────────────
@@ -158,25 +214,30 @@ public class DatingController {
                         .map(DatingSwipe::getTargetId)
                         .collect(Collectors.toSet());
 
+            // Everyone who already liked the viewer. Their cards get badged "likes you", which
+            // is the whole reason to keep swiping — a right swipe on one is an instant match.
+            final Set<UUID> admirers = finalCurrentId == null
+                    ? Set.of()
+                    : swipeRepo.findByTargetIdAndActionIn(finalCurrentId, LIKE_ACTIONS).stream()
+                        .map(DatingSwipe::getSwiperId)
+                        .collect(Collectors.toSet());
+
+            // The viewer's own profile drives who they see — see isDiscoverable().
+            DatingProfile viewer = finalCurrentId == null ? null : profileMap.get(finalCurrentId);
+            final String showMe = viewer == null ? null : viewer.getShowMe();
+            final String viewerGender = viewer == null ? null : viewer.getGender();
+
             // Return all users as discoverable profiles, enriched with dating profile if they have one.
             List<DatingProfile> result = userRepo.findAll().stream()
                     // Filter out the current user and anyone already swiped on.
                     .filter(u -> finalCurrentId == null || !u.getId().equals(finalCurrentId))
                     .filter(u -> !swiped.contains(u.getId()))
-                    .map(u -> {
-                        DatingProfile dp = profileMap.get(u.getId());
-                        if (dp != null) return dp; // user has a rich profile — use it
-                        // Synthesise a default profile from the user's main account fields.
-                        return DatingProfile.builder()
-                                .id(u.getId())
-                                .fullName(u.getFullName())
-                                .bio(u.getBio() != null ? u.getBio() : "Just a hustler on the grind.")
-                                .location(u.getCity() != null ? u.getCity() : "")
-                                .imageUrl(u.getAvatarUrl())
-                                .lookingFor("Networking") // sensible default
-                                .age(0)                   // unknown — profile not filled in
-                                .build();
-                    })
+                    .map(u -> toProfile(u, profileMap.get(u.getId())))
+                    .filter(p -> isDiscoverable(showMe, viewerGender, p.getGender()))
+                    .map(p -> { p.setLikedYou(admirers.contains(p.getId())); return p; })
+                    // People who already liked the viewer go to the top of the deck: the first
+                    // swipe of a session is then the one most likely to produce a match.
+                    .sorted(Comparator.comparing((DatingProfile p) -> !Boolean.TRUE.equals(p.getLikedYou())))
                     .collect(Collectors.toList());
 
             return ResponseEntity.ok(result);
@@ -227,6 +288,7 @@ public class DatingController {
      * @param lookingFor what the user is looking for (e.g. "Networking", "Dating")
      * @param interests  comma-separated list of interests
      * @param gender     self-identified gender
+     * @param showMe     who to surface in this user's deck: "Everyone", "Men", or "Women"
      * @param image      optional profile photo; if omitted, falls back to the main account avatar
      * @return 200 OK with the saved {@link DatingProfile};
      *         401 if not authenticated
@@ -239,6 +301,7 @@ public class DatingController {
             @RequestParam(value = "lookingFor", required = false) String lookingFor,
             @RequestParam(value = "interests", required = false) String interests,
             @RequestParam(value = "gender", required = false) String gender,
+            @RequestParam(value = "showMe", required = false) String showMe,
             @RequestParam(value = "image", required = false) MultipartFile image) {
 
         User user = getCurrentUser();
@@ -258,6 +321,7 @@ public class DatingController {
         if (lookingFor != null) profile.setLookingFor(lookingFor);
         if (interests != null) profile.setInterests(interests);
         if (gender != null) profile.setGender(gender);
+        if (showMe != null) profile.setShowMe(showMe);
 
         if (image != null && !image.isEmpty()) {
             // New photo uploaded — store it and save the resulting URL.
@@ -291,18 +355,39 @@ public class DatingController {
      * discovery again. If the target has already liked the current user back, this is
      * a match — both users get an in-app notification.
      *
+     * <p>A super like is the same swipe with more weight behind it: it is recorded under its
+     * own action, and — unlike a plain like, which stays silent until it turns out to be
+     * mutual — it notifies the recipient straight away, so they can see the interest before
+     * deciding. That immediate signal is the entire point of the gesture.
+     *
      * @param profileId the UUID of the profile being liked
+     * @param superLike true when the swipe was a super like rather than an ordinary like
      * @return 200 OK with {@code {"liked": true, "matched": bool, "profileId": "..."}}
      */
     @PostMapping("/like/{profileId}")
-    public ResponseEntity<?> likeProfile(@PathVariable UUID profileId) {
+    public ResponseEntity<?> likeProfile(@PathVariable UUID profileId,
+                                         @RequestParam(value = "superLike", defaultValue = "false") boolean superLike) {
         User user = getCurrentUser();
         if (user == null) return ResponseEntity.status(401).build();
 
-        recordSwipe(user.getId(), profileId, "LIKE");
+        recordSwipe(user.getId(), profileId, superLike ? "SUPER_LIKE" : "LIKE");
 
-        // Mutual like check: has the target already liked the current user?
-        boolean matched = swipeRepo.existsBySwiperIdAndTargetIdAndAction(profileId, user.getId(), "LIKE");
+        // Mutual like check: has the target already liked the current user? A super like from
+        // their side counts too, hence the …ActionIn variant.
+        boolean matched = swipeRepo.existsBySwiperIdAndTargetIdAndActionIn(profileId, user.getId(), LIKE_ACTIONS);
+
+        if (!matched && superLike) {
+            // Tell them now rather than waiting for a match that may never come.
+            try {
+                notificationRepo.save(Notification.builder()
+                        .userId(profileId)
+                        .title("Someone super liked you")
+                        .message(user.getFullName() + " super liked you on Bond")
+                        .notificationType("DATING_SUPER_LIKE")
+                        .referenceId(user.getId())
+                        .build());
+            } catch (Exception ignored) {}
+        }
 
         if (matched) {
             // Notification failure must never break the like action itself.
@@ -354,5 +439,53 @@ public class DatingController {
         if (user == null) return ResponseEntity.status(401).build();
         recordSwipe(user.getId(), profileId, "PASS");
         return ResponseEntity.ok(Map.of("passed", true, "profileId", profileId.toString()));
+    }
+
+    /**
+     * Undoes the current user's most recent swipe and hands the profile back so the client
+     * can push it onto the front of the deck again.
+     *
+     * <p><b>POST /api/v1/dating/rewind</b>
+     *
+     * <p>Auth: required. Deleting the swipe row — rather than flipping its action — is what
+     * makes the profile discoverable again, since {@link #getProfiles()} excludes anyone with
+     * a row of either kind. It also means a re-swipe gets a fresh {@code createdAt}, keeping
+     * "most recent swipe" honest for the next rewind.
+     *
+     * <p>A swipe that produced a match cannot be rewound. The match is already persisted and
+     * both people have been notified, so quietly retracting it would leave the other side
+     * looking at a conversation whose other half no longer exists.
+     *
+     * @return 200 OK with {@code {"rewound": true, "profile": {…}}} on success, or
+     *         {@code {"rewound": false, "reason": "empty"|"matched"}} when there is nothing
+     *         to undo; 401 if not authenticated
+     */
+    @PostMapping("/rewind")
+    public ResponseEntity<?> rewind() {
+        User user = getCurrentUser();
+        if (user == null) return ResponseEntity.status(401).build();
+
+        Optional<DatingSwipe> lastSwipe = swipeRepo.findFirstBySwiperIdOrderByCreatedAtDesc(user.getId());
+        if (lastSwipe.isEmpty()) {
+            return ResponseEntity.ok(Map.of("rewound", false, "reason", "empty"));
+        }
+
+        DatingSwipe swipe = lastSwipe.get();
+        UUID targetId = swipe.getTargetId();
+
+        Match.Pair pair = Match.Pair.of(user.getId(), targetId);
+        if (matchRepo.existsByUserIdAAndUserIdB(pair.smaller(), pair.larger())) {
+            return ResponseEntity.ok(Map.of("rewound", false, "reason", "matched"));
+        }
+
+        swipeRepo.delete(swipe);
+
+        // Hand the card back fully formed so the client can restore it without a full reload.
+        User target = userRepo.findById(targetId).orElse(null);
+        if (target == null) return ResponseEntity.ok(Map.of("rewound", true));
+
+        DatingProfile profile = toProfile(target, datingRepo.findById(targetId).orElse(null));
+        profile.setLikedYou(swipeRepo.existsBySwiperIdAndTargetIdAndActionIn(targetId, user.getId(), LIKE_ACTIONS));
+        return ResponseEntity.ok(Map.of("rewound", true, "profile", profile));
     }
 }

@@ -57,4 +57,23 @@ public interface StoryViewRepository extends JpaRepository<StoryView, StoryView.
      * @return list of StoryView records for that user among those stories
      */
     List<StoryView> findByIdUserIdAndIdStoryIdIn(String userId, List<String> storyIds);
+
+    /**
+     * Lists everyone who has viewed one story, most recent viewer first.
+     *
+     * <p>Backs the author-only "seen by" sheet
+     * ({@link com.hustleup.social.controller.StoryController#getStoryViewers}). The count
+     * from {@link #countByIdStoryId} already told the author <em>how many</em> people
+     * watched; this is what tells them <em>who</em>.
+     *
+     * <p>Ordered by {@code viewedAt} descending so the newest viewer is at the top, which
+     * is the order every story feature in every comparable app presents them in.
+     *
+     * <p>Spring Data generates:
+     * {@code SELECT * FROM story_views WHERE story_id = ? ORDER BY viewed_at DESC}
+     *
+     * @param storyId the UUID string of the story
+     * @return view records for that story, newest first
+     */
+    List<StoryView> findByIdStoryIdOrderByViewedAtDesc(String storyId);
 }

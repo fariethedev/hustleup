@@ -49,4 +49,8 @@ Thumbs.db
 
 # ── Temporary & Uploads ──────────────────────────────────
 backend/uploads/
+# Root-level uploads/ was NOT covered by the line above — user-uploaded images were
+# sitting untracked and would have been swept into the first `git add` that touched
+# the repo root. Uploads belong in S3, never in git.
+uploads/
 /.expo/

@@ -124,6 +124,16 @@ public class DirectMessageController {
         return matchRepo.existsByUserIdAAndUserIdB(pair.smaller(), pair.larger());
     }
 
+    /** When two users matched on Bond, or {@code null} if they never did. */
+    private LocalDateTime bondMatchedAt(UUID userA, UUID userB) {
+        Match.Pair pair = Match.Pair.of(userA, userB);
+        return matchRepo.findAllForUser(userA).stream()
+                .filter(m -> m.getUserIdA().equals(pair.smaller()) && m.getUserIdB().equals(pair.larger()))
+                .findFirst()
+                .map(Match::getMatchedAt)
+                .orElse(null);
+    }
+
     /**
      * Records that {@code userId1} and {@code userId2} exchanged a message today, updating
      * their shared streak (see {@link ChatStreak}). Same-day repeats are a no-op; a gap of
@@ -224,9 +234,33 @@ public class DirectMessageController {
         // Short-circuit with 401 if the caller is not authenticated.
         if (currentUserId == null) return ResponseEntity.status(401).build();
 
+        UUID currentUuid;
+        try {
+            currentUuid = UUID.fromString(currentUserId);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(401).build();
+        }
+
+        // When each Bond match happened, keyed by the person on the other side of it.
+        // Loaded up front rather than asked per-partner: it replaces one existsBy query per
+        // row with a single fetch, and it carries the match date the client needs to label
+        // the conversation.
+        Map<UUID, LocalDateTime> matchedAt = new HashMap<>();
+        for (Match match : matchRepo.findAllForUser(currentUuid)) {
+            UUID other = match.getUserIdA().equals(currentUuid) ? match.getUserIdB() : match.getUserIdA();
+            matchedAt.put(other, match.getMatchedAt());
+        }
+
         // findDistinctChatPartners returns a flat list of UUIDs (as Strings) of
         // every user who has sent or received a message with the current user.
-        List<String> partnerIds = dmRepo.findDistinctChatPartners(currentUserId);
+        //
+        // Bond matches are unioned in on top. A match IS a conversation from the moment it
+        // happens — before this, a match with nothing said in it yet appeared nowhere in
+        // Messages, so the two people had to find each other again through the swipe deck.
+        // LinkedHashSet keeps the messaged partners first and de-duplicates any match that
+        // has already been messaged.
+        Set<String> partnerIds = new LinkedHashSet<>(dmRepo.findDistinctChatPartners(currentUserId));
+        matchedAt.keySet().forEach(id -> partnerIds.add(id.toString()));
 
         // We will build a list of rich partner objects to return as JSON.
         List<Map<String, Object>> partners = new ArrayList<>();
@@ -252,9 +286,20 @@ public class DirectMessageController {
                     partner.put("avatarUrl", user.getAvatarUrl());
                     partner.put("verified", user.isIdVerified());   // ID-verified badge
                     partner.put("online", isOnline);
-                    partner.put("unreadCount", 0);  // TODO: implement per-conversation unread counts
+                    // Messages this partner sent that the caller has not opened yet.
+                    // Drives both the bold "unread" row styling and the count badge.
+                    partner.put("unreadCount",
+                            dmRepo.countBySenderIdAndReceiverIdAndReadAtIsNull(pid, currentUserId));
                     partner.put("streak", displayStreak(currentUserId, pid)); // 0 if never messaged or broken
-                    partner.put("isBondMatch", isBondMatch(UUID.fromString(currentUserId), user.getId()));
+
+                    LocalDateTime matched = matchedAt.get(user.getId());
+                    partner.put("isBondMatch", matched != null);
+                    if (matched != null) partner.put("matchedAt", matched.toString());
+                    // A match where neither side has said anything yet. The client pulls these
+                    // out into their own "new matches" row instead of burying them in a list
+                    // sorted by a message that doesn't exist.
+                    partner.put("isNewMatch", matched != null && last == null);
+
                     if (last != null) {
                         // Human-friendly preview: photos, stickers, and shared listings
                         // shouldn't show raw (possibly empty) content.
@@ -268,6 +313,8 @@ public class DirectMessageController {
                             previewText = "🛍️ Shared a listing" + (last.getSharedListingTitle() != null ? ": " + last.getSharedListingTitle() : "");
                         } else if ("POST".equals(last.getMessageType())) {
                             previewText = "📤 Shared a post";
+                        } else if ("STORY".equals(last.getMessageType())) {
+                            previewText = "✨ Shared a story";
                         } else {
                             previewText = last.getContent();
                         }
@@ -290,12 +337,18 @@ public class DirectMessageController {
         partners.sort((a, b) -> {
             String ta = (String) a.get("lastMessageAt");
             String tb = (String) b.get("lastMessageAt");
-            // Handle nulls: treat a null timestamp as "oldest" (sorted to the end).
-            if (ta == null && tb == null) return 0;
-            if (ta == null) return 1;   // a has no message → goes after b
-            if (tb == null) return -1;  // b has no message → a comes first
             // ISO-8601 strings are lexicographically sortable, so String.compareTo works.
-            return tb.compareTo(ta);    // descending: newer first
+            if (ta != null && tb != null) return tb.compareTo(ta); // descending: newer first
+            if (ta != null) return -1;  // b has no message → a comes first
+            if (tb != null) return 1;   // a has no message → goes after b
+            // Neither has been messaged, so they are both unopened Bond matches: order them
+            // by when they matched, freshest first.
+            String ma = (String) a.get("matchedAt");
+            String mb = (String) b.get("matchedAt");
+            if (ma == null && mb == null) return 0;
+            if (ma == null) return 1;
+            if (mb == null) return -1;
+            return mb.compareTo(ma);
         });
 
         return ResponseEntity.ok(partners);
@@ -322,16 +375,50 @@ public class DirectMessageController {
      * @return a {@link ResponseEntity} containing the message list.
      */
     @GetMapping("/{partnerId}")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> getConversation(
             // @PathVariable extracts the {partnerId} segment from the URL.
             @PathVariable String partnerId) {
         String currentUserId = getCurrentUserId();
         if (currentUserId == null) return ResponseEntity.status(401).build();
 
+        // Fetching a conversation IS the "I opened this chat" signal, so clear the
+        // caller's unread messages from this partner here. The bulk UPDATE only
+        // touches rows where readAt is still null, so the 5s client poll that re-hits
+        // this endpoint costs nothing once the backlog is cleared.
+        //
+        // @Transactional is required: @Modifying queries must run inside a transaction,
+        // and it also makes the mark-read and the read-back below atomic.
+        dmRepo.markConversationRead(partnerId, currentUserId, LocalDateTime.now());
+
         // findConversation returns messages for BOTH directions (sent and received)
         // ordered by createdAt ASC so the UI can render them top-to-bottom.
+        // Read after the update so the returned rows carry their new readAt.
         List<DirectMessage> messages = dmRepo.findConversation(currentUserId, partnerId);
         return ResponseEntity.ok(messages);
+    }
+
+    /**
+     * Total messages the caller has received but not opened, across every conversation.
+     *
+     * <p><b>GET /api/v1/direct-messages/unread-count</b>
+     *
+     * <p>Powers the badge on the DMs nav tab and the pill beside the "Chats" heading.
+     * It is a single {@code COUNT(*)} rather than a sum over {@code /partners}, so the
+     * navbar can poll it cheaply from anywhere in the app without building the whole
+     * partner list.
+     *
+     * <p>Mapped above {@code /{partnerId}} in this file, but that ordering is cosmetic —
+     * Spring matches the literal path segment ahead of the {@code {partnerId}} template
+     * regardless of declaration order, so "unread-count" is never mistaken for a user id.
+     *
+     * @return 200 OK with {@code {"count": n}}; 401 if not authenticated
+     */
+    @GetMapping("/unread-count")
+    public ResponseEntity<?> unreadCount() {
+        String currentUserId = getCurrentUserId();
+        if (currentUserId == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(Map.of("count", dmRepo.countByReceiverIdAndReadAtIsNull(currentUserId)));
     }
 
     /**
@@ -345,15 +432,25 @@ public class DirectMessageController {
      * up there — this endpoint lets the DM view check a single partner directly, regardless
      * of message history.
      *
-     * @return 200 OK with {@code {"isBondMatch": bool}}; 401 if not authenticated
+     * <p>{@code matchedAt} accompanies a true result so the conversation can be labelled with
+     * the date it started, without waiting for the next {@code /partners} poll to carry it.
+     *
+     * @return 200 OK with {@code {"isBondMatch": bool, "matchedAt": "…"}}; 401 if not authenticated
      */
     @GetMapping("/{partnerId}/bond-match")
     public ResponseEntity<?> checkBondMatch(@PathVariable String partnerId) {
         String currentUserId = getCurrentUserId();
         if (currentUserId == null) return ResponseEntity.status(401).build();
         try {
-            boolean matched = isBondMatch(UUID.fromString(currentUserId), UUID.fromString(partnerId));
-            return ResponseEntity.ok(Map.of("isBondMatch", matched));
+            UUID me = UUID.fromString(currentUserId);
+            UUID them = UUID.fromString(partnerId);
+            if (!isBondMatch(me, them)) return ResponseEntity.ok(Map.of("isBondMatch", false));
+
+            LocalDateTime matched = bondMatchedAt(me, them);
+            // Map.of rejects null values, so the date is only included when there is one.
+            return matched == null
+                    ? ResponseEntity.ok(Map.of("isBondMatch", true))
+                    : ResponseEntity.ok(Map.of("isBondMatch", true, "matchedAt", matched.toString()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.ok(Map.of("isBondMatch", false));
         }
@@ -399,13 +496,16 @@ public class DirectMessageController {
         String rawType = payload.get("type");
         String type = "STICKER".equalsIgnoreCase(rawType) ? "STICKER"
                 : "LISTING".equalsIgnoreCase(rawType) ? "LISTING"
-                : "POST".equalsIgnoreCase(rawType) ? "POST" : "TEXT";
+                : "POST".equalsIgnoreCase(rawType) ? "POST"
+                : "STORY".equalsIgnoreCase(rawType) ? "STORY" : "TEXT";
         boolean isListingShare = "LISTING".equals(type);
         boolean isPostShare = "POST".equals(type);
+        boolean isStoryShare = "STORY".equals(type);
 
         String content = payload.get("content");
         String listingId = payload.get("listingId");
         String postId = payload.get("postId");
+        String storyId = payload.get("storyId");
         if (isListingShare) {
             // A shared listing IS the content — the card renders from the snapshot fields
             // below, so a text caption is optional. Only the listing reference is required.
@@ -413,6 +513,9 @@ public class DirectMessageController {
             if (content == null) content = "";
         } else if (isPostShare) {
             if (postId == null || postId.isBlank()) return ResponseEntity.badRequest().build();
+            if (content == null) content = "";
+        } else if (isStoryShare) {
+            if (storyId == null || storyId.isBlank()) return ResponseEntity.badRequest().build();
             if (content == null) content = "";
         } else if (content == null || content.trim().isEmpty()) {
             // TEXT/STICKER still require real content.
@@ -446,6 +549,12 @@ public class DirectMessageController {
                     .sharedPostAuthorName(payload.get("postAuthorName"))
                     .sharedPostAuthorAvatar(payload.get("postAuthorAvatar"))
                     .sharedPostAuthorId(payload.get("postAuthorId"));
+        } else if (isStoryShare) {
+            builder.sharedStoryId(storyId)
+                    .sharedStoryImage(payload.get("storyImage"))
+                    .sharedStoryType(payload.get("storyType"))
+                    .sharedStoryAuthorName(payload.get("storyAuthorName"))
+                    .sharedStoryAuthorId(payload.get("storyAuthorId"));
         }
 
         // Persist the message. save() issues an INSERT and returns the managed
@@ -473,6 +582,8 @@ public class DirectMessageController {
                 preview = "🛍️ Shared a listing" + (saved.getSharedListingTitle() != null ? ": " + saved.getSharedListingTitle() : "");
             } else if (isPostShare) {
                 preview = "📤 Shared a post";
+            } else if (isStoryShare) {
+                preview = "✨ Shared a story";
             } else {
                 // Truncate the message preview to 60 characters to avoid long
                 // notification text in the UI.

@@ -44,7 +44,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -241,6 +243,71 @@ public class StoryController {
             log.error("Error viewing story: {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Failed to record view: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Lists the people who have viewed a story — the "seen by" sheet.
+     *
+     * <p><b>GET /api/v1/stories/{id}/views</b>
+     *
+     * <p>Auth: required, <b>and only the story's author may call it</b>. Who watched your
+     * story is private to you: exposing it to any viewer would let anyone enumerate which
+     * users are watching whom, which is both a privacy leak and a social-dynamics problem
+     * every comparable app deliberately avoids. Non-authors get 403.
+     *
+     * <p>Note this is the GET counterpart to {@link #viewStory}, which POSTs to the same
+     * path to <em>record</em> a view. Same resource, different verbs — recording that you
+     * watched is open to any signed-in user; reading the list back is not.
+     *
+     * @param id the UUID string of the story whose viewers are being listed
+     * @return 200 OK with {@code [{id, name, avatarUrl, verified, viewedAt}]}, newest first;
+     *         403 if the caller is not the author;
+     *         404 if the story does not exist
+     */
+    @GetMapping("/{id}/views")
+    public ResponseEntity<?> getStoryViewers(@PathVariable String id) {
+        try {
+            String email = SecurityContextHolder.getContext().getAuthentication().getName();
+            User currentUser = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+            Story story = storyService.getStory(id);
+
+            // Author-only. Compare against the story's stored authorId string.
+            if (!currentUser.getId().toString().equals(story.getAuthorId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(createErrorResponse("Only the author can see who viewed this story"));
+            }
+
+            List<Map<String, Object>> viewers = new ArrayList<>();
+            for (StoryView view : storyViewRepository.findByIdStoryIdOrderByViewedAtDesc(id)) {
+                String viewerId = view.getId().getUserId();
+                try {
+                    userRepository.findById(UUID.fromString(viewerId)).ifPresent(u -> {
+                        Map<String, Object> entry = new LinkedHashMap<>();
+                        entry.put("id", u.getId().toString());
+                        entry.put("name", u.getFullName());
+                        entry.put("avatarUrl", u.getAvatarUrl());
+                        entry.put("verified", u.isIdVerified());
+                        entry.put("viewedAt", view.getViewedAt() != null ? view.getViewedAt().toString() : null);
+                        viewers.add(entry);
+                    });
+                } catch (IllegalArgumentException ignored) {
+                    // Viewer id isn't a parseable UUID (legacy/corrupt row) — skip it
+                    // rather than failing the whole list.
+                }
+            }
+
+            return ResponseEntity.ok(viewers);
+        } catch (IllegalArgumentException e) {
+            log.warn("Story not found for viewers list: {}", id);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(createErrorResponse("Story not found"));
+        } catch (Exception e) {
+            log.error("Error loading story viewers: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("Failed to load viewers: " + e.getMessage()));
         }
     }
 

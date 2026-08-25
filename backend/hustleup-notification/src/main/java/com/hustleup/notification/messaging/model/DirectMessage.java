@@ -216,6 +216,30 @@ public class DirectMessage {
     @Column(name = "shared_post_author_id")
     private String sharedPostAuthorId;
 
+    // ── STORY share fields (messageType = "STORY") ──────────────────────────────
+    // Snapshot at share time, like LISTING and POST above — but for stories the snapshot
+    // is doing more work than avoiding a cross-service call. Stories self-destruct after
+    // 24 hours, so a DM that only held a story id would decay into a dead reference. By
+    // copying the media URL and author here, the shared card still renders long after the
+    // story itself has expired: uploaded files outlive the story row that pointed at them.
+    @Column(name = "shared_story_id")
+    private String sharedStoryId;
+
+    /** The story's media URL, or null for a TEXT story (which renders from content). */
+    @Column(name = "shared_story_image")
+    private String sharedStoryImage;
+
+    /** "TEXT", "IMAGE" or "VIDEO" — tells the card whether to show media or a text tile. */
+    @Column(name = "shared_story_type")
+    private String sharedStoryType;
+
+    @Column(name = "shared_story_author_name")
+    private String sharedStoryAuthorName;
+
+    /** Author's UUID (as String) so the recipient can tap through to their profile. */
+    @Column(name = "shared_story_author_id")
+    private String sharedStoryAuthorId;
+
     /**
      * The UTC timestamp of when this message was persisted.
      *
@@ -230,4 +254,27 @@ public class DirectMessage {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    /**
+     * When the <em>receiver</em> opened the conversation containing this message,
+     * or {@code null} while it is still unread.
+     *
+     * <p><b>Why a timestamp rather than a boolean:</b> {@code null}/non-null already
+     * answers "is it unread?", which is all the badge counts need, but keeping the
+     * moment it was read costs nothing extra and is what a "Seen 14:32" receipt would
+     * be built from later. A boolean would have to be replaced to add that.
+     *
+     * <p><b>Whose flag is this?</b> Only the receiver's. A message is marked read when
+     * its receiver opens that conversation (see
+     * {@code DirectMessageController.getConversation}); the sender's own outgoing
+     * messages are never counted as unread for the sender. That is why every unread
+     * query filters on {@code receiverId} as well as {@code readAt}.
+     *
+     * <p><b>Existing rows:</b> the column is added by Hibernate's {@code ddl-auto:
+     * update} as nullable, so messages that predate this field read as unread until
+     * their conversation is next opened. That resolves itself the first time each chat
+     * is visited — no backfill required.
+     */
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
 }

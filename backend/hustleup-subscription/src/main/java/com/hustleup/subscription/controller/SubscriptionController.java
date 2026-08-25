@@ -1,7 +1,7 @@
 package com.hustleup.subscription.controller;
 
-import com.hustleup.subscription.model.Subscription;
-import com.hustleup.subscription.repository.SubscriptionRepository;
+import com.hustleup.common.model.Subscription;
+import com.hustleup.common.repository.SubscriptionRepository;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
 import org.springframework.http.ResponseEntity;

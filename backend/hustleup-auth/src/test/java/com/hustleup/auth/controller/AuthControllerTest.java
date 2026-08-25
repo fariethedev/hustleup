@@ -3,6 +3,7 @@ package com.hustleup.auth.controller;
 import com.hustleup.auth.dto.AuthDtos;
 import com.hustleup.auth.model.RefreshToken;
 import com.hustleup.auth.repository.RefreshTokenRepository;
+import com.hustleup.auth.service.TurnstileService;
 import com.hustleup.common.security.JwtTokenProvider;
 import com.hustleup.common.model.Role;
 import com.hustleup.common.model.User;
@@ -58,6 +59,11 @@ class AuthControllerTest {
     @Mock
     private AuthenticationManager authenticationManager;
 
+    // register() consults bot protection before anything else. Without this mock the
+    // controller's field is null and every registration test dies on an NPE.
+    @Mock
+    private TurnstileService turnstileService;
+
     @Mock
     private JwtTokenProvider tokenProvider;
 
@@ -102,6 +108,11 @@ class AuthControllerTest {
         // ==========================================
         AuthDtos.RegisterRequest request = new AuthDtos.RegisterRequest();
         request.setEmail("test@example.com");
+        // Both guards run before the duplicate-email check, so the request has to clear
+        // them or this test asserts against the wrong rejection.
+        request.setTermsAccepted(true);
+
+        when(turnstileService.verify(request.getCaptchaToken())).thenReturn(true);
 
         // "when" is Mockito. It means: "When the AuthController calls userRepository.existsByEmail("test@example.com"),
         // then return true instead of actually hitting the database."

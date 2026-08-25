@@ -1,17 +1,21 @@
 package com.hustleup.social.controller;
 
+import com.hustleup.common.model.Notification;
 import com.hustleup.common.model.Role;
 import com.hustleup.common.model.User;
+import com.hustleup.common.repository.MatchRepository;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.common.storage.FileStorageService;
 import com.hustleup.social.model.DatingProfile;
+import com.hustleup.social.model.DatingSwipe;
 import com.hustleup.social.repository.DatingProfileRepository;
 import com.hustleup.social.repository.DatingSwipeRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,11 +24,19 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,6 +56,9 @@ class DatingControllerTest {
 
     @Mock
     private NotificationRepository notificationRepository;
+
+    @Mock
+    private MatchRepository matchRepository;
 
     @InjectMocks
     private DatingController datingController;
@@ -133,6 +148,210 @@ class DatingControllerTest {
         List<DatingProfile> profiles = response.getBody();
         assertNotNull(profiles);
         assertEquals(3, profiles.size());
+    }
+
+    @Test
+    @DisplayName("An explicit \"Everyone\" preference overrides the opposite-gender fallback")
+    void getProfiles_ShowMeEveryoneDisablesGenderFiltering() {
+        User currentUser = user("male@example.com", "Male User");
+        User femaleUser = user("female@example.com", "Female User");
+        User maleUser = user("other-male@example.com", "Other Male");
+
+        DatingProfile currentProfile = profile(currentUser.getId(), "Male User", "Male");
+        currentProfile.setShowMe("Everyone");
+
+        authenticate(currentUser);
+        when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser));
+        when(datingProfileRepository.findAll()).thenReturn(List.of(
+                currentProfile,
+                profile(femaleUser.getId(), "Female User", "Female"),
+                profile(maleUser.getId(), "Other Male", "Male")));
+        when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
+
+        List<DatingProfile> profiles = datingController.getProfiles().getBody();
+
+        assertNotNull(profiles);
+        assertEquals(2, profiles.size());
+    }
+
+    @Test
+    @DisplayName("A \"Women\" preference is taken literally, including for profiles with no stated gender")
+    void getProfiles_ShowMeWomenExcludesUnstatedGenders() {
+        User currentUser = user("me@example.com", "Me");
+        User femaleUser = user("female@example.com", "Female User");
+        User maleUser = user("male@example.com", "Male User");
+        User noProfileUser = user("noprof@example.com", "No Profile");
+
+        DatingProfile currentProfile = profile(currentUser.getId(), "Me", "Female");
+        currentProfile.setShowMe("Women");
+
+        authenticate(currentUser);
+        when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser, noProfileUser));
+        when(datingProfileRepository.findAll()).thenReturn(List.of(
+                currentProfile,
+                profile(femaleUser.getId(), "Female User", "Female"),
+                profile(maleUser.getId(), "Male User", "Male")));
+        when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
+
+        List<DatingProfile> profiles = datingController.getProfiles().getBody();
+
+        assertNotNull(profiles);
+        assertEquals(1, profiles.size());
+        assertEquals(femaleUser.getId(), profiles.get(0).getId());
+    }
+
+    @Test
+    @DisplayName("Profiles that already liked you are badged and dealt to the front of the deck")
+    void getProfiles_AdmirersAreBadgedAndSortedFirst() {
+        User currentUser = user("me@example.com", "Me");
+        User plainUser = user("plain@example.com", "Plain");
+        User admirer = user("admirer@example.com", "Admirer");
+
+        authenticate(currentUser);
+        when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        // Deliberately behind the other candidate in the source order — the badge is what
+        // should move it to the front, not the order the users came back in.
+        when(userRepository.findAll()).thenReturn(List.of(currentUser, plainUser, admirer));
+        when(datingProfileRepository.findAll()).thenReturn(List.of());
+        when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
+        when(datingSwipeRepository.findByTargetIdAndActionIn(eq(currentUser.getId()), anyCollection()))
+                .thenReturn(List.of(swipe(admirer.getId(), currentUser.getId(), "SUPER_LIKE")));
+
+        List<DatingProfile> profiles = datingController.getProfiles().getBody();
+
+        assertNotNull(profiles);
+        assertEquals(2, profiles.size());
+        assertEquals(admirer.getId(), profiles.get(0).getId());
+        assertTrue(profiles.get(0).getLikedYou());
+        assertFalse(profiles.get(1).getLikedYou());
+    }
+
+    @Test
+    @DisplayName("A super like notifies the recipient even when the like isn't mutual")
+    void likeProfile_SuperLikeNotifiesTheRecipientImmediately() {
+        User currentUser = user("me@example.com", "Me");
+        UUID targetId = UUID.randomUUID();
+
+        authenticate(currentUser);
+        when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        when(datingSwipeRepository.findBySwiperIdAndTargetId(currentUser.getId(), targetId))
+                .thenReturn(Optional.empty());
+        when(datingSwipeRepository.existsBySwiperIdAndTargetIdAndActionIn(
+                eq(targetId), eq(currentUser.getId()), anyCollection())).thenReturn(false);
+
+        datingController.likeProfile(targetId, true);
+
+        ArgumentCaptor<DatingSwipe> swipe = ArgumentCaptor.forClass(DatingSwipe.class);
+        verify(datingSwipeRepository).save(swipe.capture());
+        assertEquals("SUPER_LIKE", swipe.getValue().getAction());
+
+        ArgumentCaptor<Notification> notification = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notification.capture());
+        assertEquals(targetId, notification.getValue().getUserId());
+        assertEquals("DATING_SUPER_LIKE", notification.getValue().getNotificationType());
+    }
+
+    @Test
+    @DisplayName("An ordinary like stays private until it turns out to be mutual")
+    void likeProfile_PlainLikeNotifiesNobody() {
+        User currentUser = user("me@example.com", "Me");
+        UUID targetId = UUID.randomUUID();
+
+        authenticate(currentUser);
+        when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        when(datingSwipeRepository.findBySwiperIdAndTargetId(currentUser.getId(), targetId))
+                .thenReturn(Optional.empty());
+        when(datingSwipeRepository.existsBySwiperIdAndTargetIdAndActionIn(
+                eq(targetId), eq(currentUser.getId()), anyCollection())).thenReturn(false);
+
+        datingController.likeProfile(targetId, false);
+
+        ArgumentCaptor<DatingSwipe> swipe = ArgumentCaptor.forClass(DatingSwipe.class);
+        verify(datingSwipeRepository).save(swipe.capture());
+        assertEquals("LIKE", swipe.getValue().getAction());
+        verify(notificationRepository, never()).save(any(Notification.class));
+    }
+
+    @Test
+    @DisplayName("Rewind deletes the last swipe and hands the profile back to the deck")
+    void rewind_RestoresTheLastSwipedProfile() {
+        User currentUser = user("me@example.com", "Me");
+        User target = user("target@example.com", "Target");
+        DatingSwipe lastSwipe = swipe(currentUser.getId(), target.getId(), "PASS");
+
+        authenticate(currentUser);
+        when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        when(datingSwipeRepository.findFirstBySwiperIdOrderByCreatedAtDesc(currentUser.getId()))
+                .thenReturn(Optional.of(lastSwipe));
+        when(matchRepository.existsByUserIdAAndUserIdB(any(UUID.class), any(UUID.class))).thenReturn(false);
+        when(userRepository.findById(target.getId())).thenReturn(Optional.of(target));
+        when(datingProfileRepository.findById(target.getId())).thenReturn(Optional.empty());
+
+        Map<String, Object> body = bodyOf(datingController.rewind());
+
+        verify(datingSwipeRepository).delete(lastSwipe);
+        assertEquals(true, body.get("rewound"));
+        assertEquals(target.getId(), ((DatingProfile) body.get("profile")).getId());
+    }
+
+    @Test
+    @DisplayName("A swipe that already produced a match cannot be rewound")
+    void rewind_RefusesToUndoASwipeThatMatched() {
+        User currentUser = user("me@example.com", "Me");
+        User target = user("target@example.com", "Target");
+        DatingSwipe lastSwipe = swipe(currentUser.getId(), target.getId(), "LIKE");
+
+        authenticate(currentUser);
+        when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        when(datingSwipeRepository.findFirstBySwiperIdOrderByCreatedAtDesc(currentUser.getId()))
+                .thenReturn(Optional.of(lastSwipe));
+        when(matchRepository.existsByUserIdAAndUserIdB(any(UUID.class), any(UUID.class))).thenReturn(true);
+
+        Map<String, Object> body = bodyOf(datingController.rewind());
+
+        verify(datingSwipeRepository, never()).delete(any(DatingSwipe.class));
+        assertEquals(false, body.get("rewound"));
+        assertEquals("matched", body.get("reason"));
+    }
+
+    @Test
+    @DisplayName("Rewinding with nothing to undo reports it rather than failing")
+    void rewind_ReportsAnEmptySwipeHistory() {
+        User currentUser = user("me@example.com", "Me");
+
+        authenticate(currentUser);
+        when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        when(datingSwipeRepository.findFirstBySwiperIdOrderByCreatedAtDesc(currentUser.getId()))
+                .thenReturn(Optional.empty());
+
+        Map<String, Object> body = bodyOf(datingController.rewind());
+
+        assertEquals(false, body.get("rewound"));
+        assertEquals("empty", body.get("reason"));
+    }
+
+    // ── Fixtures ─────────────────────────────────────────────────────────────
+
+    private static void authenticate(User user) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(user.getEmail(), null, List.of())
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> bodyOf(ResponseEntity<?> response) {
+        return (Map<String, Object>) response.getBody();
+    }
+
+    private static DatingSwipe swipe(UUID swiperId, UUID targetId, String action) {
+        return DatingSwipe.builder()
+                .id(UUID.randomUUID())
+                .swiperId(swiperId)
+                .targetId(targetId)
+                .action(action)
+                .build();
     }
 
     private static User user(String email, String fullName) {
