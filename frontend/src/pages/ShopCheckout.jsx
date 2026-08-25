@@ -1,23 +1,28 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CreditCard, Landmark, MailCheck, ShieldCheck, Wallet, CircleDollarSign } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Lock, User, Mail, Phone } from 'lucide-react';
 import { formatPrice } from '../utils/constants';
-import { getProductByShopAndProductId } from '../utils/shopData';
+import { useShopProduct } from '../hooks/useShops';
+import SmartImage from '../components/SmartImage';
+import PaymentMethodPicker from '../components/PaymentMethodPicker';
+import { findMethod } from '../utils/paymentMethods';
+import { ApplePayMark, PayPalMark, VisaMark, MastercardMark } from '../components/PaymentBrands';
 
 const STORAGE_KEY = 'hustleup_shop_checkout_draft';
 
-const PAYMENT_METHODS = [
-  { id: 'paypal', label: 'PayPal', description: 'Pay with your PayPal account.', icon: CircleDollarSign },
-  { id: 'blik', label: 'BLIK', description: 'Fast Polish mobile checkout flow.', icon: Landmark },
-  { id: 'apple_pay', label: 'Apple Pay', description: 'One-tap wallet checkout.', icon: Wallet },
-  { id: 'card', label: 'Card', description: 'Direct card capture flow.', icon: CreditCard },
-];
-
+/**
+ * Checkout for a single shop product.
+ *
+ * Deliberately the same shape as the cart checkout: numbered steps on the left, a summary
+ * that stays in view on the right, the same payment picker, and the same wording for the
+ * money. Buying one item from a storefront and checking out a full cart used to look like
+ * two different products.
+ */
 export default function ShopCheckout() {
   const { id, productId } = useParams();
   const navigate = useNavigate();
-  const entry = getProductByShopAndProductId(id, productId);
+  const { shop, product, loading, notFound } = useShopProduct(id, productId);
   const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '', paymentMethod: 'paypal' });
 
   const draft = useMemo(() => {
@@ -28,21 +33,37 @@ export default function ShopCheckout() {
     }
   }, []);
 
-  if (!entry) {
+  if (loading) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 mt-8">
+        <div className="h-96 rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse" />
+      </div>
+    );
+  }
+
+  if (notFound) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
         <div className="text-center">
           <h2 className="text-2xl font-heading font-bold text-white mb-2">Checkout unavailable</h2>
-          <Link to="/" className="px-6 py-3 rounded-xl bg-[#CDFF00] text-black font-bold">Back home</Link>
+          <p className="text-sm text-gray-400 mb-5">This product is no longer on sale.</p>
+          <Link to="/explore/shops" className="px-6 py-3 rounded-xl bg-[#CDFF00] text-black font-bold">Browse shops</Link>
         </div>
       </div>
     );
   }
 
-  const { shop, product } = entry;
   const quantity = Number(draft.quantity) || 1;
   const unitPrice = draft.offer ? Number(draft.offer) : Number(product.price);
   const total = unitPrice * quantity;
+
+  const selected = findMethod(customer.paymentMethod);
+  const canSubmit = !!(customer.fullName && customer.email);
+  // Names the specific blocker so a disabled pay button is never a mystery.
+  const missing = [
+    !customer.fullName && 'name',
+    !customer.email && 'email address',
+  ].filter(Boolean).join(' and ');
 
   const placeOrder = () => {
     const payload = {
@@ -55,128 +76,145 @@ export default function ShopCheckout() {
       customer,
     };
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    navigate(`/shop/${shop.id}/product/${product.id}/confirmation`);
+    navigate(`/shop/${shop.slug || shop.id}/product/${product.id}/confirmation`);
   };
 
+  const field = (key, placeholder, type, Icon) => (
+    <div className="relative">
+      <Icon className="w-4 h-4 text-gray-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+      <input
+        type={type}
+        value={customer[key]}
+        onChange={(e) => setCustomer((c) => ({ ...c, [key]: e.target.value }))}
+        placeholder={placeholder}
+        className="w-full rounded-xl bg-black/40 border border-white/10 pl-10 pr-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-[#CDFF00]/60 focus:bg-black/60 transition-colors"
+      />
+    </div>
+  );
+
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 mt-8">
-      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
-        <Link to={`/shop/${shop.id}/product/${product.id}/negotiate`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors mb-8">
-          <ArrowLeft className="w-4 h-4" /> Back to negotiation
+    <div className="min-h-screen text-white pt-4 pb-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        <Link
+          to={`/shop/${shop.slug || shop.id}/product/${product.id}/negotiate`}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white transition-colors mb-4"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Back to negotiation
         </Link>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-8">
-          <div className="rounded-[2rem] border border-white/10 bg-[#111111] p-8">
-            <h2 className="text-2xl font-heading font-extrabold text-white mb-6">Checkout Setup</h2>
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={customer.fullName}
-                onChange={(e) => setCustomer((current) => ({ ...current, fullName: e.target.value }))}
-                placeholder="Full name"
-                className="w-full rounded-2xl bg-[#1E1E1E] border border-white/10 px-5 py-4 text-white outline-none focus:border-[#CDFF00]"
-              />
-              <input
-                type="email"
-                value={customer.email}
-                onChange={(e) => setCustomer((current) => ({ ...current, email: e.target.value }))}
-                placeholder="Email address"
-                className="w-full rounded-2xl bg-[#1E1E1E] border border-white/10 px-5 py-4 text-white outline-none focus:border-[#CDFF00]"
-              />
-              <input
-                type="tel"
-                value={customer.phone}
-                onChange={(e) => setCustomer((current) => ({ ...current, phone: e.target.value }))}
-                placeholder="Phone number"
-                className="w-full rounded-2xl bg-[#1E1E1E] border border-white/10 px-5 py-4 text-white outline-none focus:border-[#CDFF00]"
-              />
-            </div>
-
-            <div className="mt-8">
-              <h3 className="text-xs font-black uppercase tracking-[0.24em] text-gray-500 mb-4">Payment Method</h3>
-              <div className="space-y-3">
-                {PAYMENT_METHODS.map((method) => {
-                  const Icon = method.icon;
-                  const active = customer.paymentMethod === method.id;
-                  return (
-                    <button
-                      key={method.id}
-                      type="button"
-                      onClick={() => setCustomer((current) => ({ ...current, paymentMethod: method.id }))}
-                      className={`w-full rounded-2xl border p-4 text-left transition-all ${
-                        active ? 'border-[#CDFF00] bg-[#CDFF00]/10' : 'border-white/10 bg-black/40 hover:border-white/25'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${active ? 'bg-[#CDFF00] text-black' : 'bg-[#1E1E1E] text-white'}`}>
-                          <Icon className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className={`text-sm font-black uppercase tracking-[0.2em] ${active ? 'text-[#CDFF00]' : 'text-white'}`}>{method.label}</div>
-                          <div className="text-sm text-gray-500 mt-1">{method.description}</div>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="text-center mb-6">
+            <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">Checkout</h1>
+            <p className="inline-flex items-center gap-1.5 text-[11px] text-gray-500 font-bold mt-1.5">
+              <Lock className="w-3 h-3" /> Encrypted · {shop.name}
+            </p>
           </div>
 
-          <div className="rounded-[2rem] border border-white/10 bg-black/50 p-8">
-            <h2 className="text-2xl font-heading font-extrabold text-white mb-6">Order Summary</h2>
-            <div className="rounded-[1.5rem] border border-white/10 bg-[#121212] p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.24em] text-gray-500">{shop.name}</div>
-                  <div className="text-2xl font-black text-white mt-2">{product.name}</div>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.85fr] gap-4">
+            {/* ── Left: details + payment ── */}
+            <div className="space-y-4">
+              <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-6 h-6 rounded-full bg-[#CDFF00] text-black text-[11px] font-black flex items-center justify-center">1</span>
+                  <h2 className="text-xs font-black text-white uppercase tracking-widest">Your details</h2>
                 </div>
-                <div className="text-5xl">{product.image}</div>
+                <div className="space-y-2.5">
+                  {field('fullName', 'Full name', 'text', User)}
+                  {field('email', 'Email address', 'email', Mail)}
+                  {field('phone', 'Phone number (optional)', 'tel', Phone)}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-6 h-6 rounded-full bg-[#CDFF00] text-black text-[11px] font-black flex items-center justify-center">2</span>
+                  <h2 className="text-xs font-black text-white uppercase tracking-widest">Payment method</h2>
+                </div>
+                <PaymentMethodPicker
+                  value={customer.paymentMethod}
+                  onChange={(methodId) => setCustomer((c) => ({ ...c, paymentMethod: methodId }))}
+                />
+              </section>
+            </div>
+
+            {/* ── Right: summary, in view while the form is filled ── */}
+            <aside className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5 h-fit lg:sticky lg:top-20">
+              <h2 className="text-xs font-black text-white uppercase tracking-widest mb-4">Order summary</h2>
+
+              <div className="flex items-center gap-3 pb-3">
+                <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
+                  <SmartImage src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{product.name}</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 truncate">{shop.name}</p>
+                </div>
               </div>
 
-              <div className="mt-6 space-y-3 text-sm">
-                <div className="flex items-center justify-between text-gray-400">
-                  <span>Quantity</span>
-                  <span className="text-white font-bold">{quantity}</span>
-                </div>
-                <div className="flex items-center justify-between text-gray-400">
-                  <span>Unit price</span>
+              <div className="border-t border-white/10 pt-3 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">Unit price</span>
                   <span className="text-white font-bold">{formatPrice(unitPrice, product.currency)}</span>
                 </div>
-                <div className="flex items-center justify-between text-gray-400">
-                  <span>Selected payment</span>
-                  <span className="text-white font-bold">{PAYMENT_METHODS.find((item) => item.id === customer.paymentMethod)?.label}</span>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">Quantity</span>
+                  <span className="text-white font-bold">{quantity}</span>
                 </div>
-                <div className="flex items-center justify-between border-t border-white/10 pt-4 text-gray-400">
-                  <span>Total</span>
+                {/* Stated outright rather than left as a dash — an unexplained "Fees" line is
+                    exactly what makes people brace for a surprise on the next screen. */}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">Fees</span>
+                  <span className="text-[#CDFF00] font-bold">Included</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">Paying with</span>
+                  <span className="text-white font-bold">{selected?.label}</span>
+                </div>
+                <div className="flex items-center justify-between pt-2.5 border-t border-white/5">
+                  <span className="text-white font-black uppercase tracking-widest text-xs">Total</span>
                   <span className="text-[#CDFF00] text-2xl font-black">{formatPrice(total, product.currency)}</span>
                 </div>
+                <p className="text-[10px] text-gray-500 leading-relaxed">
+                  This is the final amount. Nothing is added at the next step.
+                </p>
               </div>
-            </div>
 
-            <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-[#111111] p-5">
-              <div className="flex items-center gap-2 text-[#CDFF00] text-sm font-black uppercase tracking-[0.22em]">
-                <ShieldCheck className="w-4 h-4" /> Integration Ready
+              {missing && (
+                <p className="mt-4 -mb-1 text-[11px] font-bold text-gray-400">
+                  Add your {missing} to continue.
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={placeOrder}
+                disabled={!canSubmit}
+                className="mt-4 w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all shadow-[0_8px_24px_rgba(205,255,0,0.22)]"
+              >
+                <Lock className="w-3.5 h-3.5" /> Review order
+              </button>
+
+              {/* This flow genuinely doesn't charge yet, so the button promises a review step
+                  rather than a payment. Saying "Pay now" here would be a lie. */}
+              <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black uppercase tracking-widest">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Nothing charged yet
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
+                  You&apos;ll get a final review before any payment is taken.
+                </p>
               </div>
-              <p className="text-sm text-gray-400 leading-relaxed mt-3">
-                This screen is ready for PayPal, BLIK, Apple Pay, card payment capture, and confirmation email triggers. Right now it advances to an order confirmation step without charging.
-              </p>
-            </div>
 
-            <button
-              type="button"
-              onClick={placeOrder}
-              disabled={!customer.fullName || !customer.email}
-              className="mt-6 w-full rounded-2xl bg-[#CDFF00] px-6 py-4 text-sm font-black uppercase tracking-[0.24em] text-black disabled:opacity-50"
-            >
-              Continue To Confirmation
-            </button>
-            <div className="mt-4 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-gray-500">
-              <MailCheck className="w-4 h-4" /> Confirmation email placeholder included
-            </div>
+              <div className="mt-3 flex items-center justify-center gap-2 opacity-70">
+                <span className="h-6 px-1.5 rounded bg-white flex items-center"><VisaMark className="h-3 w-auto" /></span>
+                <span className="h-6 px-1.5 rounded bg-white flex items-center"><MastercardMark className="h-3.5 w-auto" /></span>
+                <span className="h-6 px-1.5 rounded bg-white flex items-center"><ApplePayMark className="h-3.5 w-auto" /></span>
+                <span className="h-6 px-1.5 rounded bg-white flex items-center"><PayPalMark className="h-3 w-auto" /></span>
+              </div>
+            </aside>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }

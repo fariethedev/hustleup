@@ -2,19 +2,21 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
-import { feedApi, listingsApi } from '../api/client';
+import { feedApi, listingsApi, subscriptionsApi, dispatchToast } from '../api/client';
+import { isPremiumActive, isPremiumRequiredError } from '../utils/premium';
 import {
   Heart, MessageCircle, Send, Bookmark, Image as ImageIcon, ShoppingBag,
-  BadgeCheck, X, Film, Star, Users, Store, Sparkles,
+  BadgeCheck, X, Film, Star, Users, Store, Sparkles, Package, VenetianMask, Lock, Crown, Crop,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../utils/constants';
-import { SHOPS } from '../utils/shopData';
+import { useShops } from '../hooks/useShops';
 import PostMediaGallery from '../components/PostMediaGallery';
 import StoryBar from '../components/stories/StoryBar';
-import SwapChain from '../components/SwapChain';
 import HeroBrief from '../components/HeroBrief';
 import ShareModal from '../components/ShareModal';
+import SmartImage from '../components/SmartImage';
+import ImageCropper from '../components/ImageCropper';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 
 const POST_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1920&q=80';
@@ -80,6 +82,38 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
   const hasMedia = post.media && post.media.length > 0;
   const singleImage = !hasMedia && (post.imageUrl || extractUrl(post.content));
 
+  // The server sends anonymous posts with authorId/authorName/avatar stripped. Rendering
+  // them through the normal header would link to /profile/null, so the author block becomes
+  // a non-interactive mask instead — and the badge tells readers the anonymity is a real
+  // platform feature rather than someone calling themselves "Anonymous".
+  const anon = post.anonymous;
+
+  const AuthorAvatar = ({ size = 'w-9 h-9', iconSize = 'w-4 h-4' }) => (
+    anon ? (
+      <div className={`${size} rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0`}>
+        <VenetianMask className={`${iconSize} text-gray-300`} />
+      </div>
+    ) : (
+      <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size={size} />
+    )
+  );
+
+  /** Author name — a profile link normally, plain text when anonymous. */
+  const AuthorName = ({ className = '' }) => (
+    anon ? (
+      <span className={`flex items-center gap-1.5 ${className}`}>
+        <span className="truncate">Anonymous</span>
+        <span className="shrink-0 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-white/10 text-gray-400 border border-white/10">
+          Hidden
+        </span>
+      </span>
+    ) : (
+      <Link to={`/profile/${post.authorId}`} className={`hover:underline truncate ${className}`}>
+        {post.authorName || 'User'}
+      </Link>
+    )
+  );
+
   const doubleTapLike = () => {
     if (!post.likedByCurrentUser) onLike(post.id);
     setBurst(true);
@@ -136,14 +170,14 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
         className="py-4 border-b border-white/10"
       >
         <div className="flex gap-3">
-          <Link to={`/profile/${post.authorId}`}>
-            <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} />
-          </Link>
+          {anon ? <AuthorAvatar /> : (
+            <Link to={`/profile/${post.authorId}`}>
+              <AuthorAvatar />
+            </Link>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 text-sm">
-              <Link to={`/profile/${post.authorId}`} className="font-bold text-white hover:underline truncate">
-                {post.authorName || 'User'}
-              </Link>
+              <AuthorName className="font-bold text-white" />
               <span className="text-gray-500 shrink-0">· {timeAgo(post.createdAt)}</span>
             </div>
             <p className="text-white text-[15px] leading-relaxed mt-0.5 whitespace-pre-wrap break-words">{post.content}</p>
@@ -170,13 +204,13 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
       className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden"
     >
       <div className="px-3.5 py-3 flex items-center gap-2.5">
-        <Link to={`/profile/${post.authorId}`}>
-          <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} />
-        </Link>
-        <div className="min-w-0">
-          <Link to={`/profile/${post.authorId}`} className="text-sm font-bold text-white hover:underline block truncate">
-            {post.authorName || 'User'}
+        {anon ? <AuthorAvatar /> : (
+          <Link to={`/profile/${post.authorId}`}>
+            <AuthorAvatar />
           </Link>
+        )}
+        <div className="min-w-0">
+          <AuthorName className="text-sm font-bold text-white block" />
           <span className="text-xs text-gray-500">{timeAgo(post.createdAt)} ago</span>
         </div>
       </div>
@@ -185,7 +219,11 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
         {hasMedia ? (
           <PostMediaGallery
             media={post.media}
-            author={{ name: post.authorName, avatar: post.authorAvatarUrl, id: post.authorId }}
+            // Anonymous posts pass no author through to the fullscreen viewer either — it
+            // renders its own overlay header from this object.
+            author={anon
+              ? { name: 'Anonymous', avatar: null, id: null }
+              : { name: post.authorName, avatar: post.authorAvatarUrl, id: post.authorId }}
             onLike={() => onLike(post.id)}
             onShare={() => onShare(post)}
             liked={post.likedByCurrentUser}
@@ -297,11 +335,16 @@ function ShopPromoCard({ shop }) {
       viewport={{ once: true, margin: '-40px' }}
     >
       <Link
-        to={`/shop/${shop.id}`}
+        to={`/shop/${shop.slug || shop.id}`}
         className="group flex items-center gap-4 p-3.5 rounded-2xl border border-white/10 bg-white/[0.02] hover:border-[#CDFF00]/40 transition-all"
       >
         <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-800">
-          <img src={shop.image} alt={shop.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <SmartImage
+            src={shop.bannerUrl}
+            alt={shop.name}
+            fallbackIcon={Store}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold text-[#CDFF00] uppercase tracking-widest mb-0.5 flex items-center gap-1">
@@ -309,9 +352,9 @@ function ShopPromoCard({ shop }) {
           </p>
           <p className="text-sm font-bold text-white truncate">{shop.name}</p>
           <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
-            <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {shop.followers >= 1000 ? `${(shop.followers / 1000).toFixed(1)}K` : shop.followers}</span>
-            <span className="flex items-center gap-1"><Star className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" /> {shop.rating || '—'}</span>
-            <span className="truncate">{shop.category}</span>
+            <span className="flex items-center gap-1"><Package className="w-3 h-3" /> {shop.productCount ?? 0}</span>
+            <span className="flex items-center gap-1"><Star className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" /> {shop.rating > 0 ? shop.rating.toFixed(1) : 'New'}</span>
+            <span className="truncate">{[shop.category, shop.city].filter(Boolean).join(' · ')}</span>
           </div>
         </div>
         <span className="shrink-0 px-4 py-2 rounded-full border border-white/15 text-white text-xs font-bold group-hover:bg-[#CDFF00] group-hover:text-black group-hover:border-[#CDFF00] transition-all">
@@ -327,6 +370,7 @@ export default function Feed() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const [posts, setPosts] = useState([]);
   const [listings, setListings] = useState([]);
+  const { shops: allShops } = useShops();
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('foryou'); // 'foryou' | 'saved'
   const [savedLoading, setSavedLoading] = useState(false);
@@ -337,6 +381,13 @@ export default function Feed() {
   const [content, setContent] = useState('');
   const [mediaFiles, setMediaFiles] = useState([]);
   const [posting, setPosting] = useState(false);
+  // Anonymous posting — a Premium capability. `premium` starts null ("not known yet") so the
+  // toggle can stay quiet until the subscription lookup lands, rather than flashing "locked"
+  // at a paying subscriber on every page load.
+  const [anonymous, setAnonymous] = useState(false);
+  const [premium, setPremium] = useState(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
 
   // Comment Modal State
   const [selectedPost, setSelectedPost] = useState(null);
@@ -357,11 +408,21 @@ export default function Feed() {
   const [shareType, setShareType] = useState('post');
 
   // A handful of shops sampled once per visit to interleave into the feed.
-  const shopSample = useMemo(() => [...SHOPS].sort(() => 0.5 - Math.random()).slice(0, 4), []);
+  const shopSample = useMemo(() => [...allShops].sort(() => 0.5 - Math.random()).slice(0, 4), [allShops]);
 
   useEffect(() => {
     loadFeed();
   }, []);
+
+  // Subscription status drives whether the composer offers the anonymous toggle or the
+  // upgrade prompt. A failed lookup resolves to "not premium" so the toggle stays locked
+  // rather than promising something the server will refuse.
+  useEffect(() => {
+    if (!isAuthenticated) { setPremium(false); return; }
+    subscriptionsApi.my()
+      .then((r) => setPremium(isPremiumActive(r.data)))
+      .catch(() => setPremium(false));
+  }, [isAuthenticated]);
 
   const loadFeed = async () => {
     setLoading(true);
@@ -431,6 +492,10 @@ export default function Feed() {
     }
   };
 
+  // Index into mediaFiles currently being framed, or null. Held by index rather than by
+  // File so the cropped result can be swapped straight back into the same slot.
+  const [cropIndex, setCropIndex] = useState(null);
+
   const handleMediaChange = (e) => {
     const files = Array.from(e.target.files);
     if (mediaFiles.length + files.length > 15) {
@@ -442,18 +507,29 @@ export default function Feed() {
 
   const removeMedia = (index) => {
     setMediaFiles(mediaFiles.filter((_, i) => i !== index));
+    setCropIndex(null);
+  };
+
+  /** Swap the framed result back into the slot it came from. */
+  const applyCrop = (croppedFile) => {
+    setMediaFiles((files) => files.map((f, i) => (i === cropIndex ? croppedFile : f)));
+    setCropIndex(null);
   };
 
   const handlePost = async (e) => {
     e.preventDefault();
     if (!content.trim() && mediaFiles.length === 0) return;
     if (!isAuthenticated) return;
+    // Guard the obvious case client-side so a non-subscriber gets the upgrade sheet instead
+    // of a rejected request — but the server refuses it either way.
+    if (anonymous && !premium) { setShowUpgrade(true); return; }
     setPosting(true);
 
     try {
       const formData = new FormData();
       formData.append('content', content);
       formData.append('authorName', user.fullName);
+      if (anonymous) formData.append('anonymous', 'true');
       mediaFiles.forEach(file => {
         formData.append('media', file);
       });
@@ -462,10 +538,32 @@ export default function Feed() {
       setPosts([res.data, ...posts]);
       setContent('');
       setMediaFiles([]);
+      setAnonymous(false);
     } catch (err) {
-      alert('Failed to post');
+      // The server rejects an ungated anonymous post rather than publishing it under the
+      // author's name, so this branch means nothing was posted — say so, and offer the fix.
+      if (isPremiumRequiredError(err)) {
+        setPremium(false);
+        setShowUpgrade(true);
+      } else {
+        dispatchToast('Failed to post', 'error');
+      }
     } finally {
       setPosting(false);
+    }
+  };
+
+  const startUpgrade = async () => {
+    setUpgrading(true);
+    try {
+      await subscriptionsApi.upgrade();
+      setPremium(true);
+      setShowUpgrade(false);
+      dispatchToast('Premium active — you can post anonymously now', 'success');
+    } catch {
+      dispatchToast('Could not start your upgrade', 'error');
+    } finally {
+      setUpgrading(false);
     }
   };
 
@@ -588,7 +686,6 @@ export default function Feed() {
 
       <div className="max-w-xl mx-auto px-4">
         <StoryBar />
-        <SwapChain />
 
         {/* For You / Saved tabs */}
         {isAuthenticated && (
@@ -615,12 +712,20 @@ export default function Feed() {
         {!showingSaved && isAuthenticated && (
           <form onSubmit={handlePost} className="bg-white/[0.02] border border-white/10 p-4 rounded-2xl mb-6">
             <div className="flex gap-3">
-              <Avatar name={user?.fullName} avatarUrl={user?.avatarUrl} size="w-11 h-11" />
+              {/* The avatar previews what the post will actually look like: switch anonymity
+                  on and your face is replaced by the mask, before you commit to posting. */}
+              {anonymous ? (
+                <div className="w-11 h-11 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+                  <VenetianMask className="w-5 h-5 text-white" />
+                </div>
+              ) : (
+                <Avatar name={user?.fullName} avatarUrl={user?.avatarUrl} size="w-11 h-11" />
+              )}
               <div className="flex-1 space-y-3">
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="What's on your mind?"
+                  placeholder={anonymous ? 'Post anonymously — your name and avatar stay hidden' : "What's on your mind?"}
                   className="w-full bg-transparent text-white placeholder-gray-500 resize-none outline-none leading-relaxed text-[15px]"
                   rows={2}
                 />
@@ -634,7 +739,21 @@ export default function Feed() {
                             <Film className="w-7 h-7 text-gray-400" />
                           </div>
                         ) : (
-                          <img src={URL.createObjectURL(file)} alt="Preview" className="w-20 h-20 rounded-xl object-cover border border-white/10" />
+                          // Tapping the thumbnail opens the cropper — the thumbnail is a
+                          // centre-cropped preview, so it is exactly the thing you want to
+                          // correct when the subject isn't centred.
+                          <button
+                            type="button"
+                            onClick={() => setCropIndex(idx)}
+                            title="Crop & adjust"
+                            className="group relative w-20 h-20 rounded-xl overflow-hidden border border-white/10 block"
+                          >
+                            <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover" />
+                            <span className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5">
+                              <Crop className="w-4 h-4 text-[#CDFF00]" />
+                              <span className="text-[8px] font-black uppercase tracking-widest text-white">Adjust</span>
+                            </span>
+                          </button>
                         )}
                         <button
                           type="button"
@@ -648,18 +767,55 @@ export default function Feed() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                  <label className="cursor-pointer text-gray-400 hover:text-[#CDFF00] transition-colors flex items-center gap-2">
-                    <ImageIcon className="w-5 h-5" />
-                    <span className="text-xs font-bold">{mediaFiles.length > 0 ? `${mediaFiles.length}/15` : 'Photo/video'}</span>
-                    <input type="file" className="hidden" accept="image/*,video/*" multiple onChange={handleMediaChange} />
-                  </label>
+                {anonymous && (
+                  <motion.p
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="flex items-start gap-2 text-[11px] text-gray-400 leading-relaxed bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2"
+                  >
+                    <VenetianMask className="w-3.5 h-3.5 text-[#CDFF00] shrink-0 mt-0.5" />
+                    {/* Say plainly what anonymity does and does not cover. Someone choosing it
+                        is making a judgement about exposure and deserves the real boundary. */}
+                    <span>
+                      Your name and avatar won't be shown, and your followers won't be notified.
+                      HustleSpace still records who posted, so it can act on abuse.
+                    </span>
+                  </motion.p>
+                )}
+
+                <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/10">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <label className="cursor-pointer text-gray-400 hover:text-[#CDFF00] transition-colors flex items-center gap-2 shrink-0">
+                      <ImageIcon className="w-5 h-5" />
+                      <span className="text-xs font-bold">{mediaFiles.length > 0 ? `${mediaFiles.length}/15` : 'Photo/video'}</span>
+                      <input type="file" className="hidden" accept="image/*,video/*" multiple onChange={handleMediaChange} />
+                    </label>
+
+                    {/* Shown to everyone, not just subscribers — a feature nobody can see is a
+                        feature nobody upgrades for. Non-subscribers get the lock and the sheet. */}
+                    <button
+                      type="button"
+                      onClick={() => (premium ? setAnonymous((v) => !v) : setShowUpgrade(true))}
+                      aria-pressed={anonymous}
+                      title={premium ? 'Post without showing your name' : 'Anonymous posting is a Premium feature'}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 shrink-0 ${
+                        anonymous
+                          ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
+                          : 'bg-transparent text-gray-400 border-white/15 hover:text-white hover:border-white/35'
+                      }`}
+                    >
+                      <VenetianMask className="w-4 h-4" />
+                      <span className="hidden xs:inline sm:inline">Anonymous</span>
+                      {premium === false && <Lock className="w-3 h-3 opacity-70" />}
+                    </button>
+                  </div>
+
                   <button
                     type="submit"
                     disabled={posting || (!content.trim() && mediaFiles.length === 0)}
-                    className="px-6 py-2.5 rounded-full bg-[#CDFF00] text-black font-bold text-sm disabled:opacity-40 hover:brightness-110 active:scale-95 transition-all"
+                    className="px-6 py-2.5 rounded-full bg-[#CDFF00] text-black font-bold text-sm disabled:opacity-40 hover:brightness-110 active:scale-95 transition-all shrink-0"
                   >
-                    {posting ? 'Posting…' : 'Post'}
+                    {posting ? 'Posting…' : anonymous ? 'Post anonymously' : 'Post'}
                   </button>
                 </div>
               </div>
@@ -859,6 +1015,76 @@ export default function Feed() {
       </div>
 
       {shareItem && <ShareModal type={shareType} item={shareItem} onClose={() => setShareItem(null)} />}
+
+      {cropIndex !== null && mediaFiles[cropIndex] && (
+        <ImageCropper
+          file={mediaFiles[cropIndex]}
+          onCancel={() => setCropIndex(null)}
+          onApply={applyCrop}
+        />
+      )}
+
+      <AnimatePresence>
+        {showUpgrade && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowUpgrade(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 text-center"
+            >
+              <button
+                onClick={() => setShowUpgrade(false)}
+                className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-500 hover:bg-white/10 hover:text-white transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="w-14 h-14 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-4">
+                <VenetianMask className="w-7 h-7 text-[#CDFF00]" />
+              </div>
+              <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2">Post anonymously</h3>
+              <p className="text-sm text-gray-400 leading-relaxed mb-5">
+                Share something without your name or avatar attached. Ask the awkward question,
+                tell the honest story — Premium members post to the feed anonymously.
+              </p>
+
+              <ul className="text-left space-y-2 mb-6">
+                {[
+                  'Your name and avatar stay hidden on the post',
+                  'Followers aren\'t notified, so nothing points back to you',
+                  'Everything else in Premium, including Hustle Bond',
+                ].map((line) => (
+                  <li key={line} className="flex items-start gap-2 text-xs text-gray-300">
+                    <Crown className="w-3.5 h-3.5 text-[#CDFF00] shrink-0 mt-0.5" />
+                    {line}
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={startUpgrade}
+                disabled={upgrading}
+                className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-60"
+              >
+                {upgrading ? 'Upgrading…' : 'Go Premium'}
+              </button>
+              <button
+                onClick={() => setShowUpgrade(false)}
+                className="w-full mt-2 py-2 text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-white transition-colors"
+              >
+                Not now
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

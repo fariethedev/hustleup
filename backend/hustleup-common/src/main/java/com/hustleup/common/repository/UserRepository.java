@@ -82,4 +82,18 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * @return {@code true} if a user with that email exists, {@code false} otherwise
      */
     boolean existsByEmail(String email);
+
+    /**
+     * Case-insensitive username lookup, used for the sign-up availability check and to
+     * enforce uniqueness at registration.
+     *
+     * <p>Case-insensitive on purpose: "Sarah" and "sarah" reading as two different people
+     * is exactly the confusion a username is supposed to prevent, and it is a well-worn
+     * impersonation trick. The column's own UNIQUE constraint is case-sensitive in MySQL's
+     * default collation, so this check — not the constraint — is what actually stops it.
+     */
+    boolean existsByUsernameIgnoreCase(String username);
+
+    /** Resolves a profile by username, for /u/{username} style lookups. */
+    Optional<User> findByUsernameIgnoreCase(String username);
 }

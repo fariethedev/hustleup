@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectUser } from '../store/authSlice';
-import { LISTING_TYPES, formatPrice, convertToPLN } from '../utils/constants';
+import { LISTING_TYPES, formatPrice, convertToPLN, displayCity } from '../utils/constants';
 import { MapPin, Zap, BadgeCheck, ShoppingCart, Check, Star, HandCoins, Lock, Images } from 'lucide-react';
 import { addToCart, selectCartItems } from '../store/cartSlice';
 import { useState } from 'react';
@@ -109,11 +109,11 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                 <span className="text-[10px] text-gray-300 font-bold truncate">{listing.sellerName || 'Creator'}</span>
                 {listing.sellerVerified && <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
               </div>
-              {listing.locationCity && (
-                <span className="flex items-center gap-1 text-[9px] font-bold text-gray-500 uppercase tracking-wider shrink-0">
-                  <MapPin className="w-3 h-3 text-[#CDFF00]" /> {listing.locationCity}
-                </span>
-              )}
+              {/* Always rendered — a card with no location reads as incomplete next to one
+                  that has it. Listings with no city fall back to the country label. */}
+              <span className="flex items-center gap-1 text-[9px] font-bold text-gray-500 uppercase tracking-wider shrink-0">
+                <MapPin className="w-3 h-3 text-[#CDFF00]" /> {displayCity(listing.locationCity)}
+              </span>
             </div>
           </div>
         </Link>

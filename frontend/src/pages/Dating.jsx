@@ -1,53 +1,94 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { motion, useMotionValue, useTransform, useAnimationControls } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { datingApi, subscriptionsApi, dispatchToast } from '../api/client';
+import { isPremiumActive } from '../utils/premium';
 import {
-  Heart, X, Sparkles, MapPin, MessageCircle, User, Edit3, Camera,
-  ChevronRight, Crown, Users, Zap
+  Heart, X, Sparkles, MessageCircle, User, Camera, Crown, Users, Zap,
+  Star, RotateCcw,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
-import HeroBrief from '../components/HeroBrief';
+import BondCard from '../components/BondCard';
 import { formatPrice } from '../utils/constants';
 
 const getAvatar = (p) =>
   p?.imageUrl ||
+  p?.avatarUrl ||
   `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(p?.fullName || 'user')}`;
 
-// A subscription only counts as Premium if the plan is VERIFIED, the status
-// isn't cancelled/expired, and (when set) the expiry date hasn't passed yet.
-const isPremiumActive = (sub) => {
-  if (!sub || sub.plan !== 'VERIFIED') return false;
-  if (sub.status && sub.status !== 'ACTIVE') return false;
-  if (sub.expiresAt && new Date(sub.expiresAt).getTime() < Date.now()) return false;
-  return true;
-};
+const firstName = (p) => (p?.fullName || '').split(' ')[0] || 'them';
+
+// Swiping is a physical gesture, so it gets a physical response where the device has one.
+// Silently ignored on desktop and on iOS, neither of which expose the Vibration API.
+const buzz = (pattern) => { try { navigator.vibrate?.(pattern); } catch { /* unsupported */ } };
+
+// How far, or how fast, a drag has to go before releasing it counts as a decision.
+// Distance alone would force a long deliberate drag for every swipe; velocity alone would
+// fire on any twitch. Requiring either — past a small minimum travel — is what makes both
+// a lazy shove and a quick flick work, which is most of what "feels like Tinder" means.
+const SWIPE_DISTANCE = 110;
+const SWIPE_VELOCITY = 520;
+const MIN_TRAVEL = 45;
+const SUPER_DISTANCE = 130;
+const SUPER_VELOCITY = 600;
 
 // ── "It's a Match!" celebration ─────────────────────────────────────────────
-// Tinder's signature moment: a full-screen takeover with both avatars, shown once
-// per match instead of just a toast — so a match actually feels like an event.
-function MatchCelebrationModal({ currentUser, matchedProfile, onClose, onSendMessage }) {
+// A full-screen takeover with both avatars rather than a toast, so a match lands as an
+// event. Super likes get their own colourway — the whole point of spending one is that
+// the payoff looks different from an ordinary match.
+function MatchCelebrationModal({ currentUser, matchedProfile, superLike, onClose, onSendMessage }) {
+  const accent = superLike ? '#00E0FF' : '#CDFF00';
+
   return (
     <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+      {/* Hearts drifting up behind the card. Purely decorative, hence aria-hidden. */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        {[...Array(9)].map((_, i) => (
+          <motion.div
+            key={i}
+            initial={{ y: '105vh', opacity: 0, scale: 0.5 }}
+            animate={{ y: '-15vh', opacity: [0, 0.7, 0], scale: 1 }}
+            transition={{ duration: 3.5 + (i % 4) * 0.6, delay: i * 0.22, repeat: Infinity, ease: 'linear' }}
+            className="absolute"
+            style={{ left: `${8 + i * 10}%` }}
+          >
+            <Heart className="w-5 h-5" style={{ color: accent, fill: accent, opacity: 0.5 }} />
+          </motion.div>
+        ))}
+      </div>
+
       <motion.div
         initial={{ scale: 0.85, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', bounce: 0.4, duration: 0.6 }}
-        className="w-full max-w-sm text-center"
+        className="relative w-full max-w-sm text-center"
       >
         <motion.div
           initial={{ scale: 0, rotate: -20 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ delay: 0.15, type: 'spring', bounce: 0.6 }}
         >
-          <Heart className="w-14 h-14 text-[#CDFF00] fill-[#CDFF00] mx-auto mb-3 drop-shadow-[0_0_20px_rgba(205,255,0,0.4)]" />
+          {superLike ? (
+            <Star
+              className="w-14 h-14 mx-auto mb-3"
+              style={{ color: accent, fill: accent, filter: `drop-shadow(0 0 20px ${accent}66)` }}
+            />
+          ) : (
+            <Heart
+              className="w-14 h-14 mx-auto mb-3"
+              style={{ color: accent, fill: accent, filter: `drop-shadow(0 0 20px ${accent}66)` }}
+            />
+          )}
         </motion.div>
+
         <h1 className="text-4xl font-heading font-black text-white uppercase tracking-tight mb-2">
           It's a match!
         </h1>
         <p className="text-gray-400 text-sm mb-9">
-          You and {matchedProfile?.fullName} liked each other
+          {superLike
+            ? `${matchedProfile?.fullName} liked you back after your super like`
+            : `You and ${matchedProfile?.fullName} liked each other`}
         </p>
 
         <div className="relative flex items-center justify-center h-28 mb-10">
@@ -55,7 +96,8 @@ function MatchCelebrationModal({ currentUser, matchedProfile, onClose, onSendMes
             initial={{ x: 0, rotate: 0, opacity: 0 }}
             animate={{ x: -28, rotate: -8, opacity: 1 }}
             transition={{ delay: 0.3, type: 'spring' }}
-            className="absolute w-24 h-24 rounded-full border-4 border-[#CDFF00] overflow-hidden bg-black shadow-2xl"
+            className="absolute w-24 h-24 rounded-full border-4 overflow-hidden bg-black shadow-2xl"
+            style={{ borderColor: accent }}
           >
             <img src={getAvatar(currentUser)} className="w-full h-full object-cover" alt="" />
           </motion.div>
@@ -76,7 +118,8 @@ function MatchCelebrationModal({ currentUser, matchedProfile, onClose, onSendMes
 
         <button
           onClick={onSendMessage}
-          className="w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all mb-3 flex items-center justify-center gap-2"
+          className="w-full py-3.5 rounded-xl text-black font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all mb-3 flex items-center justify-center gap-2"
+          style={{ backgroundColor: accent }}
         >
           <MessageCircle className="w-4 h-4" /> Send a message
         </button>
@@ -92,12 +135,49 @@ function MatchCelebrationModal({ currentUser, matchedProfile, onClose, onSendMes
 }
 
 // ── Profile Setup Modal ─────────────────────────────────────────────────────
+
+const INTEREST_OPTIONS = [
+  'Music', 'Design', 'Fashion', 'Photography', 'Fitness', 'Food', 'Travel',
+  'Gaming', 'Startups', 'Marketing', 'Art', 'Coding', 'Film', 'Dancing',
+  'Coffee', 'Nightlife', 'Sports', 'Reading',
+];
+const MAX_INTERESTS = 5;
+
+const LOOKING_FOR_OPTIONS = ['Networking', 'Collaboration', 'Partnership', 'Mentorship', 'Friends', 'Dating'];
+const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Other'];
+const SHOW_ME_OPTIONS = ['Everyone', 'Men', 'Women'];
+
+/** A pill in a single- or multi-select row — the setup form's only input primitive. */
+function Chip({ label, selected, onClick, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={selected}
+      className={`px-3.5 py-2 rounded-full text-xs font-bold transition-all active:scale-95 border ${
+        selected
+          ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
+          : disabled
+            ? 'bg-white/[0.02] text-gray-600 border-white/5 cursor-not-allowed'
+            : 'bg-white/[0.04] text-gray-300 border-white/10 hover:border-white/30 hover:text-white'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
   const [bio, setBio] = useState(existing?.bio || '');
   const [age, setAge] = useState(existing?.age || '');
   const [location, setLocation] = useState(existing?.location || '');
   const [lookingFor, setLookingFor] = useState(existing?.lookingFor || 'Networking');
   const [gender, setGender] = useState(existing?.gender || '');
+  const [showMe, setShowMe] = useState(existing?.showMe || 'Everyone');
+  const [interests, setInterests] = useState(
+    (existing?.interests || '').split(',').map((i) => i.trim()).filter(Boolean)
+  );
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(existing?.imageUrl || currentUser?.avatarUrl || null);
   const [saving, setSaving] = useState(false);
@@ -110,6 +190,14 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
     setImagePreview(URL.createObjectURL(file));
   };
 
+  const toggleInterest = (tag) => {
+    setInterests((prev) =>
+      prev.includes(tag)
+        ? prev.filter((t) => t !== tag)
+        : prev.length >= MAX_INTERESTS ? prev : [...prev, tag]
+    );
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -119,6 +207,9 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
       if (location) fd.append('location', location);
       if (lookingFor) fd.append('lookingFor', lookingFor);
       if (gender) fd.append('gender', gender);
+      if (showMe) fd.append('showMe', showMe);
+      // Always sent, including when empty — that is how a user clears every interest.
+      fd.append('interests', interests.join(','));
       if (imageFile) fd.append('image', imageFile);
       await datingApi.saveProfile(fd);
       dispatchToast('Profile saved!', 'success');
@@ -157,7 +248,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
             <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Bio</label>
             <textarea
@@ -167,6 +258,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
               className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none h-24 focus:outline-none focus:border-[#CDFF00] transition-colors"
             />
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Age</label>
@@ -177,22 +269,54 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
               <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Warszawa" className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors" />
             </div>
           </div>
+
           <div>
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Looking for</label>
-            <select value={lookingFor} onChange={e => setLookingFor(e.target.value)} className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors appearance-none">
-              {['Networking', 'Collaboration', 'Partnership', 'Mentorship', 'Friends', 'Dating'].map(o => (
-                <option key={o} value={o}>{o}</option>
+            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Looking for</label>
+            <div className="flex flex-wrap gap-2">
+              {LOOKING_FOR_OPTIONS.map((o) => (
+                <Chip key={o} label={o} selected={lookingFor === o} onClick={() => setLookingFor(o)} />
               ))}
-            </select>
+            </div>
           </div>
+
           <div>
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Identity</label>
-            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors appearance-none">
-              <option value="">Prefer not to say</option>
-              {['Male', 'Female', 'Non-binary', 'Other'].map(o => (
-                <option key={o} value={o}>{o}</option>
+            <div className="flex items-baseline justify-between mb-2">
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Interests</label>
+              <span className="text-[10px] text-gray-500">{interests.length}/{MAX_INTERESTS}</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {INTEREST_OPTIONS.map((o) => {
+                const selected = interests.includes(o);
+                return (
+                  <Chip
+                    key={o}
+                    label={o}
+                    selected={selected}
+                    disabled={!selected && interests.length >= MAX_INTERESTS}
+                    onClick={() => toggleInterest(o)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Identity</label>
+            <div className="flex flex-wrap gap-2">
+              <Chip label="Prefer not to say" selected={gender === ''} onClick={() => setGender('')} />
+              {GENDER_OPTIONS.map((o) => (
+                <Chip key={o} label={o} selected={gender === o} onClick={() => setGender(o)} />
               ))}
-            </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Show me</label>
+            <div className="flex flex-wrap gap-2">
+              {SHOW_ME_OPTIONS.map((o) => (
+                <Chip key={o} label={o} selected={showMe === o} onClick={() => setShowMe(o)} />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -255,7 +379,74 @@ function PremiumPaywall({ onUpgrade, upgrading }) {
   );
 }
 
-// ── Main Dating Component ───────────────────────────────────────────────────
+// ── Deck furniture ───────────────────────────────────────────────────────────
+
+/**
+ * A card waiting its turn underneath the top one. Dimmed rather than blurred: seeing who is
+ * next is half of why the deck reads as a deck, and it makes the stack look deep instead of
+ * looking like a rendering artefact.
+ */
+function StackCard({ profile, style, className }) {
+  const fallback = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(profile.fullName || profile.id)}`;
+  return (
+    <motion.div style={style} className={`absolute inset-0 pointer-events-none ${className || ''}`}>
+      <div className="w-full h-full rounded-3xl overflow-hidden bg-[#0A0A0A] border border-white/10">
+        <img
+          src={profile.imageUrl || fallback}
+          alt=""
+          className="w-full h-full object-cover brightness-[0.4]"
+          onError={(e) => { e.target.onerror = null; e.target.src = fallback; }}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
+/**
+ * One of the round controls under the deck.
+ *
+ * @param {MotionValue} [glow] drag progress toward this button's gesture, 0→1. Wiring the
+ *        gesture into the buttons means the two ways to swipe teach each other: drag a little
+ *        to the right and the like button lights up, so its colour and its stamp are learned
+ *        as the same action.
+ */
+function ActionButton({ icon: Icon, label, onClick, disabled, color, glow, large, fill }) {
+  // Buttons with no gesture behind them (rewind) still need a motion value to read from, and
+  // a hook can't be called conditionally — so the fallback is created unconditionally.
+  const idle = useMotionValue(0);
+  const source = glow ?? idle;
+  const scale = useTransform(source, [0, 1], [1, 1.18]);
+  const haloOpacity = useTransform(source, [0, 1], [0, 0.4]);
+
+  const size = large ? 'w-14 h-14' : 'w-11 h-11';
+  const iconSize = large ? 'w-6 h-6' : 'w-5 h-5';
+
+  // The gesture-driven scale lives on the wrapper so the press-down scale can stay on the
+  // button itself; nesting them lets both apply instead of one overwriting the other.
+  return (
+    <motion.div style={{ scale }} className="relative">
+      <motion.span
+        aria-hidden="true"
+        className="absolute -inset-2 rounded-full pointer-events-none blur-lg"
+        style={{ backgroundColor: color, opacity: haloOpacity }}
+      />
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        title={label}
+        // Border and icon share the colour of the stamp its swipe reveals, so the button and
+        // the gesture read as the same action.
+        style={{ borderColor: color }}
+        className={`relative ${size} rounded-full bg-[#0E0E0E] border-2 flex items-center justify-center transition-transform active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100`}
+      >
+        <Icon className={iconSize} style={{ color, fill: fill ? color : 'none' }} />
+      </button>
+    </motion.div>
+  );
+}
+
+// ── Main Bond Component ─────────────────────────────────────────────────────
 export default function Dating() {
   const user = useSelector(selectUser);
   const isAuthenticated = useSelector(selectIsAuthenticated);
@@ -265,15 +456,36 @@ export default function Dating() {
   const [premium, setPremium] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
 
-  const [profiles, setProfiles] = useState([]);
+  const [deck, setDeck] = useState([]);
   const [myProfile, setMyProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showSetup, setShowSetup] = useState(false);
-  const [matchData, setMatchData] = useState(null); // the profile just matched with, or null
-  const [swipeDir, setSwipeDir] = useState(null);
-  const [dragX, setDragX] = useState(0);
-  const isDragging = useRef(false);
-  const dragStart = useRef(0);
+  const [match, setMatch] = useState(null); // { profile, superLike } | null
+
+  // The live gesture. Owned here rather than inside the card so the buttons, the card
+  // underneath, and the card being dragged can all read the same values without re-rendering.
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const controls = useAnimationControls();
+  // Locks input between committing to a swipe and the card leaving the screen, so a fast
+  // double-tap can't fire two decisions at the same profile.
+  const [busy, setBusy] = useState(false);
+  const [rewinding, setRewinding] = useState(false);
+  // Mirrors the top card's expanded state so the keyboard shortcuts don't swipe someone away
+  // while their profile is open and being read.
+  const [cardExpanded, setCardExpanded] = useState(false);
+
+  // Drag → deck feedback. The card underneath rises into place as the top card leaves, which
+  // is what stops the stack from looking like cards being deleted off a list.
+  const progress = useTransform([x, y], ([lx, ly]) => Math.min(Math.hypot(lx, ly) / 150, 1));
+  const nextScale = useTransform(progress, [0, 1], [0.94, 1]);
+  const nextY = useTransform(progress, [0, 1], [16, 0]);
+  const nextOpacity = useTransform(progress, [0, 1], [0.72, 1]);
+
+  // Drag → button feedback.
+  const likeGlow = useTransform(x, [40, SWIPE_DISTANCE], [0, 1]);
+  const nopeGlow = useTransform(x, [-40, -SWIPE_DISTANCE], [0, 1]);
+  const superGlow = useTransform(y, [-40, -SUPER_DISTANCE], [0, 1]);
 
   useEffect(() => {
     if (!isAuthenticated) { navigate('/login'); return; }
@@ -318,64 +530,144 @@ export default function Dating() {
         datingApi.getMyProfile().catch(() => ({ data: null })),
       ]);
       const all = profilesRes.data || [];
-      setProfiles(all.filter(p => p && String(p.id) !== String(user?.id)));
+      setDeck(all.filter(p => p && String(p.id) !== String(user?.id)));
       setMyProfile(myRes.data);
     } catch (e) {
       console.error(e);
-      setProfiles([]);
+      setDeck([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Persist the swipe so the profile never resurfaces, and surface a real match
-  // when both sides have liked each other. Previously this only updated local
-  // state — nothing was saved, so every reload reset the whole discovery stack.
-  const dismiss = (dir) => {
-    const target = profiles[0];
-    setSwipeDir(dir);
-    setTimeout(() => setSwipeDir(null), 350);
-    setTimeout(() => { setDragX(0); setProfiles(prev => prev.slice(1)); }, 350);
-    if (!target) return;
+  // Decode the next couple of photos while the current card is still being looked at, so a
+  // fast swiper never sees the card underneath pop in.
+  useEffect(() => {
+    deck.slice(1, 3).forEach((p) => {
+      if (p?.imageUrl) { const img = new Image(); img.src = p.imageUrl; }
+    });
+  }, [deck]);
 
-    if (dir === 'right') {
-      datingApi.like(target.id)
-        .then((res) => {
-          if (res.data?.matched) {
-            // Full-screen celebration instead of an immediate auto-navigate — the user
-            // chooses whether to message now or keep swiping (matches Tinder's flow).
-            setMatchData(target);
-          } else {
-            dispatchToast(`Liked ${target.fullName} — you'll be notified if it's mutual`, 'success');
-          }
-        })
-        .catch(() => {});
-    } else {
+  /**
+   * Commits to a swipe: flies the card off in the direction of the gesture, drops it from the
+   * deck, then tells the server. The animation is awaited but the request is not — a like that
+   * takes 300ms to acknowledge should never hold up the next card.
+   *
+   * @param {'like'|'pass'|'superlike'} action
+   */
+  const decide = useCallback(async (action) => {
+    const target = deck[0];
+    if (!target || busy) return;
+    setBusy(true);
+    buzz(action === 'pass' ? 8 : [12, 40, 12]);
+
+    const offX = (typeof window !== 'undefined' ? window.innerWidth : 900) + 240;
+    const offY = (typeof window !== 'undefined' ? window.innerHeight : 900) + 240;
+    // rotate is derived from x, so it is deliberately not animated here — driving it from two
+    // places at once would make the card snap upright as it leaves.
+    const flight =
+      action === 'like' ? { x: offX, y: -60 }
+        : action === 'pass' ? { x: -offX, y: -60 }
+          : { x: 0, y: -offY };
+
+    await controls.start({ ...flight, transition: { duration: 0.34, ease: [0.32, 0, 0.67, 0] } });
+
+    setDeck((d) => d.slice(1));
+    // Recentre for the card that takes its place. Framer flushes motion value writes on the
+    // next frame, by which point the flown card has already unmounted.
+    x.set(0);
+    y.set(0);
+    setBusy(false);
+
+    if (action === 'pass') {
       datingApi.pass(target.id).catch(() => {});
+      return;
     }
+
+    const superLike = action === 'superlike';
+    datingApi.like(target.id, superLike)
+      .then((res) => {
+        if (res.data?.matched) setMatch({ profile: target, superLike });
+        else if (superLike) dispatchToast(`Super liked ${firstName(target)} — they'll know right away`, 'success');
+      })
+      .catch(() => dispatchToast('Swipe failed to save — check your connection', 'error'));
+  }, [deck, busy, controls, x, y]);
+
+  /** Rules on a released drag, then either commits to it or springs the card back to centre. */
+  const handleDragEnd = (_event, info) => {
+    const { offset, velocity } = info;
+
+    const verticalGesture = Math.abs(offset.y) > Math.abs(offset.x);
+    if (verticalGesture && (offset.y < -SUPER_DISTANCE || (offset.y < -MIN_TRAVEL && velocity.y < -SUPER_VELOCITY))) {
+      decide('superlike');
+      return;
+    }
+    if (offset.x > SWIPE_DISTANCE || (offset.x > MIN_TRAVEL && velocity.x > SWIPE_VELOCITY)) {
+      decide('like');
+      return;
+    }
+    if (offset.x < -SWIPE_DISTANCE || (offset.x < -MIN_TRAVEL && velocity.x < -SWIPE_VELOCITY)) {
+      decide('pass');
+      return;
+    }
+    controls.start({ x: 0, y: 0, transition: { type: 'spring', stiffness: 400, damping: 32 } });
   };
 
-  const onDragStart = (e) => {
-    isDragging.current = true;
-    dragStart.current = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-  };
-  const onDragMove = (e) => {
-    if (!isDragging.current) return;
-    const x = (e.type === 'touchmove' ? e.touches[0].clientX : e.clientX) - dragStart.current;
-    setDragX(x);
-  };
-  const onDragEnd = () => {
-    isDragging.current = false;
-    if (dragX > 100) dismiss('right');
-    else if (dragX < -100) dismiss('left');
-    else setDragX(0);
-  };
+  /** Puts the last swipe back — the one action in the deck that undoes rather than decides. */
+  const rewind = useCallback(async () => {
+    if (rewinding || busy) return;
+    setRewinding(true);
+    try {
+      const res = await datingApi.rewind();
+      if (res.data?.rewound && res.data?.profile) {
+        buzz(8);
+        x.set(0);
+        y.set(0);
+        setDeck((d) => [res.data.profile, ...d]);
+      } else if (res.data?.reason === 'matched') {
+        dispatchToast("You can't undo a match", 'error');
+      } else {
+        dispatchToast('Nothing left to undo', 'info');
+      }
+    } catch {
+      dispatchToast('Could not undo that swipe', 'error');
+    } finally {
+      setRewinding(false);
+    }
+  }, [rewinding, busy, x, y]);
 
-  const top = profiles[0];
-  const next = profiles[1];
-  const rotate = dragX * 0.08;
-  const likeOpacity = Math.min(dragX / 80, 1);
-  const nopeOpacity = Math.min(-dragX / 80, 1);
+  // Arrow keys mirror the gesture for anyone on a desktop or using a keyboard, and 'z' is the
+  // usual undo. Bound to the window rather than the card so they work without focusing it.
+  useEffect(() => {
+    if (!premium || showSetup || match || cardExpanded) return;
+
+    const onKey = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Never steal a keystroke that belongs to a field the user is typing in.
+      if (e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+
+      const key = e.key.toLowerCase();
+      if (e.key === 'ArrowLeft') { e.preventDefault(); decide('pass'); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); decide('like'); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); decide('superlike'); }
+      else if (key === 'z') { e.preventDefault(); rewind(); }
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [premium, showSetup, match, cardExpanded, decide, rewind]);
+
+  const top = deck[0];
+  const second = deck[1];
+  const third = deck[2];
+
+  // Whatever the last card did on its way out, the one taking its place starts centred.
+  // useLayoutEffect rather than useEffect so this lands before the browser paints the new card.
+  useLayoutEffect(() => {
+    x.set(0);
+    y.set(0);
+    setCardExpanded(false);
+  }, [top?.id, x, y]);
 
   if (checkingAccess) return (
     <div className="h-[calc(100vh-8.5rem-env(safe-area-inset-bottom))] md:h-[calc(100vh-4rem)] flex items-center justify-center">
@@ -385,9 +677,37 @@ export default function Dating() {
 
   return (
     <div className="h-[calc(100vh-8.5rem-env(safe-area-inset-bottom))] md:h-[calc(100vh-4rem)] text-white font-sans flex flex-col overflow-hidden">
-      <div className="shrink-0">
-        <HeroBrief title="Hustle Bond" />
-      </div>
+      {/* Header: your profile, the section, your matches — the three places to go from here. */}
+      <header className="shrink-0 w-full max-w-sm mx-auto px-5 pt-3 pb-2.5 flex items-center justify-between">
+        <button
+          onClick={() => setShowSetup(true)}
+          aria-label={myProfile ? 'Edit your Bond profile' : 'Create your Bond profile'}
+          className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-white/15 hover:border-[#CDFF00]/60 transition-colors group"
+        >
+          <img
+            src={getAvatar(myProfile || user)}
+            alt=""
+            className="w-full h-full object-cover"
+            onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`; }}
+          />
+          <span className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <User className="w-4 h-4 text-[#CDFF00]" />
+          </span>
+        </button>
+
+        <h1 className="flex items-center gap-2 text-lg sm:text-xl font-heading font-black text-white tracking-tight uppercase">
+          <Heart className="w-4 h-4 text-[#CDFF00] fill-[#CDFF00]" />
+          Bond
+        </h1>
+
+        <Link
+          to="/dm"
+          aria-label="Messages"
+          className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-[#CDFF00] hover:border-[#CDFF00]/40 transition-colors"
+        >
+          <MessageCircle className="w-4 h-4" />
+        </Link>
+      </header>
 
       {!premium ? (
         <div className="flex-1 min-h-0 flex items-center justify-center">
@@ -398,158 +718,104 @@ export default function Dating() {
           <div className="w-8 h-8 border-2 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col w-full max-w-sm mx-auto px-4">
-          {/* Action Bar */}
-          <div className="shrink-0 mb-2 flex justify-center items-center gap-2">
+        <div className="flex-1 min-h-0 flex flex-col w-full max-w-sm mx-auto px-4 pb-2">
+          {/* Nudge to set up a profile — you are discoverable either way, but a card with a
+              photo and a bio is the difference between being swiped on and being skipped. */}
+          {!myProfile && (
             <button
               onClick={() => setShowSetup(true)}
-              className="px-3.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5"
+              className="shrink-0 mb-2.5 w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#CDFF00]/[0.07] border border-[#CDFF00]/25 hover:border-[#CDFF00]/50 transition-all text-left"
             >
-              <Edit3 className="w-3 h-3" />
-              {myProfile ? 'Edit profile' : 'Create profile'}
+              <Sparkles className="w-4 h-4 text-[#CDFF00] shrink-0" />
+              <span className="text-xs font-bold text-white">Finish your profile</span>
+              <span className="text-[10px] text-gray-400 ml-auto">You'll get swiped on more</span>
             </button>
-            <Link to="/dm" className="px-3.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-white uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5">
-              <MessageCircle className="w-3 h-3" />
-              Messages
-            </Link>
-          </div>
-
-          {/* Setup your profile CTA if not set up */}
-          {!myProfile && (
-            <div className="shrink-0 mb-2">
-              <button
-                onClick={() => setShowSetup(true)}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 hover:border-[#CDFF00]/40 transition-all group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-[#CDFF00]/10 flex items-center justify-center">
-                    <User className="w-3.5 h-3.5 text-[#CDFF00]" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs font-bold text-white">Set up your profile</p>
-                    <p className="text-[10px] text-gray-500">Required to start connecting</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-500 group-hover:translate-x-1 group-hover:text-[#CDFF00] transition-all" />
-              </button>
-            </div>
           )}
 
-          {/* Card stack */}
+          {/* ── The deck ──────────────────────────────────────────────────── */}
           <div className="relative flex-1 min-h-0">
-            {profiles.length === 0 ? (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-white/[0.02] border border-dashed border-white/10 rounded-2xl p-5 text-center">
-                <Sparkles className="w-8 h-8 text-gray-600 mb-3" />
-                <h3 className="text-sm font-bold text-white mb-1">No one new right now</h3>
-                <p className="text-xs text-gray-500 mb-3">
-                  No creatives found in your area yet.
+            {deck.length === 0 ? (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-white/[0.02] border border-dashed border-white/10 rounded-3xl p-6 text-center">
+                <div className="w-14 h-14 rounded-full bg-white/[0.04] flex items-center justify-center mb-4">
+                  <Sparkles className="w-6 h-6 text-gray-600" />
+                </div>
+                <h3 className="text-sm font-bold text-white mb-1">You're all caught up</h3>
+                <p className="text-xs text-gray-500 mb-5 max-w-[15rem] leading-relaxed">
+                  No one new to show right now. Widen who you're shown, or take back your last
+                  swipe with the undo button below.
                 </p>
                 <button
                   onClick={() => setShowSetup(true)}
-                  className="px-5 py-2 rounded-xl bg-[#CDFF00] text-black text-xs font-bold hover:bg-[#d9ff33] active:scale-95 transition-all"
+                  className="px-4 py-2 rounded-xl bg-[#CDFF00] text-black text-xs font-bold hover:bg-[#d9ff33] active:scale-95 transition-all"
                 >
-                  {myProfile ? 'Edit preferences' : 'Create profile'}
+                  {myProfile ? 'Preferences' : 'Create profile'}
                 </button>
               </div>
             ) : (
               <>
-                {next && (
-                  <div className="absolute inset-x-3 top-3 bottom-0 rounded-2xl overflow-hidden bg-black border border-white/10 scale-[0.94] opacity-50 pointer-events-none">
-                    <img src={getAvatar(next)} className="w-full h-full object-cover filter grayscale blur-[2px]" alt="" onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${next.id}`; }} />
-                  </div>
+                {third && (
+                  <StackCard profile={third} style={{ scale: 0.88, y: 32, opacity: 0.45 }} />
                 )}
-
-                <AnimatePresence>
-                  {top && (
-                    <motion.div
-                      key={top.id}
-                      className="absolute inset-x-0 top-0 bottom-0 cursor-grab active:cursor-grabbing"
-                      animate={{
-                        x: swipeDir === 'left' ? -400 : swipeDir === 'right' ? 400 : dragX,
-                        rotate: swipeDir ? (swipeDir === 'left' ? -18 : 18) : rotate,
-                        opacity: swipeDir ? 0 : 1,
-                      }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                      onMouseDown={onDragStart}
-                      onMouseMove={onDragMove}
-                      onMouseUp={onDragEnd}
-                      onMouseLeave={onDragEnd}
-                      onTouchStart={onDragStart}
-                      onTouchMove={onDragMove}
-                      onTouchEnd={onDragEnd}
-                    >
-                      <div className="w-full h-full rounded-2xl overflow-hidden bg-black border border-white/10 relative">
-                        <img
-                          src={getAvatar(top)}
-                          className="absolute inset-0 w-full h-full object-cover"
-                          alt={top.fullName}
-                          onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(top.fullName || top.id)}`; }}
-                          draggable={false}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
-
-                        {/* LIKE / PASS indicators */}
-                        <div className="absolute top-8 left-6 rounded-lg border-2 border-[#CDFF00] text-[#CDFF00] px-3 py-1 text-sm font-bold uppercase tracking-widest bg-black/40 backdrop-blur-sm"
-                          style={{ opacity: likeOpacity }}>Like</div>
-                        <div className="absolute top-8 right-6 rounded-lg border-2 border-red-400 text-red-400 px-3 py-1 text-sm font-bold uppercase tracking-widest bg-black/40 backdrop-blur-sm"
-                          style={{ opacity: nopeOpacity }}>Pass</div>
-
-                        <div className="absolute top-4 left-4">
-                          <span className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest">
-                            {top.lookingFor || 'Networking'}
-                          </span>
-                        </div>
-
-                        <div className="absolute bottom-0 left-0 right-0 p-4 pb-16">
-                          <h2 className="text-lg font-bold text-white leading-tight">
-                            {top.fullName}
-                            {top.age > 0 && <span className="text-gray-300 ml-2 font-semibold">{top.age}</span>}
-                          </h2>
-                          {top.location && (
-                            <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-300 mt-1">
-                              <MapPin className="w-3 h-3 text-[#CDFF00]" /> {top.location}
-                            </p>
-                          )}
-                          {top.bio && (
-                            <p className="text-xs text-gray-300 mt-1.5 line-clamp-1 leading-relaxed">{top.bio}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="absolute bottom-3 left-0 right-0 flex justify-center items-center gap-3">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); dismiss('left'); }}
-                          className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-gray-300 hover:text-red-400 hover:border-red-400/50 hover:scale-105 active:scale-95 transition-all"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); dismiss('right'); }}
-                          className="w-12 h-12 rounded-full bg-[#CDFF00] flex items-center justify-center text-black hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#CDFF00]/20"
-                        >
-                          <Heart className="w-5 h-5 fill-black" />
-                        </button>
-                        <Link
-                          to={`/dm/${top.id}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-gray-300 hover:text-[#00FFFF] hover:border-[#00FFFF]/50 hover:scale-105 active:scale-95 transition-all"
-                        >
-                          <MessageCircle className="w-5 h-5" />
-                        </Link>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {second && (
+                  <StackCard
+                    profile={second}
+                    style={{ scale: nextScale, y: nextY, opacity: nextOpacity }}
+                  />
+                )}
+                {top && (
+                  <BondCard
+                    key={top.id}
+                    profile={top}
+                    x={x}
+                    y={y}
+                    controls={controls}
+                    interactive={!busy}
+                    onDragEnd={handleDragEnd}
+                    onExpandChange={setCardExpanded}
+                  />
+                )}
               </>
             )}
           </div>
 
-          {profiles.length > 0 && (
-            <p className="shrink-0 mt-2 text-center text-[10px] text-gray-600 font-semibold uppercase tracking-[0.3em]">
-              ← Pass &nbsp;·&nbsp; Like →
-            </p>
-          )}
+          {/* ── Controls ──────────────────────────────────────────────────── */}
+          <div className="shrink-0 pt-4 flex justify-center items-center gap-3.5">
+            <ActionButton
+              icon={RotateCcw}
+              label="Undo last swipe"
+              color="#FFB800"
+              onClick={rewind}
+              disabled={rewinding || busy}
+            />
+            <ActionButton
+              icon={X}
+              label="Nope"
+              color="#FF4458"
+              glow={nopeGlow}
+              onClick={() => decide('pass')}
+              disabled={!top || busy}
+              large
+            />
+            <ActionButton
+              icon={Star}
+              label="Super like"
+              color="#00E0FF"
+              glow={superGlow}
+              onClick={() => decide('superlike')}
+              disabled={!top || busy}
+              fill
+            />
+            <ActionButton
+              icon={Heart}
+              label="Like"
+              color="#CDFF00"
+              glow={likeGlow}
+              onClick={() => decide('like')}
+              disabled={!top || busy}
+              large
+              fill
+            />
+          </div>
         </div>
       )}
 
@@ -562,12 +828,13 @@ export default function Dating() {
         />
       )}
 
-      {matchData && (
+      {match && (
         <MatchCelebrationModal
           currentUser={user}
-          matchedProfile={matchData}
-          onClose={() => setMatchData(null)}
-          onSendMessage={() => navigate(`/dm/${matchData.id}`)}
+          matchedProfile={match.profile}
+          superLike={match.superLike}
+          onClose={() => setMatch(null)}
+          onSendMessage={() => navigate(`/dm/${match.profile.id}`)}
         />
       )}
     </div>

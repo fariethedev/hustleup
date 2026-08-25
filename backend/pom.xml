@@ -35,7 +35,6 @@
         <stripe.version>28.3.0</stripe.version>
         <aws-sdk.version>2.26.31</aws-sdk.version>
         <sentry.version>7.14.0</sentry.version>
-        <resend.version>3.1.0</resend.version>
         <algolia.version>4.38.1</algolia.version>
     </properties>
 
@@ -90,13 +89,6 @@
                 <groupId>io.sentry</groupId>
                 <artifactId>sentry-spring-boot-starter-jakarta</artifactId>
                 <version>${sentry.version}</version>
-            </dependency>
-
-            <!-- Resend transactional email (hustleup-auth, hustleup-marketplace) -->
-            <dependency>
-                <groupId>com.resend</groupId>
-                <artifactId>resend-java</artifactId>
-                <version>${resend.version}</version>
             </dependency>
 
             <!-- Algolia search indexing (hustleup-marketplace) — v4 client, single artifact -->

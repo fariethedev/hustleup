@@ -4,7 +4,7 @@ import { Image as ImageIcon } from 'lucide-react';
 /**
  * An <img> that never renders as a broken image.
  *
- * Media on HustleUp can go missing for reasons outside the app's control — an upload that
+ * Media on HustleSpace can go missing for reasons outside the app's control — an upload that
  * didn't survive a server move, an S3 object whose presigned URL expired, a stock photo pulled
  * upstream. A plain `<img>` handles all of those the same way: the browser's broken-image
  * glyph, or (where a page hides the element on error) an unexplained empty hole in the layout.

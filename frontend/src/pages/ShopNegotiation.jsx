@@ -3,36 +3,47 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useDispatch } from 'react-redux';
 import { ArrowLeft, ArrowRight, HandCoins, MessageSquareText, ShoppingBag } from 'lucide-react';
+import SmartImage from '../components/SmartImage';
 import { formatPrice, convertToPLN } from '../utils/constants';
-import { getProductByShopAndProductId } from '../utils/shopData';
+import { useShopProduct, accentWash } from '../hooks/useShops';
 import { addToCart } from '../store/cartSlice';
 
 export default function ShopNegotiation() {
   const { id, productId } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const entry = getProductByShopAndProductId(id, productId);
+  const { shop, product, loading, notFound } = useShopProduct(id, productId);
   const [quantity, setQuantity] = useState(1);
   const [offer, setOffer] = useState('');
   const [notes, setNotes] = useState('');
 
-  const baseTotal = useMemo(() => {
-    if (!entry) return 0;
-    return Number(entry.product.price) * quantity;
-  }, [entry, quantity]);
+  const baseTotal = useMemo(
+    () => (product ? Number(product.price) * quantity : 0),
+    [product, quantity],
+  );
 
-  if (!entry) {
+  if (loading) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center px-4">
-        <div className="text-center">
-          <h2 className="text-2xl font-heading font-bold text-white mb-2">Product not found</h2>
-          <Link to="/" className="px-6 py-3 rounded-xl bg-[#CDFF00] text-black font-bold">Back home</Link>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="h-72 rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse" />
+          <div className="h-72 rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse" />
         </div>
       </div>
     );
   }
 
-  const { shop, product } = entry;
+  if (notFound) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="text-center">
+          <h2 className="text-2xl font-heading font-bold text-white mb-2">Product not found</h2>
+          <p className="text-sm text-gray-400 mb-5">The seller may have removed it from their shop.</p>
+          <Link to="/explore/shops" className="px-6 py-3 rounded-xl bg-[#CDFF00] text-black font-bold">Browse shops</Link>
+        </div>
+      </div>
+    );
+  }
 
   const continueToCheckout = () => {
     const unitPrice = offer ? Number(offer) : Number(product.price);
@@ -42,7 +53,7 @@ export default function ShopNegotiation() {
       price: convertToPLN(product.price, product.currency),
       negotiatedPrice: offer ? convertToPLN(unitPrice, product.currency) : undefined,
       currency: 'PLN',
-      emoji: product.image,
+      image: product.imageUrl,
       sellerId: `shop:${shop.id}`,
       sellerName: shop.name,
       quantity,
@@ -54,22 +65,32 @@ export default function ShopNegotiation() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <Link to={`/shop/${shop.id}`} className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white transition-colors mb-3">
+        <Link to={`/shop/${shop.slug || shop.id}`} className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white transition-colors mb-3">
           <ArrowLeft className="w-3.5 h-3.5" /> Back to {shop.name}
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           {/* Left: product summary */}
           <div className="rounded-2xl border border-white/10 bg-black/50 overflow-hidden">
-            <div className="h-36 flex items-center justify-center text-6xl" style={{ background: shop.accentBg }}>
-              {product.image}
+            <div className="h-36 overflow-hidden" style={{ background: accentWash(shop.accentColor) }}>
+              <SmartImage
+                src={product.imageUrl}
+                alt={product.name}
+                fallbackIcon={ShoppingBag}
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="p-4">
               <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-white" style={{ background: shop.accentColor }}>
-                  <ShoppingBag className="w-3 h-3" /> {product.category}
-                </span>
-                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">{shop.name}</span>
+                {product.category && (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-black"
+                    style={{ background: shop.accentColor || '#CDFF00' }}
+                  >
+                    <ShoppingBag className="w-3 h-3" /> {product.category}
+                  </span>
+                )}
+                <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-gray-500">{shop.name}</span>
               </div>
               <h1 className="text-lg sm:text-xl font-heading font-extrabold text-white leading-tight">{product.name}</h1>
               <p className="text-xs text-gray-400 leading-relaxed mt-1">

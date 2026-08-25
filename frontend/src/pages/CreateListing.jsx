@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated, selectIsSeller } from '../store/authSlice';
 import { listingsApi } from '../api/client';
-import { LISTING_TYPES, CURRENCIES } from '../utils/constants';
+import { LISTING_TYPES, CURRENCIES, POLISH_CITIES } from '../utils/constants';
 import { Lock, Image as ImageIcon, Check, X, ArrowRight, ArrowLeft, Play, CalendarClock } from 'lucide-react';
 import { isVideoUrl } from '../utils/media';
 
@@ -238,15 +238,37 @@ export default function CreateListing() {
                 </div>
               </button>
 
+              {/* City picker rather than free text: browse filters everything by Polish city,
+                  so a typo'd or blank city quietly drops the listing out of every city view. */}
               <div>
                 <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">City / Location</label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {POLISH_CITIES.slice(0, 6).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => set('city', c)}
+                      className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                        form.city === c
+                          ? 'bg-[#CDFF00] text-black'
+                          : 'bg-black border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="text"
+                  list="polish-cities"
                   value={form.city}
                   onChange={(e) => set('city', e.target.value)}
                   className="w-full px-5 py-4 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-bold"
-                  placeholder="e.g. Warszawa"
+                  placeholder="Pick or type a city, e.g. Warszawa"
                 />
+                <datalist id="polish-cities">
+                  {POLISH_CITIES.map((c) => <option key={c} value={c} />)}
+                </datalist>
               </div>
 
               <div className="flex gap-4 pt-4">

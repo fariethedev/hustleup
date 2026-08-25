@@ -1,7 +1,7 @@
 /**
  * Helpers for dealing with listing/post media that may be an image, a video, or missing.
  *
- * Media on HustleUp arrives from three places — files uploaded to the local `/uploads`
+ * Media on HustleSpace arrives from three places — files uploaded to the local `/uploads`
  * directory, S3/CDN URLs, and curated stock imagery — and any of them can be absent or dead.
  * Rather than sprinkling `?.[0] || null` and bare `<img>` tags across every page, everything
  * that renders media goes through these helpers and the `SmartImage` component.

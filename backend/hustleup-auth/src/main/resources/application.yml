@@ -1,4 +1,26 @@
 spring:
+  # ── SMTP (hustlespace.space mailbox hosting) ──────────────────────────────
+  # Host/credentials come from the environment so the mailbox password never lands
+  # in the repo. With MAIL_HOST unset, EmailService logs messages instead of sending,
+  # which is the intended local-development behaviour.
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_AUTH:true}
+          # STARTTLS on 587. For implicit TLS on 465 set MAIL_PORT=465 and
+          # MAIL_SSL_ENABLE=true (which flips the ssl.enable flag below).
+          starttls:
+            enable: ${MAIL_STARTTLS:true}
+          ssl:
+            enable: ${MAIL_SSL_ENABLE:false}
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
   application:
     name: hustleup-auth
   servlet:
@@ -41,10 +63,8 @@ app:
       bucket: ${AWS_S3_BUCKET:hustle-up}
   cdn:
     domain: ${CDN_DOMAIN:}
-  resend:
-    api-key: ${RESEND_API_KEY:}
   email:
-    from: ${EMAIL_FROM:HustleUp <notifications@hustleup.app>}
+    from: ${EMAIL_FROM:HustleSpace <notifications@hustlespace.space>}
   frontend:
     url: ${FRONTEND_URL:http://localhost:5173}
   google:

@@ -17,7 +17,7 @@ export default function Footer() {
               <div className="w-10 h-10 rounded-xl bg-[#D3FF37] flex items-center justify-center text-black font-heading font-black text-xl">
                 H
               </div>
-              <span className="text-2xl font-heading font-black text-white tracking-tighter">HustleUp.</span>
+              <span className="text-2xl font-heading font-black text-white tracking-tighter">HustleSpace.</span>
             </Link>
             <p className="text-gray-500 leading-relaxed max-w-sm mb-10 text-lg font-medium">
               The all-in-one platform where students buy, sell, find gigs and grow their hustle — built by students, for students.
@@ -67,7 +67,7 @@ export default function Footer() {
 
         {/* Copyright Line */}
         <div className="mt-24 pt-10 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 text-gray-600 font-bold text-sm">
-          <p>© {new Date().getFullYear()} HustleUp. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} HustleSpace. All rights reserved.</p>
           <div className="flex gap-8">
             <Link to="/privacy" className="hover:text-gray-400">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-gray-400">Terms of Service</Link>

@@ -1,36 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  ArrowRight, Store, ShoppingBag, Briefcase, Newspaper,
-  MessagesSquare, Users, Star, ShieldCheck, Sparkles, HeartHandshake
+  ArrowRight, Store, ShoppingBag, MapPin,
+  Star, ShieldCheck, Sparkles, HeartHandshake
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { listingsApi, bookingsApi } from '../api/client';
 import { useToast } from '../context/ToastContext';
-import { formatPrice } from '../utils/constants';
-import { SHOPS } from '../utils/shopData';
+import { formatPrice, displayCity } from '../utils/constants';
+import { useShops } from '../hooks/useShops';
+import SmartImage from '../components/SmartImage';
 
-// "12800" → "12.8K" for the shop follower counts.
-const formatFollowers = (n) =>
-  n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K` : `${n}`;
-
-const heroImages = {
-  main: 'https://images.unsplash.com/photo-1744320911030-1ab998d994d7?auto=format&fit=crop&w=900&q=80',
-  topRight: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=600&q=80',
-  bottomRight: 'https://images.unsplash.com/photo-1620829813573-7c9e1877706f?auto=format&fit=crop&w=600&q=80',
-};
+// The hero is a single full-bleed photograph, so one source at full-viewport width.
+const heroImage = 'https://images.unsplash.com/photo-1744320911030-1ab998d994d7?auto=format&fit=crop&w=2400&q=80';
 
 const aboutImage = 'https://images.unsplash.com/photo-1565703321618-2571b730ffe1?auto=format&fit=crop&w=1000&q=80';
 
 const features = [
-  { icon: ShoppingBag, title: 'Marketplace', desc: 'Buy and sell products, services and digital goods with fellow students — negotiate prices and pay securely.', to: '/explore', cta: 'Browse listings' },
-  { icon: Store, title: 'Student shops', desc: 'Follow your favourite campus shops, from fashion and beauty to food and electronics.', to: '/explore', cta: 'Discover shops' },
-  { icon: Briefcase, title: 'Jobs & gigs', desc: 'Find part-time jobs, side gigs and freelance work that fit around your studies.', to: '/jobs', cta: 'Find work' },
-  { icon: MessagesSquare, title: 'Messages', desc: 'Chat directly with buyers and sellers, negotiate deals and keep every conversation in one place.', to: '/dm', cta: 'Start chatting' },
-  { icon: Users, title: 'Community feed', desc: 'Share your wins, showcase your work and see what other hustlers are building.', to: '/feed', cta: 'Join the feed' },
-  { icon: Newspaper, title: 'Campus news', desc: 'Stay in the loop with news, events and opportunities that matter to students.', to: '/news', cta: 'Read the news' },
+  { title: 'Marketplace', desc: 'Buy and sell products, services and digital goods with fellow students — negotiate prices and pay securely.', to: '/explore', cta: 'Browse listings' },
+  { title: 'Student shops', desc: 'Follow your favourite campus shops, from fashion and beauty to food and electronics.', to: '/explore', cta: 'Discover shops' },
+  { title: 'Jobs & gigs', desc: 'Find part-time jobs, side gigs and freelance work that fit around your studies.', to: '/jobs', cta: 'Find work' },
+  { title: 'Messages', desc: 'Chat directly with buyers and sellers, negotiate deals and keep every conversation in one place.', to: '/dm', cta: 'Start chatting' },
+  { title: 'Community feed', desc: 'Share your wins, showcase your work and see what other hustlers are building.', to: '/feed', cta: 'Join the feed' },
+  { title: 'Campus news', desc: 'Stay in the loop with news, events and opportunities that matter to students.', to: '/news', cta: 'Read the news' },
 ];
 
 const steps = [
@@ -39,12 +33,107 @@ const steps = [
   { num: '3', title: 'Hustle & get paid', desc: 'Chat, negotiate, close deals and grow your reputation with every sale.' },
 ];
 
+/**
+ * The "what you can do" cards, as a horizontally scrolling row.
+ *
+ * Shows exactly three at a time on desktop and pages through the rest, so the section stays
+ * one screen tall instead of a six-card wall. Card widths are computed from the track width
+ * minus the gaps, which is what makes the third card land flush with the right edge rather
+ * than peeking.
+ */
+function FeatureCarousel() {
+  const trackRef = useRef(null);
+  // Arrows hide at the ends rather than sitting there as dead controls.
+  const [edges, setEdges] = useState({ start: true, end: false });
+
+  const syncEdges = useCallback(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    const start = el.scrollLeft <= 8;
+    const end = maxScroll <= 8 || el.scrollLeft >= maxScroll - 8;
+    // Return the previous object when nothing moved so React can bail out of the re-render.
+    setEdges((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
+  }, []);
+
+  useEffect(() => {
+    syncEdges();
+    window.addEventListener('resize', syncEdges);
+    return () => window.removeEventListener('resize', syncEdges);
+  }, [syncEdges]);
+
+  const page = (direction) => {
+    const el = trackRef.current;
+    if (!el) return;
+    // Scroll by a full visible width so each click advances one clean set of three.
+    el.scrollBy({ left: direction * el.clientWidth, behavior: 'smooth' });
+  };
+
+  return (
+    <div className="relative">
+      {!edges.start && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          onClick={() => page(-1)}
+          aria-label="Previous features"
+          className="hidden md:flex absolute -left-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-[#0A0A0A] border border-[#CDFF00]/40 items-center justify-center text-[#CDFF00] shadow-[0_4px_16px_rgba(0,0,0,0.7)] hover:bg-[#CDFF00] hover:text-black transition-colors"
+        >
+          <ArrowRight className="w-5 h-5 rotate-180" />
+        </motion.button>
+      )}
+      {!edges.end && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          onClick={() => page(1)}
+          aria-label="More features"
+          className="hidden md:flex absolute -right-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-[#0A0A0A] border border-[#CDFF00]/40 items-center justify-center text-[#CDFF00] shadow-[0_4px_16px_rgba(0,0,0,0.7)] hover:bg-[#CDFF00] hover:text-black transition-colors"
+        >
+          <ArrowRight className="w-5 h-5" />
+        </motion.button>
+      )}
+
+      <div
+        ref={trackRef}
+        onScroll={syncEdges}
+        className="flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2"
+      >
+        {features.map((feature, i) => (
+          <motion.div
+            key={feature.title}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-40px' }}
+            transition={{ duration: 0.5, delay: (i % 3) * 0.1 }}
+            // One card on mobile, two on tablet, three on desktop — each sized off the track
+            // width minus the gaps between the visible cards.
+            className="snap-start shrink-0 w-full sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)]"
+          >
+            <Link
+              to={feature.to}
+              className="group flex flex-col items-center text-center h-full p-7 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-[#CDFF00]/40 hover:bg-white/[0.05] transition-all"
+            >
+              <h3 className="text-white font-heading font-bold text-lg mb-3">{feature.title}</h3>
+              <p className="text-gray-400 text-sm leading-relaxed mb-5 flex-1">{feature.desc}</p>
+              <span className="inline-flex items-center gap-1.5 text-[#CDFF00] text-sm font-bold">
+                {feature.cta} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const location = useLocation();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [listings, setListings] = useState([]);
+  const { shops } = useShops();
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);
@@ -86,90 +175,70 @@ export default function Home() {
   return (
     <div className="min-h-screen font-sans">
 
-      {/* ── HERO ── */}
-      <section className="relative overflow-hidden pt-24 md:pt-32 pb-16 md:pb-24">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#CDFF00]/10 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute top-1/3 -right-32 w-96 h-96 bg-[#CDFF00]/5 rounded-full blur-[120px] pointer-events-none" />
+      {/* ── HERO — one full-bleed image, copy laid over it ── */}
+      <section className="relative h-[100svh] min-h-[560px] w-full overflow-hidden flex items-end">
+        {/* The photograph is the whole hero. 100svh (not 100vh) so mobile browser chrome
+            appearing and disappearing doesn't make the section jump height mid-scroll. */}
+        <img
+          src={heroImage}
+          alt="Students gathered together on their campus steps"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+          fetchPriority="high"
+        />
 
-        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        {/* Three scrims, each with a job: the vertical one fades the photo into the page
+            below, the vignette darkens the lower-centre where the copy sits, and the top band
+            gives the navbar a dark ground — it renders transparent until scrolled, so without
+            it the logo and icons float over open photograph. */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/55 to-[#050505]/25" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_78%,rgba(5,5,5,0.75)_0%,rgba(5,5,5,0.4)_50%,transparent_80%)]" />
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#050505]/90 to-transparent pointer-events-none" />
 
-          {/* Left — copy */}
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pb-20 md:pb-24">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.7 }}
+            className="max-w-2xl mx-auto text-center"
           >
-           
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-black text-white leading-[1.05] tracking-tight mb-6">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-black text-white leading-[1.08] tracking-tight mb-5 drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
               <span className="text-[#CDFF00]">Hustle</span> hard. Shop smart. Connect fast.
             </h1>
-            <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-lg mb-8">
-              HustleUp is the all-in-one platform for students across Poland and beyond
-              to sell what they make, find gigs that pay, discover shops and build a
-              community around their hustle all in Złoty.
+
+            <p className="text-gray-200 text-sm sm:text-base leading-relaxed max-w-xl mx-auto mb-8 drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]">
+              The all-in-one platform for students across Poland and beyond to sell what they
+              make, find gigs that pay, discover shops and build a community around their
+              hustle — all in Złoty.
             </p>
 
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-4">
               <Link
                 to={isAuthenticated ? '/dashboard' : '/register'}
-                className="px-7 py-3.5 rounded-full bg-[#CDFF00] text-black font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(205,255,0,0.2)] inline-flex items-center gap-2"
+                className="px-7 py-3.5 rounded-full bg-[#CDFF00] text-black font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(205,255,0,0.25)] inline-flex items-center gap-2"
               >
                 Join the community <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 to="/explore"
-                className="px-7 py-3.5 rounded-full border border-white/15 text-white font-bold text-sm hover:bg-white/5 hover:border-white/30 transition-all"
+                className="px-7 py-3.5 rounded-full border border-white/25 bg-black/30 backdrop-blur-sm text-white font-bold text-sm hover:bg-white/10 hover:border-white/40 transition-all"
               >
                 Explore the marketplace
               </Link>
             </div>
-          </motion.div>
 
-          {/* Right — image collage */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.15 }}
-            className="relative"
-          >
-            <div className="grid grid-cols-2 sm:grid-cols-5 grid-rows-[3fr_2fr] sm:grid-rows-2 gap-3 sm:gap-4 h-[360px] sm:h-[480px]">
-              <div className="col-span-2 sm:col-span-3 sm:row-span-2 rounded-3xl overflow-hidden border border-white/10 bg-white/5">
-                <img
-                  src={heroImages.main}
-                  alt="Five Black students smiling together on their campus steps"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="col-span-1 sm:col-span-2 rounded-3xl overflow-hidden border border-white/10 bg-white/5">
-                <img
-                  src={heroImages.topRight}
-                  alt="Two Black students working together at a laptop"
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-              <div className="col-span-1 sm:col-span-2 rounded-3xl overflow-hidden border border-white/10 bg-white/5">
-                <img
-                  src={heroImages.bottomRight}
-                  alt="A Black student focused on his laptop between classes"
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-            </div>
-
-            {/* Floating badge */}
-            <div className="absolute -bottom-4 left-6 flex items-center gap-3 px-5 py-3 rounded-2xl bg-black/80 border border-white/10 backdrop-blur-xl shadow-2xl">
-              <div className="w-9 h-9 rounded-xl bg-[#CDFF00] flex items-center justify-center">
+            {/* Trust line, carried over from the badge the old collage used to hold */}
+            <div className="mt-10 flex items-center justify-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#CDFF00] flex items-center justify-center shrink-0">
                 <Star className="w-4 h-4 text-black fill-black" />
               </div>
               <div>
                 <p className="text-white text-sm font-bold leading-tight">Trusted by students</p>
-                <p className="text-gray-400 text-xs">from Gdansk to Lublin</p>
+                <p className="text-gray-400 text-xs">from Gdańsk to Lublin</p>
               </div>
             </div>
           </motion.div>
         </div>
+
       </section>
 
       {/* ── FEATURES ── */}
@@ -181,40 +250,17 @@ export default function Home() {
               Everything you need to hustle in one place
             </h2>
             <p className="text-gray-400 leading-relaxed">
-              From selling your first product to landing your next job, HustleUp brings the
+              From selling your first product to landing your next job, HustleSpace brings the
               whole student economy together.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, i) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-40px' }}
-                transition={{ duration: 0.5, delay: (i % 3) * 0.1 }}
-              >
-                <Link
-                  to={feature.to}
-                  className="group flex flex-col h-full p-7 rounded-3xl bg-white/[0.03] border border-white/10 hover:border-[#CDFF00]/40 hover:bg-white/[0.05] transition-all"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/20 flex items-center justify-center mb-5 group-hover:bg-[#CDFF00] transition-colors">
-                    <feature.icon className="w-6 h-6 text-[#CDFF00] group-hover:text-black transition-colors" />
-                  </div>
-                  <h3 className="text-white font-heading font-bold text-lg mb-2">{feature.title}</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed mb-5 flex-1">{feature.desc}</p>
-                  <span className="inline-flex items-center gap-1.5 text-[#CDFF00] text-sm font-bold">
-                    {feature.cta} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </span>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
+          <FeatureCarousel />
         </div>
       </section>
 
-      {/* ── POPULAR SHOPS ── */}
+      {/* ── POPULAR SHOPS — hidden entirely until sellers have opened storefronts ── */}
+      {shops.length > 0 && (
       <section className="py-16 border-t border-white/5">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10">
@@ -224,7 +270,7 @@ export default function Home() {
 
           <div className="flex gap-6 sm:gap-8 overflow-x-auto scrollbar-hide pb-2 px-2 snap-x justify-start sm:justify-center"
                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            {[...SHOPS].sort((a, b) => b.followers - a.followers).map((shop, i) => (
+            {shops.slice(0, 8).map((shop, i) => (
               <motion.div
                 key={shop.id}
                 initial={{ opacity: 0, y: 16 }}
@@ -233,22 +279,28 @@ export default function Home() {
                 transition={{ delay: i * 0.05 }}
                 className="snap-start shrink-0"
               >
-                <Link to={`/shop/${shop.id}`} className="group flex flex-col items-center w-[104px] text-center">
-                  <div className="w-20 h-20 rounded-full p-[3px] transition-transform group-hover:scale-105 bg-gradient-to-br from-[#CDFF00] to-[#CDFF00]/30">
+                <Link to={`/shop/${shop.slug || shop.id}`} className="group flex flex-col items-center w-[104px] text-center">
+                  <div
+                    className="w-20 h-20 rounded-full p-[3px] transition-transform group-hover:scale-105"
+                    style={{ background: `linear-gradient(135deg, ${shop.accentColor || '#CDFF00'}, ${shop.accentColor || '#CDFF00'}4D)` }}
+                  >
                     <div className="w-full h-full rounded-full overflow-hidden border-2 border-[#050505] bg-black">
-                      <img src={shop.image} alt={shop.name} className="w-full h-full object-cover" loading="lazy" />
+                      <SmartImage src={shop.bannerUrl} alt={shop.name} fallbackIcon={Store} className="w-full h-full object-cover" />
                     </div>
                   </div>
                   <span className="mt-2.5 text-sm font-bold text-white leading-tight line-clamp-1 group-hover:text-[#CDFF00] transition-colors">
                     {shop.name}
                   </span>
-                  <span className="text-[11px] text-gray-500 line-clamp-1">{shop.category}</span>
+                  {shop.category && <span className="text-[11px] text-gray-500 line-clamp-1">{shop.category}</span>}
+                  <span className="flex items-center gap-1 text-[11px] text-gray-500 line-clamp-1">
+                    <MapPin className="w-2.5 h-2.5 text-[#CDFF00] shrink-0" /> {displayCity(shop.city)}
+                  </span>
                   <div className="flex items-center gap-2.5 mt-1 text-xs text-gray-400">
                     <span className="flex items-center gap-1">
-                      <Users className="w-3 h-3" /> {formatFollowers(shop.followers)}
+                      <ShoppingBag className="w-3 h-3" /> {shop.productCount ?? 0}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Star className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" /> {shop.rating.toFixed(1)}
+                      <Star className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" /> {shop.rating > 0 ? shop.rating.toFixed(1) : 'New'}
                     </span>
                   </div>
                 </Link>
@@ -257,6 +309,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── HAPPENING NOW (Events) ── */}
       {!eventsLoading && events.length > 0 && (
@@ -306,9 +359,9 @@ export default function Home() {
                       <Link to={`/listing/${event.id}`}>
                         <h4 className="text-sm font-bold text-white mb-1 line-clamp-1 hover:text-[#CDFF00] transition-colors">{event.title}</h4>
                       </Link>
-                      {event.locationCity && (
-                        <p className="text-xs text-gray-500 mb-3">{event.locationCity}</p>
-                      )}
+                      <p className="text-xs text-gray-500 mb-3 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-[#CDFF00]" /> {displayCity(event.locationCity)}
+                      </p>
                       <button
                         onClick={() => handleRequestJoin(event)}
                         disabled={requested}
@@ -464,18 +517,18 @@ export default function Home() {
             transition={{ duration: 0.6 }}
             className="order-1 lg:order-2"
           >
-            <p className="text-[#CDFF00] text-sm font-bold mb-3">About HustleUp</p>
+            <p className="text-[#CDFF00] text-sm font-bold mb-3">About HustleSpace</p>
             <h2 className="text-3xl sm:text-4xl font-heading font-black text-white tracking-tight mb-6">
               We believe every student has a hustle worth backing
             </h2>
             <p className="text-gray-400 leading-relaxed mb-5">
-              HustleUp started with a simple idea: Polish students are already selling, freelancing
+              HustleSpace started with a simple idea: Polish students are already selling, freelancing
               and side-hustling — they just need one trusted place to do it. We built a platform
               where you can open a shop, land gigs, trade with people you trust and grow a real
               income without leaving campus life behind.
             </p>
             <p className="text-gray-400 leading-relaxed mb-8">
-              Today, students from Warsaw to Kraków use HustleUp to turn skills into businesses,
+              Today, students from Warsaw to Kraków use HustleSpace to turn skills into businesses,
               connect with buyers and support each other's grind — all priced in Złoty.
             </p>
 
@@ -515,7 +568,7 @@ export default function Home() {
               Ready to start your hustle?
             </h2>
             <p className="text-black/70 text-base sm:text-lg font-medium mb-9 max-w-xl mx-auto relative">
-              Join students across Poland already buying, selling and building on HustleUp. It's free.
+              Join students across Poland already buying, selling and building on HustleSpace. It's free.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative">
               <Link

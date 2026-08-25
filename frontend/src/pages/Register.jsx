@@ -178,7 +178,7 @@ export default function Register() {
                 className="mt-0.5 accent-[#CDFF00] w-4 h-4 shrink-0"
               />
               <span className="min-w-0">
-                I agree to HustleUp's{' '}
+                I agree to HustleSpace's{' '}
                 <Link to="/terms" target="_blank" className="text-[#CDFF00] hover:underline">Terms &amp; Conditions</Link>{' '}
                 and{' '}
                 <Link to="/privacy" target="_blank" className="text-[#CDFF00] hover:underline">Privacy Policy</Link>.

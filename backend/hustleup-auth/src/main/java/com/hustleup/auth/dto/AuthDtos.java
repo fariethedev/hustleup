@@ -81,6 +81,17 @@ public class AuthDtos {
         @NotBlank(message = "Full name is required")
         private String fullName; // display name shown across the platform
 
+        // The public handle. Deliberately narrower than the display name: lowercase-safe,
+        // URL-safe and short enough to sit in a profile link. Letters, digits, underscore
+        // and dot only — no spaces or slashes, which would break /u/{username} routing,
+        // and no leading/trailing dot, which reads as a typo and enables lookalikes.
+        @NotBlank(message = "Username is required")
+        @Pattern(
+                regexp = "^(?![._])[A-Za-z0-9._]{3,20}(?<![._])$",
+                message = "Username must be 3–20 characters, using letters, numbers, dots or underscores, and cannot start or end with a dot or underscore"
+        )
+        private String username;
+
         // Phone is optional (no @NotBlank) — users may not want to provide it.
         private String phone; // optional contact phone number
 

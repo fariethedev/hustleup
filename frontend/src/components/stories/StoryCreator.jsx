@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Type, Image as ImageIcon, CheckCircle2, AlertCircle, Loader2, Video, ChevronRight } from 'lucide-react';
+import { X, Type, Image as ImageIcon, CheckCircle2, AlertCircle, Loader2, Video, ChevronRight, Crop } from 'lucide-react';
 import { storiesApi, dispatchToast } from '../../api/client';
+import ImageCropper from '../ImageCropper';
 import { lockBodyScroll } from '../../utils/lockBodyScroll';
 
 export default function StoryCreator({ onClose, onSuccess }) {
@@ -12,6 +13,10 @@ export default function StoryCreator({ onClose, onSuccess }) {
   const [mediaPreview, setMediaPreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  // The image awaiting framing. Stories render full-bleed 9:16 with object-cover, so an
+  // un-framed upload gets cropped by the viewer with no say from the author — the cropper
+  // opens automatically on select rather than hiding behind an optional button.
+  const [cropCandidate, setCropCandidate] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -33,6 +38,9 @@ export default function StoryCreator({ onClose, onSuccess }) {
     }
     setMediaFile(null);
     setMediaPreview(null);
+    // Switching story type mid-edit must also drop any half-finished framing, or the
+    // cropper would reopen over a photo the author has already abandoned.
+    setCropCandidate(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -64,11 +72,30 @@ export default function StoryCreator({ onClose, onSuccess }) {
       if (mediaPreview) {
         URL.revokeObjectURL(mediaPreview);
       }
-      setMediaFile(file);
-      const preview = URL.createObjectURL(file);
-      setMediaPreview(preview);
       setError(null);
+
+      if (file.type.startsWith('image/')) {
+        setCropCandidate(file);
+        return;
+      }
+
+      setMediaFile(file);
+      setMediaPreview(URL.createObjectURL(file));
     }
+  };
+
+  /** Commit the framed image as the story's media. */
+  const acceptCrop = (croppedFile) => {
+    if (mediaPreview) URL.revokeObjectURL(mediaPreview);
+    setMediaFile(croppedFile);
+    setMediaPreview(URL.createObjectURL(croppedFile));
+    setCropCandidate(null);
+  };
+
+  /** Backing out of the cropper leaves the previous media untouched. */
+  const cancelCrop = () => {
+    setCropCandidate(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = async () => {
@@ -99,9 +126,19 @@ export default function StoryCreator({ onClose, onSuccess }) {
       dispatchToast('Story posted successfully!', 'success');
       onSuccess();
     } catch (err) {
-      const errorMsg = err.response?.data?.message || 'Could not post story. Please try again.';
+      // Read both shapes: StoryController returns {message}, but anything caught by the
+      // shared GlobalExceptionHandler (e.g. a rejected upload type) returns {error}.
+      // Only checking `message` meant those failures showed the generic fallback and the
+      // real reason never reached the user.
+      const data = err.response?.data;
+      const errorMsg =
+        data?.message ||
+        data?.error ||
+        (err.response?.status
+          ? `Could not post story (server said ${err.response.status}).`
+          : 'Could not reach the server. Check your connection and try again.');
       setError(errorMsg);
-      console.error('Failed to create story:', err);
+      console.error('Failed to create story:', err.response?.status, data || err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -196,9 +233,21 @@ export default function StoryCreator({ onClose, onSuccess }) {
                         ) : (
                           <img src={mediaPreview} alt="Story preview" className="w-full h-full object-cover" />
                         )}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <span className="px-4 py-2 rounded-full bg-[#CDFF00] text-black font-bold text-xs">
-                            Change file
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                          {/* Re-frame the photo already chosen, without having to pick it
+                              again. stopPropagation keeps the parent's file-picker click
+                              from firing underneath. */}
+                          {storyType !== 'VIDEO' && mediaFile && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setCropCandidate(mediaFile); }}
+                              className="px-4 py-2 rounded-full bg-[#CDFF00] text-black font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-transform"
+                            >
+                              <Crop className="w-3.5 h-3.5" /> Adjust
+                            </button>
+                          )}
+                          <span className="px-4 py-2 rounded-full bg-white/15 border border-white/25 text-white font-bold text-xs">
+                            Change
                           </span>
                         </div>
                       </>
@@ -249,6 +298,17 @@ export default function StoryCreator({ onClose, onSuccess }) {
           </button>
         </div>
       </motion.div>
+
+      {/* Locked to 9:16 — that is the shape a story is actually viewed at, so letting the
+          author choose a different ratio here would just guarantee a re-crop on playback. */}
+      {cropCandidate && (
+        <ImageCropper
+          file={cropCandidate}
+          lockAspect={9 / 16}
+          onCancel={cancelCrop}
+          onApply={acceptCrop}
+        />
+      )}
     </motion.div>,
     document.body
   );

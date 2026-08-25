@@ -47,7 +47,7 @@ export default function Onboarding() {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
         <h1 className="text-2xl font-black text-white mb-2">You're all set!</h1>
-        <p className="text-gray-400 text-sm mb-6">Jump in and start exploring HustleUp.</p>
+        <p className="text-gray-400 text-sm mb-6">Jump in and start exploring HustleSpace.</p>
         <button
           onClick={() => navigate('/dashboard')}
           className="px-8 py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-95 transition-all"

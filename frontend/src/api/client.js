@@ -1,7 +1,9 @@
 import axios from 'axios';
+import { clearStoredSession } from '../utils/session';
+import { API_URL } from '../config';
 
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -40,22 +42,22 @@ api.interceptors.response.use(
       const refreshToken = localStorage.getItem('hustleup_refresh');
       if (refreshToken) {
         try {
-          const res = await axios.post('/api/v1/auth/refresh', { refreshToken });
+          // Raw axios (not the `api` instance) to avoid recursing through this same
+          // interceptor — so it needs the absolute base spelled out, since it does not
+          // inherit baseURL.
+          const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
           const newToken = res.data.accessToken;
           localStorage.setItem('hustleup_token', newToken);
           original.headers.Authorization = `Bearer ${newToken}`;
           return api(original);
         } catch {
           // Refresh failed — clear session and redirect to login
-          localStorage.removeItem('hustleup_token');
-          localStorage.removeItem('hustleup_refresh');
-          localStorage.removeItem('hustleup_user');
+          clearStoredSession();
           window.location.href = '/login';
         }
       } else {
         // No refresh token either — clear and redirect
-        localStorage.removeItem('hustleup_token');
-        localStorage.removeItem('hustleup_user');
+        clearStoredSession();
         window.location.href = '/login';
       }
     }
@@ -94,6 +96,31 @@ export const listingsApi = {
   mySaved: () => api.get('/listings/saved/me'),
 };
 
+// Seller storefronts. Every field on a shop card and shop page is owned by the seller who
+// created it — these endpoints are the only way shops exist, there is no static shop data.
+// Reads are public; every write is ownership-checked server-side in ShopController.
+export const shopsApi = {
+  browse: () => api.get('/shops'),
+  // Accepts a UUID or the readable slug.
+  getById: (idOrSlug) => api.get(`/shops/${idOrSlug}`),
+  // 204 (res.data === '') when the seller hasn't created a shop yet — a normal state.
+  mine: () => api.get('/shops/me'),
+  create: (data) => api.post('/shops', data),
+  update: (id, data) => api.patch(`/shops/${id}`, data),
+  remove: (id) => api.delete(`/shops/${id}`),
+  // Shared by the banner and product photos; returns { url }.
+  uploadMedia: (id, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/shops/${id}/media`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  addProduct: (id, data) => api.post(`/shops/${id}/products`, data),
+  updateProduct: (id, productId, data) => api.patch(`/shops/${id}/products/${productId}`, data),
+  removeProduct: (id, productId) => api.delete(`/shops/${id}/products/${productId}`),
+};
+
 // Bookings
 export const bookingsApi = {
   create: (data) => api.post('/bookings', data),
@@ -105,6 +132,14 @@ export const bookingsApi = {
   my: () => api.get('/bookings/my'),
   // Returns a Stripe-hosted checkout URL for the buyer to pay for a BOOKED booking.
   checkoutSession: (id) => api.post(`/bookings/${id}/checkout-session`),
+  /**
+   * Cart checkout: creates a booking per line and returns ONE Stripe Checkout URL
+   * covering all instantly-purchasable items.
+   * items: [{ listingId, quantity?, scheduledAt? }]
+   * → { url, paidBookingIds, awaitingApproval }
+   * `url` is null when every item needs seller approval first.
+   */
+  cartCheckout: (items) => api.post('/bookings/checkout', { items }),
 };
 
 // Digital event tickets. There is no create() here on purpose — tickets are issued by the
@@ -127,7 +162,7 @@ export const ticketsApi = {
 };
 
 // Seller payout accounts (Stripe Connect). Sellers connect a bank account once via
-// Stripe's own hosted onboarding form — HustleUp never sees or stores the actual bank
+// Stripe's own hosted onboarding form — HustleSpace never sees or stores the actual bank
 // details, only the resulting account status.
 export const payoutsApi = {
   status: () => api.get('/payouts/status'),
@@ -150,6 +185,11 @@ export const messagesApi = {
 
 export const directMessagesApi = {
   getPartners: () => api.get('/direct-messages/partners'),
+  // Total messages received but not opened, across all conversations → { count }.
+  // Cheap enough for the navbar to poll from any page.
+  unreadCount: () => api.get('/direct-messages/unread-count'),
+  // Note: fetching a conversation also marks it read server-side — opening the
+  // chat IS the read signal, so there's no separate "mark read" call.
   getConversation: (partnerId) => api.get(`/direct-messages/${partnerId}`),
   sendMessage: (partnerId, content, type = 'TEXT') => api.post(`/direct-messages/${partnerId}`, { content, type }),
   sendImage: (partnerId, file, caption = '') => {
@@ -180,6 +220,17 @@ export const directMessagesApi = {
     postAuthorName: post.authorName || '',
     postAuthorAvatar: post.authorAvatarUrl || post.authorAvatar || '',
     postAuthorId: post.authorId || '',
+  }),
+  // In-app share: sends a story card into the DM thread. The media URL and author are
+  // snapshotted server-side, so the card still renders after the story expires in 24h.
+  shareStory: (partnerId, story, message = '') => api.post(`/direct-messages/${partnerId}`, {
+    content: message,
+    type: 'STORY',
+    storyId: story.id,
+    storyImage: story.mediaUrl || '',
+    storyType: story.type || 'IMAGE',
+    storyAuthorName: story.authorName || '',
+    storyAuthorId: story.authorId || '',
   }),
   // Whether this conversation started from a mutual Bond match — used to show the heart
   // badge for partners with zero messages yet (the /partners list only covers people
@@ -254,13 +305,19 @@ export const followsApi = {
   report: (userId, reason) => api.post(`/follows/${userId}/report`, { reason }),
 };
 
-// Dating
+// Dating — the swipe deck behind Hustle Bond.
 export const datingApi = {
   getProfiles: () => api.get('/dating/profiles'),
   getMyProfile: () => api.get('/dating/profile/me'),
   saveProfile: (formData) => api.post('/dating/profile', formData),
-  like: (profileId) => api.post(`/dating/like/${profileId}`),
+  // A super like is the same right swipe with `superLike` set: it notifies the
+  // recipient immediately instead of staying private until the like is mutual.
+  like: (profileId, superLike = false) =>
+    api.post(`/dating/like/${profileId}`, null, { params: { superLike } }),
   pass: (profileId) => api.post(`/dating/pass/${profileId}`),
+  // Undoes the last swipe and returns the profile to put back on the deck.
+  // Resolves with { rewound: false, reason } when there is nothing to undo.
+  rewind: () => api.post('/dating/rewind'),
 };
 
 // Subscriptions
@@ -277,6 +334,9 @@ export const storiesApi = {
   like: (id) => api.post(`/stories/${id}/likes`),
   unlike: (id) => api.delete(`/stories/${id}/likes`),
   view: (id) => api.post(`/stories/${id}/views`),
+  // Who watched this story, newest first. Author-only server-side — a non-author
+  // gets 403, so callers should only render this for the current user's own stories.
+  viewers: (id) => api.get(`/stories/${id}/views`),
 };
 
 // Swap Mode — barter offers against listings. A swap is a negotiation whose counter-offer
@@ -302,6 +362,98 @@ export const leaderboardApi = {
     api.get('/leaderboard', { params: { metric, window, limit } }),
   myScore: () => api.get('/leaderboard/me'),
   scoreFor: (userId) => api.get(`/leaderboard/user/${userId}`),
+};
+
+// ── Publishers ──────────────────────────────────────────────────────────────
+// Becoming a verified hiring company (may post jobs) or news outlet (may publish
+// articles). Applications are reviewed by an admin; only APPROVED grants posting.
+export const publishersApi = {
+  /**
+   * Apply for verification. `data` is a plain object; it is packed into FormData here
+   * because the logo and supporting document upload with the form.
+   * Fields: type ('HIRING_COMPANY' | 'NEWS_OUTLET'), companyName, registrationNumber,
+   * website, description, contactEmail, contactPhone, logo (File), document (File).
+   */
+  apply: (data) => {
+    const fd = new FormData();
+    Object.entries(data).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') fd.append(k, v);
+    });
+    return api.post('/publishers/apply', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  // My applications + { canPostJobs, canPostNews, isAdmin }. The UI reads the booleans
+  // rather than re-deriving the rule client-side, so it can never drift from the server.
+  me: () => api.get('/publishers/me'),
+  // Public directory of verified publishers of one type.
+  directory: (type) => api.get('/publishers', { params: { type } }),
+};
+
+// ── Jobs & Gigs ─────────────────────────────────────────────────────────────
+export const jobsApi = {
+  board: (params = {}) => api.get('/jobs', { params }),
+  one: (id) => api.get(`/jobs/${id}`),
+  mine: () => api.get('/jobs/mine'),
+  /** Post an advert. `data.media` may be a File[]; everything else is scalar. */
+  create: (data) => {
+    const fd = new FormData();
+    Object.entries(data).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === '') return;
+      if (k === 'media' && Array.isArray(v)) v.forEach((f) => fd.append('media', f));
+      else fd.append(k, v);
+    });
+    return api.post('/jobs', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  setStatus: (id, status) => api.patch(`/jobs/${id}/status`, { status }),
+  apply: (id, { message, attachment } = {}) => {
+    const fd = new FormData();
+    if (message) fd.append('message', message);
+    if (attachment) fd.append('attachment', attachment);
+    return api.post(`/jobs/${id}/apply`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  // Applicants on one of my adverts (owner only).
+  applications: (id) => api.get(`/jobs/${id}/applications`),
+  myApplications: () => api.get('/jobs/applications/mine'),
+  updateApplication: (applicationId, status) =>
+    api.patch(`/jobs/applications/${applicationId}`, { status }),
+};
+
+// ── News ────────────────────────────────────────────────────────────────────
+export const newsApi = {
+  feed: (params = {}) => api.get('/news', { params }),
+  one: (id) => api.get(`/news/${id}`),
+  mine: () => api.get('/news/mine'),
+  /** Publish an article. `data.coverImage` is a File; `data.media` may be a File[]. */
+  create: (data) => {
+    const fd = new FormData();
+    Object.entries(data).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === '') return;
+      if (k === 'media' && Array.isArray(v)) v.forEach((f) => fd.append('media', f));
+      else fd.append(k, v);
+    });
+    return api.post('/news', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  setStatus: (id, status) => api.patch(`/news/${id}/status`, { status }),
+};
+
+// ── Admin console ───────────────────────────────────────────────────────────
+// Every call here requires ROLE_ADMIN; the gateway splits these across the auth and
+// marketplace services, but that is invisible from the client.
+export const adminApi = {
+  stats: () => api.get('/admin/stats'),
+  marketplaceStats: () => api.get('/admin/marketplace-stats'),
+  // status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'ALL'
+  publishers: (status = 'PENDING') => api.get('/admin/publishers', { params: { status } }),
+  decide: (id, status, note) => api.patch(`/admin/publishers/${id}/decision`, { status, note }),
+  users: (q = '') => api.get('/admin/users', { params: { q } }),
+  user: (id) => api.get(`/admin/users/${id}`),
+  updateUser: (id, patch) => api.patch(`/admin/users/${id}`, patch),
+  orders: (params = {}) => api.get('/admin/orders', { params }),
+  fixOrder: (id, patch) => api.patch(`/admin/orders/${id}`, patch),
+  jobs: () => api.get('/admin/jobs'),
 };
 
 export default api;

@@ -11,11 +11,13 @@ import { formatPrice } from '../utils/constants';
 // only offering an OS share sheet. Defaults the pick list to people you already have a DM
 // thread with; typing a name also searches everyone else on the platform.
 //
-// type: 'listing' | 'post' — a marketplace listing has a real page to copy-link to
-// (its own URL IS the listing's page); a feed post doesn't have a dedicated single-post
-// route in this app, so the "Copy link" option is only shown for listings.
+// type: 'listing' | 'post' | 'story' — a marketplace listing has a real page to
+// copy-link to (its own URL IS the listing's page); a feed post doesn't have a dedicated
+// single-post route in this app, and a story is ephemeral with no route at all, so the
+// "Copy link" option is only shown for listings.
 export default function ShareModal({ type, item, onClose }) {
   const isListing = type === 'listing';
+  const isStory = type === 'story';
   const currentUser = useSelector(selectUser);
   const { showToast } = useToast();
   const [contacts, setContacts] = useState([]);
@@ -64,6 +66,7 @@ export default function ShareModal({ type, item, onClose }) {
     setBusyId(person.id);
     try {
       if (isListing) await directMessagesApi.shareListing(person.id, item);
+      else if (isStory) await directMessagesApi.shareStory(person.id, item);
       else await directMessagesApi.sharePost(person.id, item);
       setSentIds((prev) => new Set(prev).add(person.id));
       showToast(`Sent to ${person.name || person.fullName}`, 'success');
@@ -85,9 +88,20 @@ export default function ShareModal({ type, item, onClose }) {
     }
   };
 
-  const thumb = isListing ? (item?.mediaUrls?.[0] || item?.image) : (item?.media?.[0]?.url || item?.imageUrl);
-  const title = isListing ? item?.title : (item?.content || 'Post');
+  const thumb = isListing
+    ? (item?.mediaUrls?.[0] || item?.image)
+    : isStory
+      ? item?.mediaUrl                                   // null for a TEXT story
+      : (item?.media?.[0]?.url || item?.imageUrl);
+  const title = isListing
+    ? item?.title
+    : isStory
+      // A TEXT story has no media, so its words are the only preview available.
+      ? (item?.content || `${item?.type === 'VIDEO' ? 'Video' : 'Photo'} story`)
+      : (item?.content || 'Post');
   const postByLine = !isListing && item?.authorName ? `by ${item.authorName}` : null;
+  const heading = isListing ? 'Share listing' : isStory ? 'Share story' : 'Share post';
+  const placeholderGlyph = isListing ? '🛍️' : isStory ? '✨' : '📤';
 
   return (
     <div className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center">
@@ -102,7 +116,7 @@ export default function ShareModal({ type, item, onClose }) {
       >
         {/* Header */}
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
-          <h2 className="text-base font-bold text-white">{isListing ? 'Share listing' : 'Share post'}</h2>
+          <h2 className="text-base font-bold text-white">{heading}</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
             <X className="w-5 h-5" />
           </button>
@@ -111,7 +125,12 @@ export default function ShareModal({ type, item, onClose }) {
         {/* What you're sharing */}
         <div className="px-5 pt-4 flex items-center gap-3 shrink-0">
           <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 border border-white/10 shrink-0 flex items-center justify-center text-2xl">
-            {thumb ? <img src={thumb} alt="" className="w-full h-full object-cover" /> : (isListing ? '🛍️' : '📤')}
+            {thumb
+              ? (isStory && item?.type === 'VIDEO'
+                  // A video story's mediaUrl is a video file — <img> would render broken.
+                  ? <video src={thumb} className="w-full h-full object-cover" muted playsInline />
+                  : <img src={thumb} alt="" className="w-full h-full object-cover" />)
+              : placeholderGlyph}
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-white truncate">{title}</p>

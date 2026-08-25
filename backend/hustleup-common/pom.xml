@@ -58,10 +58,11 @@
             <artifactId>s3</artifactId>
         </dependency>
 
-        <!-- Resend transactional email — EmailService lives here so any service can send email -->
+        <!-- SMTP transactional email — EmailService lives here so any service can send email.
+             Managed by the Spring Boot BOM, so no explicit version. -->
         <dependency>
-            <groupId>com.resend</groupId>
-            <artifactId>resend-java</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
     </dependencies>
 </project>

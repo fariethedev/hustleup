@@ -5,6 +5,9 @@ import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
 import Home from './pages/Home';
 import Explore from './pages/Explore';
+import ExploreListings from './pages/ExploreListings';
+import ExploreShops from './pages/ExploreShops';
+import ExploreCreators from './pages/ExploreCreators';
 import ListingDetail from './pages/ListingDetail';
 import CreateListing from './pages/CreateListing';
 import Login from './pages/Login';
@@ -23,6 +26,8 @@ import Dating from './pages/Dating';
 import DirectMessages from './pages/DirectMessages';
 import Jobs from './pages/Jobs';
 import News from './pages/News';
+import PublisherApply from './pages/PublisherApply';
+import Admin from './pages/Admin';
 import Swaps from './pages/Swaps';
 import Leaderboard from './pages/Leaderboard';
 import ShopDetail from './pages/ShopDetail';
@@ -71,6 +76,10 @@ export default function App() {
 
           {/* Publicly Browseable */}
           <Route path="/explore" element={<Explore />} />
+          {/* Full collections behind each "View all" on the Explore overview. */}
+          <Route path="/explore/listings" element={<ExploreListings />} />
+          <Route path="/explore/shops" element={<ExploreShops />} />
+          <Route path="/explore/creators" element={<ExploreCreators />} />
           <Route path="/listing/:id" element={<ListingDetail />} />
           <Route path="/profile/:id" element={<Profile />} />
           <Route path="/feed" element={<ErrorBoundary><Feed /></ErrorBoundary>} />
@@ -100,6 +109,11 @@ export default function App() {
             <Route path="/dating" element={<Dating />} />
             <Route path="/jobs" element={<Jobs />} />
             <Route path="/news" element={<News />} />
+            {/* Apply to become a verified hiring company or news outlet. */}
+            <Route path="/publisher/apply" element={<PublisherApply />} />
+            {/* Admin console. The component redirects a non-admin, but the real gate is
+                server-side: /api/v1/admin/** requires ROLE_ADMIN. */}
+            <Route path="/admin" element={<Admin />} />
             <Route path="/swaps" element={<Swaps />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
-
-const CART_KEY = 'hustleup_cart';
+import { logout } from './authSlice';
+import { CART_KEY } from '../utils/session';
 
 const loadSaved = () => {
   try {
@@ -55,6 +55,14 @@ const cartSlice = createSlice({
     closeCart(state) {
       state.open = false;
     },
+  },
+  extraReducers: (builder) => {
+    // A basket belongs to the person who filled it. Signing out has to empty the live store
+    // too, not just storage: without this the drawer keeps showing the previous user's items
+    // until something forces a full page reload, and whoever signs in next inherits them.
+    // Returning a literal rather than the slice's initialState matters — initialState was
+    // read from localStorage when the module loaded, so it still holds the old items.
+    builder.addCase(logout, () => ({ items: [], open: false }));
   },
 });
 

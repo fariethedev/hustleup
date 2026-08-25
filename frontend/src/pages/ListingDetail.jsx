@@ -605,7 +605,7 @@ export default function ListingDetail() {
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">
-                      {listing.reviewCount > 0 ? `${listing.reviewCount} reviews` : 'Seller on HustleUp'}
+                      {listing.reviewCount > 0 ? `${listing.reviewCount} reviews` : 'Seller on HustleSpace'}
                     </span>
                     <DistanceBadge lat={seller?.latitude} lng={seller?.longitude} />
                   </div>

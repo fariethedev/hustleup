@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { bookingsApi, messagesApi } from '../api/client';
 import { Client } from '@stomp/stompjs';
+import { WS_URL } from '../config';
 import { MessageSquareOff, Send, User, ChevronLeft, Zap, Terminal, Signal, Shield, Info } from 'lucide-react';
 
 export default function Messages() {
@@ -38,7 +39,7 @@ export default function Messages() {
     // WebSocket connection
     try {
       const client = new Client({
-        brokerURL: `ws://${window.location.host}/ws`,
+        brokerURL: WS_URL,
         onConnect: () => {
           client.subscribe(`/topic/booking/${activeBooking}`, (msg) => {
             const data = JSON.parse(msg.body);

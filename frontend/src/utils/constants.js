@@ -26,10 +26,30 @@ export const POLISH_CITIES = [
   'Gdynia', 'Toruń', 'Rzeszów', 'Bydgoszcz', 'Olsztyn',
 ];
 
+/**
+ * Shown in place of a city on records that never had one set. HustleSpace's market is Poland,
+ * so a location chip always reads as somewhere in Poland — but we deliberately do NOT
+ * invent a specific city for a real seller who left the field blank, since a made-up
+ * "Kraków" on someone's listing is worse than an honest country-level label.
+ */
+export const DEFAULT_REGION = 'Polska';
+
+/**
+ * The location label for a card. Every listing/shop/creator card renders one, so browsing
+ * never shows a card with no sense of where it is.
+ *
+ * @param {string} [city] the record's own city, if it has one
+ * @returns {string} the city, or the country-level fallback
+ */
+export function displayCity(city) {
+  const trimmed = typeof city === 'string' ? city.trim() : '';
+  return trimmed || DEFAULT_REGION;
+}
+
 // Approximate fixed exchange rates used only to keep cart totals arithmetically
 // correct when items from different shops/listings are combined in one cart —
 // not a live FX feed, this app has no real payment processing behind it.
-// PLN is HustleUp's base/overall currency (Poland is the primary market).
+// PLN is HustleSpace's base/overall currency (Poland is the primary market).
 const FX_TO_PLN = { PLN: 1, GBP: 5, EUR: 4.3, USD: 3.95 };
 
 export function convertToPLN(amount, currency = 'PLN') {

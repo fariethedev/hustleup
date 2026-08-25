@@ -53,6 +53,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -60,6 +61,17 @@ import java.util.stream.Collectors;
 // Spring creates a single instance (singleton scope) and injects it wherever needed.
 @Service
 public class BookingService {
+
+    /**
+     * Listing types bought outright rather than negotiated.
+     *
+     * <p>These confirm to BOOKED the moment the buyer commits, so checkout can go straight
+     * to payment. Services are deliberately absent: a haircut or a freelance job needs the
+     * seller to agree scope and timing first, so those keep the INQUIRED → accept → pay
+     * flow. EVENT and appointment slots are already handled by their own earlier branches.
+     */
+    private static final java.util.Set<ListingType> INSTANT_PURCHASE_TYPES =
+            java.util.Set.of(ListingType.GOODS, ListingType.FASHION, ListingType.FOOD);
 
     // --- Dependencies (injected via constructor) ---
 
@@ -258,6 +270,32 @@ public class BookingService {
             return enrichDto(saved);
         }
 
+        // ── Physical goods: instant purchase ─────────────────────────────────────────────
+        // Buying a product is shopping, not negotiating. A shopper expects to pay and be
+        // done, so these confirm immediately (BOOKED) and go straight to payment, exactly
+        // like the event-ticket path above. Services (HAIR_BEAUTY, SKILL) fall through to
+        // the INQUIRED flow below, because those genuinely need the seller to agree scope
+        // and timing before any money changes hands.
+        if (INSTANT_PURCHASE_TYPES.contains(listing.getListingType())) {
+            Booking booking = Booking.builder()
+                    .buyerId(buyer.getId())
+                    .sellerId(listing.getSellerId())
+                    .listingId(listingId)
+                    .offeredPrice(listing.getPrice())
+                    .agreedPrice(listing.getPrice().multiply(BigDecimal.valueOf(qty)))
+                    .currency(listing.getCurrency())
+                    .scheduledAt(scheduledAt)
+                    .quantity(qty)
+                    .status(BookingStatus.BOOKED)
+                    .build();
+            Booking saved = bookingRepository.save(booking);
+            notifyInApp(listing.getSellerId(),
+                    "New order: " + listing.getTitle(),
+                    "You have a new order to fulfil — payment is being taken now.",
+                    "BOOKING_REQUEST", saved.getId());
+            return enrichDto(saved);
+        }
+
         // ── Standard negotiated booking ──────────────────────────────────────────────────
         // Construct the booking entity. @Builder.Default on the entity sets the initial status
         // to POSTED, but we explicitly override it to INQUIRED here to indicate a real request.
@@ -288,6 +326,84 @@ public class BookingService {
 
         return enrichDto(saved);
     }
+
+    /**
+     * Checks out a whole cart: creates a booking per line, then returns ONE Stripe
+     * Checkout Session covering all of them.
+     *
+     * <p>Replaces the old front-end behaviour where "Place order" either wrote to
+     * {@code sessionStorage} or created bookings that nobody ever charged for — in both
+     * cases the buyer saw a confirmation screen for a purchase that had not happened.
+     *
+     * <p>Only items that confirm instantly can be paid for here. If the cart contains a
+     * service that still needs the seller to accept, its booking is still created (the
+     * request reaches the seller) but it is left out of the payment and reported back, so
+     * the buyer is told rather than silently charged for part of their basket.
+     *
+     * @param items each entry: listingId, optional quantity, optional scheduledAt
+     * @return checkout URL, the ids paid for, and any items deferred for seller approval
+     */
+    @Transactional
+    public CartCheckout createCartCheckout(List<Map<String, Object>> items) throws StripeException {
+        if (items == null || items.isEmpty()) {
+            throw new RuntimeException("Your cart is empty");
+        }
+
+        List<Booking> payable = new java.util.ArrayList<>();
+        List<String> titles = new java.util.ArrayList<>();
+        List<UUID> awaitingApproval = new java.util.ArrayList<>();
+
+        for (Map<String, Object> item : items) {
+            UUID listingId = UUID.fromString(String.valueOf(item.get("listingId")));
+            Integer qty = item.get("quantity") != null
+                    ? Integer.valueOf(String.valueOf(item.get("quantity"))) : null;
+            LocalDateTime when = item.get("scheduledAt") != null
+                    ? LocalDateTime.parse(String.valueOf(item.get("scheduledAt"))) : null;
+
+            // Reuse create() rather than duplicating its rules — it owns "cannot book your
+            // own listing", slot reservation, ticket issuing and the instant-vs-negotiated
+            // decision. Duplicating any of that here is how the two paths drift apart.
+            BookingDto dto = create(listingId, null, when, null, qty, false);
+            Booking booking = bookingRepository.findById(dto.getId())
+                    .orElseThrow(() -> new RuntimeException("Booking vanished mid-checkout"));
+
+            if (booking.getStatus() == BookingStatus.BOOKED) {
+                payable.add(booking);
+                titles.add(listingRepository.findById(booking.getListingId())
+                        .map(Listing::getTitle).orElse("Item"));
+            } else {
+                awaitingApproval.add(booking.getId());
+            }
+        }
+
+        if (payable.isEmpty()) {
+            // Everything needs seller approval — nothing to charge for yet.
+            return new CartCheckout(null, List.of(), awaitingApproval);
+        }
+
+        var result = stripeConnectService.createCartCheckoutSession(payable, titles);
+
+        // Stamp the PaymentIntent on every booking in the order so the webhook can mark
+        // the whole thing paid from one event.
+        for (Booking b : payable) {
+            b.setPaymentIntentId(result.paymentIntentId());
+            b.setPaymentStatus("PENDING");
+            bookingRepository.save(b);
+        }
+
+        return new CartCheckout(result.checkoutUrl(),
+                payable.stream().map(Booking::getId).toList(),
+                awaitingApproval);
+    }
+
+    /**
+     * Outcome of a cart checkout.
+     *
+     * @param checkoutUrl      Stripe-hosted page to redirect to, or null if nothing was payable
+     * @param paidBookingIds   bookings included in this payment
+     * @param awaitingApproval bookings created but not charged, pending seller acceptance
+     */
+    public record CartCheckout(String checkoutUrl, List<UUID> paidBookingIds, List<UUID> awaitingApproval) {}
 
     /**
      * Creates a Stripe Checkout Session so the buyer can actually pay for a confirmed

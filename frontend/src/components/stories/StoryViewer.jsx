@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Volume2, VolumeX, ChevronLeft, ChevronRight, Heart, Share, Play, Pause, SkipBack, SkipForward, Send, User, BadgeCheck, Trash2 } from 'lucide-react';
+import { X, Volume2, VolumeX, ChevronLeft, ChevronRight, Heart, Share, Play, Pause, SkipBack, SkipForward, Send, User, BadgeCheck, Trash2, Eye } from 'lucide-react';
+import ShareModal from '../ShareModal';
 import { lockBodyScroll } from '../../utils/lockBodyScroll';
 import { storiesApi, dispatchToast } from '../../api/client';
 import { useSelector } from 'react-redux';
@@ -27,6 +28,13 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
   const [likeInProgress, setLikeInProgress] = useState(false);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [viewedIds, setViewedIds] = useState(new Set());
+  // Share sheet and the author-only "seen by" list. Both are overlays, and both pause
+  // the story while open — otherwise the timer keeps advancing behind the sheet and the
+  // user returns to a different story than the one they were acting on.
+  const [shareOpen, setShareOpen] = useState(false);
+  const [viewersOpen, setViewersOpen] = useState(false);
+  const [viewers, setViewers] = useState([]);
+  const [viewersLoading, setViewersLoading] = useState(false);
   const videoRef = useRef(null);
   const loggedInUser = useSelector(selectUser);
 
@@ -148,6 +156,41 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
     } finally {
       setDeleteInProgress(false);
     }
+  };
+
+  // Whether the story on screen belongs to the signed-in user. Gates the delete button
+  // and the "seen by" list, both of which are author-only.
+  const isOwnStory = !!loggedInUser && currentStory?.authorId === String(loggedInUser.id);
+
+  const openShare = (e) => {
+    e.stopPropagation();
+    setIsPlaying(false); // hold the story while the sheet is up
+    setShareOpen(true);
+  };
+
+  const closeShare = () => {
+    setShareOpen(false);
+    setIsPlaying(true);
+  };
+
+  // Load the viewer list on demand rather than with the story — most stories are never
+  // opened by their author, so fetching it up front would be wasted work on every story.
+  const openViewers = (e) => {
+    e.stopPropagation();
+    if (!currentStory) return;
+    setIsPlaying(false);
+    setViewersOpen(true);
+    setViewersLoading(true);
+    storiesApi.viewers(currentStory.id)
+      .then((res) => setViewers(res.data || []))
+      .catch(() => setViewers([]))
+      .finally(() => setViewersLoading(false));
+  };
+
+  const closeViewers = () => {
+    setViewersOpen(false);
+    setViewers([]);
+    setIsPlaying(true);
   };
 
   useEffect(() => {
@@ -272,32 +315,138 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
             )}
           </div>
 
-          {/* BOTTOM: Reply + Actions */}
+          {/* BOTTOM: Reply + Actions.
+              The author sees their own story's audience instead of a reply box —
+              replying to yourself is meaningless, and "who saw this" is the thing an
+              author actually opens their own story for. */}
           <div className="absolute bottom-8 inset-x-6 flex items-center gap-3 pointer-events-auto">
-            <div className="flex-1 relative group">
-              <input 
-                type="text" 
-                placeholder="Reply to story..." 
-                className="w-full bg-black/40 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-4 text-xs font-bold text-white placeholder-gray-500 outline-none focus:border-[#CDFF00] transition-all"
-                onClick={(e) => e.stopPropagation()}
-              />
-              <button className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-[#CDFF00] transition-colors">
-                <Send className="w-4 h-4" />
+            {isOwnStory ? (
+              <button
+                onClick={openViewers}
+                className="flex-1 flex items-center gap-3 bg-black/40 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-4 text-xs font-bold text-white hover:border-[#CDFF00] transition-all"
+              >
+                <Eye className="w-4 h-4 text-[#CDFF00]" />
+                <span>
+                  {currentStory.viewsCount > 0
+                    ? `Seen by ${currentStory.viewsCount}`
+                    : 'No views yet'}
+                </span>
               </button>
-            </div>
+            ) : (
+              <div className="flex-1 relative group">
+                <input
+                  type="text"
+                  placeholder="Reply to story..."
+                  className="w-full bg-black/40 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-4 text-xs font-bold text-white placeholder-gray-500 outline-none focus:border-[#CDFF00] transition-all"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <button className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-[#CDFF00] transition-colors">
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
-            <button 
+            <button
               onClick={toggleLike}
               className={`w-12 h-12 rounded-full backdrop-blur-xl border border-white/10 flex items-center justify-center transition-all ${currentStory.likedByCurrentUser ? 'bg-red-500/20 border-red-500/40 text-red-500' : 'bg-black/40 text-white hover:bg-white/10'}`}
             >
               <Heart className={`w-5 h-5 ${currentStory.likedByCurrentUser ? 'fill-current' : ''}`} />
             </button>
-            
-            <button className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-all">
+
+            <button
+              onClick={openShare}
+              title="Share story"
+              className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white hover:bg-white/10 hover:border-[#CDFF00] transition-all active:scale-95"
+            >
               <Share className="w-5 h-5" />
             </button>
           </div>
         </div>
+
+        {/* Share sheet — reuses the same share-to-DM picker as listings and posts.
+            Rendered bare (no AnimatePresence) to match how Feed and ListingDetail mount
+            it; the wrapper only stops clicks inside the sheet from reaching the
+            play/pause and next/prev tap regions underneath. */}
+        {shareOpen && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <ShareModal type="story" item={currentStory} onClose={closeShare} />
+          </div>
+        )}
+
+        {/* "Seen by" sheet — author only. */}
+        <AnimatePresence>
+          {viewersOpen && (
+            <div
+              className="absolute inset-0 z-[200] flex items-end justify-center pointer-events-auto"
+              onClick={(e) => { e.stopPropagation(); closeViewers(); }}
+            >
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 32 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-full max-w-md bg-[#0a0a0a] border-t border-white/10 rounded-t-3xl shadow-2xl flex flex-col max-h-[65%]"
+              >
+                <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
+                  <h3 className="text-sm font-black text-white uppercase tracking-tight flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-[#CDFF00]" />
+                    Viewers
+                    {viewers.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] text-gray-300 tabular-nums">
+                        {viewers.length}
+                      </span>
+                    )}
+                  </h3>
+                  <button
+                    onClick={closeViewers}
+                    className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
+                  {viewersLoading ? (
+                    <div className="space-y-2 px-2">
+                      {[...Array(4)].map((_, i) => (
+                        <div key={i} className="h-14 rounded-xl bg-white/[0.03] animate-pulse" />
+                      ))}
+                    </div>
+                  ) : viewers.length === 0 ? (
+                    <div className="py-12 text-center">
+                      <Eye className="w-8 h-8 text-gray-700 mx-auto mb-3" />
+                      <p className="text-sm text-gray-500">No one has viewed this story yet</p>
+                    </div>
+                  ) : (
+                    viewers.map((v) => (
+                      <div key={v.id} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-white/5 transition-colors">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-black border border-white/10 flex items-center justify-center shrink-0">
+                          {v.avatarUrl
+                            ? <img src={v.avatarUrl} alt="" className="w-full h-full object-cover" />
+                            : <span className="text-[#CDFF00] font-black uppercase text-sm">{(v.name || 'U')[0]}</span>}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">
+                            {v.name}
+                            {v.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
+                          </p>
+                          <p className="text-[11px] text-gray-500">{formatAge(v.viewedAt)} ago</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Side Tap Regions */}
         <div className="absolute inset-y-0 left-0 w-20 z-[5] cursor-pointer" onClick={(e) => { e.stopPropagation(); prevStory(); }} />

@@ -133,13 +133,17 @@ public class PayoutController {
                     }
                 }
                 case "checkout.session.completed" -> {
-                    // The booking is looked up by the PaymentIntent id we stored when the
-                    // Checkout Session was created (see StripeConnectService.createPaymentCheckoutSession).
+                    // Bookings are looked up by the PaymentIntent id stored when the Checkout
+                    // Session was created. findAll, not findOne: a cart checkout creates one
+                    // booking per line but a single charge, so one PaymentIntent covers the
+                    // whole order. Marking only the first would leave the rest of a paid
+                    // basket sitting UNPAID with the money already taken.
                     if (stripeObject instanceof Session session && session.getPaymentIntent() != null) {
-                        bookingRepository.findByPaymentIntentId(session.getPaymentIntent()).ifPresent(booking -> {
+                        var paid = bookingRepository.findAllByPaymentIntentId(session.getPaymentIntent());
+                        for (var booking : paid) {
                             booking.setPaymentStatus("PAID");
                             bookingRepository.save(booking);
-                        });
+                        }
                     }
                 }
                 default -> { /* no-op: unhandled event types are safely ignored */ }

@@ -201,6 +201,35 @@ public class BookingController {
      * @param id the UUID of the booking to pay for
      * @return 200 OK with {@code {"url": "https://checkout.stripe.com/..."}}, or 502 if Stripe is unreachable
      */
+    /**
+     * Checks out a whole cart in one payment.
+     *
+     * <p><b>POST /api/v1/bookings/checkout</b>
+     * <br>Body: {@code {"items":[{"listingId":"…","quantity":2}, …]}}
+     *
+     * <p>Creates a booking per line and returns a single Stripe Checkout URL covering all
+     * the instantly-purchasable ones. The client redirects to {@code url}; items that still
+     * need seller approval come back in {@code awaitingApproval} so the buyer can be told
+     * rather than left wondering why their basket shrank.
+     *
+     * @return 200 with {@code {url, paidBookingIds, awaitingApproval}}, or 502 if Stripe is unreachable
+     */
+    @PostMapping("/checkout")
+    public ResponseEntity<?> cartCheckout(@RequestBody Map<String, Object> body) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> items = (List<Map<String, Object>>) body.get("items");
+            var result = bookingService.createCartCheckout(items);
+            Map<String, Object> out = new java.util.LinkedHashMap<>();
+            out.put("url", result.checkoutUrl());
+            out.put("paidBookingIds", result.paidBookingIds());
+            out.put("awaitingApproval", result.awaitingApproval());
+            return ResponseEntity.ok(out);
+        } catch (StripeException e) {
+            return ResponseEntity.status(502).body(Map.of("error", "Could not reach Stripe: " + e.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/checkout-session")
     public ResponseEntity<?> checkoutSession(@PathVariable UUID id) {
         try {

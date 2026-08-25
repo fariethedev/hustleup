@@ -1,87 +1,125 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, MapPin, ArrowUpRight, ShieldCheck } from 'lucide-react';
+import { Star, MapPin, ArrowUpRight, ShieldCheck, Package, ClipboardList } from 'lucide-react';
+import { displayCity } from '../utils/constants';
+import SmartImage from './SmartImage';
 
 export default function ShopCard({ shop, index = 0 }) {
+  // The three thumbnails used to be gift emojis, which said nothing about the shop.
+  // Real product photos preview what's actually inside before anyone taps through.
+  const products = shop.products || [];
+  const previews = products.slice(0, 3);
+  const remaining = Math.max((shop.productCount ?? products.length) - previews.length, 0);
+  // Shops are addressable by their readable slug; the UUID is the fallback.
+  const href = `/shop/${shop.slug || shop.id}`;
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.08, duration: 0.5, ease: 'easeOut' }}
+      initial={{ opacity: 0, y: 28 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{ delay: Math.min(index * 0.06, 0.35), duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -6 }}
+      className="h-full"
     >
       <Link
-        to={`/shop/${shop.id}`}
-        className="group block relative rounded-[2.5rem] overflow-hidden glass-card border border-white/10 transition-all duration-500 hover:shadow-premium hover:-translate-y-2"
+        to={href}
+        className="group flex flex-col h-full relative rounded-3xl overflow-hidden bg-[#0A0A0A] border border-white/10 hover:border-[#CDFF00]/50 transition-colors duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.5)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.7)]"
         id={`shop-card-${shop.id}`}
       >
-        {/* Background Accent Glow */}
-        <div 
-          className="absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[80px] opacity-20 group-hover:opacity-40 transition-opacity duration-700" 
-          style={{ background: shop.accentColor }}
+        {/* Accent glow keyed to the colour the seller picked, so a row of shops reads as
+            distinct hubs rather than one repeated template. */}
+        <div
+          className="absolute -top-24 -right-24 w-48 h-48 rounded-full blur-[80px] opacity-20 group-hover:opacity-45 transition-opacity duration-700 pointer-events-none"
+          style={{ background: shop.accentColor || '#CDFF00' }}
         />
 
-        {/* Image Section */}
-        <div className="relative h-64 overflow-hidden">
-          <img
-            src={shop.image}
+        {/* ── Cover ── */}
+        <div className="relative h-44 shrink-0 overflow-hidden bg-black">
+          <SmartImage
+            src={shop.bannerUrl}
             alt={shop.name}
-            className="w-full h-full object-cover scale-105 group-hover:scale-115 transition-transform duration-1000 ease-out"
+            fallbackIcon={Package}
+            className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700 ease-out"
           />
-          
-          {/* Immersive Gradient Overlays */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-80" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-transparent to-black/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/25 to-transparent" />
 
-          {/* Top Badges */}
-          <div className="absolute top-5 left-5 flex flex-col gap-2">
-            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest glass-lime text-white border-white/20">
-              {shop.category}
-            </span>
+          {/* Top badges */}
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 pr-12">
+            {shop.category && (
+              <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-black/75 backdrop-blur-md text-white border border-white/20">
+                {shop.category}
+              </span>
+            )}
             {shop.rating >= 4.8 && (
-              <span className="flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[#D3FF37] text-black">
-                <ShieldCheck className="w-3 h-3" /> Top Rated
+              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-[#CDFF00] text-black">
+                <ShieldCheck className="w-3 h-3" /> Top rated
               </span>
             )}
           </div>
 
-          {/* Action Icon */}
-          <div className="absolute top-5 right-5 w-10 h-10 rounded-2xl glass-lime flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
-            <ArrowUpRight className="w-5 h-5 text-white" />
+          {/* Hover affordance — tells you the whole card is a link */}
+          <div className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-[#CDFF00] text-black flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+            <ArrowUpRight className="w-5 h-5" />
           </div>
 
-          {/* Bottom Info Overlay */}
-          <div className="absolute bottom-5 left-5 right-5">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10">
-                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                <span className="text-xs font-bold text-white">{shop.rating.toFixed(1)}</span>
-              </div>
-              <span className="text-[10px] font-bold text-white/60 tracking-wider uppercase">{shop.reviewCount} Reviews</span>
-            </div>
-            <h3 className="text-2xl font-black text-white tracking-tight leading-none group-hover:text-[#D3FF37] transition-colors duration-300">
+          {/* Name sits on the image so the body below is all substance */}
+          <div className="absolute bottom-3 left-4 right-4">
+            <h3 className="text-xl font-black text-white tracking-tight leading-tight line-clamp-1 group-hover:text-[#CDFF00] transition-colors duration-300">
               {shop.name}
             </h3>
           </div>
         </div>
 
-        {/* Footer Details */}
-        <div className="p-6 bg-gradient-to-b from-transparent to-black/40">
-          <p className="text-sm text-gray-400 line-clamp-2 mb-5 font-medium leading-relaxed italic">
-            "{shop.tagline}"
+        {/* ── Body ── */}
+        <div className="flex flex-col flex-1 p-4">
+          {/* Stat strip — all three are platform-derived, so they're trustworthy in a way
+              seller-written copy isn't. */}
+          <div className="flex items-center gap-3 mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+            <span className="flex items-center gap-1 text-white">
+              <Star className="w-3.5 h-3.5 fill-[#CDFF00] text-[#CDFF00]" />
+              {shop.rating > 0 ? shop.rating.toFixed(1) : 'New'}
+            </span>
+            <span className="w-px h-3 bg-white/10" />
+            <span className="flex items-center gap-1">
+              <Package className="w-3.5 h-3.5 text-[#FF00FF]" /> {shop.productCount ?? products.length}
+            </span>
+            {shop.listingCount > 0 && (
+              <>
+                <span className="w-px h-3 bg-white/10" />
+                <span className="flex items-center gap-1">
+                  <ClipboardList className="w-3.5 h-3.5 text-[#00FFFF]" /> {shop.listingCount}
+                </span>
+              </>
+            )}
+          </div>
+
+          <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed mb-4 min-h-[2rem]">
+            {shop.tagline || `${shop.name} on HustleSpace.`}
           </p>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-gray-500">
-              <MapPin className="w-3.5 h-3.5 text-[#D3FF37]" />
-              <span className="text-xs font-bold uppercase tracking-tighter">{shop.location}</span>
-            </div>
-            <div className="flex -space-x-2">
-              {/* Mock product avatars or icons */}
-              {[1,2,3].map(i => (
-                <div key={i} className="w-7 h-7 rounded-full border-2 border-black bg-gray-800 flex items-center justify-center text-[10px]">
-                  🎁
+
+          {/* Product preview strip + city, pinned to the bottom so cards align in a grid */}
+          <div className="mt-auto flex items-center justify-between gap-3 pt-3 border-t border-white/5">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 min-w-0">
+              <MapPin className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />
+              <span className="truncate">{displayCity(shop.city)}</span>
+            </span>
+
+            <div className="flex items-center -space-x-2 shrink-0">
+              {previews.map((p) => (
+                <div
+                  key={p.id}
+                  className="w-8 h-8 rounded-full overflow-hidden border-2 border-[#0A0A0A] bg-black group-hover:-space-x-1 transition-all"
+                  title={p.name}
+                >
+                  <SmartImage src={p.imageUrl} alt={p.name} fallbackIcon={Package} className="w-full h-full object-cover" />
                 </div>
               ))}
+              {remaining > 0 && (
+                <div className="w-8 h-8 rounded-full border-2 border-[#0A0A0A] bg-white/10 flex items-center justify-center text-[9px] font-black text-white">
+                  +{remaining}
+                </div>
+              )}
             </div>
           </div>
         </div>

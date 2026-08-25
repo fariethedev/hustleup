@@ -51,7 +51,7 @@ export default function TrendingCard({ item, index = 0 }) {
                 {subtitle}
               </p>
               <p className="text-xs text-gray-400 font-medium leading-relaxed italic opacity-0 group-hover:opacity-100 transition-opacity duration-700 line-clamp-2 mb-6">
-                 "{description || 'Discover the best trending content on HustleUp.'}"
+                 "{description || 'Discover the best trending content on HustleSpace.'}"
               </p>
            </div>
            

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectUser, selectIsAuthenticated, logout } from '../store/authSlice';
-import { notificationsApi } from '../api/client';
+import { notificationsApi, directMessagesApi } from '../api/client';
 import { selectCartCount, openCart } from '../store/cartSlice';
 import GlobalSearch from './GlobalSearch';
 import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, Bell, CheckCheck, MoreHorizontal, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
@@ -35,6 +35,7 @@ export default function Navbar() {
 
   const [scrolled, setScrolled] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [dmUnread, setDmUnread] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -67,7 +68,30 @@ export default function Navbar() {
     }
   }, [isAuthenticated, location]);
 
-  const handleLogout = () => { dispatch(logout()); navigate('/'); };
+  // Unopened DMs, shown as the badge on the DMs tab. Refetched on navigation (so it
+  // clears as soon as you leave a chat you just read) and polled on a slow timer so
+  // a message arriving while you sit on another page still surfaces.
+  // Reset on sign-out is handled in handleLogout rather than with an early
+  // setDmUnread(0) here — setting state synchronously in an effect body triggers
+  // a cascading re-render (and trips react-hooks/set-state-in-effect).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const load = () => directMessagesApi.unreadCount()
+      .then(r => setDmUnread(r.data.count))
+      .catch(() => {});
+    load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, location]);
+
+  const handleLogout = () => {
+    // Clear the badge counts so the next account to sign in on this device never
+    // sees the previous user's unread numbers, even for a frame.
+    setDmUnread(0);
+    setUnread(0);
+    dispatch(logout());
+    navigate('/');
+  };
 
   const openNotifications = () => {
     if (notifOpen) { setNotifOpen(false); return; }
@@ -98,7 +122,7 @@ export default function Navbar() {
     { to: '/explore', icon: Compass,      label: 'Explore', auth: true },
     { to: '/feed',    icon: Layers,       label: 'Feed',    auth: true },
     { to: '/dating',  icon: Heart,        label: 'Bond',    auth: true, accent: true },
-    { to: '/dm',      icon: Send,         label: 'DMs',     auth: true },
+    { to: '/dm',      icon: Send,         label: 'DMs',     auth: true, badge: dmUnread },
   ];
 
   const visibleItems = navItems.filter(item => item.always || (item.auth && isAuthenticated));
@@ -108,7 +132,7 @@ export default function Navbar() {
     { to: '/',        icon: Home,          label: 'Home',     always: true },
     { to: '/explore', icon: Compass,       label: 'Explore',  auth: true },
     { to: '/feed',    icon: Layers,        label: 'Feed',     auth: true },
-    { to: '/dm',      icon: Send,          label: 'DMs',      auth: true },
+    { to: '/dm',      icon: Send,          label: 'DMs',      auth: true, badge: dmUnread },
   ];
   const visibleTabs = bottomTabs.filter(item => item.always || (item.auth && isAuthenticated));
 
@@ -132,7 +156,7 @@ export default function Navbar() {
                 H
               </div>
               <span className="text-lg font-black text-white tracking-tighter uppercase whitespace-nowrap">
-                Hustle<span className="text-[#CDFF00]">Up</span>
+                Hustle<span className="text-[#CDFF00]">Space</span>
               </span>
             </Link>
 

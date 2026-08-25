@@ -2,13 +2,13 @@ import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Mail, Receipt, ShieldCheck } from 'lucide-react';
 import { formatPrice } from '../utils/constants';
-import { getProductByShopAndProductId } from '../utils/shopData';
+import { useShopProduct } from '../hooks/useShops';
 
 const STORAGE_KEY = 'hustleup_shop_checkout_draft';
 
 export default function ShopConfirmation() {
   const { id, productId } = useParams();
-  const entry = getProductByShopAndProductId(id, productId);
+  const { shop, product, loading, notFound } = useShopProduct(id, productId);
 
   let draft = {};
   try {
@@ -17,18 +17,25 @@ export default function ShopConfirmation() {
     draft = {};
   }
 
-  if (!entry) {
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 mt-10">
+        <div className="h-96 rounded-[2.5rem] bg-white/[0.03] border border-white/5 animate-pulse" />
+      </div>
+    );
+  }
+
+  if (notFound) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
         <div className="text-center">
           <h2 className="text-2xl font-heading font-bold text-white mb-2">Order not found</h2>
-          <Link to="/" className="px-6 py-3 rounded-xl bg-[#CDFF00] text-black font-bold">Back home</Link>
+          <Link to="/explore/shops" className="px-6 py-3 rounded-xl bg-[#CDFF00] text-black font-bold">Browse shops</Link>
         </div>
       </div>
     );
   }
 
-  const { shop, product } = entry;
   const quantity = Number(draft.quantity) || 1;
   const total = Number(draft.total) || Number(product.price);
   const paymentMethod = draft.customer?.paymentMethod || 'paypal';
@@ -89,11 +96,12 @@ export default function ShopConfirmation() {
         </div>
 
         <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to={`/shop/${shop.id}`} className="px-8 py-4 rounded-2xl border border-white/10 text-white font-black uppercase tracking-[0.24em] text-sm text-center">
+          <Link to={`/shop/${shop.slug || shop.id}`} className="px-8 py-4 rounded-2xl border border-white/10 text-white font-black uppercase tracking-[0.24em] text-sm text-center">
             Back To Shop
           </Link>
-          <Link to="/dm" className="px-8 py-4 rounded-2xl bg-[#CDFF00] text-black font-black uppercase tracking-[0.24em] text-sm text-center">
-            Go To DMs
+          {/* DMs land on the shop owner's thread rather than the inbox root. */}
+          <Link to={`/dm/${shop.ownerId}`} className="px-8 py-4 rounded-2xl bg-[#CDFF00] text-black font-black uppercase tracking-[0.24em] text-sm text-center">
+            Message Seller
           </Link>
         </div>
       </motion.div>

@@ -189,6 +189,79 @@ public class StripeConnectService {
         return new CheckoutResult(session.getUrl(), session.getPaymentIntent());
     }
 
+    /**
+     * Creates ONE Stripe Checkout Session covering an entire cart — one line item per
+     * booking, a single card charge.
+     *
+     * <p><b>Why one charge works even across several sellers:</b> this is a
+     * "separate charges and transfers" setup, not a destination charge. The money lands
+     * wholly on the platform balance and each seller is paid later by
+     * {@link #transferToSeller} when their own booking is marked COMPLETED. A destination
+     * charge could only ever pay one connected account, which would make a multi-seller
+     * cart impossible to express as a single payment.
+     *
+     * <p>Every booking id is written into the PaymentIntent metadata so the webhook can
+     * mark the whole order paid — see {@code findAllByPaymentIntentId}.
+     *
+     * @param bookings the bookings making up this order, all owned by the same buyer
+     * @param titles   display names, index-aligned with {@code bookings}
+     * @return the hosted checkout URL plus the PaymentIntent id to persist on every booking
+     */
+    public CheckoutResult createCartCheckoutSession(java.util.List<Booking> bookings,
+                                                    java.util.List<String> titles) throws StripeException {
+        if (bookings == null || bookings.isEmpty()) {
+            throw new IllegalArgumentException("Cannot start a checkout with no items");
+        }
+
+        // Stripe requires every line item in one session to share a currency.
+        String currency = bookings.get(0).getCurrency();
+        for (Booking b : bookings) {
+            if (!currency.equalsIgnoreCase(b.getCurrency())) {
+                throw new IllegalArgumentException(
+                        "All items in one checkout must share a currency (found "
+                        + currency + " and " + b.getCurrency() + ")");
+            }
+        }
+
+        String ids = bookings.stream()
+                .map(b -> b.getId().toString())
+                .collect(java.util.stream.Collectors.joining(","));
+
+        SessionCreateParams.Builder params = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.PAYMENT)
+                .setSuccessUrl(frontendUrl + "/checkout/confirmation?payment=success")
+                .setCancelUrl(frontendUrl + "/checkout?payment=cancelled")
+                .setPaymentIntentData(
+                        SessionCreateParams.PaymentIntentData.builder()
+                                // One transfer group for the order, so the per-seller
+                                // transfers made later all reconcile to this one charge.
+                                .setTransferGroup("order_" + bookings.get(0).getId())
+                                .putMetadata("bookingIds", ids)
+                                .build());
+
+        for (int i = 0; i < bookings.size(); i++) {
+            Booking b = bookings.get(i);
+            int qty = Math.max(1, b.getQuantity());
+            long total = toMinorUnits(b.getAgreedPrice());
+            params.addLineItem(SessionCreateParams.LineItem.builder()
+                    .setQuantity((long) qty)
+                    .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
+                            .setCurrency(b.getCurrency().toLowerCase())
+                            // agreedPrice is the line total, so divide back out to the
+                            // unit price Stripe multiplies by quantity.
+                            .setUnitAmount(total / qty)
+                            .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                    .setName(i < titles.size() && titles.get(i) != null
+                                            ? titles.get(i) : "Item")
+                                    .build())
+                            .build())
+                    .build());
+        }
+
+        Session session = Session.create(params.build());
+        return new CheckoutResult(session.getUrl(), session.getPaymentIntent());
+    }
+
     /** Simple holder so callers get both the redirect URL and the PaymentIntent id to persist. */
     public record CheckoutResult(String checkoutUrl, String paymentIntentId) {}
 

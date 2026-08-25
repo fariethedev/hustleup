@@ -20,7 +20,7 @@ export default function Terms() {
       <div className="prose prose-invert prose-sm max-w-none space-y-6 text-gray-300 leading-relaxed">
         <section>
           <h2 className="text-white font-bold text-lg mb-2">1. Who we are</h2>
-          <p>HustleUp ("we", "us") operates a marketplace connecting students to buy, sell, and hire within their community. By creating an account or using the platform, you agree to these terms.</p>
+          <p>HustleSpace ("we", "us") operates a marketplace connecting students to buy, sell, and hire within their community. By creating an account or using the platform, you agree to these terms.</p>
         </section>
         <section>
           <h2 className="text-white font-bold text-lg mb-2">2. Accounts</h2>
@@ -28,15 +28,15 @@ export default function Terms() {
         </section>
         <section>
           <h2 className="text-white font-bold text-lg mb-2">3. Buying &amp; selling</h2>
-          <p>HustleUp connects buyers and sellers but is not a party to the transactions between them. Payments are processed by Stripe. Sellers are responsible for the accuracy of their listings and for delivering what they've agreed to provide.</p>
+          <p>HustleSpace connects buyers and sellers but is not a party to the transactions between them. Payments are processed by Stripe. Sellers are responsible for the accuracy of their listings and for delivering what they've agreed to provide.</p>
         </section>
         <section>
           <h2 className="text-white font-bold text-lg mb-2">4. Payments &amp; payouts</h2>
-          <p>Buyer payments are held by HustleUp until a booking is marked complete, at which point the seller is paid out via Stripe Connect, minus HustleUp's platform fee. Refunds follow the cancellation policy described in-app.</p>
+          <p>Buyer payments are held by HustleSpace until a booking is marked complete, at which point the seller is paid out via Stripe Connect, minus HustleSpace's platform fee. Refunds follow the cancellation policy described in-app.</p>
         </section>
         <section>
           <h2 className="text-white font-bold text-lg mb-2">5. Prohibited conduct</h2>
-          <p>No fraud, harassment, illegal goods or services, or attempts to circumvent platform fees by taking transactions off-platform after connecting through HustleUp.</p>
+          <p>No fraud, harassment, illegal goods or services, or attempts to circumvent platform fees by taking transactions off-platform after connecting through HustleSpace.</p>
         </section>
         <section>
           <h2 className="text-white font-bold text-lg mb-2">6. Termination</h2>

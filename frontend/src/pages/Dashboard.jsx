@@ -11,6 +11,7 @@ import {
   Ticket, ScanLine, ArrowRight
 } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
+import ShopManager from '../components/ShopManager';
 
 // Listing categories with bespoke dashboard functionality beyond the standard buy/negotiate flow.
 const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
@@ -131,6 +132,7 @@ export default function Dashboard() {
     // Only surfaced once there's something in the wallet — an empty tab is noise.
     ...(tickets.length > 0 ? [{ id: 'tickets', label: 'Tickets', icon: Ticket, count: tickets.filter((t) => t.status === 'VALID').length }] : []),
     ...(isSeller && hasEventListing ? [{ id: 'door', label: 'Door', icon: ScanLine, count: eventListings.length }] : []),
+    ...(isSeller ? [{ id: 'shop', label: 'Shop', icon: Store, count: 0 }] : []),
     ...(isSeller ? [{ id: 'listings', label: 'Listings', icon: ClipboardList, count: listings.length }] : []),
     ...(isSeller ? [{ id: 'sales', label: 'Sales', icon: TrendingUp, count: salesBookings.length }] : []),
     ...(isSeller && hasServiceListing ? [{ id: 'availability', label: 'Availability', icon: CalendarClock, count: slots.length }] : []),
@@ -182,22 +184,24 @@ export default function Dashboard() {
             </Link>
           </div>
 
-          {isSeller && !user?.shopCategory && (
-            <Link
-              to="/onboarding"
-              className="flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl bg-[#CDFF00]/5 border border-[#CDFF00]/30 hover:border-[#CDFF00]/60 transition-all mb-5 group"
+          {/* Points at the Shop tab rather than onboarding — that's where a storefront is
+              actually created and edited now. */}
+          {isSeller && tab !== 'shop' && (
+            <button
+              onClick={() => setTab('shop')}
+              className="w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl bg-[#CDFF00]/5 border border-[#CDFF00]/30 hover:border-[#CDFF00]/60 transition-all mb-5 group text-left"
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-[#CDFF00]/15 flex items-center justify-center shrink-0">
                   <Store className="w-4.5 h-4.5 text-[#CDFF00]" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white">Set up your shop</p>
-                  <p className="text-xs text-gray-500">Pick a category and add a banner to unlock category tools</p>
+                  <p className="text-sm font-bold text-white">Your shop</p>
+                  <p className="text-xs text-gray-500">Name, banner, colour, city and products — all editable by you</p>
                 </div>
               </div>
-              <span className="text-[9px] font-black uppercase tracking-widest text-[#CDFF00] group-hover:translate-x-0.5 transition-transform shrink-0">Set up →</span>
-            </Link>
+              <span className="text-[9px] font-black uppercase tracking-widest text-[#CDFF00] group-hover:translate-x-0.5 transition-transform shrink-0">Manage →</span>
+            </button>
           )}
 
           {loading ? (
@@ -423,6 +427,9 @@ export default function Dashboard() {
                 </div>
               )}
 
+              {/* Shop Tab — every field on the seller's shop card and shop page. */}
+              {tab === 'shop' && <ShopManager user={user} />}
+
               {/* Listings Tab */}
               {tab === 'listings' && (
                 <div className="space-y-3">
@@ -552,7 +559,7 @@ export default function Dashboard() {
                     <ul className="text-xs text-gray-400 space-y-1.5 leading-relaxed list-disc list-inside">
                       <li>Buyers pay when a booking is confirmed.</li>
                       <li>You get paid automatically once you mark the booking Complete.</li>
-                      <li>HustleUp keeps a small platform fee — you receive the rest.</li>
+                      <li>HustleSpace keeps a small platform fee — you receive the rest.</li>
                     </ul>
                   </div>
                 </div>

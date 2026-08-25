@@ -1,218 +1,314 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Search, Calendar, Filter, Share2, ArrowLeft, TrendingUp, Newspaper, Zap, Heart } from 'lucide-react';
+import {
+  Search, Calendar, ArrowLeft, Newspaper, BadgeCheck, Plus, ShieldCheck,
+  Clock, Eye, LayoutGrid, X
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { selectIsAuthenticated } from '../store/authSlice';
+import { newsApi, publishersApi } from '../api/client';
 import HeroBrief from '../components/HeroBrief';
+import ArticleComposer from '../components/news/ArticleComposer';
 
-const NEWS_DATA = [
-  {
-    id: 1,
-    tag: "REGULATION",
-    tagColor: "bg-orange-500/20 text-orange-500",
-    city: "Lagos, NG",
-    title: "New TRC regulations for digital creators effective next month.",
-    desc: "The Trade Regulatory Commission has announced updated licensing requirements for freelance consultants and digital agencies across West Africa.",
-    date: "Oct 24, 2026",
-    content: "Full details of the regulation indicate a shift towards centralized registration for all income-generating digital activities...",
-    image: "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800&q=80"
-  },
-  {
-    id: 2,
-    tag: "EVENT",
-    tagColor: "bg-[#CDFF00]/20 text-[#CDFF00]",
-    city: "Nairobi, KE",
-    title: "Global Diaspora Hustle Meetup at iHub Nairobi.",
-    desc: "Join over 500+ creators for a night of networking, collaboration, and funding pitches. RSVP now for early access.",
-    date: "Nov 02, 2026",
-    content: "The meetup intends to bridge the gap between local talent and international investors...",
-    image: "https://images.unsplash.com/photo-1540575861501-7ad0582371f3?w=800&q=80"
-  },
-  {
-    id: 3,
-    tag: "OPPORTUNITY",
-    tagColor: "bg-purple-500/20 text-purple-500",
-    city: "Harare, ZW",
-    title: "City Council opens $1M grant for youth-led marketplaces.",
-    desc: "A new initiative to support digital infrastructure in the local commerce sector. Applications open for registered hustlers.",
-    date: "Oct 28, 2026",
-    content: "The grant aims to accelerate the growth of home-grown platforms that solve logistical challenges...",
-    image: "https://images.unsplash.com/photo-1553484771-047a44eee27b?w=800&q=80"
-  },
-  {
-    id: 4,
-    tag: "TECH",
-    tagColor: "bg-blue-500/20 text-blue-500",
-    city: "Cape Town, SA",
-    title: "HustleUp to trial decentralized storage for all creators.",
-    desc: "A new node-based architecture is arriving to ensure censorship-resistant content for all hustlers.",
-    date: "Oct 30, 2026",
-    content: "Decentralization is the next logical step for a platform built on independence...",
-    image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=800&q=80"
-  }
+const SECTIONS = [
+  { id: 'regulation', name: 'Regulation' },
+  { id: 'event', name: 'Events' },
+  { id: 'opportunity', name: 'Opportunity' },
+  { id: 'tech', name: 'Tech' },
+  { id: 'business', name: 'Business' },
 ];
 
-export default function News() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedNews, setSelectedNews] = useState(null);
+const formatDate = (iso) => {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+};
 
-  const filteredNews = NEWS_DATA.filter(n => 
-    n.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    n.desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    n.city.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+export default function News() {
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [section, setSection] = useState('all');
+  const [selected, setSelected] = useState(null);   // the article being read (full body)
+  const [canPostRaw, setCanPost] = useState(false);
+  // Signing out must immediately hide the composer, without an effect writing state.
+  const canPost = isAuthenticated && canPostRaw;
+  const [composerOpen, setComposerOpen] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    newsApi.feed({ category: section, q: searchQuery || undefined })
+      .then((res) => setArticles(res.data?.content || []))
+      .catch(() => setArticles([]))
+      .finally(() => setLoading(false));
+  }, [section, searchQuery]);
+
+  useEffect(() => {
+    const t = setTimeout(load, searchQuery ? 350 : 0);
+    return () => clearTimeout(t);
+  }, [load, searchQuery]);
+
+  // Sets state only from the async callback. An early `setCanPost(false)` in the
+  // effect body would trigger a cascading re-render (react-hooks/set-state-in-effect);
+  // the render guard below already treats a signed-out visitor as unable to post.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    publishersApi.me()
+      .then((res) => setCanPost(!!res.data?.canPostNews))
+      .catch(() => setCanPost(false));
+  }, [isAuthenticated]);
+
+  // The grid ships cards without bodies, so opening one fetches the full article.
+  const openArticle = (article) => {
+    setSelected({ ...article, body: null });
+    newsApi.one(article.id)
+      .then((res) => setSelected(res.data))
+      .catch(() => setSelected({ ...article, body: 'This article could not be loaded.' }));
+  };
 
   return (
-    <div className="min-h-screen text-white pb-24">
-      <HeroBrief title="Hustle Pulse" />
+    <div className="min-h-screen text-white">
+      <HeroBrief
+        eyebrow="News"
+        title="What's moving in the hustle economy"
+        subtitle="Reported by verified outlets."
+      />
 
-      <div className="max-w-7xl mx-auto px-4 relative z-20">
-        {/* Search & Stats Bar */}
-        <div className="glass bg-black/60 border border-white/10 rounded-[3rem] p-4 flex flex-col md:flex-row items-center gap-4 shadow-2xl backdrop-blur-3xl mb-12">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-            <input 
-              type="text" 
-              placeholder="Search news, locations, or tags..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-16 pr-6 text-sm placeholder-gray-600 focus:border-[#CDFF00] transition-colors outline-none font-bold" 
-            />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+            <ShieldCheck className="w-4 h-4 text-[#CDFF00]" />
+            Verified outlets only
           </div>
-          <div className="flex gap-4 px-6 md:border-l border-white/10">
-            <div className="text-center">
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Active Alerts</p>
-              <p className="text-lg font-black text-[#CDFF00]">12</p>
-            </div>
-            <div className="w-px h-10 bg-white/10" />
-            <div className="text-center">
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Global Reach</p>
-              <p className="text-lg font-black text-white">42</p>
-            </div>
-          </div>
+          {canPost ? (
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={() => setComposerOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest"
+            >
+              <Plus className="w-4 h-4" /> Publish article
+            </motion.button>
+          ) : (
+            <Link
+              to="/publisher/apply?type=NEWS_OUTLET"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-[#CDFF00]/40 text-[10px] font-black uppercase tracking-widest text-gray-300 transition-colors"
+            >
+              <BadgeCheck className="w-4 h-4 text-[#CDFF00]" /> Run an outlet? Get verified
+            </Link>
+          )}
         </div>
 
-        {/* News Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <AnimatePresence mode="popLayout">
-            {filteredNews.map((news, i) => (
-              <motion.div
-                key={news.id}
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="glass-card rounded-[2.5rem] overflow-hidden border border-white/10 hover:border-[#CDFF00]/30 transition-all group flex flex-col h-full bg-black/20"
-              >
-                <div className="aspect-[16/10] overflow-hidden relative">
-                  <img src={news.image} alt={news.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                  <div className="absolute top-4 left-4">
-                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${news.tagColor}`}>
-                      {news.tag}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="p-8 flex flex-col flex-grow">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="flex items-center gap-1.5 text-gray-500 text-[10px] font-black uppercase tracking-widest">
-                      <MapPin className="w-3.5 h-3.5 text-[#CDFF00]" /> {news.city}
-                    </span>
-                    <span className="text-gray-600 text-[10px] font-bold uppercase tracking-widest">{news.date}</span>
-                  </div>
-                  
-                  <h4 className="text-2xl font-black text-white mb-4 group-hover:text-[#CDFF00] transition-colors line-clamp-2 uppercase tracking-tight">
-                    {news.title}
-                  </h4>
-                  <p className="text-gray-400 text-sm leading-relaxed mb-8 flex-grow line-clamp-3">
-                    {news.desc}
-                  </p>
-                  
-                  <div className="flex items-center justify-between pt-6 border-t border-white/5">
-                    <button 
-                      onClick={() => setSelectedNews(news)}
-                      className="text-white font-black text-xs uppercase tracking-widest group-hover:text-[#CDFF00] transition-colors flex items-center gap-2"
-                    >
-                      Read Analysis <ArrowLeft className="w-4 h-4 rotate-180" />
-                    </button>
-                    <button className="p-2 rounded-full hover:bg-white/5 text-gray-600 hover:text-white transition-all">
-                      <Share2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
+        {/* Search */}
+        <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 focus-within:border-[#CDFF00]/50 rounded-xl px-4 py-2.5 mb-4 transition-colors">
+          <Search className="w-4 h-4 text-gray-500 shrink-0" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            type="text"
+            placeholder="Search stories or outlets…"
+            className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"
+          />
+        </div>
+
+        {/* Sections */}
+        <div className="flex flex-wrap items-center gap-2 mb-8">
+          <button
+            onClick={() => setSection('all')}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+              section === 'all'
+                ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
+                : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" /> All
+          </button>
+          {SECTIONS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSection(section === s.id ? 'all' : s.id)}
+              className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+                section === s.id
+                  ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
+                  : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+              }`}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Grid */}
+        {loading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-72 rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse" />
             ))}
-          </AnimatePresence>
-        </div>
-
-        {filteredNews.length === 0 && (
-          <div className="py-32 text-center">
-            <Newspaper className="w-16 h-16 mx-auto text-gray-800 mb-6" />
-            <h3 className="text-2xl font-black text-white uppercase tracking-tight">Zero signals found</h3>
-            <p className="text-gray-600 text-sm font-bold mt-2 uppercase tracking-widest">Try adjusting your filters</p>
+          </div>
+        ) : articles.length === 0 ? (
+          <div className="py-20 text-center flex flex-col items-center gap-4 bg-white/[0.02] border border-white/10 rounded-2xl">
+            <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center">
+              <Newspaper className="w-6 h-6 text-gray-600" />
+            </div>
+            <div>
+              <h3 className="text-base font-black uppercase tracking-tight">No stories yet</h3>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1.5">
+                {searchQuery || section !== 'all' ? 'Try another search or section' : 'Verified outlets publish here'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <AnimatePresence mode="popLayout">
+              {articles.map((a) => (
+                <motion.button
+                  key={a.id}
+                  layout
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  whileHover={{ y: -4 }}
+                  onClick={() => openArticle(a)}
+                  className="text-left bg-white/[0.02] border border-white/10 hover:border-[#CDFF00]/30 rounded-2xl overflow-hidden transition-colors flex flex-col"
+                >
+                  <div className="h-40 bg-black/40 overflow-hidden shrink-0">
+                    {a.coverImageUrl
+                      ? <img src={a.coverImageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      : <div className="w-full h-full flex items-center justify-center">
+                          <Newspaper className="w-8 h-8 text-gray-700" />
+                        </div>}
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col">
+                    {a.category && (
+                      <span className="self-start text-[9px] font-black text-[#CDFF00] bg-[#CDFF00]/10 px-2.5 py-1 rounded-md uppercase tracking-widest border border-[#CDFF00]/20 mb-2">
+                        {a.category}
+                      </span>
+                    )}
+                    <h2 className="text-sm font-black text-white leading-snug mb-1.5">{a.title}</h2>
+                    {a.summary && (
+                      <p className="text-xs text-gray-500 leading-relaxed line-clamp-3 mb-3">{a.summary}</p>
+                    )}
+                    <div className="mt-auto flex items-center justify-between gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        {a.outletLogoUrl && (
+                          <img src={a.outletLogoUrl} alt="" className="w-4 h-4 rounded object-cover shrink-0" />
+                        )}
+                        <span className="truncate">{a.outletName}</span>
+                        <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />
+                      </span>
+                      <span className="flex items-center gap-1 shrink-0">
+                        <Clock className="w-3 h-3" /> {a.readingMinutes}m
+                      </span>
+                    </div>
+                  </div>
+                </motion.button>
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </div>
 
-      {/* Modal - Full Article Analysis */}
+      {/* Reader view */}
       <AnimatePresence>
-        {selectedNews && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
-              onClick={() => setSelectedNews(null)}
-            />
-            <motion.div 
-              initial={{ opacity: 0, y: 50, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 50, scale: 0.95 }}
-              className="w-full max-w-3xl bg-[#0a0a0a] border border-white/10 rounded-[3rem] overflow-hidden relative z-10 flex flex-col max-h-[90vh]"
+        {selected && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[800] bg-black/90 backdrop-blur-sm overflow-y-auto"
+            onClick={() => setSelected(null)}
+          >
+            <motion.article
+              initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-3xl mx-auto my-6 sm:my-12 bg-[#0a0a0a] border border-white/10 rounded-3xl overflow-hidden"
             >
-              <div className="aspect-video shrink-0 relative">
-                <img src={selectedNews.image} alt="" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
-                <button 
-                  onClick={() => setSelectedNews(null)}
-                  className="absolute top-8 right-8 w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-[#CDFF00] hover:text-black transition-all"
-                >
-                  <ArrowLeft className="w-6 h-6" />
+              <div className="sticky top-0 z-10 px-5 py-3 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/10 flex items-center justify-between">
+                <button onClick={() => setSelected(null)}
+                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors">
+                  <ArrowLeft className="w-4 h-4" /> Back
+                </button>
+                <button onClick={() => setSelected(null)}
+                        className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="p-10 pt-4 overflow-y-auto custom-scrollbar">
-                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${selectedNews.tagColor} mb-6 inline-block`}>
-                  {selectedNews.tag}
-                </span>
-                <h2 className="text-4xl font-black text-white mb-6 uppercase tracking-tighter leading-tight">{selectedNews.title}</h2>
-                
-                <div className="flex items-center gap-8 mb-10 text-[10px] font-black uppercase tracking-widest text-[#CDFF00]">
-                  <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5" /> {selectedNews.city}</div>
-                  <div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5" /> {selectedNews.date}</div>
+              {selected.coverImageUrl && (
+                <img src={selected.coverImageUrl} alt="" className="w-full max-h-80 object-cover" />
+              )}
+
+              <div className="p-6 sm:p-8">
+                {selected.category && (
+                  <span className="inline-block text-[9px] font-black text-[#CDFF00] bg-[#CDFF00]/10 px-2.5 py-1 rounded-md uppercase tracking-widest border border-[#CDFF00]/20 mb-3">
+                    {selected.category}
+                  </span>
+                )}
+                <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight mb-3">{selected.title}</h1>
+
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-6 pb-6 border-b border-white/10">
+                  <span className="flex items-center gap-1.5">
+                    {selected.outletLogoUrl && (
+                      <img src={selected.outletLogoUrl} alt="" className="w-4 h-4 rounded object-cover" />
+                    )}
+                    {selected.outletName}
+                    <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00]" />
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-3 h-3" /> {formatDate(selected.publishedAt || selected.createdAt)}
+                  </span>
+                  <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {selected.readingMinutes}m read</span>
+                  <span className="flex items-center gap-1.5"><Eye className="w-3 h-3" /> {selected.viewsCount}</span>
                 </div>
 
-                <div className="space-y-6 text-gray-400 text-lg leading-relaxed font-bold">
-                  <p>{selectedNews.content}</p>
-                  <p>As the landscape continues to evolve, HustleUp remains committed to providing our community with the latest insights and legal guidance to thrive in the modern economy.</p>
-                  <p>Our scouts are constantly monitoring global channels to ensure you're never out of the loop. Stay tuned for further updates on this developing story.</p>
-                </div>
-                
-                <div className="mt-12 p-8 rounded-3xl bg-[#CDFF00]/5 border border-[#CDFF00]/10 flex flex-col sm:flex-row items-center justify-between gap-6">
-                  <div>
-                    <h5 className="text-white font-black uppercase tracking-tight mb-1">Join the conversation</h5>
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Share this signal with your network</p>
+                {selected.summary && (
+                  <p className="text-base text-gray-300 leading-relaxed font-semibold mb-6">{selected.summary}</p>
+                )}
+
+                {selected.body === null ? (
+                  <div className="space-y-3">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="h-4 rounded bg-white/[0.04] animate-pulse" style={{ width: `${90 - i * 8}%` }} />
+                    ))}
                   </div>
-                  <div className="flex gap-4">
-                    <button className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-[#CDFF00] hover:text-black transition-all">
-                      <Share2 className="w-3.5 h-3.5" /> Copy Link
-                    </button>
-                    <button className="w-12 h-12 rounded-xl bg-[#CDFF00] text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
-                      <Heart className="w-5 h-5 fill-black" />
-                    </button>
+                ) : (
+                  <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{selected.body}</div>
+                )}
+
+                {selected.mediaUrls?.length > 0 && (
+                  <div className="grid sm:grid-cols-2 gap-3 mt-6">
+                    {selected.mediaUrls.map((url, i) => (
+                      <div key={i} className="rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                        {/\.(mp4|mov|webm|m4v)$/i.test(url)
+                          ? <video src={url} controls className="w-full" />
+                          : <img src={url} alt="" className="w-full object-cover" loading="lazy" />}
+                      </div>
+                    ))}
                   </div>
-                </div>
+                )}
+
+                {selected.tags?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-6 pt-6 border-t border-white/10">
+                    {selected.tags.map((t) => (
+                      <span key={t} className="text-[9px] font-bold text-gray-500 bg-white/5 border border-white/5 px-2 py-1 rounded-md uppercase tracking-widest">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-            </motion.div>
-          </div>
+            </motion.article>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {composerOpen && (
+          <ArticleComposer
+            sections={SECTIONS}
+            onClose={() => setComposerOpen(false)}
+            onPublished={(a) => { setComposerOpen(false); setArticles((p) => [a, ...p]); }}
+          />
         )}
       </AnimatePresence>
     </div>

@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { listingsApi, usersApi } from '../api/client';
-import { SHOPS } from '../utils/shopData';
+import { useShops } from '../hooks/useShops';
 import { formatPrice } from '../utils/constants';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 import { algoliaEnabled, searchListings } from '../utils/algolia';
 import { Search, X, ShoppingBag, Store, User, MapPin, SearchX } from 'lucide-react';
+import SmartImage from './SmartImage';
 
 const matches = (query, ...fields) =>
   fields.some((f) => typeof f === 'string' && f.toLowerCase().includes(query));
@@ -16,6 +17,7 @@ export default function GlobalSearch({ open, onClose }) {
   const [query, setQuery] = useState('');
   const [listings, setListings] = useState([]);
   const [users, setUsers] = useState([]);
+  const { shops } = useShops();
   const [loaded, setLoaded] = useState(false);
   const inputRef = useRef(null);
 
@@ -63,15 +65,15 @@ export default function GlobalSearch({ open, onClose }) {
       listings: (algoliaListings ?? listings
         .filter((l) => matches(q, l.title, l.description, l.listingType, l.locationCity, l.sellerName)))
         .slice(0, 6),
-      shops: SHOPS
-        .filter((s) => matches(q, s.name, s.category, s.tagline, s.location)
-          || s.products.some((p) => matches(q, p.name, p.category)))
+      shops: shops
+        .filter((s) => matches(q, s.name, s.category, s.tagline, s.city, s.ownerName)
+          || (s.products || []).some((p) => matches(q, p.name, p.category)))
         .slice(0, 4),
       people: users
         .filter((u) => matches(q, u.fullName, u.username, u.city, u.bio, u.role))
         .slice(0, 6),
     };
-  }, [q, listings, users, algoliaListings]);
+  }, [q, listings, users, shops, algoliaListings]);
 
   const total = results.listings.length + results.shops.length + results.people.length;
 
@@ -80,7 +82,7 @@ export default function GlobalSearch({ open, onClose }) {
   // Enter opens the top result, in display order: listing → shop → person.
   const openTopResult = () => {
     if (results.listings[0]) return go(`/listing/${results.listings[0].id}`);
-    if (results.shops[0]) return go(`/shop/${results.shops[0].id}`);
+    if (results.shops[0]) return go(`/shop/${results.shops[0].slug || results.shops[0].id}`);
     if (results.people[0]) return go(`/profile/${results.people[0].id}`);
   };
 
@@ -124,7 +126,7 @@ export default function GlobalSearch({ open, onClose }) {
               {!q ? (
                 <div className="py-14 text-center">
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-                    Type to search everything on HustleUp
+                    Type to search everything on HustleSpace
                   </p>
                   <p className="text-[10px] text-gray-600 mt-2">Listings · Shops · People</p>
                 </div>
@@ -160,14 +162,14 @@ export default function GlobalSearch({ open, onClose }) {
                     <section>
                       <h3 className="px-5 pt-3 pb-1.5 text-[10px] font-black uppercase tracking-[0.25em] text-[#FF00FF]">Shops</h3>
                       {results.shops.map((s) => (
-                        <button key={s.id} onClick={() => go(`/shop/${s.id}`)}
+                        <button key={s.id} onClick={() => go(`/shop/${s.slug || s.id}`)}
                           className="w-full px-5 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
                           <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-800 shrink-0">
-                            <img src={s.image} className="w-full h-full object-cover" />
+                            <SmartImage src={s.bannerUrl} alt={s.name} fallbackIcon={Store} className="w-full h-full object-cover" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-white truncate">{s.name}</p>
-                            <p className="text-xs text-gray-500 truncate">{s.category} · {s.location}</p>
+                            <p className="text-xs text-gray-500 truncate">{[s.category, s.city].filter(Boolean).join(' · ')}</p>
                           </div>
                           <Store className="w-4 h-4 text-gray-600 shrink-0" />
                         </button>

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { authApi } from '../api/client';
+import { clearStoredSession } from '../utils/session';
 
 
 // Initial state checks localStorage
@@ -105,9 +106,9 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     logout(state) {
-      localStorage.removeItem('hustleup_token');
-      localStorage.removeItem('hustleup_refresh');
-      localStorage.removeItem('hustleup_user');
+      // Clears every session-scoped key, not just the auth ones — see utils/session.
+      // The cart's in-memory copy is dropped by cartSlice, which listens for this action.
+      clearStoredSession();
       state.user = null;
       state.isAuthenticated = false;
       state.error = null;

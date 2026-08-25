@@ -1,408 +1,364 @@
-import { useState, useEffect, useRef } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSelector } from 'react-redux';
-import { listingsApi, usersApi, followsApi } from '../api/client';
+import { AnimatePresence, motion } from 'framer-motion';
+import { listingsApi, usersApi } from '../api/client';
 import { selectUser } from '../store/authSlice';
-import { LISTING_TYPES } from '../utils/constants';
-import { SHOPS } from '../utils/shopData';
+import { POLISH_CITIES, LISTING_TYPES } from '../utils/constants';
+import { useShops } from '../hooks/useShops';
 import ListingCard from '../components/ListingCard';
 import ShopCard from '../components/ShopCard';
+import CreatorCard from '../components/CreatorCard';
 import {
-  Store, ShoppingBag, Calendar, Briefcase,
-  Newspaper, MapPin, ChevronLeft, ChevronRight, Sparkles, Flame,
-  Compass, LayoutGrid, Users, BadgeCheck, UserPlus, Check
+  Store, ShoppingBag, MapPin, Search, X, Users, Compass,
+  SlidersHorizontal, LayoutGrid,
 } from 'lucide-react';
 
-/* ── Creator card: avatar + name + Follow / View profile actions ── */
-function CreatorCard({ u }) {
-  const [following, setFollowing] = useState(false);
-  const [busy, setBusy] = useState(false);
+/* ── Tab definitions ── */
+const TABS = [
+  { key: 'all',      label: 'All',      icon: LayoutGrid, accent: '#00FFFF' },
+  { key: 'listings', label: 'Listings',  icon: ShoppingBag, accent: '#00FFFF' },
+  { key: 'shops',    label: 'Shops',     icon: Store,       accent: '#FF00FF' },
+  { key: 'creators', label: 'Creators',  icon: Users,       accent: '#CDFF00' },
+];
 
-  const toggleFollow = async (e) => {
-    e.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    const next = !following;
-    setFollowing(next); // optimistic
-    try {
-      if (next) await followsApi.follow(u.id);
-      else await followsApi.unfollow(u.id);
-    } catch {
-      setFollowing(!next); // roll back on failure
-    } finally {
-      setBusy(false);
-    }
-  };
+/* ── Sort options (listings only) ── */
+const SORTS = [
+  { value: 'latest',       label: 'Newest first' },
+  { value: 'best_selling', label: 'Best selling' },
+  { value: 'price_asc',    label: 'Price: low → high' },
+  { value: 'price_desc',   label: 'Price: high → low' },
+  { value: 'rating',       label: 'Top rated' },
+];
 
-  return (
-    <div className="snap-start shrink-0 w-[116px] flex flex-col items-center text-center">
-      <Link to={`/profile/${u.id}`} className="group">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-black border border-white/10 flex items-center justify-center group-hover:border-white/25 transition-colors">
-          {u.avatarUrl
-            ? <img src={u.avatarUrl} alt={u.fullName} className="w-full h-full object-cover" />
-            : <span className="text-[#00FFFF] font-black text-xl uppercase">{u.fullName?.[0] || 'U'}</span>}
-        </div>
-      </Link>
-      <Link to={`/profile/${u.id}`} className="mt-2 flex items-center gap-1 text-[11px] font-black text-white leading-tight line-clamp-1 hover:text-[#00FFFF] transition-colors">
-        {u.fullName}
-        {u.idVerified && <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
-      </Link>
-      <span className="text-[8px] font-bold uppercase tracking-wider text-gray-500 mb-2">
-        {u.role === 'SELLER' ? 'Seller' : 'Hustler'}
-      </span>
-      <div className="flex items-center gap-1.5 w-full">
-        <button
-          onClick={toggleFollow}
-          disabled={busy}
-          className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wide transition-all disabled:opacity-60 ${
-            following
-              ? 'bg-white/5 border border-white/10 text-gray-300'
-              : 'bg-[#CDFF00] text-black hover:bg-[#d9ff33]'
-          }`}
-        >
-          {following ? <><Check className="w-3 h-3" /> Following</> : <><UserPlus className="w-3 h-3" /> Follow</>}
-        </button>
-        <Link
-          to={`/profile/${u.id}`}
-          title="View profile"
-          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/25 transition-colors"
-        >
-          <ChevronRight className="w-3.5 h-3.5" />
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-/* ── Horizontal Scroll Section Component ── */
-function ScrollRow({ title, subtitle, icon: Icon, accentColor, children, isEmpty }) {
-  const scrollRef = useRef(null);
-
-  const scroll = (direction) => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: direction * 300, behavior: 'smooth' });
-    }
-  };
-
-  return (
-    <div className="py-6 border-b border-white/5 relative group">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header - Centered */}
-        <div className="text-center mb-6">
-          <span className="text-[9px] font-black uppercase tracking-[0.3em] mb-1 block" style={{ color: accentColor }}>
-            {subtitle}
-          </span>
-          <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tighter flex items-center justify-center gap-2">
-            <Icon className="w-5 h-5" style={{ color: accentColor }} />
-            {title}
-          </h2>
-        </div>
-
-        {isEmpty ? (
-          <div className="text-center py-10 rounded-2xl bg-white/[0.02] border border-white/5 border-dashed">
-            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">More listings coming soon</p>
-          </div>
-        ) : (
-          <div className="relative">
-            {/* Scroll Buttons — always visible so users know the row scrolls */}
-            <button
-              onClick={() => scroll(-1)}
-              aria-label="Scroll left"
-              className="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-[#0A0A0A] border transition-all flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.6)] hover:scale-110 active:scale-95"
-              style={{ borderColor: `${accentColor}66` }}
-            >
-              <ChevronLeft className="w-5 h-5" style={{ color: accentColor }} />
-            </button>
-            <button
-              onClick={() => scroll(1)}
-              aria-label="Scroll right"
-              className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-[#0A0A0A] border transition-all flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,0,0,0.6)] hover:scale-110 active:scale-95"
-              style={{ borderColor: `${accentColor}66` }}
-            >
-              <ChevronRight className="w-5 h-5" style={{ color: accentColor }} />
-            </button>
-
-            {/* Horizontal Scroll Area */}
-            <div 
-              ref={scrollRef} 
-              className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-4 px-2"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {children}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+/** Case/diacritic-tolerant substring match across searchable fields. */
+function matches(query, ...fields) {
+  if (!query) return true;
+  const needle = query.trim().toLowerCase();
+  return fields.some((f) => String(f || '').toLowerCase().includes(needle));
 }
 
 export default function Explore() {
   const currentUser = useSelector(selectUser);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { shops: allShops, loading: shopsLoading } = useShops();
   const [allListings, setAllListings] = useState([]);
-  const [bestSelling, setBestSelling] = useState([]);
   const [creators, setCreators] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [bestSellingLoading, setBestSellingLoading] = useState(true);
 
-  const activeType = searchParams.get('type') || '';
-  // Section-type filter: '' (everything) | 'listings' | 'shops' | 'users'
-  const activeSection = searchParams.get('show') || '';
+  /* ── UI state ── */
+  const [tab, setTab] = useState('all');
+  const [query, setQuery] = useState('');
+  const [city, setCity] = useState('');
+  const [sort, setSort] = useState('latest');
+  const [listingType, setListingType] = useState('');
 
+  /* ── Data fetching ── */
   useEffect(() => {
     setLoading(true);
     listingsApi.browse({})
-      .then((r) => {
-        setAllListings(r.data || []);
-      })
+      .then((r) => setAllListings(r.data || []))
       .catch(() => setAllListings([]))
       .finally(() => setLoading(false));
 
-    setBestSellingLoading(true);
-    listingsApi.browse({ sort: 'best_selling' })
-      .then((r) => {
-        setBestSelling(r.data || []);
-      })
-      .catch(() => setBestSelling([]))
-      .finally(() => setBestSellingLoading(false));
-
-    // Creators row — needs auth; anonymous visitors just see the other sections.
     usersApi.getAll()
       .then((r) => setCreators((r.data || []).filter((u) => u.id !== currentUser?.id)))
       .catch(() => setCreators([]));
   }, [currentUser?.id]);
 
-  const setFilter = (typeValue) => {
-    const params = new URLSearchParams(searchParams);
-    if (typeValue) params.set('type', typeValue);
-    else params.delete('type');
-    setSearchParams(params);
-  };
+  /* ── Filtering ── */
+  const cityMatch = useCallback(
+    (value) => !city || String(value || '').toLowerCase() === city.toLowerCase(),
+    [city],
+  );
 
-  const setSection = (sectionValue) => {
-    const params = new URLSearchParams(searchParams);
-    if (sectionValue) params.set('show', sectionValue);
-    else params.delete('show');
-    setSearchParams(params);
-  };
+  const listings = useMemo(() => {
+    let items = allListings.filter((l) =>
+      cityMatch(l.locationCity) && matches(query, l.title, l.description, l.locationCity, l.sellerName));
+    if (listingType) items = items.filter((l) => (l.listingType || l.type) === listingType);
 
-  const showShops = !activeSection || activeSection === 'shops';
-  const showListings = !activeSection || activeSection === 'listings';
-  const showUsers = !activeSection || activeSection === 'users';
+    // Local sorting
+    if (sort === 'price_asc')  items = [...items].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    if (sort === 'price_desc') items = [...items].sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+    if (sort === 'rating')     items = [...items].sort((a, b) => Number(b.avgRating || 0) - Number(a.avgRating || 0));
+    return items;
+  }, [allListings, query, cityMatch, listingType, sort]);
 
-  // Filter listings by active category filter first (if any)
-  const filteredListings = activeType 
-    ? allListings.filter(l => l.listingType === activeType || l.type === activeType)
-    : allListings;
+  const shops = useMemo(
+    () => allShops.filter((s) =>
+      cityMatch(s.city) && matches(query, s.name, s.category, s.tagline, s.city, s.ownerName)),
+    [allShops, query, cityMatch],
+  );
 
-  // Segment current listings for vertical sections
-  const featuredListings = filteredListings; // all of them inside active scope
-  const events = filteredListings.filter(l => l.listingType === 'EVENT' || l.type === 'EVENT');
-  const jobs = filteredListings.filter(l => l.listingType === 'SKILL' || l.type === 'SKILL');
-  const filteredBestSelling = activeType
-    ? bestSelling.filter(l => l.listingType === activeType || l.type === activeType)
-    : bestSelling;
+  const people = useMemo(
+    () => creators.filter((u) => cityMatch(u.city) && matches(query, u.fullName, u.username, u.city, u.bio)),
+    [creators, query, cityMatch],
+  );
 
-  const staticNews = [
-    { title: 'Afro-Creators Rising Hub', desc: 'Connecting young creators with global venture tools.', date: 'May 2026', accent: '#FF00FF' },
-    { title: 'MTN Partner Program Launches', desc: 'MTN Mobile Money direct integration is now active.', date: 'Jun 2026', accent: '#00FFFF' },
-    { title: 'Nairobi Fashion Showcase', desc: 'Local fashion creators dominate top sales charts this week.', date: 'May 2026', accent: '#CDFF00' },
-  ];
+  /* ── Result counts ── */
+  const counts = { all: listings.length + shops.length + people.length, listings: listings.length, shops: shops.length, creators: people.length };
+  const activeTab = TABS.find((t) => t.key === tab);
+  const resultCount = counts[tab] || 0;
+  const isLoading = loading || shopsLoading;
+  const hasFilters = !!(query || city || listingType) || sort !== 'latest';
+  const clearFilters = () => { setQuery(''); setCity(''); setListingType(''); setSort('latest'); };
 
-  const staticEvents = [
-    { id: 'se-1', title: 'Afro Future Fest', price: 0, locationCity: 'Accra, GH', type: 'EVENT', tag: 'FESTIVAL' },
-    { id: 'se-2', title: 'Creative Mixer NG', price: 0, locationCity: 'Lagos, NG', type: 'EVENT', tag: 'NETWORK' },
-    { id: 'se-3', title: 'Tech Start Tour', price: 0, locationCity: 'Nairobi, KE', type: 'EVENT', tag: 'INNOVATE' },
-  ];
+  /* ── Render helpers ── */
+  const skeletons = (count, height = 'h-72') => (
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+      {[...Array(count)].map((_, i) => (
+        <div
+          key={i}
+          className={`${height} rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse`}
+          style={{ animationDelay: `${i * 80}ms` }}
+        />
+      ))}
+    </div>
+  );
+
+  const emptyState = (icon, message) => (
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
+      {icon}
+      <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">No results</h2>
+      <p className="text-sm text-gray-400 mb-6">{message}</p>
+      <button
+        onClick={clearFilters}
+        className="px-6 py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
+      >
+        Clear filters
+      </button>
+    </motion.div>
+  );
+
+  /* Interleave listings, shops, and creators for the "All" tab */
+  const allItems = useMemo(() => {
+    const items = [];
+    const maxLen = Math.max(listings.length, shops.length, people.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (i < listings.length) items.push({ type: 'listing', data: listings[i], id: `l-${listings[i].id}` });
+      if (i < shops.length) items.push({ type: 'shop', data: shops[i], id: `s-${shops[i].id}` });
+      if (i < people.length) items.push({ type: 'creator', data: people[i], id: `c-${people[i].id}` });
+    }
+    return items;
+  }, [listings, shops, people]);
 
   return (
-    <div className="min-h-screen font-sans pb-16">
-      
-      {/* ── COMPACT ICON BAR: heading + section filter + category filter ── */}
-      <div className="sticky top-14 z-[100] bg-black/85 backdrop-blur-md border-b border-white/5 py-2">
-        <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-center gap-1.5">
+    <div className="min-h-screen font-sans pb-20">
 
-          {/* Heading as icon */}
-          <h1 className="flex items-center gap-1.5 text-sm font-black text-white uppercase tracking-tighter mr-1.5">
-            <Compass className="w-4 h-4 text-[#FF00FF]" /> Explore
-          </h1>
-          <div className="w-px h-5 bg-white/10" />
+      {/* ── Sticky search & filter header ── */}
+      <div className="sticky top-14 md:top-16 z-[90] bg-black/80 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 
-          {/* Section-type filter: everything / listings / shops / creators */}
-          {[
-            { value: '', icon: LayoutGrid, label: 'All' },
-            { value: 'listings', icon: ShoppingBag, label: 'Listings' },
-            { value: 'shops', icon: Store, label: 'Shops' },
-            { value: 'users', icon: Users, label: 'Creators' },
-          ].map((s) => (
-            <button
-              key={s.value || 'all'}
-              onClick={() => setSection(s.value)}
-              title={s.label}
-              aria-label={s.label}
-              className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all shrink-0 ${
-                activeSection === s.value
-                  ? 'bg-[#00FFFF] text-black border-[#00FFFF] shadow-[0_0_10px_rgba(0,255,255,0.4)]'
-                  : 'bg-[#0A0A0A] text-white/70 border-white/10 hover:border-[#00FFFF] hover:text-white'
-              }`}
-            >
-              <s.icon className="w-4 h-4" />
-            </button>
-          ))}
+          {/* Row 1: Search + City */}
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search listings, shops, creators…"
+                className="w-full pl-11 pr-10 py-3 rounded-2xl bg-[#0A0A0A] border border-white/10 text-white text-sm font-medium placeholder:text-gray-600 outline-none focus:border-[#00FFFF] transition-colors"
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-          {/* Listing category filter (icons only) — relevant when listings are visible */}
-          {showListings && (
-            <>
-              <div className="w-px h-5 bg-white/10" />
+            <div className="relative sm:w-52">
+              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CDFF00] pointer-events-none" />
+              <select
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                aria-label="Filter by city"
+                className="w-full appearance-none pl-11 pr-4 py-3 rounded-2xl bg-[#0A0A0A] border border-white/10 text-white text-sm font-bold outline-none focus:border-[#CDFF00] transition-colors cursor-pointer"
+              >
+                <option value="">All of Poland</option>
+                {POLISH_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            {/* Sort — only visible on listings tab or all tab */}
+            {(tab === 'listings' || tab === 'all') && (
+              <div className="relative sm:w-52">
+                <SlidersHorizontal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#FF00FF] pointer-events-none" />
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                  aria-label="Sort results"
+                  className="w-full appearance-none pl-11 pr-4 py-3 rounded-2xl bg-[#0A0A0A] border border-white/10 text-white text-sm font-bold outline-none focus:border-[#FF00FF] transition-colors cursor-pointer"
+                >
+                  {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Row 2: Tabs + result count */}
+          <div className="flex items-center justify-between mt-3 gap-3">
+            <nav className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+              {TABS.map((t) => {
+                const isActive = tab === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => { setTab(t.key); setListingType(''); }}
+                    className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors ${
+                      isActive ? 'text-black' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="explore-tab-bg"
+                        className="absolute inset-0 rounded-xl shadow-[0_0_16px_rgba(0,255,255,0.3)]"
+                        style={{ backgroundColor: t.accent }}
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <t.icon className="relative w-4 h-4" />
+                    <span className="relative">{t.label}</span>
+                    <span className={`relative text-[9px] ml-0.5 ${isActive ? 'opacity-70' : 'opacity-50'}`}>
+                      {counts[t.key]}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 hidden sm:block">
+                {isLoading ? 'Loading…' : `${resultCount} result${resultCount !== 1 ? 's' : ''}`}
+              </span>
+              {hasFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/25 transition-colors"
+                >
+                  <X className="w-3 h-3" /> Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Row 3: Listing type chips — only on listings tab */}
+          {(tab === 'listings') && (
+            <div className="flex flex-wrap gap-2 mt-3">
               <button
-                onClick={() => setFilter('')}
-                title="All categories"
-                aria-label="All categories"
-                className={`flex items-center justify-center w-8 h-8 rounded-lg border text-[8px] font-black uppercase transition-all shrink-0 ${
-                  !activeType
-                    ? 'bg-[#FF00FF] text-white border-[#FF00FF] shadow-[0_0_10px_rgba(255,0,255,0.4)]'
-                    : 'bg-[#0A0A0A] text-white/70 border-white/10 hover:border-[#FF00FF]'
+                onClick={() => setListingType('')}
+                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                  !listingType ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
                 }`}
               >
-                ALL
+                All types
               </button>
-              {LISTING_TYPES.map((type) => (
+              {LISTING_TYPES.map((t) => (
                 <button
-                  key={type.value}
-                  onClick={() => setFilter(type.value)}
-                  title={type.label}
-                  aria-label={type.label}
-                  className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all shrink-0 ${
-                    activeType === type.value
-                      ? 'bg-[#FF00FF] text-white border-[#FF00FF] shadow-[0_0_10px_rgba(255,0,255,0.4)]'
-                      : 'bg-[#0A0A0A] text-white/70 border-white/10 hover:border-[#FF00FF] hover:text-white'
+                  key={t.value}
+                  onClick={() => setListingType(listingType === t.value ? '' : t.value)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                    listingType === t.value ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
                   }`}
                 >
-                  <type.icon className="w-4 h-4" />
+                  <t.icon className="w-3.5 h-3.5" /> {t.label}
                 </button>
               ))}
-            </>
+            </div>
           )}
         </div>
       </div>
 
-      {/* ── MAIN VERTICAL SCROLL SECTIONS ── */}
-      <div className="mt-4 space-y-4">
-        
-        {/* SECTION 0: CREATORS */}
-        {showUsers && creators.length > 0 && (
-          <ScrollRow title="Creators" subtitle="People On HustleUp" icon={Users} accentColor="#00FFFF" isEmpty={false}>
-            {creators.map((u) => <CreatorCard key={u.id} u={u} />)}
-          </ScrollRow>
-        )}
-
-        {/* SECTION 1: FEATURED SHOPS */}
-        {showShops && (
-        <ScrollRow title="Featured Shops" subtitle="Vibrant Hubs" icon={Store} accentColor="#FF00FF" isEmpty={SHOPS.length === 0}>
-          {SHOPS.map((shop, i) => (
-            <div key={shop.id} className="snap-start shrink-0 w-[280px]">
-              <ShopCard shop={shop} index={i} />
-            </div>
-          ))}
-        </ScrollRow>
-        )}
-
-        {/* SECTION 1.5: HIGH SELLING */}
-        {showListings && (
-        <ScrollRow title="High Selling" subtitle="Most Bought On HustleUp" icon={Flame} accentColor="#CDFF00" isEmpty={!bestSellingLoading && filteredBestSelling.length === 0}>
-          {bestSellingLoading ? (
-            [...Array(4)].map((_, i) => <div key={i} className="shrink-0 w-[240px] aspect-[4/5] bg-white/[0.02] border border-white/10 rounded-2xl animate-pulse" />)
-          ) : (
-            filteredBestSelling.map((l, i) => (
-              <div key={l.id} className="snap-start shrink-0 w-[240px]">
-                <ListingCard listing={l} index={i} />
-              </div>
-            ))
-          )}
-        </ScrollRow>
-        )}
-
-        {/* SECTION 2: FEATURED LISTINGS */}
-        {showListings && (
-        <ScrollRow title="Featured Listings" subtitle="Hot Off The Press" icon={ShoppingBag} accentColor="#00FFFF" isEmpty={!loading && featuredListings.length === 0}>
-          {loading ? (
-            [...Array(4)].map((_, i) => <div key={i} className="shrink-0 w-[240px] aspect-[4/5] bg-white/[0.02] border border-white/10 rounded-2xl animate-pulse" />)
-          ) : (
-            featuredListings.map((l, i) => (
-              <div key={l.id} className="snap-start shrink-0 w-[240px]">
-                <ListingCard listing={l} index={i} />
-              </div>
-            ))
-          )}
-        </ScrollRow>
-        )}
-
-        {/* SECTION 3: FEATURED EVENTS */}
-        {showListings && (
-        <ScrollRow title="Featured Events" subtitle="Gatherings & Meets" icon={Calendar} accentColor="#CDFF00" isEmpty={false}>
-          {/* Dynamic Events from database */}
-          {events.map((l, i) => (
-            <div key={l.id} className="snap-start shrink-0 w-[240px]">
-              <ListingCard listing={l} index={i} />
-            </div>
-          ))}
-          {/* Fallback Static Events */}
-          {staticEvents.map((e) => (
-            <div key={e.id} className="snap-start shrink-0 w-[240px]">
-              <div className="rounded-[2rem] border border-white/10 bg-[#0A0A0A] p-5 h-full hover:border-[#CDFF00] transition-all flex flex-col justify-between">
-                <div>
-                  <span className="inline-block px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-[#CDFF00]/10 text-[#CDFF00] border border-[#CDFF00]/20 mb-3">
-                    {e.tag}
-                  </span>
-                  <h4 className="text-sm font-black text-white uppercase tracking-tight mb-2 leading-snug">{e.title}</h4>
-                </div>
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#00FFFF]" /> {e.locationCity}
-                </p>
-              </div>
-            </div>
-          ))}
-        </ScrollRow>
-        )}
-
-        {/* SECTION 4: FEATURED NEWS (only in the unfiltered view) */}
-        {!activeSection && (
-        <ScrollRow title="Featured News" subtitle="The Culture Signal" icon={Newspaper} accentColor="#FF00FF" isEmpty={false}>
-          {staticNews.map((n, i) => (
-            <div key={i} className="snap-start shrink-0 w-[260px]">
-              <div className="rounded-[2rem] border border-white/10 bg-[#0A0A0A] p-6 h-full flex flex-col justify-between hover:border-[#FF00FF]/50 transition-all">
-                <div>
-                  <span className="text-[8px] font-black uppercase tracking-widest" style={{ color: n.accent }}>{n.date}</span>
-                  <h4 className="text-sm font-black text-white mt-2 mb-3 uppercase tracking-tight leading-snug">{n.title}</h4>
-                  <p className="text-[10px] text-gray-400 font-bold leading-relaxed">{n.desc}</p>
-                </div>
-                <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
-                  <span className="text-[9px] text-[#00FFFF] font-black uppercase tracking-widest">Signal Active</span>
-                  <Sparkles className="w-4 h-4" style={{ color: n.accent }} />
-                </div>
-              </div>
-            </div>
-          ))}
-        </ScrollRow>
-        )}
-
-        {/* SECTION 5: FEATURED JOBS */}
-        {showListings && (
-        <ScrollRow title="Featured Jobs" subtitle="Hustle Gigs" icon={Briefcase} accentColor="#00FFFF" isEmpty={!loading && jobs.length === 0}>
-          {loading ? (
-            [...Array(4)].map((_, i) => <div key={i} className="shrink-0 w-[240px] aspect-[4/5] bg-white/[0.02] border border-white/10 rounded-2xl animate-pulse" />)
-          ) : (
-            jobs.map((l, i) => (
-              <div key={l.id} className="snap-start shrink-0 w-[240px]">
-                <ListingCard listing={l} index={i} />
-              </div>
-            ))
-          )}
-        </ScrollRow>
-        )}
-
+      {/* ── Ambient glow behind content ── */}
+      <div className="relative">
+        <div className="absolute -top-32 -left-24 w-96 h-96 rounded-full blur-[120px] pointer-events-none" style={{ background: activeTab?.accent, opacity: 0.08 }} />
+        <div className="absolute -top-20 right-0 w-72 h-72 rounded-full bg-[#FF00FF]/10 blur-[120px] pointer-events-none" />
       </div>
+
+      {/* ── Content grid ── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-10">
+        <AnimatePresence mode="wait">
+
+          {/* ═══ ALL TAB ═══ */}
+          {tab === 'all' && (
+            <motion.div key="all" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
+              {isLoading ? skeletons(8) : allItems.length === 0 ? (
+                emptyState(<Compass className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'Nothing matches your search. Try different keywords or clear the filters.')
+              ) : (
+                <motion.div layout className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {allItems.map((item, i) => (
+                    <motion.div key={item.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3), duration: 0.35 }}>
+                      {item.type === 'listing' && <ListingCard listing={item.data} index={i} />}
+                      {item.type === 'shop' && <ShopCard shop={item.data} index={i} />}
+                      {item.type === 'creator' && <CreatorCard user={item.data} index={i} variant="full" />}
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ═══ LISTINGS TAB ═══ */}
+          {tab === 'listings' && (
+            <motion.div key="listings" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
+              {loading ? skeletons(8) : listings.length === 0 ? (
+                emptyState(<ShoppingBag className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No listings match your search.')
+              ) : (
+                <motion.div layout className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+                  <AnimatePresence mode="popLayout">
+                    {listings.map((l, i) => (
+                      <motion.div key={l.id} layout exit={{ opacity: 0, scale: 0.94 }}>
+                        <ListingCard listing={l} index={i} />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ═══ SHOPS TAB ═══ */}
+          {tab === 'shops' && (
+            <motion.div key="shops" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
+              {shopsLoading ? skeletons(6, 'h-80') : shops.length === 0 ? (
+                emptyState(<Store className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No shops match your search.')
+              ) : (
+                <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <AnimatePresence mode="popLayout">
+                    {shops.map((shop, i) => (
+                      <motion.div key={shop.id} layout exit={{ opacity: 0, scale: 0.94 }}>
+                        <ShopCard shop={shop} index={i} />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ═══ CREATORS TAB ═══ */}
+          {tab === 'creators' && (
+            <motion.div key="creators" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
+              {loading ? skeletons(10, 'h-64') : people.length === 0 ? (
+                emptyState(<Users className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No creators match your search.')
+              ) : (
+                <motion.div layout className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-5">
+                  <AnimatePresence mode="popLayout">
+                    {people.map((u, i) => (
+                      <motion.div key={u.id} layout exit={{ opacity: 0, scale: 0.94 }}>
+                        <CreatorCard user={u} index={i} variant="full" />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+        </AnimatePresence>
+      </section>
     </div>
   );
 }

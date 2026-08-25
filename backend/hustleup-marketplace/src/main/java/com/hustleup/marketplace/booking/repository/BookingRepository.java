@@ -113,4 +113,14 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * @return the matching booking, if any
      */
     Optional<Booking> findByPaymentIntentId(String paymentIntentId);
+
+    /**
+     * Every booking paid for by one Stripe PaymentIntent.
+     *
+     * <p>A cart checkout creates one booking per line item but a single charge, so one
+     * PaymentIntent now maps to many bookings. {@link #findByPaymentIntentId} returns at
+     * most one and would silently mark only the first item paid, leaving the rest of the
+     * order stuck UNPAID — this is what the webhook uses instead.
+     */
+    List<Booking> findAllByPaymentIntentId(String paymentIntentId);
 }
