@@ -1,0 +1,17 @@
+# Docker build context is the repo root; keep it small and free of secrets.
+frontend/
+mobile/
+uploads/
+db_backup/
+services/
+.expo/
+.claude/
+.qodo/
+.vscode/
+**/node_modules/
+**/target/
+**/.git/
+**/*.log
+**/.env
+**/.env.*
+!**/.env.example
