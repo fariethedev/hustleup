@@ -13,6 +13,52 @@ const initialState = {
   isAuthenticated: !!token && !!user,
   loading: false,
   error: null,
+  // field name -> message, when the backend rejected specific inputs. Null otherwise.
+  fieldErrors: null,
+};
+
+/**
+ * Turns an axios failure into a message worth showing someone, plus the per-field
+ * detail when there is any.
+ *
+ * GlobalExceptionHandler answers @Valid failures with {"validationErrors": {field: msg}}
+ * and business-rule failures with {"error": "..."}. This previously read only `error`
+ * and `message`, so every validation failure — wrong password format, taken username,
+ * bad email — collapsed into the same useless "Registration failed", and the response
+ * actually naming the problem was thrown away.
+ */
+const describeAuthError = (err, fallback) => {
+  const data = err.response?.data;
+  const fieldErrors =
+    data?.validationErrors && typeof data.validationErrors === 'object'
+      ? data.validationErrors
+      : null;
+
+  const message =
+    data?.error ||
+    data?.message ||
+    // Several fields can fail at once; show them all rather than picking one.
+    (fieldErrors ? Object.values(fieldErrors).join(' ') : null) ||
+    // A network failure has no response body at all, and "Registration failed" badly
+    // misdescribes it — nothing was attempted server-side.
+    (err.response ? null : 'Could not reach the server. Check your connection and try again.') ||
+    fallback;
+
+  return { message, fieldErrors };
+};
+
+/**
+ * Shared `rejected` handler.
+ *
+ * `state.error` must stay a plain string — components render it directly, and putting
+ * the describeAuthError object there would crash React with "Objects are not valid as a
+ * React child". The per-field detail goes in its own key instead, so existing consumers
+ * of `error` are unaffected.
+ */
+const applyAuthError = (state, action) => {
+  state.loading = false;
+  state.error = action.payload?.message ?? action.payload ?? null;
+  state.fieldErrors = action.payload?.fieldErrors ?? null;
 };
 
 // Async thunks for auth actions
@@ -38,7 +84,7 @@ export const loginUser = createAsyncThunk('auth/login', async (credentials, { re
     localStorage.setItem('hustleup_user', JSON.stringify(userData));
     return userData;
   } catch (err) {
-    return rejectWithValue(err.response?.data?.error || err.response?.data?.message || 'Login failed');
+    return rejectWithValue(describeAuthError(err, 'Login failed'));
   }
 });
 
@@ -60,7 +106,7 @@ async function handleOAuthResponse(apiCall, rejectWithValue) {
     localStorage.setItem('hustleup_user', JSON.stringify(userData));
     return userData;
   } catch (err) {
-    return rejectWithValue(err.response?.data?.error || err.response?.data?.message || 'Sign-in failed');
+    return rejectWithValue(describeAuthError(err, 'Sign-in failed'));
   }
 }
 
@@ -81,7 +127,7 @@ export const registerUser = createAsyncThunk('auth/register', async (data, { rej
     localStorage.setItem('hustleup_user', JSON.stringify(userData));
     return userData;
   } catch (err) {
-    return rejectWithValue(err.response?.data?.error || err.response?.data?.message || 'Registration failed');
+    return rejectWithValue(describeAuthError(err, 'Registration failed'));
   }
 });
 
@@ -112,43 +158,39 @@ const authSlice = createSlice({
       state.user = null;
       state.isAuthenticated = false;
       state.error = null;
+      state.fieldErrors = null;
     },
     clearError(state) {
       state.error = null;
+      state.fieldErrors = null;
     },
 
   },
   extraReducers: (builder) => {
     builder
       // Login
-      .addCase(loginUser.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(loginUser.pending, (state) => { state.loading = true; state.error = null; state.fieldErrors = null; })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload;
       })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(loginUser.rejected, applyAuthError)
       // Google / Facebook sign-in
-      .addCase(googleLogin.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(googleLogin.pending, (state) => { state.loading = true; state.error = null; state.fieldErrors = null; })
       .addCase(googleLogin.fulfilled, (state, action) => { state.loading = false; state.isAuthenticated = true; state.user = action.payload; })
-      .addCase(googleLogin.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
-      .addCase(facebookLogin.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(googleLogin.rejected, applyAuthError)
+      .addCase(facebookLogin.pending, (state) => { state.loading = true; state.error = null; state.fieldErrors = null; })
       .addCase(facebookLogin.fulfilled, (state, action) => { state.loading = false; state.isAuthenticated = true; state.user = action.payload; })
-      .addCase(facebookLogin.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
+      .addCase(facebookLogin.rejected, applyAuthError)
       // Register
-      .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; state.fieldErrors = null; })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload;
       })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(registerUser.rejected, applyAuthError)
       // Load Profile
       .addCase(loadUserProfile.fulfilled, (state, action) => {
         state.user = action.payload;
@@ -161,6 +203,8 @@ export const { logout, clearError } = authSlice.actions;
 // Selectors
 export const selectAuth = (state) => state.auth;
 export const selectUser = (state) => state.auth.user;
+/** Per-field rejection messages from the last failed auth call, or null. */
+export const selectFieldErrors = (state) => state.auth.fieldErrors;
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 export const selectIsSeller = (state) => state.auth.user?.role === 'SELLER';
 export const selectHasCompletedOnboarding = () => true;
