@@ -79,7 +79,7 @@ Copy `backend/.env.example` to `backend/.env` and fill in your credentials:
 ```
 AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
 AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-AWS_REGION=us-east-1
+AWS_REGION=eu-north-1
 AWS_S3_BUCKET=hustle-up
 ```
 
@@ -98,11 +98,20 @@ $env:AWS_S3_BUCKET="hustle-up"
 
 ## How it works
 
-- If `AWS_ACCESS_KEY_ID` is set → files upload to **S3**, URLs like:
-  `https://hustle-up.s3.us-east-1.amazonaws.com/uploads/uuid.jpg`
-- If not set → falls back to **local storage** as before
+`FileStorageService` switches to S3 only when **all three** of `app.aws.access-key`,
+`app.aws.secret-key` and `app.aws.s3.bucket` are non-blank. Setting just the access key
+is not enough — it stays in local mode, which is deliberate: a half-configured client
+would fail on every upload instead of degrading quietly.
+
+- All three set → files upload to **S3**, URLs like
+  `https://hustle-up.s3.eu-north-1.amazonaws.com/uploads/uuid.jpg`
+- Any one missing → falls back to **local storage** on disk
 
 No code changes needed to switch — just environment variables.
+
+> **The `hustle-up` bucket lives in `eu-north-1`** (Stockholm), not `us-east-1`. Getting
+> this wrong does not produce an auth error — S3 answers `301 PermanentRedirect` and every
+> upload fails. Verified by the `x-amz-bucket-region` response header.
 
 ---
 
