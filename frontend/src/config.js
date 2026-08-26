@@ -13,6 +13,16 @@
  */
 export const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
+// A production build without VITE_API_URL silently addresses its own origin, where nothing
+// serves /api — every call 404s and the app looks broken for no visible reason. Say so.
+if (!API_BASE && typeof window !== 'undefined' &&
+    !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname)) {
+  console.error(
+    `[config] VITE_API_URL is not set in this build — every API call will 404 against ` +
+    `${window.location.origin}. Set it to the gateway origin and redeploy.`
+  );
+}
+
 /** Prefix for REST calls. Falls back to a relative path so local dev is unchanged. */
 export const API_URL = `${API_BASE}/api/v1`;
 

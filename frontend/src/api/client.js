@@ -22,12 +22,36 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Flattens one error field into a string, or null when there is nothing readable in it.
+//
+// Every call site reads `err.response?.data?.error || 'fallback'` and renders the result,
+// so a nested object in that field reaches React as a child and takes the whole page down
+// with "Objects are not valid as a React child". That is not hypothetical: a request that
+// misses the gateway entirely is answered by the static host, and Vercel answers an
+// unrouted /api/* path with {"error":{"code","message"}}. Normalising here means no call
+// site can hit it.
+const asMessage = (value) => {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') {
+    const nested = value.message ?? value.error ?? value.code;
+    return typeof nested === 'string' ? nested : null;
+  }
+  return null;
+};
+
 // Handle 401/403 — attempt token refresh, then logout
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
     const status = error.response?.status;
+
+    // Before anything downstream reads the payload.
+    const data = error.response?.data;
+    if (data && typeof data === 'object') {
+      if ('error' in data) data.error = asMessage(data.error);
+      if ('message' in data) data.message = asMessage(data.message);
+    }
 
     // Skip toast for auth errors — they'll be handled by redirect/refresh
     if (status !== 401 && status !== 403) {
@@ -71,6 +95,11 @@ export const authApi = {
   login: (data) => api.post('/auth/login', data),
   me: () => api.get('/auth/me'),
   verifyEmail: (token) => api.get('/auth/verify', { params: { token } }),
+  // Six-digit code flow used by onboarding. The code is matched against this specific
+  // address server-side, so the email must be sent alongside it.
+  verifyCode: (email, code) => api.post('/auth/verify-code', { email, code }),
+  resendCode: (email) => api.post('/auth/resend-code', { email }),
+  usernameAvailable: (username) => api.get('/auth/username-available', { params: { username } }),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
   resetPassword: (token, newPassword) => api.post('/auth/reset-password', { token, newPassword }),
   // Both send an OAuth access token (implicit flow) — verified server-side against each

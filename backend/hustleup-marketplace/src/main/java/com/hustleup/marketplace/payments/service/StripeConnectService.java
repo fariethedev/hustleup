@@ -166,6 +166,10 @@ public class StripeConnectService {
                 .setCancelUrl(frontendUrl + "/dashboard?payment=cancelled")
                 // transfer_group ties this charge to the later Transfer for the same booking
                 // so the eventual seller payout can be reconciled back to the original payment.
+                // See createCartCheckoutSession: the PaymentIntent does not exist yet at
+                // session-creation time, so the booking id must also travel on the session
+                // for the webhook to be able to resolve it.
+                .putMetadata("bookingIds", booking.getId().toString())
                 .setPaymentIntentData(
                         SessionCreateParams.PaymentIntentData.builder()
                                 .setTransferGroup(booking.getId().toString())
@@ -231,6 +235,13 @@ public class StripeConnectService {
                 .setMode(SessionCreateParams.Mode.PAYMENT)
                 .setSuccessUrl(frontendUrl + "/checkout/confirmation?payment=success")
                 .setCancelUrl(frontendUrl + "/checkout?payment=cancelled")
+                // Booking ids go on the SESSION, not only on the PaymentIntent. Stripe does
+                // not create the PaymentIntent until the customer actually starts paying, so
+                // at this moment session.getPaymentIntent() is null and there is nothing to
+                // store on the booking rows. The checkout.session.completed event carries
+                // this metadata back, which is what lets the webhook mark the right orders
+                // paid without needing a PaymentIntent id we never had.
+                .putMetadata("bookingIds", ids)
                 .setPaymentIntentData(
                         SessionCreateParams.PaymentIntentData.builder()
                                 // One transfer group for the order, so the per-seller

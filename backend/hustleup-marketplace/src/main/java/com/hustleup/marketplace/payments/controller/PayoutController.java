@@ -133,15 +133,43 @@ public class PayoutController {
                     }
                 }
                 case "checkout.session.completed" -> {
-                    // Bookings are looked up by the PaymentIntent id stored when the Checkout
-                    // Session was created. findAll, not findOne: a cart checkout creates one
-                    // booking per line but a single charge, so one PaymentIntent covers the
-                    // whole order. Marking only the first would leave the rest of a paid
-                    // basket sitting UNPAID with the money already taken.
-                    if (stripeObject instanceof Session session && session.getPaymentIntent() != null) {
-                        var paid = bookingRepository.findAllByPaymentIntentId(session.getPaymentIntent());
+                    if (stripeObject instanceof Session session) {
+                        // Resolve which bookings this payment covers from the session's own
+                        // metadata rather than from a stored PaymentIntent id. Stripe does not
+                        // create the PaymentIntent until the customer starts paying, so at
+                        // session-creation time there was nothing to store on the booking rows —
+                        // matching on it would find nothing and silently leave a fully paid
+                        // order sitting UNPAID.
+                        //
+                        // One session can cover several bookings: a cart checkout is one charge
+                        // across many line items, so this marks every id in the list.
+                        String csv = session.getMetadata() != null
+                                ? session.getMetadata().get("bookingIds") : null;
+
+                        java.util.List<com.hustleup.marketplace.booking.model.Booking> paid =
+                                new java.util.ArrayList<>();
+
+                        if (csv != null && !csv.isBlank()) {
+                            for (String raw : csv.split(",")) {
+                                try {
+                                    bookingRepository.findById(java.util.UUID.fromString(raw.trim()))
+                                            .ifPresent(paid::add);
+                                } catch (IllegalArgumentException ignored) {
+                                    // Not a UUID — skip rather than failing the whole webhook.
+                                }
+                            }
+                        } else if (session.getPaymentIntent() != null) {
+                            // Fallback for any session created before the metadata was added.
+                            paid = bookingRepository.findAllByPaymentIntentId(session.getPaymentIntent());
+                        }
+
                         for (var booking : paid) {
                             booking.setPaymentStatus("PAID");
+                            // Record the PaymentIntent now that one exists — the seller payout
+                            // on completion reconciles against it.
+                            if (session.getPaymentIntent() != null) {
+                                booking.setPaymentIntentId(session.getPaymentIntent());
+                            }
                             bookingRepository.save(booking);
                         }
                     }

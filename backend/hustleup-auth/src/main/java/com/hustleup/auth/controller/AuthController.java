@@ -23,6 +23,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -85,6 +86,16 @@ public class AuthController {
 
     // UserRepository provides CRUD operations for the User entity.
     // Spring Data generates the SQL implementation automatically at runtime.
+    /** Verification codes are credentials, so they come from a CSPRNG, not Math.random. */
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    /**
+     * How long a verification code stays valid. Short on purpose: the code is short enough
+     * to brute-force given unlimited time, so the window is the main thing limiting that.
+     * Long enough to survive a slow inbox, short enough that a leaked code goes stale.
+     */
+    private static final long VERIFY_CODE_TTL_SECONDS = 900; // 15 minutes
+
     private final UserRepository userRepository;
 
     // PasswordEncoder is responsible for hashing passwords before storing them
@@ -207,6 +218,14 @@ public class AuthController {
             return ResponseEntity.badRequest().body(java.util.Map.of("error", "Email already registered"));
         }
 
+        // Checked case-insensitively: the column's UNIQUE constraint is case-sensitive under
+        // MySQL's default collation, so without this "Sarah" and "sarah" would both be
+        // accepted as separate handles — the exact impersonation the check exists to stop.
+        String username = request.getUsername() == null ? "" : request.getUsername().trim();
+        if (userRepository.existsByUsernameIgnoreCase(username)) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "That username is already taken"));
+        }
+
         // Build a new User using the Lombok @Builder pattern.
         // The builder pattern is a readable, null-safe alternative to a long constructor call.
         // IMPORTANT: passwordEncoder.encode() hashes the plain-text password. We must
@@ -216,6 +235,7 @@ public class AuthController {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword())) // hash, never store plain text
                 .fullName(request.getFullName())
+                .username(username)
                 .phone(request.getPhone())
                 .role(Role.valueOf(request.getRole())) // convert "BUYER"/"SELLER" string to enum
                 .termsAcceptedAt(Instant.now().atZone(java.time.ZoneOffset.UTC).toLocalDateTime())
@@ -479,6 +499,98 @@ public class AuthController {
     }
 
     /**
+     * Confirms an email address from the six-digit code sent at sign-up.
+     *
+     * <p><strong>HTTP:</strong> {@code POST /api/v1/auth/verify-code}</p>
+     * <p><strong>Body:</strong> {@code {"email": "...", "code": "123456"}}</p>
+     *
+     * <p>The code is matched against that specific user, never on its own — see
+     * {@link AuthTokenRepository#findByUserIdAndTokenAndPurpose}. An already-verified
+     * account returns 200 rather than an error, so a double submit (or a second tab)
+     * reads as success instead of a confusing failure.
+     */
+    @PostMapping("/verify-code")
+    public ResponseEntity<?> verifyCode(@RequestBody Map<String, String> body) {
+        String email = body.getOrDefault("email", "").trim();
+        String code = body.getOrDefault("code", "").trim();
+        if (email.isEmpty() || code.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email and code are required"));
+        }
+
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            // Same wording as a wrong code: distinguishing them would turn this endpoint
+            // into a way to test which addresses have accounts.
+            return ResponseEntity.badRequest().body(Map.of("error", "That code is invalid or has expired"));
+        }
+        if (user.isEmailVerified()) {
+            return ResponseEntity.ok(Map.of("message", "Email already verified", "alreadyVerified", true));
+        }
+
+        AuthToken authToken = authTokenRepository
+                .findByUserIdAndTokenAndPurpose(user.getId(), code, AuthToken.Purpose.VERIFY_EMAIL)
+                .orElse(null);
+        if (authToken == null || authToken.getExpiryDate().isBefore(Instant.now())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "That code is invalid or has expired"));
+        }
+
+        user.setEmailVerified(true);
+        userRepository.save(user);
+        authTokenRepository.delete(authToken); // single-use
+
+        return ResponseEntity.ok(Map.of("message", "Email verified", "alreadyVerified", false));
+    }
+
+    /**
+     * Issues a fresh verification code, invalidating any previous one.
+     *
+     * <p><strong>HTTP:</strong> {@code POST /api/v1/auth/resend-code}</p>
+     * <p><strong>Body:</strong> {@code {"email": "..."}}</p>
+     *
+     * <p>Always returns 200, whether or not the address has an account — for the same
+     * reason {@code /forgot-password} does: the response must not reveal who is registered.
+     */
+    @PostMapping("/resend-code")
+    public ResponseEntity<?> resendCode(@RequestBody Map<String, String> body) {
+        String email = body.getOrDefault("email", "").trim();
+        Map<String, Object> ok = Map.of(
+                "message", "If that address needs verifying, a new code is on its way",
+                "expiresInMinutes", VERIFY_CODE_TTL_SECONDS / 60);
+
+        if (email.isEmpty()) return ResponseEntity.ok(ok);
+
+        userRepository.findByEmail(email).ifPresent(user -> {
+            if (user.isEmailVerified()) return; // nothing to confirm
+            try {
+                sendVerificationEmail(user);
+            } catch (Exception e) {
+                log.warn("Could not resend verification code to {}: {}", email, e.getMessage());
+            }
+        });
+        return ResponseEntity.ok(ok);
+    }
+
+    /**
+     * Checks whether a username is free, for live feedback on the sign-up form.
+     *
+     * <p><strong>HTTP:</strong> {@code GET /api/v1/auth/username-available?username=...}</p>
+     *
+     * <p>Returns {@code available:false} for anything that fails the format rules too, so the
+     * form has one signal to drive off rather than having to duplicate the regex. Registration
+     * re-checks both — this endpoint is a convenience, not the enforcement point.
+     */
+    @GetMapping("/username-available")
+    public ResponseEntity<?> usernameAvailable(@RequestParam String username) {
+        String candidate = username == null ? "" : username.trim();
+        boolean wellFormed = candidate.matches("^(?![._])[A-Za-z0-9._]{3,20}(?<![._])$");
+        boolean available = wellFormed && !userRepository.existsByUsernameIgnoreCase(candidate);
+        return ResponseEntity.ok(Map.of(
+                "username", candidate,
+                "available", available,
+                "wellFormed", wellFormed));
+    }
+
+    /**
      * Starts a password-reset flow. Always returns 200 regardless of whether the email
      * is registered — this deliberately avoids leaking which addresses have accounts.
      *
@@ -557,17 +669,48 @@ public class AuthController {
      * email provider never blocks account creation.
      */
     private void sendVerificationEmail(User user) {
-        String token = UUID.randomUUID().toString();
-        authTokenRepository.save(AuthToken.builder()
-                .userId(user.getId())
-                .token(token)
-                .purpose(AuthToken.Purpose.VERIFY_EMAIL)
-                .expiryDate(Instant.now().plusSeconds(86400)) // 24 hours
-                .build());
-        String verifyLink = frontendUrl + "/verify-email?token=" + token;
-        emailService.send(user.getEmail(), "Verify your HustleSpace account",
-                "<p>Welcome to HustleSpace! Confirm your email to finish setting up your account.</p>"
-                        + "<p><a href=\"" + verifyLink + "\">Verify your email</a> (expires in 24 hours).</p>");
+        String code = issueVerificationCode(user);
+        emailService.send(user.getEmail(), "Your HustleSpace verification code",
+                "<p>Welcome to HustleSpace! Enter this code to confirm your email:</p>"
+                        + "<p style=\"font-size:28px;font-weight:bold;letter-spacing:6px;margin:16px 0\">"
+                        + code + "</p>"
+                        + "<p>The code expires in " + (VERIFY_CODE_TTL_SECONDS / 60) + " minutes. "
+                        + "If you didn't create a HustleSpace account, you can ignore this email.</p>");
+    }
+
+    /**
+     * Replaces any outstanding verification code for this user with a fresh one.
+     *
+     * <p>Codes are six digits so they can be read off a phone and typed, which means the
+     * space is small enough that two users can hold the same code at once — and the token
+     * column is UNIQUE. Rather than let that surface as a 500 during registration, a
+     * collision is retried with a new code. {@link SecureRandom} rather than
+     * {@code Math.random}: this is a credential, and a predictable one would let an attacker
+     * confirm somebody else's address.
+     *
+     * <p>Only one code is live per user, so requesting a new one silently invalidates the old.
+     *
+     * @return the plain code, for embedding in the email
+     */
+    private String issueVerificationCode(User user) {
+        authTokenRepository.deleteByUserIdAndPurpose(user.getId(), AuthToken.Purpose.VERIFY_EMAIL);
+
+        for (int attempt = 0; attempt < 5; attempt++) {
+            String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
+            try {
+                authTokenRepository.saveAndFlush(AuthToken.builder()
+                        .userId(user.getId())
+                        .token(code)
+                        .purpose(AuthToken.Purpose.VERIFY_EMAIL)
+                        .expiryDate(Instant.now().plusSeconds(VERIFY_CODE_TTL_SECONDS))
+                        .build());
+                return code;
+            } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                // Another user currently holds this code — draw again.
+                log.debug("Verification code collision, retrying (attempt {})", attempt + 1);
+            }
+        }
+        throw new IllegalStateException("Could not allocate a verification code");
     }
 
     /**
