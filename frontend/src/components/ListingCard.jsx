@@ -60,18 +60,18 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
             )}
 
             {/* Type badge */}
-            <span className="absolute top-2.5 left-2.5 flex items-center gap-1 px-2 py-1 rounded-md bg-black/80 text-[8px] font-black uppercase tracking-widest text-[#00FFFF] border border-[#00FFFF]/40">
-              <Zap className="w-2.5 h-2.5 fill-[#00FFFF]" />{typeInfo.label}
+            <span className="absolute top-2.5 left-2.5 max-w-[46%] flex items-center gap-1 px-2 py-1 rounded-md bg-black/80 text-[8px] font-black uppercase tracking-widest text-[#00FFFF] border border-[#00FFFF]/40">
+              <Zap className="w-2.5 h-2.5 fill-[#00FFFF] shrink-0" /><span className="truncate">{typeInfo.label}</span>
             </span>
 
             {/* Negotiable / fixed-price badge */}
             {listing.negotiable ? (
-              <span className="absolute top-2.5 right-2.5 flex items-center gap-1 px-2 py-1 rounded-md bg-[#CDFF00] text-black text-[8px] font-black uppercase tracking-widest shadow-[0_0_8px_rgba(205,255,0,0.5)]">
-                <HandCoins className="w-2.5 h-2.5" /> Negotiable
+              <span className="absolute top-2.5 right-2.5 max-w-[46%] flex items-center gap-1 px-2 py-1 rounded-md bg-[#CDFF00] text-black text-[8px] font-black uppercase tracking-widest shadow-[0_0_8px_rgba(205,255,0,0.5)]">
+                <HandCoins className="w-2.5 h-2.5 shrink-0" /><span className="truncate">Negotiable</span>
               </span>
             ) : (
-              <span className="absolute top-2.5 right-2.5 flex items-center gap-1 px-2 py-1 rounded-md bg-black/80 text-gray-300 text-[8px] font-black uppercase tracking-widest border border-white/20">
-                <Lock className="w-2.5 h-2.5" /> Fixed price
+              <span className="absolute top-2.5 right-2.5 max-w-[46%] flex items-center gap-1 px-2 py-1 rounded-md bg-black/80 text-gray-300 text-[8px] font-black uppercase tracking-widest border border-white/20">
+                <Lock className="w-2.5 h-2.5 shrink-0" /><span className="truncate">Fixed price</span>
               </span>
             )}
           </div>
