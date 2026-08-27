@@ -7,6 +7,7 @@ import com.hustleup.common.repository.MatchRepository;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.common.storage.FileStorageService;
+import com.hustleup.common.subscription.PremiumAccess;
 import com.hustleup.social.model.DatingProfile;
 import com.hustleup.social.model.DatingSwipe;
 import com.hustleup.social.repository.DatingProfileRepository;
@@ -19,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -60,6 +62,14 @@ class DatingControllerTest {
     @Mock
     private MatchRepository matchRepository;
 
+    /**
+     * Bond is Premium-only, and the controller now checks that itself rather than trusting the
+     * browser. Without this mock the constructor injection would hand the controller a null and
+     * every test here would die inside the gate.
+     */
+    @Mock
+    private PremiumAccess premiumAccess;
+
     @InjectMocks
     private DatingController datingController;
 
@@ -79,20 +89,18 @@ class DatingControllerTest {
         DatingProfile femaleProfile = profile(femaleUser.getId(), "Female User", "Female");
         DatingProfile maleProfile = profile(maleUser.getId(), "Other Male", "Male");
 
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(currentUser.getEmail(), null, List.of())
-        );
+        authenticate(currentUser);
 
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
         when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser));
         when(datingProfileRepository.findAll()).thenReturn(List.of(currentProfile, femaleProfile, maleProfile));
         when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
 
-        ResponseEntity<List<DatingProfile>> response = datingController.getProfiles();
+        List<DatingProfile> profiles = profilesOf(datingController.getProfiles());
 
-        assertEquals(1, response.getBody().size());
-        assertEquals("Female", response.getBody().get(0).getGender());
-        assertEquals(femaleUser.getId(), response.getBody().get(0).getId());
+        assertEquals(1, profiles.size());
+        assertEquals("Female", profiles.get(0).getGender());
+        assertEquals(femaleUser.getId(), profiles.get(0).getId());
     }
 
     @Test
@@ -106,20 +114,18 @@ class DatingControllerTest {
         DatingProfile femaleProfile = profile(femaleUser.getId(), "Other Female", "Female");
         DatingProfile maleProfile = profile(maleUser.getId(), "Male User", "Male");
 
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(currentUser.getEmail(), null, List.of())
-        );
+        authenticate(currentUser);
 
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
         when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser));
         when(datingProfileRepository.findAll()).thenReturn(List.of(currentProfile, femaleProfile, maleProfile));
         when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
 
-        ResponseEntity<List<DatingProfile>> response = datingController.getProfiles();
+        List<DatingProfile> profiles = profilesOf(datingController.getProfiles());
 
-        assertEquals(1, response.getBody().size());
-        assertEquals("Male", response.getBody().get(0).getGender());
-        assertEquals(maleUser.getId(), response.getBody().get(0).getId());
+        assertEquals(1, profiles.size());
+        assertEquals("Male", profiles.get(0).getGender());
+        assertEquals(maleUser.getId(), profiles.get(0).getId());
     }
 
     @Test
@@ -134,18 +140,15 @@ class DatingControllerTest {
         DatingProfile femaleProfile = profile(femaleUser.getId(), "Female User", "Female");
         DatingProfile maleProfile = profile(maleUser.getId(), "Male User", "Male");
 
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(currentUser.getEmail(), null, List.of())
-        );
+        authenticate(currentUser);
 
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
         when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser, noProfileUser));
         when(datingProfileRepository.findAll()).thenReturn(List.of(currentProfile, femaleProfile, maleProfile));
         when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
 
-        ResponseEntity<List<DatingProfile>> response = datingController.getProfiles();
+        List<DatingProfile> profiles = profilesOf(datingController.getProfiles());
 
-        List<DatingProfile> profiles = response.getBody();
         assertNotNull(profiles);
         assertEquals(3, profiles.size());
     }
@@ -169,7 +172,7 @@ class DatingControllerTest {
                 profile(maleUser.getId(), "Other Male", "Male")));
         when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
 
-        List<DatingProfile> profiles = datingController.getProfiles().getBody();
+        List<DatingProfile> profiles = profilesOf(datingController.getProfiles());
 
         assertNotNull(profiles);
         assertEquals(2, profiles.size());
@@ -195,7 +198,7 @@ class DatingControllerTest {
                 profile(maleUser.getId(), "Male User", "Male")));
         when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
 
-        List<DatingProfile> profiles = datingController.getProfiles().getBody();
+        List<DatingProfile> profiles = profilesOf(datingController.getProfiles());
 
         assertNotNull(profiles);
         assertEquals(1, profiles.size());
@@ -219,7 +222,7 @@ class DatingControllerTest {
         when(datingSwipeRepository.findByTargetIdAndActionIn(eq(currentUser.getId()), anyCollection()))
                 .thenReturn(List.of(swipe(admirer.getId(), currentUser.getId(), "SUPER_LIKE")));
 
-        List<DatingProfile> profiles = datingController.getProfiles().getBody();
+        List<DatingProfile> profiles = profilesOf(datingController.getProfiles());
 
         assertNotNull(profiles);
         assertEquals(2, profiles.size());
@@ -332,12 +335,47 @@ class DatingControllerTest {
         assertEquals("empty", body.get("reason"));
     }
 
+    @Test
+    @DisplayName("Discovery is refused to an account without Premium")
+    void getProfiles_WithoutPremiumIsRefused() {
+        User currentUser = user("free@example.com", "Free User");
+
+        // Signed in by hand rather than through authenticate(), which grants Premium — the
+        // absence of it is the whole point of this test.
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(currentUser.getEmail(), null, List.of())
+        );
+        when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        when(premiumAccess.isPremium(currentUser.getId())).thenReturn(false);
+
+        ResponseEntity<?> response = datingController.getProfiles();
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertEquals("PREMIUM_REQUIRED", bodyOf(response).get("code"));
+        // The refusal has to come before the work, not after it — a gate that still assembles
+        // the deck and then declines to return it is leaking the query, not the data.
+        verify(datingProfileRepository, never()).findAll();
+    }
+
     // ── Fixtures ─────────────────────────────────────────────────────────────
 
-    private static void authenticate(User user) {
+    /**
+     * Signs {@code user} in and gives them Premium.
+     *
+     * <p>Every Bond endpoint exercised below is gated on Premium, so without the second half
+     * of this each test would be asserting against a 403 body. The refusal path is covered
+     * separately by {@link #getProfiles_WithoutPremiumIsRefused()}.
+     */
+    private void authenticate(User user) {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(user.getEmail(), null, List.of())
         );
+        when(premiumAccess.isPremium(user.getId())).thenReturn(true);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<DatingProfile> profilesOf(ResponseEntity<?> response) {
+        return (List<DatingProfile>) response.getBody();
     }
 
     @SuppressWarnings("unchecked")
