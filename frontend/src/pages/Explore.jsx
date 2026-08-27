@@ -30,6 +30,18 @@ const SORTS = [
   { value: 'rating',       label: 'Top rated' },
 ];
 
+/**
+ * The results column: exactly one card per row, centred in the page.
+ *
+ * Every tab renders into this same class, so listings, shops and creators line up on a
+ * single spine rather than each tab picking its own column count. The cap matters as much
+ * as the count — a card stretched to the full 7xl container would put a 1200px-wide image
+ * above two lines of text. ~460px is the width these cards were drawn for.
+ *
+ * This replaces the old responsive grid (2-up scroll on mobile, 3–4 columns on desktop).
+ */
+const FEED_COLUMN = 'mx-auto w-full max-w-[460px] flex flex-col gap-5';
+
 /** Case/diacritic-tolerant substring match across searchable fields. */
 function matches(query, ...fields) {
   if (!query) return true;
@@ -105,12 +117,14 @@ export default function Explore() {
   const clearFilters = () => { setQuery(''); setCity(''); setListingType(''); setSort('latest'); };
 
   /* ── Render helpers ── */
+  // Placeholders occupy the same column as the results, so nothing shifts sideways when
+  // the data lands. Fewer of them than before: at one-up, four fills the screen.
   const skeletons = (count, height = 'h-72') => (
-    <div className="flex md:grid overflow-x-auto md:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 md:gap-5 pb-1 md:pb-0 md:grid-cols-3 xl:grid-cols-4">
-      {[...Array(count)].map((_, i) => (
+    <div className={FEED_COLUMN}>
+      {[...Array(Math.min(count, 4))].map((_, i) => (
         <div
           key={i}
-          className={`${height} shrink-0 w-[calc((100%-0.75rem)/2)] md:w-auto rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse`}
+          className={`${height} w-full rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse`}
           style={{ animationDelay: `${i * 80}ms` }}
         />
       ))}
@@ -469,9 +483,9 @@ export default function Explore() {
               {isLoading ? skeletons(8) : allItems.length === 0 ? (
                 emptyState(<Compass className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'Nothing matches your search. Try different keywords or clear the filters.')
               ) : (
-                <motion.div layout className="flex md:grid overflow-x-auto md:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 md:gap-5 pb-1 md:pb-0 md:grid-cols-3 xl:grid-cols-4">
+                <motion.div layout className={FEED_COLUMN}>
                   {allItems.map((item, i) => (
-                    <motion.div key={item.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3), duration: 0.35 }} className="shrink-0 w-[calc((100%-0.75rem)/2)] md:w-auto snap-start">
+                    <motion.div key={item.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3), duration: 0.35 }} className="w-full">
                       {item.type === 'listing' && <ListingCard listing={item.data} index={i} />}
                       {item.type === 'shop' && <ShopCard shop={item.data} index={i} />}
                       {item.type === 'creator' && <CreatorCard user={item.data} index={i} variant="full" />}
@@ -488,10 +502,10 @@ export default function Explore() {
               {loading ? skeletons(8) : listings.length === 0 ? (
                 emptyState(<ShoppingBag className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No listings match your search.')
               ) : (
-                <motion.div layout className="flex md:grid overflow-x-auto md:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 md:gap-5 pb-1 md:pb-0 md:grid-cols-3 xl:grid-cols-4">
+                <motion.div layout className={FEED_COLUMN}>
                   <AnimatePresence mode="popLayout">
                     {listings.map((l, i) => (
-                      <motion.div key={l.id} layout exit={{ opacity: 0, scale: 0.94 }} className="shrink-0 w-[calc((100%-0.75rem)/2)] md:w-auto snap-start">
+                      <motion.div key={l.id} layout exit={{ opacity: 0, scale: 0.94 }} className="w-full">
                         <ListingCard listing={l} index={i} />
                       </motion.div>
                     ))}
@@ -507,10 +521,10 @@ export default function Explore() {
               {shopsLoading ? skeletons(6, 'h-80') : shops.length === 0 ? (
                 emptyState(<Store className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No shops match your search.')
               ) : (
-                <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                <motion.div layout className={FEED_COLUMN}>
                   <AnimatePresence mode="popLayout">
                     {shops.map((shop, i) => (
-                      <motion.div key={shop.id} layout exit={{ opacity: 0, scale: 0.94 }} className="shrink-0 w-[calc((100%-0.75rem)/2)] md:w-auto snap-start">
+                      <motion.div key={shop.id} layout exit={{ opacity: 0, scale: 0.94 }} className="w-full">
                         <ShopCard shop={shop} index={i} />
                       </motion.div>
                     ))}
@@ -526,10 +540,10 @@ export default function Explore() {
               {loading ? skeletons(10, 'h-64') : people.length === 0 ? (
                 emptyState(<Users className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No creators match your search.')
               ) : (
-                <motion.div layout className="flex md:grid overflow-x-auto md:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 md:gap-5 pb-1 md:pb-0 md:grid-cols-3 xl:grid-cols-5">
+                <motion.div layout className={FEED_COLUMN}>
                   <AnimatePresence mode="popLayout">
                     {people.map((u, i) => (
-                      <motion.div key={u.id} layout exit={{ opacity: 0, scale: 0.94 }} className="shrink-0 w-[calc((100%-0.75rem)/2)] md:w-auto snap-start">
+                      <motion.div key={u.id} layout exit={{ opacity: 0, scale: 0.94 }} className="w-full">
                         <CreatorCard user={u} index={i} variant="full" />
                       </motion.div>
                     ))}

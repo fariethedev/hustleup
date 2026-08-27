@@ -14,8 +14,14 @@ export default function PaymentMethodPicker({ value, onChange }) {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        {PAYMENT_METHODS.map(({ id, label, description, Mark, onLight }) => {
+      {/* Compact rows, not tiles.
+          Each option used to be a card with a 40px white brand plate stacked above a label
+          and a description — five of those filled most of a phone screen before the buyer
+          reached the pay button. The mark now sits inline at its legible minimum, the
+          description is gone (the "what happens next" line below already says it, for the
+          one option that is actually selected), and a row is ~40px instead of ~110px. */}
+      <div className="rounded-xl border border-white/10 overflow-hidden divide-y divide-white/5">
+        {PAYMENT_METHODS.map(({ id, label, Mark, onLight }) => {
           const active = value === id;
           return (
             <button
@@ -23,38 +29,32 @@ export default function PaymentMethodPicker({ value, onChange }) {
               type="button"
               aria-pressed={active}
               onClick={() => onChange(id)}
-              className={`group relative rounded-xl border p-3 text-left transition-all active:scale-[0.98] ${
-                active
-                  ? 'border-[#CDFF00] bg-[#CDFF00]/[0.07] shadow-[0_0_0_1px_rgba(205,255,0,0.25)]'
-                  : 'border-white/10 bg-black/40 hover:border-white/25'
+              className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                active ? 'bg-[#CDFF00]/[0.08]' : 'bg-black/40 hover:bg-white/[0.04]'
               }`}
             >
-              {/* Brand chip — light plate for full-colour marks so they stay legible */}
-              <div
-                className={`h-10 rounded-lg flex items-center justify-center px-3 mb-2.5 transition-colors ${
-                  onLight
-                    ? 'bg-white'
-                    : active ? 'bg-[#CDFF00]/15 text-[#CDFF00]' : 'bg-white/[0.06] text-gray-300'
+              {/* Light plate only where the brand's own artwork needs one to stay legible */}
+              <span
+                className={`w-14 h-7 rounded-md flex items-center justify-center px-1.5 shrink-0 ${
+                  onLight ? 'bg-white' : active ? 'text-[#CDFF00]' : 'text-gray-300'
                 }`}
               >
-                <Mark className="h-5 w-auto max-w-full" />
-              </div>
+                <Mark className="h-4 w-auto max-w-full" />
+              </span>
 
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className={`text-[11px] font-black uppercase tracking-wide truncate ${active ? 'text-[#CDFF00]' : 'text-white'}`}>
-                    {label}
-                  </div>
-                  <div className="text-[10px] text-gray-500 truncate">{description}</div>
-                </div>
-                <span
-                  className={`w-4 h-4 rounded-full border shrink-0 flex items-center justify-center transition-colors ${
-                    active ? 'bg-[#CDFF00] border-[#CDFF00]' : 'border-white/25 group-hover:border-white/50'
-                  }`}
-                >
-                  {active && <Check className="w-2.5 h-2.5 text-black" strokeWidth={4} />}
-                </span>
-              </div>
+              <span className={`flex-1 min-w-0 text-xs font-black uppercase tracking-wide truncate ${
+                active ? 'text-[#CDFF00]' : 'text-white'
+              }`}>
+                {label}
+              </span>
+
+              <span
+                className={`w-4 h-4 rounded-full border shrink-0 flex items-center justify-center transition-colors ${
+                  active ? 'bg-[#CDFF00] border-[#CDFF00]' : 'border-white/25'
+                }`}
+              >
+                {active && <Check className="w-2.5 h-2.5 text-black" strokeWidth={4} />}
+              </span>
             </button>
           );
         })}

@@ -20,9 +20,11 @@ import { coverImage, mediaList } from '../utils/media';
  * - Add-to-cart floats on the image, which removes a whole stacked row.
  * - The description is hidden below `sm`. At two-up it rendered as two clipped lines and
  *   pushed the price out of view; the title and price are what people actually scan.
- * - The old "Fixed price" badge is gone. Nearly every listing is fixed price, so it labelled
- *   the default state and told the reader nothing, while crowding the one badge that does
- *   carry information — "Negotiable", which now stands alone.
+ * - Nothing is badged except a negotiable price, and that badge is now the icon alone.
+ *   "Fixed price" went first: nearly every listing is fixed price, so it labelled the
+ *   default state and told the reader nothing. The category label followed for the same
+ *   reason — the type icon already stands in as the image fallback, and the word repeated
+ *   what the title says in plain language.
  */
 export default function ListingCard({ listing, index = 0, onDelete }) {
   const user = useSelector(selectUser);
@@ -69,15 +71,17 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
             />
             <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
 
-            {/* Category — small and low-contrast: useful context, not a headline */}
-            <span className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[8px] font-black uppercase tracking-widest text-white/80">
-              <TypeIcon className="w-2.5 h-2.5" /> {typeInfo.label}
-            </span>
-
-            {/* Only the exceptional case gets a loud badge */}
+            {/* The one exceptional fact about a listing, as an icon. Dropping the "Nego"
+                text costs nothing a hover or a screen reader cannot recover, and the
+                accessible name carries the full word rather than the abbreviation. */}
             {listing.negotiable && (
-              <span className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#CDFF00] text-black text-[8px] font-black uppercase tracking-widest">
-                <HandCoins className="w-2.5 h-2.5" /> Nego
+              <span
+                role="img"
+                title="Price negotiable"
+                aria-label="Price negotiable"
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#CDFF00] text-black flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+              >
+                <HandCoins className="w-3.5 h-3.5" strokeWidth={2.5} />
               </span>
             )}
 

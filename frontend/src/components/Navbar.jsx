@@ -149,11 +149,14 @@ export default function Navbar() {
 
   const visibleItems = navItems.filter(item => item.always || (item.auth && isAuthenticated));
 
-  // Bottom tab items (mobile) — compact 4 + profile
+  // Bottom tab items (mobile). Bond is here rather than behind "More" because it is a
+  // primary destination on desktop — it was in neither this list nor MORE_LINKS, which made
+  // it reachable on a phone only by typing the URL.
   const bottomTabs = [
     { to: '/',        icon: Home,          label: 'Home',     always: true },
     { to: '/explore', icon: Compass,       label: 'Explore',  auth: true },
     { to: '/feed',    icon: Layers,        label: 'Feed',     auth: true },
+    { to: '/dating',  icon: Heart,         label: 'Bond',     auth: true, accent: true },
     { to: '/dm',      icon: Send,          label: 'DMs',      auth: true, badge: dmUnread },
   ];
   const visibleTabs = bottomTabs.filter(item => item.always || (item.auth && isAuthenticated));
@@ -468,7 +471,7 @@ export default function Navbar() {
           </>
         )}
         <div className="flex items-center gap-0.5 h-[58px] px-2 rounded-full bg-[#0a0a0a]/85 border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
-          {visibleTabs.map(({ to, icon: Icon, label, badge }) => {
+          {visibleTabs.map(({ to, icon: Icon, label, badge, accent }) => {
             const active = isActive(to);
             return (
               <Link
@@ -480,7 +483,12 @@ export default function Navbar() {
                   active ? 'bg-white/10' : ''
                 }`}
               >
-                <Icon className={`w-[22px] h-[22px] ${active ? 'text-[#CDFF00]' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 1.9} />
+                <Icon
+                  className={`w-[22px] h-[22px] ${
+                    active ? 'text-[#CDFF00]' : accent ? 'text-[#FF00FF]' : 'text-gray-400'
+                  }`}
+                  strokeWidth={active ? 2.5 : 1.9}
+                />
                 {badge > 0 && (
                   <span className="absolute top-1.5 right-1.5 inline-flex items-center justify-center min-w-[15px] h-[15px] px-0.5 text-[8px] font-black rounded-full ring-2 ring-[#0a0a0a] bg-[#FF00FF] text-white">
                     {badge > 9 ? '9+' : badge}
