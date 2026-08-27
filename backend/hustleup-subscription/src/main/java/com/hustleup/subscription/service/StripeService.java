@@ -282,6 +282,28 @@ public class StripeService {
         }
 
         Map<String, String> metadata = s.getMetadata() == null ? Map.of() : s.getMetadata();
+
+        // Bookings, storefront orders and subscriptions all finish as the same event type,
+        // and both webhook endpoints subscribe to it. The `plan` key is what marks a session
+        // as a subscription purchase: without it this is somebody buying a listing, which is
+        // the marketplace service's business. Ignored quietly — treating it as a failed
+        // upgrade would log an error on every ordinary sale.
+        String planName = metadata.get("plan");
+        if (planName == null || planName.isBlank()) {
+            log.debug("Session {} carries no plan metadata — not a subscription purchase", s.getId());
+            return;
+        }
+
+        // Past this point the session IS a subscription purchase, so anything unusable is a
+        // real failure: money has been taken and somebody is owed Premium.
+        Optional<SubscriptionPlan> plan = SubscriptionPlan.from(planName);
+        if (plan.isEmpty()) {
+            log.error("Session {} names unknown plan '{}'. Payment taken but nobody upgraded.",
+                    s.getId(), planName);
+            return;
+        }
+        SubscriptionPlan p = plan.get();
+
         String rawUserId = s.getClientReferenceId() != null
                 ? s.getClientReferenceId()
                 : metadata.get("userId");
@@ -294,14 +316,6 @@ public class StripeService {
                     + "Payment taken but nobody upgraded.", s.getId(), s.getClientReferenceId(), metadata);
             return;
         }
-
-        Optional<SubscriptionPlan> plan = SubscriptionPlan.from(metadata.get("plan"));
-        if (plan.isEmpty()) {
-            log.error("Session {} for user {} has unknown plan '{}'. Payment taken but nobody upgraded.",
-                    s.getId(), userId, metadata.get("plan"));
-            return;
-        }
-        SubscriptionPlan p = plan.get();
 
         Subscription sub = subscriptionRepository.findBySellerId(userId)
                 .orElseGet(() -> Subscription.builder().sellerId(userId).build());

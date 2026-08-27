@@ -27,9 +27,21 @@ export default function BookingAlertListener() {
   const [busy, setBusy] = useState(false);
   const dismissedIds = useRef(new Set());
   const shownAlertRef = useRef(null); // mirrors `alert` synchronously, so the poll never races a re-show
+  // Notification ids already accounted for, so nothing is announced twice. Seeded from the
+  // FIRST poll without toasting: otherwise signing in would fire a burst of toasts for a
+  // backlog the user has already lived through.
+  const seenIds = useRef(new Set());
+  const seededRef = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
+
+    // This component is mounted for the whole app lifetime, so the refs outlive a sign-out.
+    // Without resetting them, the next account to sign in on this device would be seeded
+    // against the previous user's ids — and have its entire unread backlog toasted at once.
+    seenIds.current = new Set();
+    seededRef.current = false;
+    dismissedIds.current = new Set();
 
     const poll = async () => {
       // Don't fetch a new one while the user is already looking at a popup — avoid
@@ -37,7 +49,29 @@ export default function BookingAlertListener() {
       if (shownAlertRef.current) return;
       try {
         const res = await notificationsApi.getAll();
-        const next = (res.data || []).find(
+        const all = res.data || [];
+
+        // Everything that isn't an actionable booking card used to land silently in the
+        // bell — a completed sale, a new review, a follow. Those now surface as toasts, so
+        // every alert announces itself the way the rest of the app's notifications do.
+        const unread = all.filter((n) => !n.read);
+        if (!seededRef.current) {
+          unread.forEach((n) => seenIds.current.add(n.id));
+          seededRef.current = true;
+        } else {
+          unread
+            .filter((n) => !seenIds.current.has(n.id) && !ACTIONABLE_TYPES.includes(n.notificationType))
+            // Oldest first, so a burst arrives in the order it happened.
+            .reverse()
+            .forEach((n) => {
+              seenIds.current.add(n.id);
+              showToast(n.title ? `${n.title}${n.message ? ` — ${n.message}` : ''}` : n.message, 'success');
+            });
+          // Actionable ones are marked seen too; they get the popup card instead.
+          unread.forEach((n) => seenIds.current.add(n.id));
+        }
+
+        const next = all.find(
           (n) => !n.read && ACTIONABLE_TYPES.includes(n.notificationType) && !dismissedIds.current.has(n.id)
         );
         if (next) {
@@ -52,7 +86,7 @@ export default function BookingAlertListener() {
     poll();
     const interval = setInterval(poll, POLL_MS);
     return () => clearInterval(interval);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, showToast]);
 
   const dismiss = () => {
     if (alert) dismissedIds.current.add(alert.id);

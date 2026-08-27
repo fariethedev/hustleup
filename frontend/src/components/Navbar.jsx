@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectUser, selectIsAuthenticated, logout } from '../store/authSlice';
 import { notificationsApi, directMessagesApi } from '../api/client';
@@ -35,6 +36,10 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  // Mobile account menu. The desktop equivalent opens on hover, which touch devices do not
+  // have — so on a phone there was no way to reach Sign Out at all.
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef(null);
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(false);
   const location = useLocation();
@@ -80,7 +85,28 @@ export default function Navbar() {
     return () => clearInterval(interval);
   }, [isAuthenticated, location]);
 
+  // Close the mobile account menu on an outside tap or Escape.
+  useEffect(() => {
+    if (!accountOpen) return undefined;
+    const onPointer = (e) => {
+      if (accountRef.current && !accountRef.current.contains(e.target)) setAccountOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setAccountOpen(false); };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('touchstart', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('touchstart', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [accountOpen]);
+
+  // Navigating away should never leave the sheet hanging open behind the new page.
+  useEffect(() => { setAccountOpen(false); }, [location]);
+
   const handleLogout = () => {
+    setAccountOpen(false);
     // Clear the badge counts so the next account to sign in on this device never
     // sees the previous user's unread numbers, even for a frame.
     setDmUnread(0);
@@ -350,11 +376,53 @@ export default function Navbar() {
                 )}
               </button>
               {isAuthenticated ? (
-                <Link to={`/profile/${user?.id}`} className="w-7 h-7 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-[10px] uppercase overflow-hidden border border-white/10">
-                  {user?.avatarUrl
-                    ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
-                    : user?.fullName?.[0] || 'U'}
-                </Link>
+                // Tap-to-open menu rather than a straight link to the profile: the desktop
+                // account dropdown is hover-only, so Sign Out was unreachable on a phone.
+                <div className="relative" ref={accountRef}>
+                  <button
+                    onClick={() => setAccountOpen((v) => !v)}
+                    aria-label="Account menu"
+                    aria-expanded={accountOpen}
+                    className="w-7 h-7 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-[10px] uppercase overflow-hidden border border-white/10"
+                  >
+                    {user?.avatarUrl
+                      ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                      : user?.fullName?.[0] || 'U'}
+                  </button>
+
+                  <AnimatePresence>
+                    {accountOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 top-full mt-2 w-52 py-2 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl z-[300] backdrop-blur-3xl"
+                      >
+                        <div className="px-3 py-1.5 border-b border-white/5 mb-1.5">
+                          <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Signed in as</p>
+                          <p className="text-xs text-white font-black truncate">{user?.fullName}</p>
+                        </div>
+                        <Link to={`/profile/${user?.id}`} className="flex items-center px-3 py-2 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold">
+                          <User className="w-3.5 h-3.5 mr-2" /> Profile
+                        </Link>
+                        <Link to="/dashboard" className="flex items-center px-3 py-2 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold">
+                          <LayoutDashboard className="w-3.5 h-3.5 mr-2" /> Dashboard
+                        </Link>
+                        <Link to="/tickets" className="flex items-center px-3 py-2 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold">
+                          <Ticket className="w-3.5 h-3.5 mr-2" /> My Tickets
+                        </Link>
+                        <hr className="my-1.5 border-white/5" />
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center w-full text-left px-3 py-2 text-xs text-[#CDFF00] hover:bg-[#CDFF00] hover:text-black transition-colors font-bold"
+                        >
+                          <LogOut className="w-3.5 h-3.5 mr-2" /> Sign Out
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               ) : (
                 <Link to="/login" className="px-3 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest">
                   Sign In
