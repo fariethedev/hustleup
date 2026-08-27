@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShieldCheck, Lock, User, Mail, Phone } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Lock, User, Mail, Phone, Loader2, AlertCircle } from 'lucide-react';
 import { formatPrice } from '../utils/constants';
 import { useShopProduct } from '../hooks/useShops';
+import { shopsApi } from '../api/client';
 import SmartImage from '../components/SmartImage';
 import PaymentMethodPicker from '../components/PaymentMethodPicker';
 import { findMethod } from '../utils/paymentMethods';
@@ -24,6 +25,8 @@ export default function ShopCheckout() {
   const navigate = useNavigate();
   const { shop, product, loading, notFound } = useShopProduct(id, productId);
   const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '', paymentMethod: 'paypal' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   const draft = useMemo(() => {
     try {
@@ -58,25 +61,45 @@ export default function ShopCheckout() {
   const total = unitPrice * quantity;
 
   const selected = findMethod(customer.paymentMethod);
-  const canSubmit = !!(customer.fullName && customer.email);
+  const canSubmit = !!(customer.fullName && customer.email) && !submitting;
   // Names the specific blocker so a disabled pay button is never a mystery.
   const missing = [
     !customer.fullName && 'name',
     !customer.email && 'email address',
   ].filter(Boolean).join(' and ');
 
-  const placeOrder = () => {
-    const payload = {
-      shopId: shop.id,
-      productId: product.id,
-      quantity,
-      unitPrice,
-      total,
-      notes: draft.notes || '',
-      customer,
-    };
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    navigate(`/shop/${shop.slug || shop.id}/product/${product.id}/confirmation`);
+  const placeOrder = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      // Creates a real order per line and returns one Stripe Checkout URL. Previously this
+      // wrote the basket to sessionStorage and navigated to a confirmation page — nothing
+      // reached the server, so the buyer saw a completed purchase that never happened.
+      const { data } = await shopsApi.checkout(shop.slug || shop.id, {
+        items: [{ productId: product.id, quantity }],
+        customer,
+        notes: draft.notes || '',
+      });
+
+      // The order exists now, so the draft has done its job. Clearing it stops a
+      // back-button press from re-submitting the same basket.
+      sessionStorage.removeItem(STORAGE_KEY);
+
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      // No URL means nothing was payable — surface it rather than implying a sale.
+      setError('This order could not be sent for payment. Please try again.');
+    } catch (e) {
+      const d = e.response?.data;
+      setError(d?.error || d?.message
+        || (e.response?.status === 401
+            ? 'Sign in to place this order.'
+            : 'Could not place the order. Please try again.'));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const field = (key, placeholder, type, Icon) => (
@@ -185,23 +208,33 @@ export default function ShopCheckout() {
                 </p>
               )}
 
+              {error && (
+                <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2 text-red-400">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="text-xs font-medium">{error}</span>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={placeOrder}
                 disabled={!canSubmit}
                 className="mt-4 w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all shadow-[0_8px_24px_rgba(205,255,0,0.22)]"
               >
-                <Lock className="w-3.5 h-3.5" /> Review order
+                {submitting
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Taking you to payment…</>
+                  : <><Lock className="w-3.5 h-3.5" /> Pay securely</>}
               </button>
 
-              {/* This flow genuinely doesn't charge yet, so the button promises a review step
-                  rather than a payment. Saying "Pay now" here would be a lie. */}
+              {/* This flow now really does charge, so the copy says so. It previously read
+                  "Nothing charged yet" because the button only wrote to sessionStorage —
+                  leaving that wording in place would be a lie in the opposite direction. */}
               <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/5">
                 <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black uppercase tracking-widest">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Nothing charged yet
+                  <ShieldCheck className="w-3.5 h-3.5" /> Secure checkout
                 </div>
                 <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
-                  You&apos;ll get a final review before any payment is taken.
+                  Payment is handled by Stripe. Your card details never touch HustleSpace.
                 </p>
               </div>
 

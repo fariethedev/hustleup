@@ -273,6 +273,68 @@ public class StripeConnectService {
         return new CheckoutResult(session.getUrl(), session.getPaymentIntent());
     }
 
+    /**
+     * Creates a Checkout Session for a storefront order.
+     *
+     * <p>Separate from {@link #createCartCheckoutSession} because shop orders are their own
+     * entity: the ids in metadata are {@code shopOrderIds}, and the buyer returns to the
+     * shop's confirmation page rather than the marketplace one. Like the cart flow, the
+     * charge lands on the platform balance and the seller is paid later.
+     *
+     * @param orders   the storefront orders in this purchase, all for the same buyer
+     * @param shopSlug used to build the return URLs back to the right storefront
+     */
+    public CheckoutResult createShopCheckoutSession(java.util.List<com.hustleup.marketplace.shop.model.ShopOrder> orders,
+                                                    String shopSlug) throws StripeException {
+        if (orders == null || orders.isEmpty()) {
+            throw new IllegalArgumentException("Cannot start a checkout with no items");
+        }
+
+        String currency = orders.get(0).getCurrency();
+        for (var o : orders) {
+            if (!currency.equalsIgnoreCase(o.getCurrency())) {
+                throw new IllegalArgumentException("All items in one checkout must share a currency");
+            }
+        }
+
+        String ids = orders.stream()
+                .map(o -> o.getId().toString())
+                .collect(java.util.stream.Collectors.joining(","));
+
+        SessionCreateParams.Builder params = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.PAYMENT)
+                .setSuccessUrl(frontendUrl + "/shop/" + shopSlug + "/orders?payment=success")
+                .setCancelUrl(frontendUrl + "/shop/" + shopSlug + "?payment=cancelled")
+                // On the session, not only on the PaymentIntent: Stripe does not create the
+                // PaymentIntent until the buyer starts paying, so there is nothing to store
+                // on the order rows at this point. checkout.session.completed carries this
+                // back, which is how the webhook knows which orders to mark paid.
+                .putMetadata("shopOrderIds", ids)
+                .setPaymentIntentData(
+                        SessionCreateParams.PaymentIntentData.builder()
+                                .setTransferGroup("shop_" + orders.get(0).getId())
+                                .putMetadata("shopOrderIds", ids)
+                                .build());
+
+        for (var o : orders) {
+            int qty = Math.max(1, o.getQuantity());
+            long total = toMinorUnits(o.getTotalPrice());
+            params.addLineItem(SessionCreateParams.LineItem.builder()
+                    .setQuantity((long) qty)
+                    .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
+                            .setCurrency(o.getCurrency().toLowerCase())
+                            .setUnitAmount(total / qty)
+                            .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                    .setName(o.getProductName() != null ? o.getProductName() : "Item")
+                                    .build())
+                            .build())
+                    .build());
+        }
+
+        Session session = Session.create(params.build());
+        return new CheckoutResult(session.getUrl(), session.getPaymentIntent());
+    }
+
     /** Simple holder so callers get both the redirect URL and the PaymentIntent id to persist. */
     public record CheckoutResult(String checkoutUrl, String paymentIntentId) {}
 

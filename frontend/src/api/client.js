@@ -137,6 +137,18 @@ export const shopsApi = {
   create: (data) => api.post('/shops', data),
   update: (id, data) => api.patch(`/shops/${id}`, data),
   remove: (id) => api.delete(`/shops/${id}`),
+  /**
+   * Buy from a storefront. Creates one order per line and returns a single Stripe
+   * Checkout URL covering them all.
+   * items: [{ productId, quantity }]
+   * → { url, orderIds }
+   */
+  checkout: (idOrSlug, { items, customer, notes } = {}) =>
+    api.post(`/shops/${idOrSlug}/checkout`, { items, customer, notes }),
+  // The caller's storefront purchases, and the orders placed with their own shop.
+  myOrders: () => api.get('/shops/orders/mine'),
+  receivedOrders: () => api.get('/shops/orders/received'),
+  updateOrder: (id, status) => api.patch(`/shops/orders/${id}`, { status }),
   // Shared by the banner and product photos; returns { url }.
   uploadMedia: (id, file) => {
     const formData = new FormData();

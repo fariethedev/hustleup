@@ -37,6 +37,7 @@ public class PayoutController {
     private final SellerPayoutAccountRepository payoutAccountRepository;
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
+    private final com.hustleup.marketplace.shop.repository.ShopOrderRepository shopOrderRepository;
 
     @Value("${app.stripe.connect-webhook-secret}")
     private String webhookSecret;
@@ -44,11 +45,13 @@ public class PayoutController {
     public PayoutController(StripeConnectService stripeConnectService,
                              SellerPayoutAccountRepository payoutAccountRepository,
                              UserRepository userRepository,
-                             BookingRepository bookingRepository) {
+                             BookingRepository bookingRepository,
+                             com.hustleup.marketplace.shop.repository.ShopOrderRepository shopOrderRepository) {
         this.stripeConnectService = stripeConnectService;
         this.payoutAccountRepository = payoutAccountRepository;
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
+        this.shopOrderRepository = shopOrderRepository;
     }
 
     private User currentUser() {
@@ -168,8 +171,33 @@ public class PayoutController {
                         //
                         // One session can cover several bookings: a cart checkout is one charge
                         // across many line items, so this marks every id in the list.
-                        String csv = session.getMetadata() != null
-                                ? session.getMetadata().get("bookingIds") : null;
+                        var meta = session.getMetadata();
+
+                        // Storefront purchases are their own entity and carry their own key.
+                        // Handled first and returned from, so a shop session never falls
+                        // through into the booking lookup below.
+                        String shopCsv = meta != null ? meta.get("shopOrderIds") : null;
+                        if (shopCsv != null && !shopCsv.isBlank()) {
+                            for (String raw : shopCsv.split(",")) {
+                                try {
+                                    shopOrderRepository.findById(java.util.UUID.fromString(raw.trim()))
+                                            .ifPresent(o -> {
+                                                o.setStatus(com.hustleup.marketplace.shop.model.ShopOrder
+                                                        .ShopOrderStatus.PAID);
+                                                if (session.getPaymentIntent() != null) {
+                                                    o.setPaymentIntentId(session.getPaymentIntent());
+                                                }
+                                                o.setUpdatedAt(java.time.LocalDateTime.now());
+                                                shopOrderRepository.save(o);
+                                            });
+                                } catch (IllegalArgumentException ignored) {
+                                    // Not a UUID — skip rather than failing the whole webhook.
+                                }
+                            }
+                            return ResponseEntity.ok().build();
+                        }
+
+                        String csv = meta != null ? meta.get("bookingIds") : null;
 
                         java.util.List<com.hustleup.marketplace.booking.model.Booking> paid =
                                 new java.util.ArrayList<>();
