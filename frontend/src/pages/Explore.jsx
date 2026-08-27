@@ -50,6 +50,9 @@ export default function Explore() {
   const [city, setCity] = useState('');
   const [sort, setSort] = useState('latest');
   const [listingType, setListingType] = useState('');
+  // Mobile only: the search field and the filter selects are collapsed behind icons so the
+  // sticky header costs one row instead of four before you see a single result.
+  const [mobilePanel, setMobilePanel] = useState(null); // 'search' | 'filters' | null
 
   /* ── Data fetching ── */
   useEffect(() => {
@@ -103,11 +106,11 @@ export default function Explore() {
 
   /* ── Render helpers ── */
   const skeletons = (count, height = 'h-72') => (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+    <div className="flex md:grid overflow-x-auto md:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 md:gap-5 pb-1 md:pb-0 md:grid-cols-3 xl:grid-cols-4">
       {[...Array(count)].map((_, i) => (
         <div
           key={i}
-          className={`${height} rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse`}
+          className={`${height} shrink-0 w-[calc((100%-0.75rem)/2)] md:w-auto rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse`}
           style={{ animationDelay: `${i * 80}ms` }}
         />
       ))}
@@ -146,6 +149,184 @@ export default function Explore() {
       {/* ── Sticky search & filter header ── */}
       <div className="sticky top-14 md:top-16 z-[90] bg-black/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+
+          {/* ── Mobile: one compact row. Tabs scroll; search and filters live behind icons ── */}
+          <div className="sm:hidden">
+            <div className="flex items-center gap-2">
+              <nav className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1 min-w-0">
+                {TABS.map((t) => {
+                  const isActive = tab === t.key;
+                  return (
+                    <button
+                      key={t.key}
+                      onClick={() => { setTab(t.key); setListingType(''); }}
+                      className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors shrink-0 ${
+                        isActive ? 'text-black' : 'text-gray-400'
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.span
+                          layoutId="explore-tab-bg-mobile"
+                          className="absolute inset-0 rounded-xl"
+                          style={{ backgroundColor: t.accent }}
+                          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      <t.icon className="relative w-3.5 h-3.5" />
+                      <span className="relative">{t.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+
+              {/* Search toggle */}
+              <button
+                onClick={() => setMobilePanel((p) => (p === 'search' ? null : 'search'))}
+                aria-label="Search"
+                aria-expanded={mobilePanel === 'search'}
+                className={`relative shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center transition-colors ${
+                  mobilePanel === 'search' || query
+                    ? 'bg-[#00FFFF] text-black border-[#00FFFF]'
+                    : 'bg-white/5 border-white/10 text-gray-300'
+                }`}
+              >
+                <Search className="w-4 h-4" />
+              </button>
+
+              {/* Filter toggle — the dot marks active filters, so a collapsed panel never
+                  hides the fact that results are being narrowed. */}
+              <button
+                onClick={() => setMobilePanel((p) => (p === 'filters' ? null : 'filters'))}
+                aria-label="Filters"
+                aria-expanded={mobilePanel === 'filters'}
+                className={`relative shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center transition-colors ${
+                  mobilePanel === 'filters' || city || listingType || sort !== 'latest'
+                    ? 'bg-[#FF00FF] text-white border-[#FF00FF]'
+                    : 'bg-white/5 border-white/10 text-gray-300'
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                {(city || listingType || sort !== 'latest') && mobilePanel !== 'filters' && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#CDFF00] border border-black" />
+                )}
+              </button>
+            </div>
+
+            <AnimatePresence initial={false}>
+              {mobilePanel === 'search' && (
+                <motion.div
+                  key="m-search"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="relative pt-2.5">
+                    <Search className="absolute left-4 top-1/2 mt-1 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <input
+                      type="search"
+                      autoFocus
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search listings, shops, creators…"
+                      className="w-full pl-11 pr-10 py-2.5 rounded-2xl bg-[#0A0A0A] border border-white/10 text-white text-sm outline-none focus:border-[#00FFFF] transition-colors"
+                    />
+                    {query && (
+                      <button
+                        onClick={() => setQuery('')}
+                        aria-label="Clear search"
+                        className="absolute right-3 top-1/2 mt-1 -translate-y-1/2 w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-gray-400"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {mobilePanel === 'filters' && (
+                <motion.div
+                  key="m-filters"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-2.5 space-y-2.5">
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CDFF00] pointer-events-none" />
+                      <select
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        aria-label="Filter by city"
+                        className="w-full appearance-none pl-11 pr-4 py-2.5 rounded-2xl bg-[#0A0A0A] border border-white/10 text-white text-sm font-bold outline-none focus:border-[#CDFF00]"
+                      >
+                        <option value="">All of Poland</option>
+                        {POLISH_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    {(tab === 'listings' || tab === 'all') && (
+                      <div className="relative">
+                        <SlidersHorizontal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#FF00FF] pointer-events-none" />
+                        <select
+                          value={sort}
+                          onChange={(e) => setSort(e.target.value)}
+                          aria-label="Sort results"
+                          className="w-full appearance-none pl-11 pr-4 py-2.5 rounded-2xl bg-[#0A0A0A] border border-white/10 text-white text-sm font-bold outline-none focus:border-[#FF00FF]"
+                        >
+                          {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                        </select>
+                      </div>
+                    )}
+
+                    {tab === 'listings' && (
+                      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+                        <button
+                          onClick={() => setListingType('')}
+                          className={`shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                            !listingType ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400'
+                          }`}
+                        >
+                          All types
+                        </button>
+                        {LISTING_TYPES.map((t) => (
+                          <button
+                            key={t.value}
+                            onClick={() => setListingType(listingType === t.value ? '' : t.value)}
+                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                              listingType === t.value ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400'
+                            }`}
+                          >
+                            <t.icon className="w-3.5 h-3.5" /> {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                        {isLoading ? 'Loading…' : `${resultCount} result${resultCount !== 1 ? 's' : ''}`}
+                      </span>
+                      {hasFilters && (
+                        <button
+                          onClick={clearFilters}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-gray-300"
+                        >
+                          <X className="w-3 h-3" /> Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* ── Desktop: everything inline, unchanged ── */}
+          <div className="hidden sm:block">
 
           {/* Row 1: Search + City */}
           <div className="flex flex-col sm:flex-row gap-2.5">
@@ -268,6 +449,7 @@ export default function Explore() {
               ))}
             </div>
           )}
+          </div>
         </div>
       </div>
 
@@ -287,9 +469,9 @@ export default function Explore() {
               {isLoading ? skeletons(8) : allItems.length === 0 ? (
                 emptyState(<Compass className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'Nothing matches your search. Try different keywords or clear the filters.')
               ) : (
-                <motion.div layout className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+                <motion.div layout className="flex md:grid overflow-x-auto md:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 md:gap-5 pb-1 md:pb-0 md:grid-cols-3 xl:grid-cols-4">
                   {allItems.map((item, i) => (
-                    <motion.div key={item.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3), duration: 0.35 }}>
+                    <motion.div key={item.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.03, 0.3), duration: 0.35 }} className="shrink-0 w-[calc((100%-0.75rem)/2)] md:w-auto snap-start">
                       {item.type === 'listing' && <ListingCard listing={item.data} index={i} />}
                       {item.type === 'shop' && <ShopCard shop={item.data} index={i} />}
                       {item.type === 'creator' && <CreatorCard user={item.data} index={i} variant="full" />}
@@ -306,10 +488,10 @@ export default function Explore() {
               {loading ? skeletons(8) : listings.length === 0 ? (
                 emptyState(<ShoppingBag className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No listings match your search.')
               ) : (
-                <motion.div layout className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+                <motion.div layout className="flex md:grid overflow-x-auto md:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 md:gap-5 pb-1 md:pb-0 md:grid-cols-3 xl:grid-cols-4">
                   <AnimatePresence mode="popLayout">
                     {listings.map((l, i) => (
-                      <motion.div key={l.id} layout exit={{ opacity: 0, scale: 0.94 }}>
+                      <motion.div key={l.id} layout exit={{ opacity: 0, scale: 0.94 }} className="shrink-0 w-[calc((100%-0.75rem)/2)] md:w-auto snap-start">
                         <ListingCard listing={l} index={i} />
                       </motion.div>
                     ))}
@@ -328,7 +510,7 @@ export default function Explore() {
                 <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                   <AnimatePresence mode="popLayout">
                     {shops.map((shop, i) => (
-                      <motion.div key={shop.id} layout exit={{ opacity: 0, scale: 0.94 }}>
+                      <motion.div key={shop.id} layout exit={{ opacity: 0, scale: 0.94 }} className="shrink-0 w-[calc((100%-0.75rem)/2)] md:w-auto snap-start">
                         <ShopCard shop={shop} index={i} />
                       </motion.div>
                     ))}
@@ -344,10 +526,10 @@ export default function Explore() {
               {loading ? skeletons(10, 'h-64') : people.length === 0 ? (
                 emptyState(<Users className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No creators match your search.')
               ) : (
-                <motion.div layout className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-5">
+                <motion.div layout className="flex md:grid overflow-x-auto md:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 md:gap-5 pb-1 md:pb-0 md:grid-cols-3 xl:grid-cols-5">
                   <AnimatePresence mode="popLayout">
                     {people.map((u, i) => (
-                      <motion.div key={u.id} layout exit={{ opacity: 0, scale: 0.94 }}>
+                      <motion.div key={u.id} layout exit={{ opacity: 0, scale: 0.94 }} className="shrink-0 w-[calc((100%-0.75rem)/2)] md:w-auto snap-start">
                         <CreatorCard user={u} index={i} variant="full" />
                       </motion.div>
                     ))}

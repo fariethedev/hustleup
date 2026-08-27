@@ -5,6 +5,7 @@ import { selectUser, selectIsAuthenticated, logout } from '../store/authSlice';
 import { notificationsApi, directMessagesApi } from '../api/client';
 import { selectCartCount, openCart } from '../store/cartSlice';
 import GlobalSearch from './GlobalSearch';
+import { timeAgo } from '../utils/time';
 import PendingSalesButton from './PendingSalesButton';
 import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, Bell, CheckCheck, MoreHorizontal, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
 
@@ -21,17 +22,6 @@ const MORE_LINKS = [
   { to: '/jobs', icon: Briefcase, label: 'Jobs & Gigs' },
   { to: '/news', icon: Newspaper, label: 'Campus News' },
 ];
-
-// Compact relative time for the notification dropdown ("5m", "3h", "2d").
-function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'now';
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}d`;
-}
 
 export default function Navbar() {
   const dispatch = useDispatch();

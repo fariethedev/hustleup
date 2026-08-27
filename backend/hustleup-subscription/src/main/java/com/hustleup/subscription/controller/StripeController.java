@@ -55,60 +55,12 @@ public class StripeController {
         this.stripeService = stripeService;
     }
 
-    /**
-     * Creates a Stripe Checkout Session and returns its URL to the frontend.
-     *
-     * <ul>
-     *   <li><b>HTTP method:</b> POST — we use POST (not GET) because we are creating
-     *       a resource on Stripe's side (the checkout session) and passing a request body.</li>
-     *   <li><b>Path:</b> {@code POST /api/payments/create-checkout-session}</li>
-     *   <li><b>Auth:</b> typically requires a valid JWT (authenticated seller), though
-     *       the exact security configuration depends on the security filter chain.</li>
-     *   <li><b>Request body:</b> JSON with fields:
-     *     <ul>
-     *       <li>{@code email} — the seller's email address to pre-fill in Stripe's form</li>
-     *       <li>{@code priceId} — the Stripe Price ID representing the chosen plan</li>
-     *     </ul>
-     *   </li>
-     *   <li><b>Response 200:</b> {@code {"url": "https://checkout.stripe.com/..."}}</li>
-     *   <li><b>Response 500:</b> {@code {"error": "..."}} if the Stripe API call fails</li>
-     * </ul>
-     *
-     * <h2>Frontend usage</h2>
-     * <p>The frontend calls this endpoint, receives the URL, and then does
-     * {@code window.location.href = url} to redirect the seller to Stripe's
-     * hosted checkout page. The seller enters their card details on Stripe's domain —
-     * our frontend never handles card numbers.</p>
-     *
-     * @param data JSON map containing {@code email} and {@code priceId}
-     * @return 200 with a {@code url} key on success, 500 with an {@code error} key on failure
-     */
-    // Maps HTTP POST to /api/payments/create-checkout-session.
-    @PostMapping("/create-checkout-session")
-    public ResponseEntity<Map<String, String>> createCheckoutSession(
-            // @RequestBody tells Spring to deserialise the incoming JSON body into a Map.
-            // Jackson (the default JSON library) handles the conversion automatically.
-            @RequestBody Map<String, String> data) {
-        try {
-            // Extract the fields the frontend sent in the JSON body.
-            String userEmail = data.get("email");
-            String priceId = data.get("priceId");
-
-            // Delegate to the service layer to call the Stripe API.
-            String sessionUrl = stripeService.createCheckoutSession(userEmail, priceId);
-
-            // Return the Stripe-hosted checkout URL. Map.of creates an immutable map;
-            // Spring serialises it to {"url":"https://checkout.stripe.com/..."}.
-            return ResponseEntity.ok(Map.of("url", sessionUrl));
-        } catch (StripeException e) {
-            // A StripeException can occur if: the secret key is wrong, the priceId
-            // does not exist in Stripe, or there is a network error reaching Stripe.
-            // We return 500 Internal Server Error because the failure is on our/Stripe's
-            // side, not the client's fault. Include the message for debugging.
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
-        }
-    }
-
+    // The former POST /create-checkout-session was removed. It took both the customer email
+    // and the Stripe priceId straight from the request body, so a caller could start a
+    // checkout against someone else's address, or name a cheaper Price than the plan they
+    // were buying. Checkout now lives at POST /api/v1/subscriptions/checkout, which derives
+    // the user from the JWT and the amount from the server-side SubscriptionPlan enum.
+    // This controller keeps only the webhook below, which is the sole grantor of Premium.
     /**
      * Receives and processes Stripe webhook event notifications.
      *

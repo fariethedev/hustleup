@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 /**
  * Utility class responsible for creating, signing, and validating JSON Web Tokens (JWTs).
@@ -206,6 +207,9 @@ public class JwtTokenProvider {
      * <ol>
      *   <li>{@code .subject(subject)} — the "sub" claim; identifies the token owner
      *       (email address in our case).</li>
+     *   <li>{@code .id(...)} — the "jti" claim; a random per-token identifier. Nothing reads
+     *       it, but it is what makes two tokens issued in the same second different from each
+     *       other — see the note on the call itself.</li>
      *   <li>{@code .issuedAt(now)} — the "iat" claim; records when the token was created.
      *       Useful for auditing.</li>
      *   <li>{@code .expiration(now + expirationMs)} — the "exp" claim; the token is
@@ -229,6 +233,15 @@ public class JwtTokenProvider {
         Date now = new Date();
         var builder = Jwts.builder()
                 .subject(subject)                                    // "sub" claim — who the token belongs to
+                // "jti" claim — a random id, unique per token. Every other claim here is a
+                // function of (subject, role, type, current second): iat and exp are
+                // NumericDate, which carries seconds, not milliseconds. Two tokens minted for
+                // the same user inside one second would otherwise serialise to identical
+                // payloads, and since the signature is derived from the payload, to identical
+                // strings. That is what broke login — a second sign-in within the same second
+                // as the first tried to insert a duplicate into refresh_tokens.token, which is
+                // UNIQUE, and the constraint violation surfaced as a 500.
+                .id(UUID.randomUUID().toString())
                 .issuedAt(now)                                       // "iat" claim — when it was issued
                 .expiration(new Date(now.getTime() + expirationMs))  // "exp" claim — when it expires
                 .claim(CLAIM_TOKEN_TYPE, tokenType);                 // access vs refresh — enforced by CommonJwtFilter

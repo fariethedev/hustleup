@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  ArrowRight, Store, ShoppingBag, MapPin,
+  ArrowRight, Store, ShoppingBag, MapPin, Ticket,
   Star, ShieldCheck, Sparkles, HeartHandshake
 } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
-import { listingsApi, bookingsApi } from '../api/client';
-import { useToast } from '../context/ToastContext';
+import { listingsApi } from '../api/client';
 import { formatPrice, displayCity } from '../utils/constants';
 import { useShops } from '../hooks/useShops';
 import SmartImage from '../components/SmartImage';
@@ -33,17 +32,24 @@ const steps = [
   { num: '3', title: 'Hustle & get paid', desc: 'Chat, negotiate, close deals and grow your reputation with every sale.' },
 ];
 
+/** Day and month only — a flyer badge has room for "14 Mar", not a full timestamp. */
+const formatEventDate = (iso) => {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+};
+
 /**
- * The "what you can do" cards, as a horizontally scrolling row.
+ * Shared behaviour for the horizontal card rows on this page.
  *
- * Shows exactly three at a time on desktop and pages through the rest, so the section stays
- * one screen tall instead of a six-card wall. Card widths are computed from the track width
- * minus the gaps, which is what makes the third card land flush with the right edge rather
- * than peeking.
+ * Pages by a full visible width so each click advances one clean set rather than a fraction of
+ * a card, and tracks whether either end has been reached so the arrows can hide instead of
+ * sitting there as dead controls.
  */
-function FeatureCarousel() {
+function useCarousel() {
   const trackRef = useRef(null);
-  // Arrows hide at the ends rather than sitting there as dead controls.
   const [edges, setEdges] = useState({ start: true, end: false });
 
   const syncEdges = useCallback(() => {
@@ -65,18 +71,22 @@ function FeatureCarousel() {
   const page = (direction) => {
     const el = trackRef.current;
     if (!el) return;
-    // Scroll by a full visible width so each click advances one clean set of three.
     el.scrollBy({ left: direction * el.clientWidth, behavior: 'smooth' });
   };
 
+  return { trackRef, edges, page, syncEdges };
+}
+
+/** Paging arrows for a carousel. Desktop only — on touch you swipe the track itself. */
+function CarouselArrows({ edges, page, label }) {
   return (
-    <div className="relative">
+    <>
       {!edges.start && (
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           onClick={() => page(-1)}
-          aria-label="Previous features"
+          aria-label={`Previous ${label}`}
           className="hidden md:flex absolute -left-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-[#0A0A0A] border border-[#CDFF00]/40 items-center justify-center text-[#CDFF00] shadow-[0_4px_16px_rgba(0,0,0,0.7)] hover:bg-[#CDFF00] hover:text-black transition-colors"
         >
           <ArrowRight className="w-5 h-5 rotate-180" />
@@ -87,12 +97,30 @@ function FeatureCarousel() {
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           onClick={() => page(1)}
-          aria-label="More features"
+          aria-label={`More ${label}`}
           className="hidden md:flex absolute -right-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-[#0A0A0A] border border-[#CDFF00]/40 items-center justify-center text-[#CDFF00] shadow-[0_4px_16px_rgba(0,0,0,0.7)] hover:bg-[#CDFF00] hover:text-black transition-colors"
         >
           <ArrowRight className="w-5 h-5" />
         </motion.button>
       )}
+    </>
+  );
+}
+
+/**
+ * The "what you can do" cards, as a horizontally scrolling row.
+ *
+ * Shows exactly three at a time on desktop and pages through the rest, so the section stays
+ * one screen tall instead of a six-card wall. Card widths are computed from the track width
+ * minus the gaps, which is what makes the third card land flush with the right edge rather
+ * than peeking.
+ */
+function FeatureCarousel() {
+  const { trackRef, edges, page, syncEdges } = useCarousel();
+
+  return (
+    <div className="relative">
+      <CarouselArrows edges={edges} page={page} label="features" />
 
       <div
         ref={trackRef}
@@ -127,17 +155,96 @@ function FeatureCarousel() {
   );
 }
 
+/**
+ * Events as a row of flyers.
+ *
+ * The card is 4/5 rather than the 16/9 the rest of the marketplace uses: posters are drawn
+ * portrait, and letterboxing one crops away the half that carries the line-up and the date —
+ * the part that actually sells the night. The card leads to the listing, where the quantity
+ * picker and the QR ticket live.
+ */
+function EventCarousel({ events }) {
+  const { trackRef, edges, page, syncEdges } = useCarousel();
+
+  return (
+    <div className="relative">
+      <CarouselArrows edges={edges} page={page} label="events" />
+
+      <div
+        ref={trackRef}
+        onScroll={syncEdges}
+        className="flex gap-5 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2"
+      >
+        {events.map((event, i) => {
+          const startsOn = formatEventDate(event.eventStartsAt);
+          return (
+            <motion.div
+              key={event.id}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
+              // A sliver of the next flyer stays visible on mobile, so the row reads as
+              // something to swipe rather than as a single stranded card.
+              className="snap-start shrink-0 w-[78%] sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
+            >
+              <div className="group flex flex-col h-full rounded-3xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-[#CDFF00]/40 transition-all">
+                <Link to={`/listing/${event.id}`} className="block">
+                  <div className="aspect-[4/5] overflow-hidden relative">
+                    <img
+                      src={event.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=60'}
+                      alt={event.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=60'; }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    <span className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#CDFF00] text-black text-[10px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" /> LIVE
+                    </span>
+                    {startsOn && (
+                      <span className="absolute top-3 right-3 px-3 py-1 rounded-full bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold">
+                        {startsOn}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+
+                <div className="p-4 flex flex-col flex-1">
+                  <Link to={`/listing/${event.id}`}>
+                    <h4 className="text-sm font-bold text-white mb-1.5 line-clamp-1 hover:text-[#CDFF00] transition-colors">{event.title}</h4>
+                  </Link>
+                  {event.description && (
+                    <p className="text-xs text-gray-400 leading-relaxed line-clamp-2 mb-2.5">{event.description}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mb-3 flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-[#CDFF00] shrink-0" />
+                    <span className="truncate">{event.eventVenue || displayCity(event.locationCity)}</span>
+                  </p>
+                  <Link
+                    to={`/listing/${event.id}`}
+                    className="mt-auto w-full py-2.5 rounded-xl bg-[#CDFF00] text-black text-xs font-bold hover:brightness-110 active:scale-95 transition-all inline-flex items-center justify-center gap-1.5"
+                  >
+                    <Ticket className="w-3.5 h-3.5" /> Get tickets
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const location = useLocation();
-  const navigate = useNavigate();
-  const { showToast } = useToast();
   const [listings, setListings] = useState([]);
   const { shops } = useShops();
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);
-  const [requestedIds, setRequestedIds] = useState(new Set());
 
   useEffect(() => {
     listingsApi.recommended().then(r => {
@@ -149,23 +256,6 @@ export default function Home() {
     }).catch(() => {}).finally(() => setEventsLoading(false));
   }, []);
 
-  const handleRequestJoin = async (event) => {
-    if (!isAuthenticated) { navigate('/login'); return; }
-    if (requestedIds.has(event.id)) return;
-    setRequestedIds((prev) => new Set(prev).add(event.id));
-    try {
-      await bookingsApi.create({ listingId: event.id, joinRequest: true });
-      showToast('Request sent  the organiser will review it', 'success');
-    } catch (e) {
-      setRequestedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(event.id);
-        return next;
-      });
-      showToast(e.response?.data?.message || 'Could not send request', 'error');
-    }
-  };
-
   useEffect(() => {
     if (location.hash === '#about') {
       document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
@@ -175,46 +265,51 @@ export default function Home() {
   return (
     <div className="min-h-screen font-sans">
 
-      {/* ── HERO — one full-bleed image, copy laid over it ── */}
-      <section className="relative h-[100svh] min-h-[560px] w-full overflow-hidden flex items-end">
-        {/* The photograph is the whole hero. 100svh (not 100vh) so mobile browser chrome
-            appearing and disappearing doesn't make the section jump height mid-scroll. */}
-        <img
-          src={heroImage}
-          alt="Students gathered together on their campus steps"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-          fetchPriority="high"
-        />
+      {/* ── HERO ──
+          Two layouts in one section. On mobile the photograph gets a block of its own at the
+          top, uninterrupted, and the copy sits beneath it on the page background. From md up
+          it returns to the full-bleed frame with the copy laid over the lower third. */}
+      <section className="relative w-full overflow-hidden md:h-[100svh] md:min-h-[560px] md:flex md:items-end">
+        {/* 100svh (not 100vh) so mobile browser chrome appearing and disappearing doesn't make
+            the section jump height mid-scroll. */}
+        <div className="relative h-[54svh] min-h-[300px] w-full md:absolute md:inset-0 md:h-full">
+          <img
+            src={heroImage}
+            alt="Students gathered together on their campus steps"
+            className="w-full h-full object-cover object-center"
+            fetchPriority="high"
+          />
 
-        {/* Three scrims, each with a job: the vertical one fades the photo into the page
-            below, the vignette darkens the lower-centre where the copy sits, and the top band
-            gives the navbar a dark ground — it renders transparent until scrolled, so without
-            it the logo and icons float over open photograph. */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/55 to-[#050505]/25" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_78%,rgba(5,5,5,0.75)_0%,rgba(5,5,5,0.4)_50%,transparent_80%)]" />
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#050505]/90 to-transparent pointer-events-none" />
+          {/* Three scrims, each with a job. The bottom fade blends the photo into what follows
+              — on mobile it stays low so the picture reads on its own, on desktop it carries
+              up the frame to keep the overlaid copy legible. The vignette darkens the
+              lower-centre behind that copy, so it is desktop-only. The top band gives the
+              navbar a dark ground: it renders transparent until scrolled, and without it the
+              logo and icons float over open photograph. */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent md:via-[#050505]/55 md:to-[#050505]/25" />
+          <div className="hidden md:block absolute inset-0 bg-[radial-gradient(ellipse_at_50%_78%,rgba(5,5,5,0.75)_0%,rgba(5,5,5,0.4)_50%,transparent_80%)]" />
+          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#050505]/90 to-transparent pointer-events-none" />
+        </div>
 
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pb-20 md:pb-24">
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-8 md:pt-0 pb-14 md:pb-24">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
             className="max-w-2xl mx-auto text-center"
           >
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-black text-white leading-[1.08] tracking-tight mb-5 drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
-              <span className="text-[#CDFF00]">Hustle</span> hard. Shop smart. Connect fast.
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-black text-white leading-[1.08] tracking-tight mb-7 drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
+              The <span className="text-[#CDFF00]">space</span> to shop, connect and{' '}
+              <span className="text-[#CDFF00]">hustle</span>.
             </h1>
 
-            <p className="text-gray-200 text-sm sm:text-base leading-relaxed max-w-xl mx-auto mb-8 drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]">
-              The all-in-one platform for students across Poland and beyond to sell what they
-              make, find gigs that pay, discover shops and build a community around their
-              hustle — all in Złoty.
-            </p>
-
             <div className="flex flex-wrap items-center justify-center gap-4">
+              {/* Desktop offers both routes. Mobile leads with browsing alone: a signed-out
+                  visitor meets the sign-up wall the moment they act on anything they find,
+                  so putting the choice up front only adds a decision before the value. */}
               <Link
                 to={isAuthenticated ? '/dashboard' : '/register'}
-                className="px-7 py-3.5 rounded-full bg-[#CDFF00] text-black font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(205,255,0,0.25)] inline-flex items-center gap-2"
+                className="hidden md:inline-flex px-7 py-3.5 rounded-full bg-[#CDFF00] text-black font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(205,255,0,0.25)] items-center gap-2"
               >
                 Join the community <ArrowRight className="w-4 h-4" />
               </Link>
@@ -224,17 +319,6 @@ export default function Home() {
               >
                 Explore the marketplace
               </Link>
-            </div>
-
-            {/* Trust line, carried over from the badge the old collage used to hold */}
-            <div className="mt-10 flex items-center justify-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#CDFF00] flex items-center justify-center shrink-0">
-                <Star className="w-4 h-4 text-black fill-black" />
-              </div>
-              <div>
-                <p className="text-white text-sm font-bold leading-tight">Trusted by students all over Poland</p>
-                <p className="text-gray-400 text-xs">from Gdańsk to Lublin</p>
-              </div>
             </div>
           </motion.div>
         </div>
@@ -311,14 +395,14 @@ export default function Home() {
       </section>
       )}
 
-      {/* ── HAPPENING NOW (Events) ── */}
+      {/* ── EVENTS ── */}
       {!eventsLoading && events.length > 0 && (
         <section className="py-16 border-t border-white/5">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
               <div>
                 <p className="text-[#CDFF00] text-sm font-bold mb-3">Don't miss out</p>
-                <h2 className="text-3xl font-heading font-black text-white tracking-tight">Events happening now</h2>
+                <h2 className="text-3xl font-heading font-black text-white tracking-tight">Events</h2>
               </div>
               <Link
                 to="/explore"
@@ -328,56 +412,7 @@ export default function Home() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {events.slice(0, 6).map((event, i) => {
-                const requested = requestedIds.has(event.id);
-                return (
-                  <motion.div
-                    key={event.id}
-                    initial={{ opacity: 0, y: 24 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '-40px' }}
-                    transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
-                    className="flex flex-col rounded-3xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-[#CDFF00]/40 transition-all"
-                  >
-                    <Link to={`/listing/${event.id}`} className="block">
-                      <div className="aspect-[16/9] overflow-hidden relative">
-                        <img
-                          src={event.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60'}
-                          alt={event.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          loading="lazy"
-                          onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60'; }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                        <span className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#CDFF00] text-black text-[10px] font-bold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" /> LIVE
-                        </span>
-                      </div>
-                    </Link>
-                    <div className="p-4 flex flex-col flex-1">
-                      <Link to={`/listing/${event.id}`}>
-                        <h4 className="text-sm font-bold text-white mb-1 line-clamp-1 hover:text-[#CDFF00] transition-colors">{event.title}</h4>
-                      </Link>
-                      <p className="text-xs text-gray-500 mb-3 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-[#CDFF00]" /> {displayCity(event.locationCity)}
-                      </p>
-                      <button
-                        onClick={() => handleRequestJoin(event)}
-                        disabled={requested}
-                        className={`mt-auto w-full py-2.5 rounded-xl text-xs font-bold transition-all ${
-                          requested
-                            ? 'bg-white/10 text-gray-400 cursor-default'
-                            : 'bg-[#CDFF00] text-black hover:brightness-110 active:scale-95'
-                        }`}
-                      >
-                        {requested ? 'Request sent' : 'Request to join'}
-                      </button>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+            <EventCarousel events={events.slice(0, 9)} />
           </div>
         </section>
       )}
@@ -571,15 +606,24 @@ export default function Home() {
               Join students across Poland already buying, selling and building on HustleSpace. It's free.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative">
-              <Link
-                to={isAuthenticated ? '/create' : '/register'}
-                className="px-8 py-4 rounded-full bg-black text-white font-bold text-sm hover:scale-105 active:scale-95 transition-transform inline-flex items-center gap-2"
-              >
-                Create your account <ArrowRight className="w-4 h-4" />
-              </Link>
+              {/* Nothing left to sign up for once you are signed in. */}
+              {!isAuthenticated && (
+                <Link
+                  to="/register"
+                  className="px-8 py-4 rounded-full bg-black text-white font-bold text-sm hover:scale-105 active:scale-95 transition-transform inline-flex items-center gap-2"
+                >
+                  Create your account <ArrowRight className="w-4 h-4" />
+                </Link>
+              )}
               <Link
                 to="/explore"
-                className="px-8 py-4 rounded-full border-2 border-black/20 text-black font-bold text-sm hover:bg-black/5 transition-colors"
+                className={`px-8 py-4 rounded-full font-bold text-sm transition-all ${
+                  isAuthenticated
+                    // Sole remaining action for a signed-in reader, so it takes the primary
+                    // treatment rather than sitting on the lime panel as a lone outline.
+                    ? 'bg-black text-white hover:scale-105 active:scale-95'
+                    : 'border-2 border-black/20 text-black hover:bg-black/5'
+                }`}
               >
                 Browse the marketplace
               </Link>

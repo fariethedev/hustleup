@@ -18,7 +18,7 @@ export const BOOKING_STATUS_MAP = {
   CANCELLED: { label: 'Cancelled', color: 'bg-[#CDFF00]/15 text-[#CDFF00]' },
 };
 
-export const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP'];
+export const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'ZAR'];
 
 export const POLISH_CITIES = [
   'Warszawa', 'Kraków', 'Wrocław', 'Poznań', 'Gdańsk',
@@ -50,11 +50,36 @@ export function displayCity(city) {
 // correct when items from different shops/listings are combined in one cart —
 // not a live FX feed, this app has no real payment processing behind it.
 // PLN is HustleSpace's base/overall currency (Poland is the primary market).
-const FX_TO_PLN = { PLN: 1, GBP: 5, EUR: 4.3, USD: 3.95 };
+// Indicative rates only — used to normalise mixed-currency baskets and listings to a
+// single comparable number. Not a pricing source: a real deployment should pull these
+// from an FX feed rather than trusting a hardcoded table that silently goes stale.
+const FX_TO_PLN = { PLN: 1, GBP: 5, EUR: 4.3, USD: 3.95, ZAR: 0.21 };
 
 export function convertToPLN(amount, currency = 'PLN') {
   const rate = FX_TO_PLN[currency] ?? 1;
   return Math.round(Number(amount) * rate * 100) / 100;
+}
+
+/**
+ * Converts between any two supported currencies, via PLN as the pivot.
+ *
+ * <p>Used by the cart's currency switcher so a basket assembled from listings priced in
+ * different currencies can be read as one comparable total. Rates come from
+ * {@link FX_TO_PLN} and are indicative — this changes what a shopper *sees*, never what
+ * they are charged. The charge is always taken in the currency the seller listed in.
+ *
+ * @param {number} amount
+ * @param {string} from source currency code
+ * @param {string} to   target currency code
+ * @returns {number} amount in `to`, rounded to 2dp
+ */
+export function convertPrice(amount, from = 'PLN', to = 'PLN') {
+  const value = Number(amount);
+  if (isNaN(value)) return 0;
+  if (from === to) return Math.round(value * 100) / 100;
+  const inPln = value * (FX_TO_PLN[from] ?? 1);
+  const rate = FX_TO_PLN[to] ?? 1;
+  return Math.round((inPln / rate) * 100) / 100;
 }
 
 export function formatPrice(amount, currency = 'PLN') {
@@ -66,6 +91,7 @@ export function formatPrice(amount, currency = 'PLN') {
     case 'EUR': return `€${formatted}`;
     case 'USD': return `$${formatted}`;
     case 'GBP': return `£${formatted}`;
+    case 'ZAR': return `R${formatted}`;
     default: return `${formatted} ${currency}`;
   }
 }

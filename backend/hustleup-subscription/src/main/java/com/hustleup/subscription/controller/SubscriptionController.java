@@ -4,13 +4,21 @@ import com.hustleup.common.model.Subscription;
 import com.hustleup.common.repository.SubscriptionRepository;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
+import com.hustleup.subscription.model.SubscriptionPlan;
+import com.hustleup.subscription.service.StripeService;
+import com.stripe.exception.StripeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * REST controller that exposes HTTP endpoints for managing seller subscriptions.
@@ -78,9 +86,16 @@ public class SubscriptionController {
      * @param subscriptionRepository Spring Data repository for Subscription entities
      * @param userRepository         Spring Data repository for User entities (shared module)
      */
-    public SubscriptionController(SubscriptionRepository subscriptionRepository, UserRepository userRepository) {
+    private static final Logger log = LoggerFactory.getLogger(SubscriptionController.class);
+
+    private final StripeService stripeService;
+
+    public SubscriptionController(SubscriptionRepository subscriptionRepository,
+                                  UserRepository userRepository,
+                                  StripeService stripeService) {
         this.subscriptionRepository = subscriptionRepository;
         this.userRepository = userRepository;
+        this.stripeService = stripeService;
     }
 
     // -------------------------------------------------------------------------
@@ -126,55 +141,67 @@ public class SubscriptionController {
     }
 
     /**
-     * Upgrades the authenticated seller's plan to VERIFIED for one month.
+     * The Premium price list.
+     *
+     * <p><b>Path:</b> {@code GET /api/v1/subscriptions/plans} — the UI renders whatever this
+     * returns, so prices are never hardcoded in two places and cannot drift apart from what
+     * checkout actually charges.
+     */
+    @GetMapping("/plans")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> plans() {
+        return ResponseEntity.ok(Map.of(
+                "currency", SubscriptionPlan.CURRENCY,
+                "plans", Arrays.stream(SubscriptionPlan.values())
+                        .map(p -> Map.of(
+                                "id", p.name(),
+                                "label", p.getLabel(),
+                                "months", p.getMonths(),
+                                "price", p.getAmount(),
+                                "pricePerMonth", p.getPricePerMonth()))
+                        .toList()));
+    }
+
+    /**
+     * Starts a paid upgrade: returns a Stripe Checkout URL for the chosen plan.
      *
      * <ul>
-     *   <li><b>HTTP method:</b> POST (mutating operation; not idempotent)</li>
-     *   <li><b>Path:</b> {@code POST /api/v1/subscriptions/upgrade}</li>
-     *   <li><b>Auth:</b> Bearer JWT required — any authenticated user</li>
-     *   <li><b>Request body:</b> none required</li>
-     *   <li><b>Response 200:</b> {@code {"success":true,"plan":"VERIFIED","expiresAt":"..."}}</li>
+     *   <li><b>Path:</b> {@code POST /api/v1/subscriptions/checkout}</li>
+     *   <li><b>Body:</b> {@code {"plan":"MONTHLY"|"QUARTERLY"|"ANNUAL"}}</li>
+     *   <li><b>Response 200:</b> {@code {"checkoutUrl":"https://checkout.stripe.com/..."}}</li>
      * </ul>
      *
-     * <p>If the seller already has a subscription record, it is updated in place.
-     * If they do not (first upgrade from FREE), a new record is created using the
-     * Lombok builder with only {@code sellerId} set; all other fields adopt their
-     * {@code @Builder.Default} values before the overrides below are applied.</p>
+     * <p><b>This does not grant Premium.</b> It only creates the payment page. The account is
+     * upgraded solely by {@code checkout.session.completed} arriving on the signed Stripe
+     * webhook, once the money has actually cleared.
      *
-     * <p><b>Note:</b> In a production flow, this endpoint would typically be called
-     * <em>after</em> the Stripe webhook confirms payment, not directly by the client.
-     * Calling it directly without verifying payment is suitable for development/testing.</p>
-     *
-     * @return 200 OK with a JSON summary of the new subscription state
+     * <p>This replaces a {@code POST /upgrade} endpoint that set the plan to VERIFIED for a
+     * month with no payment of any kind — any authenticated caller could grant themselves
+     * Premium indefinitely by calling it directly, and the browser "upgrade" button did
+     * exactly that. Only the amount named by {@link SubscriptionPlan} can be charged; the
+     * client chooses a plan, never a price.
      */
-    // Maps HTTP POST requests to /api/v1/subscriptions/upgrade to this method.
-    @PostMapping("/upgrade")
-
-    // Same guard as above — any authenticated user may upgrade to Premium.
+    @PostMapping("/checkout")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> upgrade() {
-        // Resolve the currently authenticated user.
-        User user = getCurrentUser();
+    public ResponseEntity<?> checkout(@RequestBody(required = false) Map<String, String> body) {
+        String requested = body == null ? null : body.get("plan");
+        Optional<SubscriptionPlan> plan = SubscriptionPlan.from(requested);
+        if (plan.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Unknown plan",
+                    "validPlans", Arrays.stream(SubscriptionPlan.values()).map(Enum::name).toList()));
+        }
 
-        // Find an existing subscription or create a new one.
-        // Subscription.builder().sellerId(...).build() creates a transient (unsaved)
-        // entity; hibernate will INSERT it on save() because it has no id yet.
-        Subscription sub = subscriptionRepository.findBySellerId(user.getId())
-                .orElse(Subscription.builder().sellerId(user.getId()).build());
-
-        // Apply the VERIFIED plan attributes to the entity.
-        sub.setPlan("VERIFIED");      // Upgrade from FREE to VERIFIED.
-        sub.setStatus("ACTIVE");      // Ensure the status is active (in case it was EXPIRED).
-        sub.setStartedAt(LocalDateTime.now());                  // Record when this period started.
-        sub.setExpiresAt(LocalDateTime.now().plusMonths(1));    // Grant exactly 30 days.
-
-        // Persist the entity. JPA's save() performs an INSERT if id is null,
-        // or an UPDATE if the entity already has an id (merge semantics).
-        subscriptionRepository.save(sub);
-
-        // Return a summary so the frontend can update the UI immediately without
-        // needing to make a follow-up GET request.
-        return ResponseEntity.ok(Map.of("success", true, "plan", "VERIFIED", "expiresAt", sub.getExpiresAt()));
+        try {
+            String url = stripeService.createCheckoutSession(getCurrentUser(), plan.get());
+            return ResponseEntity.ok(Map.of("checkoutUrl", url));
+        } catch (StripeException e) {
+            // Typically a bad or unconfigured STRIPE_SECRET_KEY. Surfaced as 502 rather than
+            // 500: the failure is in the upstream payment provider, not in this request.
+            log.error("Stripe checkout session failed for plan {}", plan.get(), e);
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(Map.of("error", "Could not start checkout. Please try again."));
+        }
     }
 
     // -------------------------------------------------------------------------

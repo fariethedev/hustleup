@@ -10,6 +10,7 @@ import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { Link } from 'react-router-dom';
 import HeroBrief from '../components/HeroBrief';
+import { timeAgoLong as timeAgo } from '../utils/time';
 import JobComposer from '../components/jobs/JobComposer';
 import JobApplyModal from '../components/jobs/JobApplyModal';
 
@@ -30,15 +31,6 @@ const formatPay = (job) => {
     ? `${n(min)} – ${n(max)}`
     : n(min ?? max);
   return `${money} ${cur || ''}${unit}`.trim();
-};
-
-const timeAgo = (iso) => {
-  if (!iso) return '';
-  const mins = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
 };
 
 export default function Jobs() {

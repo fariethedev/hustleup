@@ -18,6 +18,7 @@ import ShareModal from '../components/ShareModal';
 import SmartImage from '../components/SmartImage';
 import ImageCropper from '../components/ImageCropper';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
+import { timeAgo } from '../utils/time';
 
 const POST_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1920&q=80';
 
@@ -28,17 +29,6 @@ const extractUrl = (text) => {
 };
 
 // Compact relative time ("5m", "3h", "2d") — mirrors Navbar.jsx's own helper.
-function timeAgo(dateStr) {
-  if (!dateStr) return '';
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'now';
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}d`;
-}
-
 function Avatar({ name, avatarUrl, size = 'w-9 h-9', textSize = 'text-sm' }) {
   return (
     <div className={`${size} rounded-full overflow-hidden bg-[#CDFF00] flex items-center justify-center shrink-0`}>
