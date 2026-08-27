@@ -73,7 +73,14 @@ public class PayoutController {
             String url = stripeConnectService.createOnboardingLink(seller.getId());
             return ResponseEntity.ok(Map.of("url", url));
         } catch (StripeException e) {
-            return ResponseEntity.status(502).body(Map.of("error", "Could not reach Stripe: " + e.getMessage()));
+            // Stripe's message is written for whoever integrated the API, not for the seller
+            // staring at a toast — the Accounts v1 deprecation notice, for instance, is three
+            // lines of docs links. Log it in full where it is useful and tell the seller
+            // something true and actionable instead.
+            log.error("Stripe Connect onboarding failed for seller", e);
+            return ResponseEntity.status(502).body(Map.of(
+                    "error", "Payout setup is temporarily unavailable. Please try again shortly — "
+                            + "if it keeps happening, contact support."));
         }
     }
 
