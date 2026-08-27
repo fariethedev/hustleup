@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,7 +14,7 @@ import {
   removeFromCart,
   updateQuantity,
 } from '../store/cartSlice';
-import { formatPrice } from '../utils/constants';
+import { formatPrice, convertPrice, CURRENCIES } from '../utils/constants';
 
 export default function CartDrawer() {
   const dispatch = useDispatch();
@@ -23,6 +23,30 @@ export default function CartDrawer() {
   const open = useSelector(selectCartOpen);
   const total = useSelector(selectCartTotal);
   const count = useSelector(selectCartCount);
+
+  // Display currency. A basket can hold listings priced in different currencies, so the
+  // old footer — which summed the raw numbers and labelled the result with items[0]'s
+  // currency — could show "148 PLN" for 49 PLN + 99 EUR. Everything is now converted to
+  // one chosen currency so the total is at least internally consistent.
+  //
+  // Display only: the charge is still taken in the currency each seller listed in, which
+  // is why the note under the total says so rather than letting the number imply
+  // otherwise.
+  const [displayCurrency, setDisplayCurrency] = useState(() => {
+    try { return localStorage.getItem('hustleup_currency') || 'PLN'; } catch { return 'PLN'; }
+  });
+
+  const changeCurrency = (code) => {
+    setDisplayCurrency(code);
+    try { localStorage.setItem('hustleup_currency', code); } catch { /* private mode */ }
+  };
+
+  // Converted per item, then summed — converting the raw mixed-currency sum would be
+  // applying one rate to several currencies at once.
+  const convertedTotal = items.reduce((acc, i) => {
+    const unit = i.negotiatedPrice ?? i.price;
+    return acc + convertPrice(unit, i.currency || 'PLN', displayCurrency) * (i.quantity || 1);
+  }, 0);
 
   useEffect(() => {
     if (!open) return;
@@ -136,10 +160,17 @@ export default function CartDrawer() {
                           {item.sellerName}
                         </p>
                         <p className="text-[#CDFF00] font-black text-base mt-2 shadow-[0_0_15px_rgba(205,255,0,0.1)]">
-                          {item.negotiatedPrice
-                            ? `${formatPrice(item.negotiatedPrice, item.currency)}`
-                            : formatPrice(item.price, item.currency)}
+                          {formatPrice(
+                            convertPrice(item.negotiatedPrice ?? item.price, item.currency || 'PLN', displayCurrency),
+                            displayCurrency
+                          )}
                         </p>
+                        {/* Only worth showing when a conversion actually happened. */}
+                        {(item.currency || 'PLN') !== displayCurrency && (
+                          <p className="text-[9px] font-bold text-gray-600 mt-0.5">
+                            listed at {formatPrice(item.negotiatedPrice ?? item.price, item.currency || 'PLN')}
+                          </p>
+                        )}
 
                         {/* Qty controls */}
                         <div className="flex items-center gap-3 mt-4">
@@ -179,12 +210,25 @@ export default function CartDrawer() {
             {/* Footer */}
             {items.length > 0 && (
               <div className="px-6 py-5 border-t border-white/10 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-400 text-sm font-bold uppercase tracking-widest">Total</span>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 text-sm font-bold uppercase tracking-widest">Total</span>
+                    <select
+                      value={displayCurrency}
+                      onChange={(e) => changeCurrency(e.target.value)}
+                      aria-label="Display currency"
+                      className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-widest text-gray-300 outline-none focus:border-[#CDFF00]/60 cursor-pointer"
+                    >
+                      {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
                   <span className="text-white text-2xl font-black">
-                    {formatPrice(total, items[0]?.currency || 'PLN')}
+                    {formatPrice(convertedTotal, displayCurrency)}
                   </span>
                 </div>
+                <p className="-mt-2 text-[10px] text-gray-600 font-bold leading-relaxed">
+                  Converted for display. You are charged in each seller&apos;s own currency.
+                </p>
                 <button
                   onClick={checkout}
                   className="w-full py-4 rounded-2xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#d9ff33] transition-all hover:scale-[1.02] active:scale-95 shadow-[0_8px_30px_rgba(205,255,0,0.25)]"

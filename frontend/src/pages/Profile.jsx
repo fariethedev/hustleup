@@ -8,6 +8,7 @@ import { useToast } from '../context/ToastContext';
 import ReviewStars from '../components/ReviewStars';
 import ListingCard from '../components/ListingCard';
 import DistanceBadge from '../components/DistanceBadge';
+import { timeAgo } from '../utils/time';
 import {
   MapPin, BadgeCheck, User2, MessageCircle, Settings, Camera,
   Image as ImageIcon, Check, X, AtSign, Globe,
@@ -24,6 +25,9 @@ export default function Profile() {
   const [reviews, setReviews] = useState([]);
   const [listings, setListings] = useState([]);
   const [posts, setPosts] = useState([]);
+  // The post opened from a grid tile. Tiles used to be inert divs, so tapping your
+  // own post from your profile did nothing at all.
+  const [viewingPost, setViewingPost] = useState(null);
   const [likedPosts, setLikedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('listings');
@@ -231,21 +235,31 @@ export default function Profile() {
 
         {/* Info column */}
         <div className="flex-1 min-w-0">
-          {/* Row 1: name + actions */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold text-white truncate">{profile.fullName || profile.username}</h1>
+          {/* Row 1: name + actions.
+              On mobile the name gets its own line and the buttons form an even full-width
+              row beneath it. Previously everything shared one flex-wrap line, so a long
+              name pushed the buttons onto a second row at ragged widths — and because the
+              h1 had `truncate` without `min-w-0`, it refused to shrink and squeezed the
+              actions off the edge on narrow screens. */}
+          <h1 className="text-xl sm:text-2xl font-bold text-white truncate min-w-0 sm:hidden">
+            {profile.fullName || profile.username}
+          </h1>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-3 sm:mt-0 [&>a]:flex-1 [&>button]:flex-1 sm:[&>a]:flex-none sm:[&>button]:flex-none">
+            <h1 className="hidden sm:block text-xl sm:text-2xl font-bold text-white truncate min-w-0 flex-none">
+              {profile.fullName || profile.username}
+            </h1>
 
             {isOwn ? (
               <>
                 <Link
                   to="/create"
-                  className="px-4 py-1.5 rounded-lg bg-[#CDFF00] hover:bg-[#d9ff33] text-black text-sm font-semibold transition-colors flex items-center gap-2"
+                  className="px-4 py-2 rounded-lg bg-[#CDFF00] hover:bg-[#d9ff33] text-black text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                   <Plus className="w-4 h-4" /> Add listing
                 </Link>
                 <button
                   onClick={() => setIsModalOpen(true)}
-                  className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center gap-2"
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                   <Settings className="w-4 h-4" /> Edit profile
                 </button>
@@ -253,7 +267,7 @@ export default function Profile() {
             ) : rel.blocked ? (
               <button
                 onClick={toggleBlock}
-                className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center gap-2"
+                className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
               >
                 <ShieldOff className="w-4 h-4" /> Unblock
               </button>
@@ -262,7 +276,7 @@ export default function Profile() {
                 <button
                   onClick={toggleFollow}
                   disabled={followBusy || !currentUser}
-                  className={`px-5 py-1.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-60 ${
+                  className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-60 whitespace-nowrap ${
                     rel.isFollowing
                       ? 'bg-white/10 hover:bg-white/15 text-white'
                       : 'bg-[#CDFF00] hover:bg-[#d9ff33] text-black'
@@ -272,7 +286,7 @@ export default function Profile() {
                 </button>
                 <Link
                   to={`/dm/${profile.id}`}
-                  className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center gap-2"
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                   <MessageCircle className="w-4 h-4" /> Message
                 </Link>
@@ -280,10 +294,10 @@ export default function Profile() {
             )}
 
             {!isOwn && (
-              <div className="relative">
+              <div className="relative flex-none">
                 <button
                   onClick={() => setMenuOpen((v) => !v)}
-                  className="p-1.5 rounded-lg hover:bg-white/10 text-white transition-colors"
+                  className="p-2 rounded-lg hover:bg-white/10 text-white transition-colors"
                 >
                   <MoreHorizontal className="w-5 h-5" />
                 </button>
@@ -366,7 +380,7 @@ export default function Profile() {
         {tab === 'posts' && (
           posts.length > 0 ? (
             <div className="grid grid-cols-3 gap-1 sm:gap-2">
-              {posts.map((post) => <PostTile key={post.id} post={post} />)}
+              {posts.map((post) => <PostTile key={post.id} post={post} onOpen={setViewingPost} />)}
             </div>
           ) : <EmptyTab icon={ImageIcon} text="No posts yet" />
         )}
@@ -399,7 +413,7 @@ export default function Profile() {
                 Posts you've liked · {likedPosts.length}
               </p>
               <div className="grid grid-cols-3 gap-1 sm:gap-2">
-                {likedPosts.map((post) => <PostTile key={post.id} post={post} showAuthor />)}
+                {likedPosts.map((post) => <PostTile key={post.id} post={post} showAuthor onOpen={setViewingPost} />)}
               </div>
             </>
           ) : <EmptyTab icon={Heart} text="Posts you like will appear here" />
@@ -408,7 +422,81 @@ export default function Profile() {
 
       {/* ── REPORT MODAL ── */}
       <AnimatePresence>
-        {reportOpen && (
+        {/* Post viewer — opened from any grid tile. */}
+      <AnimatePresence>
+        {viewingPost && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setViewingPost(null)}
+            className="fixed inset-0 z-[700] bg-black/90 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 28, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 28, scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full sm:max-w-lg bg-[#0a0a0a] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl my-0 sm:my-8 overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-full overflow-hidden bg-[#CDFF00] flex items-center justify-center shrink-0">
+                    {(viewingPost.authorAvatarUrl || profile.avatarUrl)
+                      ? <img src={viewingPost.authorAvatarUrl || profile.avatarUrl} alt="" className="w-full h-full object-cover" />
+                      : <span className="text-sm font-black text-black">
+                          {(viewingPost.authorName || profile.fullName || '?')[0]?.toUpperCase()}
+                        </span>}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-white truncate">
+                      {viewingPost.authorName || profile.fullName}
+                    </p>
+                    <p className="text-[10px] text-gray-500 font-bold">{timeAgo(viewingPost.createdAt)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewingPost(null)}
+                  className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors shrink-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {(viewingPost.media?.[0]?.url || viewingPost.imageUrl) && (
+                <img
+                  src={viewingPost.media?.[0]?.url || viewingPost.imageUrl}
+                  alt=""
+                  className="w-full max-h-[60vh] object-contain bg-black"
+                />
+              )}
+
+              {viewingPost.content && (
+                <p className="px-4 py-4 text-[15px] text-white leading-relaxed whitespace-pre-wrap break-words">
+                  {viewingPost.content}
+                </p>
+              )}
+
+              <div className="px-4 py-3 border-t border-white/10 flex items-center gap-5 text-sm font-bold text-gray-400">
+                <span className="flex items-center gap-1.5">
+                  <Heart className="w-4 h-4" /> {viewingPost.likesCount || 0}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <MessageCircle className="w-4 h-4" /> {viewingPost.commentsCount || 0}
+                </span>
+                <Link
+                  to="/feed"
+                  onClick={() => setViewingPost(null)}
+                  className="ml-auto text-[10px] font-black uppercase tracking-widest text-[#CDFF00] hover:brightness-110"
+                >
+                  Open in feed
+                </Link>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {reportOpen && (
           <div className="fixed inset-0 z-[400] flex items-center justify-center px-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setReportOpen(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
@@ -575,10 +663,15 @@ function ProfileBio({ profile }) {
 }
 
 /* Instagram-style square tile for a feed post (image or text). */
-function PostTile({ post, showAuthor = false }) {
+function PostTile({ post, showAuthor = false, onOpen }) {
   const image = post.media?.[0]?.url || post.imageUrl;
   return (
-    <div className="relative aspect-square bg-white/[0.03] border border-white/5 rounded-md sm:rounded-xl overflow-hidden group">
+    <button
+      type="button"
+      onClick={() => onOpen?.(post)}
+      aria-label={post.content ? `Open post: ${String(post.content).slice(0, 60)}` : 'Open post'}
+      className="relative aspect-square w-full text-left bg-white/[0.03] border border-white/5 rounded-md sm:rounded-xl overflow-hidden group cursor-pointer focus-visible:ring-2 focus-visible:ring-[#CDFF00]/60 outline-none"
+    >
       {image ? (
         <img src={image} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
       ) : (
@@ -593,10 +686,10 @@ function PostTile({ post, showAuthor = false }) {
           <span className="flex items-center gap-1.5"><MessageCircle className="w-4 h-4 fill-white" /> {post.commentsCount || 0}</span>
         </div>
         {showAuthor && post.authorName && (
-          <Link to={`/profile/${post.authorId}`} className="text-[11px] text-gray-300 hover:text-[#CDFF00]">by {post.authorName}</Link>
+          <span className="text-[11px] text-gray-300">by {post.authorName}</span>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 

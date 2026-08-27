@@ -222,7 +222,11 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
     >
       {/* Background Ambience */}
       <div className="absolute inset-0 z-0 opacity-20 blur-[100px] pointer-events-none">
-        <img src={currentStory.mediaUrl || currentStory.media} alt="" className="w-full h-full object-cover scale-150" />
+        {(currentStory.mediaUrl || currentStory.media) ? (
+          <img src={currentStory.mediaUrl || currentStory.media} alt="" className="w-full h-full object-cover scale-150" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#7D39EB] to-[#FF00FF]" />
+        )}
       </div>
 
       {/* Main Premium Card Player */}
@@ -233,17 +237,27 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
         {/* Media Block */}
         <div className="absolute inset-0 z-0" onClick={() => setIsPlaying(!isPlaying)}>
           {currentStory.type === 'VIDEO' ? (
-            <video 
+            <video
               ref={videoRef}
-              src={currentStory.mediaUrl || currentStory.media} 
-              autoPlay 
-              muted={isMuted} 
-              playsInline 
-              className="w-full h-full object-cover" 
+              src={currentStory.mediaUrl || currentStory.media}
+              autoPlay
+              muted={isMuted}
+              playsInline
+              className="w-full h-full object-cover"
               onEnded={nextStory}
             />
-          ) : (
+          ) : (currentStory.mediaUrl || currentStory.media) ? (
             <img src={currentStory.mediaUrl || currentStory.media} alt="" className="w-full h-full object-cover" />
+          ) : (
+            // A TEXT story has no media at all. This branch used to be missing entirely, so
+            // it fell through to <img src={null}> and rendered an empty black card — the
+            // author's words were never drawn. Type is deliberately not checked here: any
+            // story without media is a text story as far as rendering is concerned.
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#7D39EB] via-[#FF00FF]/70 to-[#050505] p-8">
+              <p className="text-white text-center font-black leading-snug break-words text-2xl sm:text-3xl drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
+                {currentStory.content}
+              </p>
+            </div>
           )}
         </div>
 
