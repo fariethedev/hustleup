@@ -369,7 +369,18 @@ export const datingApi = {
 // Subscriptions
 export const subscriptionsApi = {
   my: () => api.get('/subscriptions/my'),
-  upgrade: () => api.post('/subscriptions/upgrade'),
+  /** Price list, served by the backend so the UI never hardcodes an amount. */
+  plans: () => api.get('/subscriptions/plans'),
+  /**
+   * Starts a paid upgrade and returns { checkoutUrl } to redirect the buyer to.
+   *
+   * This replaced `upgrade()`, which called an endpoint that granted Premium outright
+   * with no payment. Premium is now granted only by Stripe's signed webhook, after the
+   * money clears — so the caller must send the buyer to `checkoutUrl` and wait.
+   *
+   * @param {'MONTHLY'|'QUARTERLY'|'ANNUAL'} plan
+   */
+  checkout: (plan) => api.post('/subscriptions/checkout', { plan }),
 };
 
 // Stories

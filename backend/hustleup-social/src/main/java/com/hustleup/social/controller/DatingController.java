@@ -38,6 +38,8 @@ import com.hustleup.social.model.DatingSwipe;
 import com.hustleup.social.repository.DatingProfileRepository;
 import com.hustleup.social.repository.DatingSwipeRepository;
 import com.hustleup.common.storage.FileStorageService;
+import com.hustleup.common.subscription.PremiumAccess;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -78,18 +80,42 @@ public class DatingController {
     private final MatchRepository matchRepo;
 
     /**
-     * Constructor injection: makes dependencies explicit, fields final, and
-     * simplifies unit-testing by allowing mock injection.
+     * Decides whether the caller holds Premium. Bond is a paid feature, and until now that
+     * was decided only in {@code Dating.jsx} — the endpoints below were open to any
+     * authenticated account, so the entire feature was available by calling the API
+     * directly. See {@link #requirePremium()}.
      */
+    private final PremiumAccess premiumAccess;
+
     public DatingController(DatingProfileRepository datingRepo, UserRepository userRepo,
                             FileStorageService storageService, DatingSwipeRepository swipeRepo,
-                            NotificationRepository notificationRepo, MatchRepository matchRepo) {
+                            NotificationRepository notificationRepo, MatchRepository matchRepo,
+                            PremiumAccess premiumAccess) {
         this.datingRepo = datingRepo;
         this.userRepo = userRepo;
         this.storageService = storageService;
         this.swipeRepo = swipeRepo;
         this.notificationRepo = notificationRepo;
         this.matchRepo = matchRepo;
+        this.premiumAccess = premiumAccess;
+    }
+
+    /**
+     * Refuses the request unless the caller holds an active Premium plan.
+     *
+     * <p>Returns the same {@code 403 / code: PREMIUM_REQUIRED} shape the feed uses for
+     * anonymous posting, so {@code isPremiumRequiredError} in the frontend already
+     * recognises it and can show the upgrade prompt rather than a generic failure.
+     *
+     * @return the refusal to return, or {@code null} when the caller may proceed
+     */
+    private ResponseEntity<?> requirePremium() {
+        User current = getCurrentUser();
+        if (current != null && premiumAccess.isPremium(current.getId())) return null;
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "error", "Bond is a Premium feature",
+                "code", "PREMIUM_REQUIRED",
+                "feature", "DATING"));
     }
 
     // ── Constants ─────────────────────────────────────────────────────────────
@@ -191,7 +217,10 @@ public class DatingController {
      * @return 200 OK with a JSON array of {@link DatingProfile} objects
      */
     @GetMapping("/profiles")
-    public ResponseEntity<List<DatingProfile>> getProfiles() {
+    public ResponseEntity<?> getProfiles() {
+        // Bond is Premium-only. Enforced here, not just in the browser.
+        ResponseEntity<?> denied = requirePremium();
+        if (denied != null) return denied;
         try {
             // Build a lookup map: userId → DatingProfile (for O(1) lookup per user below)
             Map<UUID, DatingProfile> profileMap = datingRepo.findAll().stream()
@@ -367,6 +396,9 @@ public class DatingController {
     @PostMapping("/like/{profileId}")
     public ResponseEntity<?> likeProfile(@PathVariable UUID profileId,
                                          @RequestParam(value = "superLike", defaultValue = "false") boolean superLike) {
+        // Bond is Premium-only. Enforced here, not just in the browser.
+        ResponseEntity<?> denied = requirePremium();
+        if (denied != null) return denied;
         User user = getCurrentUser();
         if (user == null) return ResponseEntity.status(401).build();
 
@@ -435,6 +467,9 @@ public class DatingController {
      */
     @PostMapping("/pass/{profileId}")
     public ResponseEntity<?> passProfile(@PathVariable UUID profileId) {
+        // Bond is Premium-only. Enforced here, not just in the browser.
+        ResponseEntity<?> denied = requirePremium();
+        if (denied != null) return denied;
         User user = getCurrentUser();
         if (user == null) return ResponseEntity.status(401).build();
         recordSwipe(user.getId(), profileId, "PASS");
@@ -462,6 +497,9 @@ public class DatingController {
      */
     @PostMapping("/rewind")
     public ResponseEntity<?> rewind() {
+        // Bond is Premium-only. Enforced here, not just in the browser.
+        ResponseEntity<?> denied = requirePremium();
+        if (denied != null) return denied;
         User user = getCurrentUser();
         if (user == null) return ResponseEntity.status(401).build();
 

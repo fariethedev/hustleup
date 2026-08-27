@@ -543,16 +543,27 @@ export default function Feed() {
     }
   };
 
-  const startUpgrade = async () => {
+  /**
+   * Sends the buyer to Stripe Checkout.
+   *
+   * Previously this called an endpoint that granted Premium outright with no payment, so
+   * it could optimistically flip `premium` and carry on. Now the account is upgraded only
+   * once Stripe's signed webhook confirms the charge, so this must not claim success —
+   * it hands off to the payment page and the browser leaves.
+   *
+   * Defaults to the monthly plan: this sheet interrupts someone mid-post, and offering a
+   * price list here would bury the thing they were actually trying to do. The full choice
+   * of terms lives on the Bond paywall.
+   */
+  const startUpgrade = async (plan = 'MONTHLY') => {
     setUpgrading(true);
     try {
-      await subscriptionsApi.upgrade();
-      setPremium(true);
-      setShowUpgrade(false);
-      dispatchToast('Premium active — you can post anonymously now', 'success');
+      const res = await subscriptionsApi.checkout(plan);
+      const url = res.data?.checkoutUrl;
+      if (!url) throw new Error('No checkout URL returned');
+      window.location.assign(url);
     } catch {
-      dispatchToast('Could not start your upgrade', 'error');
-    } finally {
+      dispatchToast('Could not start checkout — try again', 'error');
       setUpgrading(false);
     }
   };

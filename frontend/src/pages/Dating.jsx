@@ -333,12 +333,23 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
 }
 
 // ── Premium Paywall ──────────────────────────────────────────────────────────
-function PremiumPaywall({ onUpgrade, upgrading }) {
+/**
+ * @param onUpgrade   called with a plan id ('MONTHLY' | 'QUARTERLY' | 'ANNUAL')
+ * @param upgrading   the plan id currently being started, or null
+ * @param plans       price list from GET /subscriptions/plans; null while loading
+ */
+function PremiumPaywall({ onUpgrade, upgrading, plans }) {
   const perks = [
     { icon: Heart, text: 'Unlimited swipes on creatives near you' },
     { icon: Users, text: 'See mutual matches and message instantly' },
     { icon: Zap, text: 'Priority placement in other members’ stacks' },
   ];
+
+  // The longest term is the best per-month value, so it is worth pointing at. Derived
+  // from the returned prices rather than hardcoded, so it stays correct if they change.
+  const bestValueId = plans?.length
+    ? plans.reduce((best, p) => (Number(p.pricePerMonth) < Number(best.pricePerMonth) ? p : best)).id
+    : null;
 
   return (
     <div className="w-full max-w-sm mx-auto px-4">
@@ -362,18 +373,60 @@ function PremiumPaywall({ onUpgrade, upgrading }) {
           ))}
         </div>
 
-        <button
-          onClick={onUpgrade}
-          disabled={upgrading}
-          className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-        >
-          {upgrading ? (
-            <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-          ) : (
-            <>Upgrade to Premium — {formatPrice(20, 'PLN')}/mo</>
-          )}
-        </button>
-        <p className="text-[10px] text-gray-500 mt-2">Cancel anytime. No commitment.</p>
+        {!plans ? (
+          <div className="py-6 flex justify-center">
+            <span className="w-5 h-5 border-2 border-white/20 border-t-[#CDFF00] rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {plans.map((p) => {
+              const isBest = p.id === bestValueId && plans.length > 1;
+              const busy = upgrading === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => onUpgrade(p.id)}
+                  // Any in-flight checkout locks all three: a second click would open a
+                  // second Stripe session and risk charging twice.
+                  disabled={!!upgrading}
+                  className={`w-full py-2.5 px-3 rounded-xl font-bold text-sm active:scale-[0.99] transition-all disabled:opacity-60 flex items-center justify-between gap-2 ${
+                    isBest
+                      ? 'bg-[#CDFF00] text-black hover:bg-[#d9ff33]'
+                      : 'bg-white/5 text-white border border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    {p.label}
+                    {isBest && (
+                      <span className="text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded bg-black/20">
+                        Best value
+                      </span>
+                    )}
+                  </span>
+                  {busy ? (
+                    <span className={`w-4 h-4 border-2 rounded-full animate-spin ${
+                      isBest ? 'border-black/30 border-t-black' : 'border-white/30 border-t-white'
+                    }`} />
+                  ) : (
+                    <span className="text-right leading-tight">
+                      <span className="block">{formatPrice(Number(p.price), 'PLN')}</span>
+                      {p.months > 1 && (
+                        <span className={`block text-[9px] font-medium ${isBest ? 'text-black/60' : 'text-gray-400'}`}>
+                          {formatPrice(Number(p.pricePerMonth), 'PLN')}/mo
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {/* Prepaid terms, so there is nothing to cancel — the old "Cancel anytime"
+            line described a recurring plan that does not exist. */}
+        <p className="text-[10px] text-gray-500 mt-2.5">
+          One-off payment. Access ends when the term does.
+        </p>
       </div>
     </div>
   );
@@ -454,7 +507,12 @@ export default function Dating() {
 
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [premium, setPremium] = useState(false);
-  const [upgrading, setUpgrading] = useState(false);
+  // Holds the plan id currently being started, not a boolean — the paywall needs to know
+  // WHICH of the three buttons to show a spinner on.
+  const [upgrading, setUpgrading] = useState(null);
+  // Price list from the server. Null means "not loaded yet" so the paywall can show a
+  // spinner rather than briefly rendering an empty plan list.
+  const [plans, setPlans] = useState(null);
 
   const [deck, setDeck] = useState([]);
   const [myProfile, setMyProfile] = useState(null);
@@ -501,6 +559,14 @@ export default function Dating() {
       const active = isPremiumActive(res.data);
       setPremium(active);
       if (active) await loadData();
+      else {
+        // Only needed for the paywall, so it is not fetched for subscribers. A failure
+        // here leaves `plans` null and the paywall showing its spinner rather than an
+        // empty, un-buyable panel.
+        subscriptionsApi.plans()
+          .then((r) => setPlans(r.data?.plans ?? []))
+          .catch(() => setPlans(null));
+      }
     } catch (e) {
       setPremium(false);
     } finally {
@@ -508,17 +574,25 @@ export default function Dating() {
     }
   };
 
-  const handleUpgrade = async () => {
-    setUpgrading(true);
+  /**
+   * Sends the buyer to Stripe Checkout for the chosen plan.
+   *
+   * Deliberately does NOT flip `premium` locally. Premium is granted only by Stripe's
+   * signed webhook once the charge clears; setting it here would show the feature to
+   * someone who abandoned the payment page, and the API would refuse them anyway.
+   * On success the browser leaves this page entirely, so `upgrading` stays set —
+   * clearing it would briefly re-enable the buttons mid-redirect.
+   */
+  const handleUpgrade = async (planId) => {
+    setUpgrading(planId);
     try {
-      await subscriptionsApi.upgrade();
-      dispatchToast('Welcome to Premium!', 'success');
-      setPremium(true);
-      await loadData();
+      const res = await subscriptionsApi.checkout(planId);
+      const url = res.data?.checkoutUrl;
+      if (!url) throw new Error('No checkout URL returned');
+      window.location.assign(url);
     } catch (e) {
-      dispatchToast('Could not upgrade — try again', 'error');
-    } finally {
-      setUpgrading(false);
+      dispatchToast('Could not start checkout — try again', 'error');
+      setUpgrading(null);
     }
   };
 
@@ -711,7 +785,7 @@ export default function Dating() {
 
       {!premium ? (
         <div className="flex-1 min-h-0 flex items-center justify-center">
-          <PremiumPaywall onUpgrade={handleUpgrade} upgrading={upgrading} />
+          <PremiumPaywall onUpgrade={handleUpgrade} upgrading={upgrading} plans={plans} />
         </div>
       ) : loading ? (
         <div className="flex-1 flex items-center justify-center">
