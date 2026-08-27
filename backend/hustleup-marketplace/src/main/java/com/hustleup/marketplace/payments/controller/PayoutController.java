@@ -18,6 +18,7 @@ import com.stripe.model.Event;
 import com.stripe.model.StripeObject;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,6 +30,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/payouts")
+@Slf4j
 public class PayoutController {
 
     private final StripeConnectService stripeConnectService;
@@ -119,7 +121,30 @@ public class PayoutController {
                                          @RequestHeader("Stripe-Signature") String sigHeader) {
         try {
             Event event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
-            StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+            // Deserialising the event object is version-sensitive: getObject() returns empty
+            // whenever the API version that produced the event differs from the one this
+            // stripe-java build expects. That is not an edge case — a Stripe account's
+            // default version drifts ahead of the pinned SDK over time (this account is on
+            // 2026-07-29.dahlia against stripe-java 28.3.0), and the old code turned that
+            // into a SILENT no-op that still answered 200. Stripe saw success, the payment
+            // was taken, and the order sat UNPAID forever.
+            //
+            // deserializeUnsafe() ignores the version check and maps whatever fields are
+            // present. "Unsafe" only means Stripe will not guarantee every field across
+            // versions — the ids and metadata this handler reads are stable, and a
+            // best-effort read is strictly better than dropping a real payment.
+            var deserializer = event.getDataObjectDeserializer();
+            StripeObject stripeObject = deserializer.getObject().orElseGet(() -> {
+                try {
+                    log.warn("Stripe event {} ({}) needed unsafe deserialization — event API version {} "
+                             + "does not match this SDK build", event.getId(), event.getType(), event.getApiVersion());
+                    return deserializer.deserializeUnsafe();
+                } catch (Exception e) {
+                    log.error("Could not deserialize Stripe event {} ({}): {}",
+                            event.getId(), event.getType(), e.getMessage());
+                    return null;
+                }
+            });
 
             switch (event.getType()) {
                 case "account.updated" -> {

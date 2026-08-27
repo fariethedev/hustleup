@@ -122,3 +122,29 @@
     display: none; /* Chrome, Safari and Opera */
   }
 }
+
+/* ── iOS focus-zoom ────────────────────────────────────────────────────────────
+   Mobile Safari zooms the viewport whenever a focused input's computed font-size
+   is under 16px, and stays zoomed after blur — so tapping any field in the app
+   left the page enlarged and scrolled sideways. Almost every field here is
+   text-sm (14px) or smaller, which triggers it on every single one.
+
+   Bumping the computed size to 16px on touch devices is the fix Safari actually
+   documents. The alternative — user-scalable=no / maximum-scale=1 on the viewport
+   tag — also stops the zoom but takes pinch-to-zoom away from everyone, which
+   fails WCAG 1.4.4 and is a genuine problem for anyone who needs to magnify.
+
+   Scoped to (pointer: coarse) so it only touches real touch devices: the desktop
+   type scale is unchanged, and it covers tablets too, which a width breakpoint
+   would miss. !important because Tailwind's text-sm is a class and would
+   otherwise win against a bare element selector.
+
+   Excludes the input types that have no text to size (and whose rendering the
+   rule would only distort). */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']):not([type='submit']):not([type='button']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
