@@ -32,8 +32,17 @@ import java.util.UUID;
 
 // @Entity — Hibernate maps this class to a database table.
 @Entity
-// @Table(name = "reviews") — explicit table name, consistent with the "reviews" plural convention.
-@Table(name = "reviews")
+// @Table — explicit table name, consistent with the "reviews" plural convention.
+// One review per person per booking, NOT one review per booking. booking_id used to carry a
+// bare unique=true, which meant whichever party reviewed first permanently locked the other
+// one out — a seller rating their buyer silently destroyed the buyer's ability to rate the
+// seller, which is the review the shop page depends on.
+@Table(
+    name = "reviews",
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_reviews_booking_reviewer",
+        columnNames = {"booking_id", "reviewer_id"})
+)
 // Lombok: @Getter/@Setter generate all accessors; @Builder provides a fluent builder;
 // @NoArgsConstructor is required by JPA; @AllArgsConstructor is used by @Builder.
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -51,7 +60,7 @@ public class Review {
     // unique = true enforces the "one review per booking" rule at the database level —
     // even if application logic fails, the DB constraint prevents duplicates.
     @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(name = "booking_id", nullable = false, unique = true, columnDefinition = "VARCHAR(36)")
+    @Column(name = "booking_id", nullable = false, columnDefinition = "VARCHAR(36)")
     private UUID bookingId; // the booking that triggered this review (soft FK to bookings table)
 
     // The user who wrote the review. Determined at review-creation time by the controller,

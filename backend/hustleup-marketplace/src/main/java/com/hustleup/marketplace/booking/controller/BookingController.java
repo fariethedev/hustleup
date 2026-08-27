@@ -169,8 +169,16 @@ public class BookingController {
      * @return 200 OK with the updated {@link BookingDto} in COMPLETED state
      */
     @PatchMapping("/{id}/complete") // handles PATCH /api/v1/bookings/uuid/complete
-    public ResponseEntity<BookingDto> complete(@PathVariable UUID id) {
-        return ResponseEntity.ok(bookingService.complete(id));
+    public ResponseEntity<BookingDto> complete(
+            @PathVariable UUID id,
+            // Body carries the completer's review of the counterparty: {"rating":5,"comment":"..."}.
+            // Required — see BookingService#complete for why the gate sits on the actor.
+            @RequestBody(required = false) Map<String, Object> body) {
+        Map<String, Object> review = body == null ? Map.of() : body;
+        Object rawRating = review.get("rating");
+        Integer rating = rawRating instanceof Number ? ((Number) rawRating).intValue() : null;
+        String comment = review.get("comment") instanceof String ? (String) review.get("comment") : null;
+        return ResponseEntity.ok(bookingService.complete(id, rating, comment));
     }
 
     /**
@@ -183,6 +191,17 @@ public class BookingController {
      *
      * @return 200 OK with a JSON array of {@link BookingDto}, ordered newest first
      */
+    /**
+     * The seller's outstanding sales — the pending-orders badge and panel.
+     *
+     * <p><b>GET /api/v1/bookings/pending-sales</b> — auth required, seller side only.
+     * Returns bookings still awaiting action: INQUIRED, NEGOTIATING or BOOKED.
+     */
+    @GetMapping("/pending-sales")
+    public ResponseEntity<List<BookingDto>> pendingSales() {
+        return ResponseEntity.ok(bookingService.getPendingSales());
+    }
+
     @GetMapping("/my") // handles GET /api/v1/bookings/my
     public ResponseEntity<List<BookingDto>> myBookings() {
         return ResponseEntity.ok(bookingService.getMyBookings());

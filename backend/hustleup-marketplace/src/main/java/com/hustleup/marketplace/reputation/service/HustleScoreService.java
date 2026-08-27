@@ -171,6 +171,7 @@ public class HustleScoreService {
                     .hustleScore(finalScore(s))
                     .tier(tierFor(finalScore(s)))
                     .avgRating(s.avgRating)
+                    .reviewCount(s.reviewCount)
                     .acceptedSwaps(s.acceptedSwaps)
                     .build());
         }

@@ -43,7 +43,12 @@ public class LeaderboardController {
      */
     @GetMapping
     public ResponseEntity<List<LeaderboardEntryDto>> board(
-            @RequestParam(defaultValue = "sales") String metric,
+            // Defaults to the composite Hustle Score, not a raw sales count. Ranking by sales
+            // alone rewards volume and ignores whether any of it went well — a seller with
+            // forty completed sales and a 2.1 rating would outrank one with twenty-five and a
+            // 4.9. The score folds in sales, earnings, rating, review volume and swaps, each
+            // capped so no single axis dominates, then decays with inactivity.
+            @RequestParam(defaultValue = "score") String metric,
             @RequestParam(defaultValue = "all") String window,
             @RequestParam(defaultValue = "20") int limit) {
         return ResponseEntity.ok(hustleScoreService.leaderboard(metric, window, limit));

@@ -85,9 +85,13 @@ public class AuthDtos {
         // URL-safe and short enough to sit in a profile link. Letters, digits, underscore
         // and dot only — no spaces or slashes, which would break /u/{username} routing,
         // and no leading/trailing dot, which reads as a typo and enables lookalikes.
-        @NotBlank(message = "Username is required")
+        // Optional on the wire, not because a handle is optional, but because clients
+        // deploy on their own schedule: making it required server-side rejected every
+        // request from the already-deployed web build, which sends no username at all.
+        // A blank value is accepted here and the server derives one (see
+        // AuthController.register); anything non-blank still has to match the format.
         @Pattern(
-                regexp = "^(?![._])[A-Za-z0-9._]{3,20}(?<![._])$",
+                regexp = "^$|^(?![._])[A-Za-z0-9._]{3,20}(?<![._])$",
                 message = "Username must be 3–20 characters, using letters, numbers, dots or underscores, and cannot start or end with a dot or underscore"
         )
         private String username;

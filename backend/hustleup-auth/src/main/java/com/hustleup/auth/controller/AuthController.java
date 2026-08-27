@@ -222,7 +222,11 @@ public class AuthController {
         // MySQL's default collation, so without this "Sarah" and "sarah" would both be
         // accepted as separate handles — the exact impersonation the check exists to stop.
         String username = request.getUsername() == null ? "" : request.getUsername().trim();
-        if (userRepository.existsByUsernameIgnoreCase(username)) {
+        if (username.isEmpty()) {
+            // Older clients don't send one. Derive a handle rather than reject the signup —
+            // the account is still usable and the person can change it later.
+            username = deriveUsername(request.getEmail());
+        } else if (userRepository.existsByUsernameIgnoreCase(username)) {
             return ResponseEntity.badRequest().body(java.util.Map.of("error", "That username is already taken"));
         }
 
@@ -668,6 +672,29 @@ public class AuthController {
      * Called from {@link #register}; failures are caught by the caller so a broken
      * email provider never blocks account creation.
      */
+    /**
+     * Builds a free handle from an email local-part, for clients that don't collect one.
+     *
+     * <p>Strips anything outside the allowed character set, pads a too-short result, and
+     * appends a counter until it is unique — so two people called "jo@..." get jo and jo2
+     * rather than the second signup failing on a constraint they never saw.
+     */
+    private String deriveUsername(String email) {
+        String base = email.split("@")[0].replaceAll("[^A-Za-z0-9._]", "").replaceAll("^[._]+|[._]+$", "");
+        if (base.length() < 3) base = "user" + base;
+        if (base.length() > 16) base = base.substring(0, 16);
+
+        String candidate = base;
+        for (int n = 2; userRepository.existsByUsernameIgnoreCase(candidate); n++) {
+            candidate = base + n;
+            if (n > 9999) { // pathological; fall back to something guaranteed unique
+                candidate = base + UUID.randomUUID().toString().substring(0, 6);
+                break;
+            }
+        }
+        return candidate;
+    }
+
     private void sendVerificationEmail(User user) {
         String code = issueVerificationCode(user);
         emailService.send(user.getEmail(), "Your HustleSpace verification code",

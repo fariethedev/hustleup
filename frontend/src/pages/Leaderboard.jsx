@@ -8,9 +8,9 @@ import { selectIsAuthenticated } from '../store/authSlice';
 import { formatPrice } from '../utils/constants';
 
 const METRICS = [
+  { key: 'score',    label: 'Overall',     icon: Flame },
   { key: 'sales',    label: 'Most sales',  icon: TrendingUp },
   { key: 'earnings', label: 'Most earned', icon: Coins },
-  { key: 'score',    label: 'Hustle score', icon: Flame },
 ];
 
 const WINDOWS = [
@@ -37,7 +37,10 @@ const rankStyle = (rank) => {
 
 export default function Leaderboard() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
-  const [metric, setMetric] = useState('sales');
+  // Defaults to the composite Hustle Score, matching the server. Ranking on raw sales
+  // rewards volume and ignores whether any of it went well — the score folds in sales,
+  // earnings, rating, review volume and swaps, each capped so no axis dominates.
+  const [metric, setMetric] = useState('score');
   const [window_, setWindow] = useState('all');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -210,7 +213,15 @@ export default function Leaderboard() {
 
                   <div className="text-right shrink-0">
                     <p className="text-sm font-black text-[#CDFF00] leading-none">{primaryStat(e)}</p>
-                    {metric !== 'score' && (
+                    {metric === 'score' ? (
+                      // Show the inputs behind the rank. A bare score is unarguable-with;
+                      // "31 sales · 4.8 (40)" lets someone see why this seller is above that
+                      // one, and the review count stops a lone 5.0 reading as a strong record.
+                      <p className="text-[9px] text-gray-600 font-bold mt-1 tabular-nums">
+                        {e.salesCount} sale{e.salesCount === 1 ? '' : 's'}
+                        {e.reviewCount > 0 && ` · ${e.avgRating.toFixed(1)} (${e.reviewCount})`}
+                      </p>
+                    ) : (
                       <p className="text-[9px] text-gray-600 font-bold mt-1">{e.hustleScore} pts</p>
                     )}
                   </div>

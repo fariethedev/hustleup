@@ -232,7 +232,7 @@ export default function Home() {
                 <Star className="w-4 h-4 text-black fill-black" />
               </div>
               <div>
-                <p className="text-white text-sm font-bold leading-tight">Trusted by students</p>
+                <p className="text-white text-sm font-bold leading-tight">Trusted by students all over Poland</p>
                 <p className="text-gray-400 text-xs">from Gdańsk to Lublin</p>
               </div>
             </div>

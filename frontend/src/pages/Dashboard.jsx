@@ -3,15 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated, selectIsSeller } from '../store/authSlice';
-import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, dispatchToast } from '../api/client';
+import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, dispatchToast } from '../api/client';
 import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constants';
 import {
   Settings2, Plus, Inbox, ClipboardList, Check, X, MessageSquare, ListTodo, PackageSearch,
   BellRing, TrendingUp, CalendarClock, Pencil, Store, Trash2, Ban, Landmark, CreditCard, ShieldCheck,
-  Ticket, ScanLine, ArrowRight
+  Ticket, ScanLine, ArrowRight, Star
 } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
 import ShopManager from '../components/ShopManager';
+import ReviewModal from '../components/ReviewModal';
 
 // Listing categories with bespoke dashboard functionality beyond the standard buy/negotiate flow.
 const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
@@ -36,6 +37,9 @@ export default function Dashboard() {
   const [counterValue, setCounterValue] = useState('');
   const [counterBusy, setCounterBusy] = useState(false);
   const [tickets, setTickets] = useState([]); // digital event tickets the user holds
+  // Booking whose review dialog is open — either the seller completing it, or a buyer
+  // clearing a review they still owe.
+  const [reviewing, setReviewing] = useState(null);
 
   const hasServiceListing = listings.some((l) => SERVICE_TYPES.includes(l.listingType));
   const hasEventListing = listings.some((l) => l.listingType === 'EVENT');
@@ -96,7 +100,7 @@ export default function Dashboard() {
     try {
       if (action === 'accept') await bookingsApi.accept(id);
       else if (action === 'cancel') await bookingsApi.cancel(id, 'Cancelled by user');
-      else if (action === 'complete') await bookingsApi.complete(id);
+      // 'complete' no longer routes through here — it opens the review dialog first.
       loadData();
     } catch (err) {
       alert(err.response?.data?.message || 'Action failed');
@@ -125,6 +129,9 @@ export default function Dashboard() {
   };
 
   const salesBookings = bookings.filter((b) => b.role === 'seller' && b.status === 'COMPLETED');
+  // Completed transactions this user still owes a review on. A seller's review is taken
+  // during completion, so in practice these are the buyer's side of the deal.
+  const awaitingReview = bookings.filter((b) => b.status === 'COMPLETED' && b.reviewedByMe === false);
   const totalRevenue = salesBookings.reduce((sum, b) => sum + (b.agreedPrice || 0), 0);
 
   const tabs = [
@@ -186,6 +193,35 @@ export default function Dashboard() {
 
           {/* Points at the Shop tab rather than onboarding — that's where a storefront is
               actually created and edited now. */}
+          {/* Outstanding reviews sit above everything else: a rating is only useful if it is
+              actually left, and a completed transaction is the moment someone can give one. */}
+          {awaitingReview.length > 0 && (
+            <div className="mb-5 space-y-2">
+              {awaitingReview.slice(0, 3).map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => setReviewing({ booking: b, mode: 'review' })}
+                  className="w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl bg-[#CDFF00]/5 border border-[#CDFF00]/30 hover:border-[#CDFF00]/60 transition-all group text-left"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-[#CDFF00]/15 flex items-center justify-center shrink-0">
+                      <Star className="w-4.5 h-4.5 text-[#CDFF00]" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-white truncate">
+                        How was {b.role === 'seller' ? b.buyerName : b.sellerName}?
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">{b.listingTitle}</p>
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[#CDFF00] group-hover:translate-x-0.5 transition-transform shrink-0">
+                    Rate →
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {isSeller && tab !== 'shop' && (
             <button
               onClick={() => setTab('shop')}
@@ -303,7 +339,7 @@ export default function Dashboard() {
                             )}
 
                             {booking.status === 'BOOKED' && !isBuyer && (
-                              <button onClick={() => handleBookingAction(booking.id, 'complete')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
+                              <button onClick={() => setReviewing({ booking, mode: 'complete' })} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
                                 <Check className="w-3 h-3" /> Complete
                               </button>
                             )}
@@ -591,6 +627,28 @@ export default function Dashboard() {
           )}
         </motion.div>
       </div>
+
+      {reviewing && (
+        <ReviewModal
+          title={reviewing.mode === 'complete' ? 'Complete booking' : 'Rate this transaction'}
+          subjectName={reviewing.booking.role === 'seller' ? reviewing.booking.buyerName : reviewing.booking.sellerName}
+          context={reviewing.booking.listingTitle}
+          note={reviewing.mode === 'complete'
+            ? 'Marking this complete releases payment to the seller. Your rating is saved with it.'
+            : undefined}
+          submitLabel={reviewing.mode === 'complete' ? 'Complete & submit' : 'Submit review'}
+          onClose={() => setReviewing(null)}
+          onSubmit={async ({ rating, comment }) => {
+            if (reviewing.mode === 'complete') {
+              await bookingsApi.complete(reviewing.booking.id, { rating, comment });
+            } else {
+              await reviewsApi.create({ bookingId: reviewing.booking.id, rating, comment });
+            }
+            setReviewing(null);
+            loadData();
+          }}
+        />
+      )}
 
       {editingListing && (
         <EditPriceModal

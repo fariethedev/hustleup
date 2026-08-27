@@ -63,6 +63,13 @@ public class BookingDto {
 
     // --- Viewer role ---
     private String role; // "buyer" or "seller" — set relative to the authenticated user who fetched this DTO
+    /**
+     * Whether the person who fetched this DTO has already reviewed this booking.
+     *
+     * <p>Lets the dashboard tell "done and rated" apart from "done, still owes a review",
+     * which is what drives the prompt on the buyer side. Null for anonymous reads.
+     */
+    private Boolean reviewedByMe;
 
     // --- Timestamps ---
     private LocalDateTime createdAt; // when the booking was first created

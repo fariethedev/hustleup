@@ -31,5 +31,14 @@ public class LeaderboardEntryDto {
     private int hustleScore;
     private String tier;
     private double avgRating;
+
+    /**
+     * How many reviews that average is built from.
+     *
+     * <p>An average alone is misleading on a leaderboard: 5.0 from a single review outranks
+     * 4.8 from forty on the eye, when the second seller is plainly the safer trade. Shipping
+     * the count lets the row show "4.8 (40)" so a rank can be read honestly.
+     */
+    private long reviewCount;
     private long acceptedSwaps;
 }

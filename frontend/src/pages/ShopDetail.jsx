@@ -11,6 +11,7 @@ import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, H
 import { useState, useMemo, useEffect } from 'react';
 import SmartImage from '../components/SmartImage';
 import ListingCard from '../components/ListingCard';
+import ShopReviews from '../components/ShopReviews';
 
 // Shop categories whose products are appointments/sessions rather than physical goods
 // (hair & beauty, skills & services) get a "book an appointment" slot picker instead
@@ -228,6 +229,13 @@ export default function ShopDetail() {
 
           {/* Left Column: Feed & Explore */}
           <div>
+            <ShopReviews
+              ownerId={shop.ownerId}
+              ownerName={shop.ownerName}
+              rating={shop.rating}
+              reviewCount={shop.reviewCount}
+            />
+
             {shop.tagline && (
               <p className="text-lg font-bold text-white leading-snug mb-3">{shop.tagline}</p>
             )}

@@ -157,7 +157,9 @@ export const bookingsApi = {
     api.patch(`/bookings/${id}/counter`, { counterPrice }),
   accept: (id) => api.patch(`/bookings/${id}/accept`),
   cancel: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }),
-  complete: (id) => api.patch(`/bookings/${id}/complete`),
+  // Completing a booking carries the completer's review of the other party — the server
+  // rejects the call without a 1-5 rating. See BookingService#complete.
+  complete: (id, review) => api.patch(`/bookings/${id}/complete`, review),
   my: () => api.get('/bookings/my'),
   // Returns a Stripe-hosted checkout URL for the buyer to pay for a BOOKED booking.
   checkoutSession: (id) => api.post(`/bookings/${id}/checkout-session`),
@@ -169,6 +171,9 @@ export const bookingsApi = {
    * `url` is null when every item needs seller approval first.
    */
   cartCheckout: (items) => api.post('/bookings/checkout', { items }),
+  // Seller's outstanding sales (INQUIRED / NEGOTIATING / BOOKED) — powers the pending
+  // badge and panel. Seller side only; a seller's own purchases are not included.
+  pendingSales: () => api.get('/bookings/pending-sales'),
 };
 
 // Digital event tickets. There is no create() here on purpose — tickets are issued by the

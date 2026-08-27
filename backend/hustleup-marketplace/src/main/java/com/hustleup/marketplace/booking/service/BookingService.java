@@ -34,6 +34,8 @@ import com.hustleup.marketplace.booking.repository.BookingRepository;
 import com.hustleup.marketplace.listing.model.Listing;
 import com.hustleup.marketplace.listing.model.ListingType;
 import com.hustleup.marketplace.listing.repository.ListingRepository;
+import com.hustleup.marketplace.review.model.Review;
+import com.hustleup.marketplace.review.repository.ReviewRepository;
 import com.hustleup.marketplace.payments.model.SellerPayoutAccount;
 import com.hustleup.marketplace.payments.repository.SellerPayoutAccountRepository;
 import com.hustleup.marketplace.payments.service.StripeConnectService;
@@ -85,6 +87,7 @@ public class BookingService {
     private final ExpoPushService expoPushService; // same lifecycle events, as a mobile push
     private final TicketService ticketService; // issues/voids digital tickets for EVENT bookings
     private final NotificationRepository notificationRepository; // in-app alerts — powers the real-time negotiation popup
+    private final ReviewRepository reviewRepository; // completing a booking records the completer's review in the same step
 
     /**
      * Constructor injection: Spring automatically resolves and injects these beans.
@@ -98,7 +101,8 @@ public class BookingService {
                           SellerPayoutAccountRepository payoutAccountRepository,
                           StripeConnectService stripeConnectService,
                           EmailService emailService, ExpoPushService expoPushService,
-                          TicketService ticketService, NotificationRepository notificationRepository) {
+                          TicketService ticketService, NotificationRepository notificationRepository,
+                          ReviewRepository reviewRepository) {
         this.bookingRepository = bookingRepository;
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
@@ -108,6 +112,7 @@ public class BookingService {
         this.emailService = emailService;
         this.expoPushService = expoPushService;
         this.ticketService = ticketService;
+        this.reviewRepository = reviewRepository;
         this.notificationRepository = notificationRepository;
     }
 
@@ -635,10 +640,22 @@ public class BookingService {
      * @return the updated booking DTO with COMPLETED status
      */
     @Transactional
-    public BookingDto complete(UUID bookingId) {
+    public BookingDto complete(UUID bookingId, Integer rating, String comment) {
         User user = getCurrentUser();
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        // Completing a transaction now carries a review of the counterparty. Ratings used to
+        // be an optional afterthought nobody performed, which left shop pages with nothing to
+        // show; making it part of the completing action is what actually produces them.
+        //
+        // Note what is gated and what is NOT: the person who must supply the review is the
+        // same person performing the action. Blocking completion on the OTHER party's review
+        // would let a silent buyer hold a seller's payout hostage indefinitely, since
+        // completion is what releases the Stripe transfer below.
+        if (rating == null || rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("A rating between 1 and 5 is required to complete a booking");
+        }
 
         // Only the seller can declare the work done
         if (!booking.getSellerId().equals(user.getId())) {
@@ -647,6 +664,21 @@ public class BookingService {
 
         booking.setStatus(BookingStatus.COMPLETED);
         booking.setUpdatedAt(LocalDateTime.now());
+
+        // The completer reviews the other party. @Transactional on this method means a
+        // failure here rolls the completion back too — you never get a completed booking
+        // whose required review silently went missing.
+        UUID reviewedId = booking.getSellerId().equals(user.getId())
+                ? booking.getBuyerId() : booking.getSellerId();
+        if (!reviewRepository.existsByBookingIdAndReviewerId(bookingId, user.getId())) {
+            reviewRepository.save(Review.builder()
+                    .bookingId(bookingId)
+                    .reviewerId(user.getId())
+                    .reviewedId(reviewedId)
+                    .rating(rating)
+                    .comment(comment == null || comment.isBlank() ? null : comment.trim())
+                    .build());
+        }
 
         // Pay the seller out now that the work is confirmed done — but only if the buyer
         // actually paid (older bookings, or ones created before this system existed, simply
@@ -684,7 +716,7 @@ public class BookingService {
             notifyByPush(booking.getSellerId(), "Payout sent", "You've been paid out for " + listingTitle + ".");
         }
 
-        return enrichDto(saved);
+        return enrichDto(saved, user.getId());
     }
 
     /**
@@ -698,6 +730,29 @@ public class BookingService {
      *
      * @return deduplicated enriched DTOs for all bookings the user is party to
      */
+    /**
+     * The seller's outstanding sales — everything sold but not yet delivered or cancelled.
+     *
+     * <p>"Pending" here means work the seller still owes somebody: an inquiry to answer, a
+     * negotiation in progress, or a confirmed order to fulfil. COMPLETED and CANCELLED are
+     * excluded because neither needs anything more from them.
+     *
+     * <p>Strictly the seller side. A seller who also buys has their own purchases in
+     * {@link #getMyBookings}, and mixing the two here would make the pending-count badge
+     * meaningless — it is meant to answer "how much do I owe my customers?".
+     *
+     * @return outstanding sales, newest first
+     */
+    public List<BookingDto> getPendingSales() {
+        User user = getCurrentUser();
+        java.util.Set<BookingStatus> outstanding = java.util.EnumSet.of(
+                BookingStatus.INQUIRED, BookingStatus.NEGOTIATING, BookingStatus.BOOKED);
+        return bookingRepository.findBySellerIdOrderByCreatedAtDesc(user.getId()).stream()
+                .filter(b -> outstanding.contains(b.getStatus()))
+                .map(b -> enrichDto(b, user.getId()))
+                .collect(Collectors.toList());
+    }
+
     public List<BookingDto> getMyBookings() {
         User user = getCurrentUser();
         List<Booking> bookings;
@@ -745,6 +800,7 @@ public class BookingService {
     private BookingDto enrichDto(Booking booking, UUID currentUserId) {
         BookingDto dto = enrichDto(booking);
         dto.setRole(booking.getBuyerId().equals(currentUserId) ? "buyer" : "seller");
+        dto.setReviewedByMe(reviewRepository.existsByBookingIdAndReviewerId(booking.getId(), currentUserId));
         return dto;
     }
 

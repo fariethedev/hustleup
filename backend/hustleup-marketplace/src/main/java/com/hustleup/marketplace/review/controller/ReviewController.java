@@ -112,8 +112,11 @@ public class ReviewController {
 
         // Rule 2: One review per booking. The unique constraint on Review.bookingId also
         // enforces this at the DB level, but we check here first to give a friendly error message.
-        if (reviewRepository.existsByBookingId(bookingId)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Already reviewed"));
+        // Rule 2: one review per person per booking — NOT one per booking. The old check
+        // asked whether anyone had reviewed, so a seller rating their buyer silently removed
+        // the buyer's ability to rate the seller, which is the review a shop page lives on.
+        if (reviewRepository.existsByBookingIdAndReviewerId(bookingId, reviewer.getId())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "You have already reviewed this booking"));
         }
 
         // Determine who is being reviewed: the reviewer reviews the OTHER party in the booking.

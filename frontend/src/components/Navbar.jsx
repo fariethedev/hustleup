@@ -5,11 +5,17 @@ import { selectUser, selectIsAuthenticated, logout } from '../store/authSlice';
 import { notificationsApi, directMessagesApi } from '../api/client';
 import { selectCartCount, openCart } from '../store/cartSlice';
 import GlobalSearch from './GlobalSearch';
+import PendingSalesButton from './PendingSalesButton';
 import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, Bell, CheckCheck, MoreHorizontal, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
 
 // Secondary links that don't get their own pill/tab (to avoid crowding the main
 // nav) but still need to be reachable from anywhere via the "More" menu.
+// Secondary links reachable from the "More" menu. On mobile this menu is the ONLY route to
+// Dashboard: the bottom bar holds five icons and adding a sixth makes the pill too wide for
+// a small phone, so Dashboard lives here rather than being unreachable (which is what it was
+// before — it had no mobile entry point at all).
 const MORE_LINKS = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', auth: true },
   { to: '/swaps', icon: Repeat, label: 'Swaps' },
   { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
   { to: '/jobs', icon: Briefcase, label: 'Jobs & Gigs' },
@@ -299,6 +305,9 @@ export default function Navbar() {
                   </span>
                 )}
               </button>
+              {/* Seller's outstanding orders. Renders nothing for buyers, or for a seller
+                  with an empty queue, so it never shows a permanent zero. */}
+              {isAuthenticated && <PendingSalesButton />}
               {isAuthenticated ? (
                 <div className="relative group">
                   <button
@@ -376,7 +385,7 @@ export default function Navbar() {
           <>
             <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 py-1.5 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl z-50 backdrop-blur-3xl">
-              {MORE_LINKS.map(({ to, icon: Icon, label }) => (
+              {MORE_LINKS.filter((l) => !l.auth || isAuthenticated).map(({ to, icon: Icon, label }) => (
                 <Link
                   key={to}
                   to={to}
@@ -386,6 +395,17 @@ export default function Navbar() {
                   <Icon className="w-4 h-4" /> {label}
                 </Link>
               ))}
+              {/* Profile, alongside Dashboard, so both account destinations are in one
+                  predictable place rather than only behind the avatar at the bar's edge. */}
+              {isAuthenticated && (
+                <Link
+                  to={`/profile/${user?.id}`}
+                  onClick={() => setMoreOpen(false)}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold"
+                >
+                  <User className="w-4 h-4" /> My profile
+                </Link>
+              )}
             </div>
           </>
         )}
@@ -423,6 +443,9 @@ export default function Navbar() {
           >
             <MoreHorizontal className={`w-[22px] h-[22px] ${moreOpen ? 'text-[#CDFF00]' : 'text-gray-400'}`} strokeWidth={moreOpen ? 2.5 : 1.9} />
           </button>
+
+          {/* Seller's outstanding orders — same component, sized for the tab island. */}
+          {isAuthenticated && <PendingSalesButton compact />}
 
           {/* Profile */}
           {isAuthenticated ? (

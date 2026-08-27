@@ -51,6 +51,25 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
     boolean existsByBookingId(UUID bookingId);
 
     /**
+     * Whether this particular person has already reviewed this booking.
+     *
+     * <p>This is the check that actually guards review creation. {@link #existsByBookingId}
+     * asks "has anyone reviewed this booking", which was the wrong question for a two-sided
+     * marketplace — it let the first reviewer lock out the counterparty.
+     */
+    boolean existsByBookingIdAndReviewerId(UUID bookingId, UUID reviewerId);
+
+    /** Every review attached to a booking — at most one per party. */
+    List<Review> findByBookingId(UUID bookingId);
+
+    /**
+     * Reviews the given person has written across a set of bookings. Used to work out which
+     * of someone's completed transactions are still awaiting their review, in one query
+     * rather than one per booking.
+     */
+    List<Review> findByReviewerIdAndBookingIdIn(UUID reviewerId, List<UUID> bookingIds);
+
+    /**
      * Counts the total number of reviews received by a user.
      *
      * <p>Used to display the review count on listing cards and seller profiles, and as

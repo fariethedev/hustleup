@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Package, Play, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import SmartImage from './SmartImage';
@@ -28,18 +28,18 @@ import { isVideoUrl } from '../utils/media';
  * @param {string}   typeLabel human-readable category shown as a badge over the stage
  */
 export default function ListingGallery({ media = [], title = '', typeLabel }) {
-  const [active, setActive] = useState(0);
+  const [activeRaw, setActive] = useState(0);
   const trackRef = useRef(null);
   // Set while an arrow/thumbnail scroll is animating, so the scroll handler doesn't fight
   // the programmatic scroll by recomputing the index from intermediate positions.
   const snappingRef = useRef(false);
 
   // A listing whose media list shrinks (an edit, or navigating to a different listing while the
-  // component stays mounted) would otherwise leave `active` pointing past the end and blank the
-  // stage. Clamping on change keeps a valid item selected.
-  useEffect(() => {
-    if (active > media.length - 1) setActive(0);
-  }, [media.length, active]);
+  // component stays mounted) would otherwise leave the stored index pointing past the end and
+  // blank the stage. Clamped on read rather than corrected by an effect: writing state from an
+  // effect costs an extra render pass and trips react-hooks/set-state-in-effect, and there is
+  // nothing here that a plain derived value cannot express.
+  const active = Math.min(activeRaw, Math.max(0, media.length - 1));
 
   /** Scrolls the track to a slide, clamped to the ends. */
   const goTo = useCallback((index) => {
