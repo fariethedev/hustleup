@@ -86,7 +86,21 @@ public class RefreshToken {
     // unique = true adds a UNIQUE constraint on the "token" column.
     // This guarantees that the same token string can never appear twice, which is
     // important for security — each token must identify exactly one session.
-    @Column(nullable = false, unique = true)
+    //
+    // The width is spelled out because the default varchar(255) was not enough. A refresh JWT
+    // is header + payload + signature, and the payload carries the subject — so its length
+    // grows with the user's email address. Real tokens were already reaching 234 characters,
+    // leaving under 21 characters of headroom: a long email address alone would have
+    // overflowed the column, and adding the "jti" claim that makes tokens unique tipped it
+    // over immediately. 1024 removes the ceiling rather than moving it.
+    //
+    // CHARACTER SET ascii is what keeps the UNIQUE index legal. A JWT is base64url, so it is
+    // ascii by construction; under the schema default of utf8mb4 MySQL budgets four bytes per
+    // character, and a 1024-character unique index would be 4096 bytes — past InnoDB's 3072
+    // byte limit. In ascii the same index is 1024 bytes. ascii_bin makes the lookup a byte
+    // comparison, which is what you want when matching a credential.
+    @Column(nullable = false, unique = true,
+            columnDefinition = "VARCHAR(1024) CHARACTER SET ascii COLLATE ascii_bin")
     private String token; // the opaque refresh token string sent to and from the client
 
     // Instant is Java's best type for UTC timestamps — it represents a point in time

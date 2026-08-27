@@ -1,0 +1,41 @@
+-- Widen refresh_tokens.token from varchar(255) to varchar(1024).
+--
+-- RUN THIS BY HAND. It is not applied automatically. The db/migration folders under the
+-- service modules look like Flyway migrations, but Flyway is not a dependency of this
+-- project and is not configured anywhere — nothing executes them. Schema comes from
+-- Hibernate's `ddl-auto: update`, which adds missing tables and columns but never changes
+-- the type or width of a column that already exists. So this ALTER has to be run against
+-- every environment: local, and Railway.
+--
+-- WHY
+-- A refresh token is a JWT, and its payload carries the subject — the user's email address
+-- — so the string length grows with the address. Tokens in the local database had already
+-- reached 234 characters against a 255 limit. Two consequences:
+--
+--   1. Signing up with a long email address would overflow the column outright.
+--   2. Every claim in the token was a function of (subject, type, current second): `iat`
+--      and `exp` are NumericDate, which carries seconds, not milliseconds. Two tokens
+--      minted for one user inside the same second were therefore byte-identical, and the
+--      insert collided with the UNIQUE index on this column — an ordinary second login
+--      returning 500. The fix is a random `jti` claim per token (see JwtTokenProvider),
+--      and that claim needs roughly 60 more characters than the column had spare.
+--
+-- CHARACTER SET ascii is load-bearing, not tidiness. A JWT is base64url, so ascii is
+-- correct by construction, and it is what keeps the UNIQUE index legal: under the schema
+-- default of utf8mb4, MySQL budgets 4 bytes per character, and a 1024-character unique
+-- index would be 4096 bytes — past InnoDB's 3072-byte limit, so the ALTER would fail. In
+-- ascii the same index is 1024 bytes. ascii_bin makes lookups a byte comparison, which is
+-- what matching a credential should be.
+--
+-- SAFETY
+-- Widening never truncates, so existing rows and live sessions are preserved. Verified
+-- locally against 170 existing rows, all retained.
+
+ALTER TABLE refresh_tokens
+  MODIFY COLUMN token VARCHAR(1024) CHARACTER SET ascii COLLATE ascii_bin NOT NULL;
+
+-- Verify:
+--   SELECT COLUMN_TYPE, CHARACTER_SET_NAME, COLLATION_NAME
+--     FROM information_schema.COLUMNS
+--    WHERE TABLE_NAME = 'refresh_tokens' AND COLUMN_NAME = 'token';
+-- Expect: varchar(1024) | ascii | ascii_bin
