@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { directMessagesApi, notificationsApi, usersApi } from '../api/client';
 import { formatPrice } from '../utils/constants';
+import { uploadUrl } from '../config';
 import {
   MessageSquareOff, User, BadgeCheck, ArrowLeft,
   Paperclip, Smile, MoreVertical, Search, Send,
@@ -125,7 +126,7 @@ function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
               >
                 <span className="block w-full h-full rounded-full overflow-hidden border-2 border-[#0A0A0A] bg-black">
                   {m.avatarUrl
-                    ? <img src={m.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ? <img src={uploadUrl(m.avatarUrl)} alt="" className="w-full h-full object-cover" />
                     : <span className="w-full h-full flex items-center justify-center text-sm font-black uppercase" style={{ color: ROSE }}>
                         {(m.name || m.fullName || 'U')[0]}
                       </span>}
@@ -219,7 +220,7 @@ function Avatar({ person, size = 12 }) {
   return (
     <div className={`${px} rounded-full overflow-hidden bg-black border border-white/10 flex items-center justify-center shrink-0`}>
       {person?.avatarUrl
-        ? <img src={person.avatarUrl} className="w-full h-full object-cover" />
+        ? <img src={uploadUrl(person.avatarUrl)} className="w-full h-full object-cover" />
         : <span className="text-[#CDFF00] font-black uppercase text-sm">{(person?.name || person?.fullName || 'U')[0]}</span>}
     </div>
   );
@@ -258,8 +259,10 @@ export default function DirectMessages() {
   // from the swipe deck, before the 8s /partners poll has caught up.
   const [activeIsBondMatch, setActiveIsBondMatch] = useState(false);
   const [activeMatchedAt, setActiveMatchedAt] = useState(null);
-  const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  // Mirrors activePartner synchronously so an in-flight poll can tell whether the
+  // conversation it was fetching is still the one on screen.
+  const activePartnerRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   // Scroll bookkeeping: jump instantly when a conversation opens; afterwards only
@@ -299,6 +302,7 @@ export default function DirectMessages() {
   };
 
   useEffect(() => {
+    activePartnerRef.current = activePartner;
     if (activePartner) {
       setMessages([]);
       jumpOnNextDataRef.current = true;
@@ -325,22 +329,46 @@ export default function DirectMessages() {
 
   const loadMessages = (id) => {
     directMessagesApi.getConversation(id)
-      .then(res => setMessages((prev) => {
-        // Keep optimistic (still-sending) messages so a poll can't wipe an in-flight upload.
-        const pending = prev.filter((m) => String(m.id).startsWith('tmp-'));
-        return [...(res.data || []), ...pending];
-      }))
+      .then(res => {
+        // Clearing the interval on close does not cancel a request already in flight. Without
+        // this the response still arrived and repopulated a thread the user had just left,
+        // which re-ran the scroll effect against a closing panel.
+        if (activePartnerRef.current !== id) return;
+        setMessages((prev) => {
+          // Keep optimistic (still-sending) messages so a poll can't wipe an in-flight upload.
+          const pending = prev.filter((m) => String(m.id).startsWith('tmp-'));
+          return [...(res.data || []), ...pending];
+        });
+      })
       .catch(e => console.error(e));
   };
 
+  // Scroll the message list itself, never scrollIntoView.
+  //
+  // scrollIntoView walks up the tree and scrolls EVERY scrollable ancestor to bring the
+  // element into view, the page included. Tapping back to the chat list closes the thread
+  // while a poll may still be in flight; when that response landed it changed `messages`,
+  // re-ran this effect, and scrolled the document to chase an element inside a panel that
+  // was already animating away — the thread lurching around under the user's finger as they
+  // tried to leave it. Setting scrollTop on the container moves that one element and nothing
+  // else, whatever is happening around it.
+  const scrollToLatest = (smooth) => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+  };
+
   useEffect(() => {
+    // No open conversation means the panel is closing or gone; there is nothing to follow.
+    if (!activePartner) return;
+
     const last = messages[messages.length - 1];
     const lastKey = last ? `${last.id}|${messages.length}` : '';
     if (jumpOnNextDataRef.current) {
       if (messages.length === 0) return; // wait for the conversation to load
       lastMsgKeyRef.current = lastKey;
       jumpOnNextDataRef.current = false;
-      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      scrollToLatest(false);
       return;
     }
     if (lastKey === lastMsgKeyRef.current) return; // poll refresh, nothing new — leave scroll alone
@@ -349,9 +377,9 @@ export default function DirectMessages() {
     const nearBottom = el ? el.scrollHeight - el.scrollTop - el.clientHeight < 150 : true;
     // Follow new messages only if already at the bottom, or it's one we just sent.
     if (nearBottom || last?.senderId === user?.id) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      scrollToLatest(true);
     }
-  }, [messages, user?.id]);
+  }, [messages, user?.id, activePartner]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Shared optimistic-send plumbing: append a temp message (single gray tick),
   // run the request, swap in the server copy or roll back on failure.
@@ -1193,7 +1221,7 @@ export default function DirectMessages() {
                                   >
                                     <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
                                       {msg.sharedListingImage
-                                        ? <img src={msg.sharedListingImage} alt="" className="w-full h-full object-cover" />
+                                        ? <img src={uploadUrl(msg.sharedListingImage)} alt="" className="w-full h-full object-cover" />
                                         : <ShoppingBag className="w-5 h-5 text-gray-500" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -1236,7 +1264,7 @@ export default function DirectMessages() {
                                   >
                                     <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
                                       {msg.sharedPostImage
-                                        ? <img src={msg.sharedPostImage} alt="" className="w-full h-full object-cover" />
+                                        ? <img src={uploadUrl(msg.sharedPostImage)} alt="" className="w-full h-full object-cover" />
                                         : <Send className="w-5 h-5 text-gray-500" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -1282,8 +1310,8 @@ export default function DirectMessages() {
                                     <div className="w-12 h-16 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
                                       {msg.sharedStoryImage
                                         ? (msg.sharedStoryType === 'VIDEO'
-                                            ? <video src={msg.sharedStoryImage} className="w-full h-full object-cover" muted playsInline />
-                                            : <img src={msg.sharedStoryImage} alt="" className="w-full h-full object-cover" />)
+                                            ? <video src={uploadUrl(msg.sharedStoryImage)} className="w-full h-full object-cover" muted playsInline />
+                                            : <img src={uploadUrl(msg.sharedStoryImage)} alt="" className="w-full h-full object-cover" />)
                                         : <Sparkles className="w-5 h-5 text-[#CDFF00]" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -1324,7 +1352,7 @@ export default function DirectMessages() {
                               {isImage ? (
                                 <>
                                   <motion.img
-                                    src={msg.mediaUrl}
+                                    src={uploadUrl(msg.mediaUrl)}
                                     alt="Photo"
                                     onClick={() => setLightboxUrl(msg.mediaUrl)}
                                     whileHover={reduceMotion ? {} : { scale: 1.015 }}
@@ -1360,7 +1388,6 @@ export default function DirectMessages() {
                       })}
                     </AnimatePresence>
                   )}
-                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Composer */}
@@ -1492,7 +1519,18 @@ export default function DirectMessages() {
                   </AnimatePresence>
 
                   <form onSubmit={sendMessage} className="px-3 sm:px-4 py-3 border-t border-white/[0.07] flex items-center gap-2">
-                    <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFilePick} />
+                    {/* Positioned off-screen rather than `hidden`: display:none stops iOS
+                        Safari opening the picker at all when .click() is called on it, which
+                        left the paperclip doing nothing on a phone. */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFilePick}
+                      tabIndex={-1}
+                      aria-hidden="true"
+                      className="absolute w-px h-px opacity-0 pointer-events-none -z-10"
+                    />
                     <motion.button
                       type="button"
                       whileHover={{ scale: 1.12 }}
@@ -1597,7 +1635,7 @@ export default function DirectMessages() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={PANEL_SPRING}
-              src={lightboxUrl}
+              src={uploadUrl(lightboxUrl)}
               alt="Photo"
               onClick={(e) => e.stopPropagation()}
               className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"

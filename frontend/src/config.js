@@ -37,6 +37,14 @@ export const WS_URL = API_BASE
   ? `${API_BASE.replace(/^http/, 'ws')}/ws`
   : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
 
-/** Absolute URL for a server-relative upload path (e.g. "/uploads/abc.jpg"). */
+/**
+ * Absolute URL for a server-relative upload path (e.g. "/uploads/abc.jpg").
+ *
+ * Anything already carrying a scheme is returned untouched. That deliberately includes
+ * `blob:` and `data:`, which is what an optimistic local preview looks like before the file
+ * has finished uploading — prefixing one of those with the API origin produces a URL that
+ * resolves to nothing, so the user's own photo would vanish the moment they attached it.
+ * Protocol-relative `//host/...` is passed through for the same reason.
+ */
 export const uploadUrl = (path) =>
-  !path || /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
+  !path || /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(path) ? path : `${API_BASE}${path}`;
