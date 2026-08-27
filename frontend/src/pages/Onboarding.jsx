@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { motion } from 'framer-motion';
 import { selectUser, loadUserProfile } from '../store/authSlice';
-import { usersApi, dispatchToast } from '../api/client';
-import { LISTING_TYPES } from '../utils/constants';
+import { usersApi, shopsApi, dispatchToast } from '../api/client';
+import { LISTING_TYPES, POLISH_CITIES } from '../utils/constants';
+import { invalidateShops } from '../hooks/useShops';
 import { Camera, Check, ArrowRight } from 'lucide-react';
 
 // Seller shop-setup screen shown right after registering (or reachable again from the
@@ -16,21 +17,54 @@ export default function Onboarding() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  // Onboarding used to write shopCategory onto the USER and stop there, so a seller could
+  // finish this screen and still have no storefront — nothing on Explore, nothing to attach
+  // products to. These fields now create the real Shop record.
+  const [shopName, setShopName] = useState('');
+  const [city, setCity] = useState('');
   const [category, setCategory] = useState('');
   const [bannerFile, setBannerFile] = useState(null);
   const [bannerPreview, setBannerPreview] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const categoryLabel = LISTING_TYPES.find((t) => t.value === category)?.label || '';
+
   const finish = async () => {
+    if (!shopName.trim()) { dispatchToast('Give your shop a name', 'error'); return; }
     setSaving(true);
     try {
+      // Keep the user-level fields — the dashboard and profile still read them.
       if (bannerFile) await usersApi.uploadBanner(bannerFile);
       if (category) await usersApi.updateProfile({ shopCategory: category });
+
+      // Then create (or update) the actual storefront, which is what Explore lists and what
+      // products hang off. A seller may already have one if they reach this screen again
+      // from the dashboard prompt, so this upserts rather than assuming a clean slate.
+      const existing = await shopsApi.mine().then((r) => r.data).catch(() => null);
+      const payload = {
+        name: shopName.trim(),
+        category: categoryLabel,
+        city: city || user?.city || '',
+      };
+      const shop = existing
+        ? (await shopsApi.update(existing.id, payload)).data
+        : (await shopsApi.create(payload)).data;
+
+      // The banner has to be uploaded against the shop, since shop media is ownership-scoped
+      // to that record — the user-level upload above only covers the profile banner.
+      if (bannerFile && shop?.id) {
+        try {
+          const media = await shopsApi.uploadMedia(shop.id, bannerFile);
+          await shopsApi.update(shop.id, { bannerUrl: media.data.url });
+        } catch { /* banner is optional — a shop without one still works */ }
+      }
+
+      invalidateShops();
       dispatch(loadUserProfile());
-      dispatchToast('Shop set up!', 'success');
+      dispatchToast('Your shop is live', 'success');
       navigate('/dashboard');
     } catch (e) {
-      dispatchToast('Could not save shop setup', 'error');
+      dispatchToast(e.response?.data?.message || 'Could not save shop setup', 'error');
     } finally {
       setSaving(false);
     }
@@ -64,7 +98,34 @@ export default function Onboarding() {
         <div className="text-center mb-10">
           <span className="text-[10px] font-black uppercase tracking-[0.35em] text-[#CDFF00] mb-2 block">Welcome, seller</span>
           <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">Set up your shop</h1>
-          <p className="text-sm text-gray-400">Pick a category and add a banner — you can change these anytime from your dashboard.</p>
+          <p className="text-sm text-gray-400">Name your shop and pick a category — you can change all of this anytime from your dashboard.</p>
+        </div>
+
+        {/* Identity — a shop cannot exist without a name, so it leads. */}
+        <div className="mb-8 space-y-4">
+          <div>
+            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Shop name</h3>
+            <input
+              type="text"
+              value={shopName}
+              onChange={(e) => setShopName(e.target.value)}
+              maxLength={80}
+              placeholder="e.g. Piękna Moda"
+              className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-[#CDFF00] transition-colors"
+            />
+          </div>
+          <div>
+            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">City</h3>
+            <select
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-[#CDFF00] transition-colors cursor-pointer"
+            >
+              <option value="">{user?.city ? `Use my profile city (${user.city})` : 'Pick a city'}</option>
+              {POLISH_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <p className="text-xs text-gray-500 mt-2">Buyers filter Explore by city, so this is how people nearby find you.</p>
+          </div>
         </div>
 
         {/* Banner */}
@@ -124,10 +185,10 @@ export default function Onboarding() {
           </button>
           <button
             onClick={finish}
-            disabled={saving}
+            disabled={saving || !shopName.trim()}
             className="px-8 py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-95 transition-all disabled:opacity-60 flex items-center gap-2"
           >
-            {saving ? 'Saving…' : <>Finish <ArrowRight className="w-4 h-4" /></>}
+            {saving ? 'Saving…' : <>Create my shop <ArrowRight className="w-4 h-4" /></>}
           </button>
         </div>
       </motion.div>

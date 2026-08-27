@@ -9,6 +9,7 @@ import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { newsApi, publishersApi } from '../api/client';
 import HeroBrief from '../components/HeroBrief';
+import MobileFilterBar from '../components/MobileFilterBar';
 import ArticleComposer from '../components/news/ArticleComposer';
 
 const SECTIONS = [
@@ -100,8 +101,44 @@ export default function News() {
           )}
         </div>
 
-        {/* Search */}
-        <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 focus-within:border-[#CDFF00]/50 rounded-xl px-4 py-2.5 mb-4 transition-colors">
+        {/* Mobile: search and sections collapse behind icons */}
+        <MobileFilterBar
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          placeholder="Search stories or outlets…"
+          activeFilters={section !== 'all' ? 1 : 0}
+          resultLabel={`${articles.length} stor${articles.length === 1 ? 'y' : 'ies'}`}
+          onClear={() => { setSearchQuery(''); setSection('all'); }}
+        >
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+            <button
+              onClick={() => setSection('all')}
+              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+                section === 'all'
+                  ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
+                  : 'bg-white/5 border-white/10 text-gray-400'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" /> All
+            </button>
+            {SECTIONS.map((sec) => (
+              <button
+                key={sec.id}
+                onClick={() => setSection(section === sec.id ? 'all' : sec.id)}
+                className={`shrink-0 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+                  section === sec.id
+                    ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
+                    : 'bg-white/5 border-white/10 text-gray-400'
+                }`}
+              >
+                {sec.name}
+              </button>
+            ))}
+          </div>
+        </MobileFilterBar>
+
+        {/* Desktop: unchanged inline layout */}
+        <div className="hidden sm:flex items-center gap-2.5 bg-white/5 border border-white/10 focus-within:border-[#CDFF00]/50 rounded-xl px-4 py-2.5 mb-4 transition-colors">
           <Search className="w-4 h-4 text-gray-500 shrink-0" />
           <input
             value={searchQuery}
@@ -113,7 +150,7 @@ export default function News() {
         </div>
 
         {/* Sections */}
-        <div className="flex flex-wrap items-center gap-2 mb-8">
+        <div className="hidden sm:flex flex-wrap items-center gap-2 mb-8">
           <button
             onClick={() => setSection('all')}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
@@ -141,9 +178,9 @@ export default function News() {
 
         {/* Grid */}
         {loading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="flex sm:grid overflow-x-auto sm:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 sm:gap-4 pb-1 sm:pb-0 sm:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-72 rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse" />
+              <div key={i} className="h-72 shrink-0 w-[calc((100%-0.75rem)/2)] sm:w-auto snap-start rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse" />
             ))}
           </div>
         ) : articles.length === 0 ? (
@@ -159,7 +196,7 @@ export default function News() {
             </div>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="flex sm:grid overflow-x-auto sm:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 sm:gap-4 pb-1 sm:pb-0 sm:grid-cols-2 lg:grid-cols-3">
             <AnimatePresence mode="popLayout">
               {articles.map((a) => (
                 <motion.button
@@ -170,9 +207,9 @@ export default function News() {
                   exit={{ opacity: 0, scale: 0.97 }}
                   whileHover={{ y: -4 }}
                   onClick={() => openArticle(a)}
-                  className="text-left bg-white/[0.02] border border-white/10 hover:border-[#CDFF00]/30 rounded-2xl overflow-hidden transition-colors flex flex-col"
+                  className="shrink-0 w-[calc((100%-0.75rem)/2)] sm:w-auto snap-start text-left bg-white/[0.02] border border-white/10 hover:border-[#CDFF00]/30 rounded-2xl overflow-hidden transition-colors flex flex-col"
                 >
-                  <div className="h-40 bg-black/40 overflow-hidden shrink-0">
+                  <div className="aspect-[16/10] sm:aspect-auto sm:h-40 bg-black/40 overflow-hidden shrink-0">
                     {a.coverImageUrl
                       ? <img src={a.coverImageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
                       : <div className="w-full h-full flex items-center justify-center">

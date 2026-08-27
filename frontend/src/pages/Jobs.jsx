@@ -8,6 +8,7 @@ import {
 import { jobsApi, publishersApi, dispatchToast } from '../api/client';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
+import MobileFilterBar from '../components/MobileFilterBar';
 import { Link } from 'react-router-dom';
 import HeroBrief from '../components/HeroBrief';
 import { timeAgoLong as timeAgo } from '../utils/time';
@@ -112,8 +113,44 @@ export default function Jobs() {
           )}
         </div>
 
-        {/* Search */}
-        <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 focus-within:border-[#CDFF00]/50 rounded-xl px-4 py-2.5 mb-4 transition-colors">
+        {/* Mobile: search and categories collapse behind icons */}
+        <MobileFilterBar
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          placeholder="Search roles or companies…"
+          activeFilters={activeCategory !== 'all' ? 1 : 0}
+          resultLabel={`${jobs.length} role${jobs.length === 1 ? '' : 's'}`}
+          onClear={() => { setSearchQuery(''); setActiveCategory('all'); }}
+        >
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+            <button
+              onClick={() => setActiveCategory('all')}
+              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+                activeCategory === 'all'
+                  ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
+                  : 'bg-white/5 border-white/10 text-gray-400'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" /> All
+            </button>
+            {JOB_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(activeCategory === cat.id ? 'all' : cat.id)}
+                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+                  activeCategory === cat.id
+                    ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
+                    : 'bg-white/5 border-white/10 text-gray-400'
+                }`}
+              >
+                <cat.icon className="w-3.5 h-3.5" /> {cat.name}
+              </button>
+            ))}
+          </div>
+        </MobileFilterBar>
+
+        {/* Desktop: unchanged inline layout */}
+        <div className="hidden sm:flex items-center gap-2.5 bg-white/5 border border-white/10 focus-within:border-[#CDFF00]/50 rounded-xl px-4 py-2.5 mb-4 transition-colors">
           <Search className="w-4 h-4 text-gray-500 shrink-0" />
           <input
             value={searchQuery}
@@ -130,7 +167,7 @@ export default function Jobs() {
         </div>
 
         {/* Category filter */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+        <div className="hidden sm:flex flex-wrap items-center justify-center gap-2 mb-8">
           <button
             onClick={() => setActiveCategory('all')}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
