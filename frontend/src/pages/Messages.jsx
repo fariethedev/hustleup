@@ -40,6 +40,12 @@ export default function Messages() {
     try {
       const client = new Client({
         brokerURL: WS_URL,
+        // The WebSocket handshake cannot carry an Authorization header, so the server
+        // authenticates the STOMP CONNECT frame instead — these headers are what it reads.
+        // Without them the broker refuses the session.
+        connectHeaders: {
+          Authorization: `Bearer ${localStorage.getItem('hustleup_token') ?? ''}`,
+        },
         onConnect: () => {
           client.subscribe(`/topic/booking/${activeBooking}`, (msg) => {
             const data = JSON.parse(msg.body);

@@ -201,6 +201,18 @@ public class CommonSecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Uploaded static files are always public (images, etc.)
                 .requestMatchers("/uploads/**").permitAll()
+                // SECURITY: the STOMP/SockJS handshake, deliberately open at the HTTP layer.
+                // A WebSocket handshake cannot carry an Authorization header — the browser
+                // API provides no way to set one — so requiring a JWT here rejected every
+                // connection with 403 and real-time messaging never worked at all.
+                //
+                // This does NOT make messaging anonymous. Authentication moves one layer up
+                // to the STOMP CONNECT frame, which CAN carry headers: the interceptor in
+                // the notification service's WebSocketConfig validates the token there and
+                // refuses the session outright if it is missing or invalid. Opening the
+                // handshake without that interceptor in place WOULD make messaging
+                // world-readable, so the two changes belong together.
+                .requestMatchers("/ws/**").permitAll()
                 // SECURITY: the admin console. This broad URL rule is the net that catches
                 // any endpoint later added to an admin package and forgotten; each admin
                 // controller ALSO carries @PreAuthorize("hasRole('ADMIN')") so the check
