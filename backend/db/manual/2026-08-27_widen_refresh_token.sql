@@ -1,5 +1,15 @@
 -- Widen refresh_tokens.token from varchar(255) to varchar(1024).
 --
+-- STATUS: APPLIED. Local 2026-08-27; Railway production 2026-08-28.
+-- Kept as the record of the change and for any environment built from scratch.
+--
+-- What it cost to leave pending on Railway for a day: the jti claim that makes tokens
+-- unique also made them ~50 characters longer, tipping them from ~226 to ~280+ against a
+-- 255 limit. Every login and every registration returned 500 until the ALTER was run, and
+-- one real signup (created 2026-08-28 10:44 UTC) committed its users row before the
+-- refresh_tokens insert failed — so that account existed while its owner was told signup
+-- had failed. Verified after the ALTER: tokens in the table now reach 324 characters.
+--
 -- RUN THIS BY HAND. It is not applied automatically. The db/migration folders under the
 -- service modules look like Flyway migrations, but Flyway is not a dependency of this
 -- project and is not configured anywhere — nothing executes them. Schema comes from
