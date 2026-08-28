@@ -11,6 +11,7 @@ import { listingsApi } from '../api/client';
 import { formatPrice, displayCity } from '../utils/constants';
 import { useShops } from '../hooks/useShops';
 import SmartImage from '../components/SmartImage';
+import { uploadUrl } from '../config';
 
 // The hero is a single full-bleed photograph, so one source at full-viewport width.
 const heroImage = 'https://images.unsplash.com/photo-1744320911030-1ab998d994d7?auto=format&fit=crop&w=2400&q=80';
@@ -192,7 +193,7 @@ function EventCarousel({ events }) {
                 <Link to={`/listing/${event.id}`} className="block">
                   <div className="aspect-square sm:aspect-[4/5] overflow-hidden relative">
                     <img
-                      src={event.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=60'}
+                      src={uploadUrl(event.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=60')}
                       alt={event.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       loading="lazy"
@@ -455,7 +456,7 @@ export default function Home() {
                   >
                     <div className="aspect-[3/4] overflow-hidden relative">
                       <img
-                        src={listing.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60'}
+                        src={uploadUrl(listing.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60')}
                         alt={listing.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"

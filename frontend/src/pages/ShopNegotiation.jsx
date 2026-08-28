@@ -7,6 +7,7 @@ import SmartImage from '../components/SmartImage';
 import { formatPrice, convertToPLN } from '../utils/constants';
 import { useShopProduct, accentWash } from '../hooks/useShops';
 import { addToCart } from '../store/cartSlice';
+import { uploadUrl } from '../config';
 
 export default function ShopNegotiation() {
   const { id, productId } = useParams();
@@ -74,7 +75,7 @@ export default function ShopNegotiation() {
           <div className="rounded-2xl border border-white/10 bg-black/50 overflow-hidden">
             <div className="h-36 overflow-hidden" style={{ background: accentWash(shop.accentColor) }}>
               <SmartImage
-                src={product.imageUrl}
+                src={uploadUrl(product.imageUrl)}
                 alt={product.name}
                 fallbackIcon={ShoppingBag}
                 className="w-full h-full object-cover"

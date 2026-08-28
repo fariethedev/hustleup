@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Star, MapPin, ArrowUpRight, ShieldCheck, Package, ClipboardList } from 'lucide-react';
 import { displayCity } from '../utils/constants';
 import SmartImage from './SmartImage';
+import { uploadUrl } from '../config';
 
 export default function ShopCard({ shop, index = 0 }) {
   // The three thumbnails used to be gift emojis, which said nothing about the shop.
@@ -37,7 +38,7 @@ export default function ShopCard({ shop, index = 0 }) {
         {/* ── Cover ── */}
         <div className="relative h-44 shrink-0 overflow-hidden bg-black">
           <SmartImage
-            src={shop.bannerUrl}
+            src={uploadUrl(shop.bannerUrl)}
             alt={shop.name}
             fallbackIcon={Package}
             className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700 ease-out"

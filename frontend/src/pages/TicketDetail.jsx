@@ -13,6 +13,7 @@ import {
 import SmartImage from '../components/SmartImage';
 import TicketQr from '../components/TicketQr';
 import { TicketStatusChip } from './Tickets';
+import { uploadUrl } from '../config';
 
 /**
  * A single digital ticket — the screen the holder actually shows at the door.
@@ -150,7 +151,7 @@ export default function TicketDetail() {
           <div className="p-5 space-y-4">
             <div className="flex gap-3">
               <SmartImage
-                src={ticket.eventImageUrl}
+                src={uploadUrl(ticket.eventImageUrl)}
                 alt={ticket.eventTitle}
                 fallbackIcon={TicketIcon}
                 className="w-16 h-16 rounded-xl object-cover shrink-0"

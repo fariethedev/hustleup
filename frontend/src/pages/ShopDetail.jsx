@@ -12,6 +12,7 @@ import { useState, useMemo, useEffect } from 'react';
 import SmartImage from '../components/SmartImage';
 import ListingCard from '../components/ListingCard';
 import ShopReviews from '../components/ShopReviews';
+import { uploadUrl } from '../config';
 
 // Shop categories whose products are appointments/sessions rather than physical goods
 // (hair & beauty, skills & services) get a "book an appointment" slot picker instead
@@ -133,7 +134,7 @@ export default function ShopDetail() {
           {/* A seller who hasn't uploaded a banner gets their accent colour rather than a
               broken image, so a brand-new shop still looks deliberate. */}
           <SmartImage
-            src={shop.bannerUrl}
+            src={uploadUrl(shop.bannerUrl)}
             alt={shop.name}
             fallbackIcon={Package}
             className="w-full h-full object-cover"
@@ -304,7 +305,7 @@ export default function ShopDetail() {
                   {/* Product photo */}
                   <div className="h-28 sm:h-36 shrink-0 relative overflow-hidden bg-black/40 border-b border-white/5">
                     <SmartImage
-                      src={product.imageUrl}
+                      src={uploadUrl(product.imageUrl)}
                       alt={product.name}
                       fallbackIcon={ShoppingBag}
                       className="w-full h-full object-cover z-10 group-hover:scale-110 transition-transform duration-700 ease-out"
@@ -508,7 +509,7 @@ export default function ShopDetail() {
                 >
                   <div className="h-24 shrink-0 relative overflow-hidden bg-black/40 border-b border-white/5">
                     <SmartImage
-                      src={product.imageUrl}
+                      src={uploadUrl(product.imageUrl)}
                       alt={product.name}
                       fallbackIcon={ShoppingBag}
                       className="w-full h-full object-cover z-10 group-hover:scale-110 transition-transform duration-500"

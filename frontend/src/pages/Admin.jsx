@@ -9,6 +9,7 @@ import {
 import { adminApi, publishersApi, dispatchToast } from '../api/client';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
+import { uploadUrl } from '../config';
 
 const TABS = [
   { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
@@ -515,7 +516,7 @@ function UsersTab() {
         <div key={u.id} className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-wrap items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-black border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
             {u.avatarUrl
-              ? <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" />
+              ? <img src={uploadUrl(u.avatarUrl)} alt="" className="w-full h-full object-cover" />
               : <span className="text-[#CDFF00] font-black uppercase text-sm">{(u.fullName || 'U')[0]}</span>}
           </div>
           <div className="min-w-0 flex-1">

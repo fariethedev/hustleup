@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { BadgeCheck, Check, MapPin, UserPlus } from 'lucide-react';
 import { followsApi } from '../api/client';
 import { displayCity } from '../utils/constants';
+import { uploadUrl } from '../config';
 
 /**
  * A person on HustleSpace, rendered for the Explore rows and the creators browse page.
@@ -69,7 +70,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
           >
             <div className="w-full h-full rounded-full overflow-hidden bg-black border-2 border-[#0A0A0A] flex items-center justify-center">
               {u.avatarUrl
-                ? <img src={u.avatarUrl} alt={u.fullName} className="w-full h-full object-cover" />
+                ? <img src={uploadUrl(u.avatarUrl)} alt={u.fullName} className="w-full h-full object-cover" />
                 : <span className="text-[#00FFFF] font-black text-2xl">{initial}</span>}
             </div>
           </motion.div>
@@ -106,7 +107,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
         <div className="w-20 h-20 rounded-full p-[2px] bg-gradient-to-br from-[#00FFFF] via-[#FF00FF] to-[#CDFF00] group-hover:scale-105 transition-transform duration-300">
           <div className="w-full h-full rounded-full overflow-hidden bg-black border-2 border-[#0A0A0A] flex items-center justify-center">
             {u.avatarUrl
-              ? <img src={u.avatarUrl} alt={u.fullName} className="w-full h-full object-cover" />
+              ? <img src={uploadUrl(u.avatarUrl)} alt={u.fullName} className="w-full h-full object-cover" />
               : <span className="text-[#00FFFF] font-black text-2xl">{initial}</span>}
           </div>
         </div>

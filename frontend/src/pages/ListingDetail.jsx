@@ -18,6 +18,7 @@ import DistanceBadge from '../components/DistanceBadge';
 import ListingGallery from '../components/ListingGallery';
 import SmartImage from '../components/SmartImage';
 import { coverImage, mediaList } from '../utils/media';
+import { uploadUrl } from '../config';
 
 const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
 
@@ -589,7 +590,7 @@ export default function ListingDetail() {
               >
                 <div className="w-11 h-11 rounded-full overflow-hidden bg-gray-800 border border-white/10 shrink-0">
                   {(listing.sellerAvatarUrl || seller?.avatarUrl) ? (
-                    <img src={listing.sellerAvatarUrl || seller.avatarUrl} alt={listing.sellerName} className="w-full h-full object-cover" />
+                    <img src={uploadUrl(listing.sellerAvatarUrl || seller.avatarUrl)} alt={listing.sellerName} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-lg font-black text-[#CDFF00]">
                       {(listing.sellerName || 'S')[0].toUpperCase()}

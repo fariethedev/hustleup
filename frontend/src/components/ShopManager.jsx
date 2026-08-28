@@ -5,6 +5,7 @@ import { shopsApi, dispatchToast } from '../api/client';
 import { invalidateShops } from '../hooks/useShops';
 import { POLISH_CITIES, CURRENCIES, formatPrice } from '../utils/constants';
 import SmartImage from './SmartImage';
+import { uploadUrl } from '../config';
 import {
   Store, ImagePlus, Plus, Pencil, Trash2, X, Check, Eye, EyeOff,
   Package, ExternalLink, Palette, Loader2,
@@ -184,7 +185,7 @@ export default function ShopManager({ user }) {
       <div className="glass rounded-2xl border border-white/5 overflow-hidden">
         <div className="relative h-32 bg-black">
           <SmartImage
-            src={form.bannerUrl}
+            src={uploadUrl(form.bannerUrl)}
             alt=""
             fallbackIcon={Store}
             className="w-full h-full object-cover opacity-80"

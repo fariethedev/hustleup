@@ -20,6 +20,7 @@ import SmartImage from '../components/SmartImage';
 import ImageCropper from '../components/ImageCropper';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 import { timeAgo } from '../utils/time';
+import { uploadUrl } from '../config';
 
 const POST_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1920&q=80';
 
@@ -34,7 +35,7 @@ function Avatar({ name, avatarUrl, size = 'w-9 h-9', textSize = 'text-sm' }) {
   return (
     <div className={`${size} rounded-full overflow-hidden bg-[#CDFF00] flex items-center justify-center shrink-0`}>
       {avatarUrl
-        ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+        ? <img src={uploadUrl(avatarUrl)} alt="" className="w-full h-full object-cover" />
         : <span className={`${textSize} font-black text-black`}>{name?.[0]?.toUpperCase() || '?'}</span>}
     </div>
   );
@@ -337,7 +338,7 @@ function ListingPromoCard({ listing, onSave, onShare }) {
 
       <Link to={`/listing/${listing.id}`} className="block relative aspect-square bg-black group overflow-hidden">
         <img
-          src={listing.mediaUrls?.[0] || POST_FALLBACK_IMAGE}
+          src={uploadUrl(listing.mediaUrls?.[0] || POST_FALLBACK_IMAGE)}
           alt={listing.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           onError={(e) => { e.target.onerror = null; e.target.src = POST_FALLBACK_IMAGE; }}
@@ -388,7 +389,7 @@ function ShopPromoCard({ shop }) {
       >
         <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-800">
           <SmartImage
-            src={shop.bannerUrl}
+            src={uploadUrl(shop.bannerUrl)}
             alt={shop.name}
             fallbackIcon={Store}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"

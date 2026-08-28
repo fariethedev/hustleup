@@ -6,6 +6,7 @@ import { Trophy, Coins, Flame, BadgeCheck, Loader2, TrendingUp, Repeat } from 'l
 import { leaderboardApi } from '../api/client';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { formatPrice } from '../utils/constants';
+import { uploadUrl } from '../config';
 
 const METRICS = [
   { key: 'score',    label: 'Overall',     icon: Flame },
@@ -192,7 +193,7 @@ export default function Leaderboard() {
                   </div>
 
                   <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 shrink-0">
-                    {e.avatarUrl ? <img src={e.avatarUrl} alt="" className="w-full h-full object-cover" /> : null}
+                    {e.avatarUrl ? <img src={uploadUrl(e.avatarUrl)} alt="" className="w-full h-full object-cover" /> : null}
                   </div>
 
                   <div className="min-w-0 flex-1">

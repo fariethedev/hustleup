@@ -9,6 +9,7 @@ import ReviewStars from '../components/ReviewStars';
 import ListingCard from '../components/ListingCard';
 import DistanceBadge from '../components/DistanceBadge';
 import { timeAgo } from '../utils/time';
+import { uploadUrl } from '../config';
 import {
   MapPin, BadgeCheck, User2, MessageCircle, Settings, Camera,
   Image as ImageIcon, Check, X, AtSign, Globe,
@@ -226,7 +227,7 @@ export default function Profile() {
         <div className="relative shrink-0">
           <div className="w-20 h-20 sm:w-36 sm:h-36 rounded-full overflow-hidden bg-black border-2 border-white/10 flex items-center justify-center">
             {profile.avatarUrl
-              ? <img src={profile.avatarUrl} className="w-full h-full object-cover" />
+              ? <img src={uploadUrl(profile.avatarUrl)} className="w-full h-full object-cover" />
               : <span className="text-[#CDFF00] font-black text-3xl sm:text-5xl uppercase">{profile.fullName?.[0]}</span>}
           </div>
           {profile.idVerified && (
@@ -457,7 +458,7 @@ export default function Profile() {
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-9 h-9 rounded-full overflow-hidden bg-[#CDFF00] flex items-center justify-center shrink-0">
                     {(viewingPost.authorAvatarUrl || profile.avatarUrl)
-                      ? <img src={viewingPost.authorAvatarUrl || profile.avatarUrl} alt="" className="w-full h-full object-cover" />
+                      ? <img src={uploadUrl(viewingPost.authorAvatarUrl || profile.avatarUrl)} alt="" className="w-full h-full object-cover" />
                       : <span className="text-sm font-black text-black">
                           {(viewingPost.authorName || profile.fullName || '?')[0]?.toUpperCase()}
                         </span>}
@@ -479,7 +480,7 @@ export default function Profile() {
 
               {(viewingPost.media?.[0]?.url || viewingPost.imageUrl) && (
                 <img
-                  src={viewingPost.media?.[0]?.url || viewingPost.imageUrl}
+                  src={uploadUrl(viewingPost.media?.[0]?.url || viewingPost.imageUrl)}
                   alt=""
                   className="w-full max-h-[60vh] object-contain bg-black"
                 />

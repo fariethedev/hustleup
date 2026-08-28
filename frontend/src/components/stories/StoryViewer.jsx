@@ -7,6 +7,7 @@ import { lockBodyScroll } from '../../utils/lockBodyScroll';
 import { storiesApi, dispatchToast } from '../../api/client';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/authSlice';
+import { uploadUrl } from '../../config';
 
 const formatAge = (createdAt) => {
   if (!createdAt) return 'Just now';
@@ -223,7 +224,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
       {/* Background Ambience */}
       <div className="absolute inset-0 z-0 opacity-20 blur-[100px] pointer-events-none">
         {(currentStory.mediaUrl || currentStory.media) ? (
-          <img src={currentStory.mediaUrl || currentStory.media} alt="" className="w-full h-full object-cover scale-150" />
+          <img src={uploadUrl(currentStory.mediaUrl || currentStory.media)} alt="" className="w-full h-full object-cover scale-150" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-[#7D39EB] to-[#FF00FF]" />
         )}
@@ -239,7 +240,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
           {currentStory.type === 'VIDEO' ? (
             <video
               ref={videoRef}
-              src={currentStory.mediaUrl || currentStory.media}
+              src={uploadUrl(currentStory.mediaUrl || currentStory.media)}
               autoPlay
               muted={isMuted}
               playsInline
@@ -247,7 +248,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
               onEnded={nextStory}
             />
           ) : (currentStory.mediaUrl || currentStory.media) ? (
-            <img src={currentStory.mediaUrl || currentStory.media} alt="" className="w-full h-full object-cover" />
+            <img src={uploadUrl(currentStory.mediaUrl || currentStory.media)} alt="" className="w-full h-full object-cover" />
           ) : (
             // A TEXT story has no media at all. This branch used to be missing entirely, so
             // it fell through to <img src={null}> and rendered an empty black card — the
@@ -282,7 +283,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full pr-6 shadow-2xl">
                 <div className="w-9 h-9 rounded-full bg-[#CDFF00] border border-black/20 flex items-center justify-center overflow-hidden">
-                  {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} alt="" className="w-full h-full object-cover" /> : <User className="w-5 h-5 text-black" />}
+                  {currentUser.avatarUrl ? <img src={uploadUrl(currentUser.avatarUrl)} alt="" className="w-full h-full object-cover" /> : <User className="w-5 h-5 text-black" />}
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-white uppercase tracking-tight leading-none mb-0.5">{currentUser.fullName}</span>
@@ -443,7 +444,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                       <div key={v.id} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-white/5 transition-colors">
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-black border border-white/10 flex items-center justify-center shrink-0">
                           {v.avatarUrl
-                            ? <img src={v.avatarUrl} alt="" className="w-full h-full object-cover" />
+                            ? <img src={uploadUrl(v.avatarUrl)} alt="" className="w-full h-full object-cover" />
                             : <span className="text-[#CDFF00] font-black uppercase text-sm">{(v.name || 'U')[0]}</span>}
                         </div>
                         <div className="min-w-0 flex-1">

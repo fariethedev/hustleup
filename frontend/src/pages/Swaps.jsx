@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Repeat, ArrowRight, Check, X, Undo2, Package, Loader2, Inbox } from 'lucide-react';
 import { swapsApi, dispatchToast } from '../api/client';
 import { formatPrice } from '../utils/constants';
+import { uploadUrl } from '../config';
 
 const STATUS_STYLES = {
   PENDING:   'bg-[#CDFF00]/15 text-[#CDFF00] border-[#CDFF00]/30',
@@ -20,7 +21,7 @@ function SideCard({ side, label }) {
       <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/[0.04] border border-white/10">
         <div className="w-11 h-11 rounded-lg overflow-hidden bg-white/5 shrink-0">
           {side?.imageUrl
-            ? <img src={side.imageUrl} alt="" className="w-full h-full object-cover" />
+            ? <img src={uploadUrl(side.imageUrl)} alt="" className="w-full h-full object-cover" />
             : <div className="w-full h-full flex items-center justify-center"><Package className="w-4 h-4 text-gray-600" /></div>}
         </div>
         <div className="min-w-0">

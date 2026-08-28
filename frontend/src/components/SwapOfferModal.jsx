@@ -5,6 +5,7 @@ import { X, Repeat, Package, Sparkles, Loader2 } from 'lucide-react';
 import { listingsApi, swapsApi, dispatchToast } from '../api/client';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 import { formatPrice } from '../utils/constants';
+import { uploadUrl } from '../config';
 
 /**
  * Propose a barter trade against someone else's listing.
@@ -104,7 +105,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
               <div className="w-14 h-14 rounded-xl overflow-hidden bg-white/5 shrink-0">
                 {listing.mediaUrls?.[0]
-                  ? <img src={listing.mediaUrls[0]} alt="" className="w-full h-full object-cover" />
+                  ? <img src={uploadUrl(listing.mediaUrls[0])} alt="" className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-gray-600" /></div>}
               </div>
               <div className="min-w-0">
@@ -160,7 +161,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
                     >
                       <div className="w-11 h-11 rounded-lg overflow-hidden bg-white/5 shrink-0">
                         {l.mediaUrls?.[0]
-                          ? <img src={l.mediaUrls[0]} alt="" className="w-full h-full object-cover" />
+                          ? <img src={uploadUrl(l.mediaUrls[0])} alt="" className="w-full h-full object-cover" />
                           : <div className="w-full h-full flex items-center justify-center"><Package className="w-4 h-4 text-gray-600" /></div>}
                       </div>
                       <div className="min-w-0 flex-1">

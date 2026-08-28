@@ -8,6 +8,7 @@ import { formatPrice } from '../utils/constants';
 import { Ticket, MapPin, CalendarClock, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
 import SmartImage from '../components/SmartImage';
 import HeroBrief from '../components/HeroBrief';
+import { uploadUrl } from '../config';
 
 /**
  * The attendee's ticket wallet — every event they've booked, in one place.
@@ -119,7 +120,7 @@ function TicketRow({ ticket, index, muted = false }) {
         }`}
       >
         <SmartImage
-          src={ticket.eventImageUrl}
+          src={uploadUrl(ticket.eventImageUrl)}
           alt={ticket.eventTitle}
           fallbackIcon={Ticket}
           className="w-24 sm:w-32 shrink-0 object-cover"

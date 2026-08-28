@@ -11,6 +11,7 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import BondCard from '../components/BondCard';
 import { formatPrice } from '../utils/constants';
+import { uploadUrl } from '../config';
 
 const getAvatar = (p) =>
   p?.imageUrl ||
@@ -445,7 +446,7 @@ function StackCard({ profile, style, className }) {
     <motion.div style={style} className={`absolute inset-0 pointer-events-none ${className || ''}`}>
       <div className="w-full h-full rounded-3xl overflow-hidden bg-[#0A0A0A] border border-white/10">
         <img
-          src={profile.imageUrl || fallback}
+          src={uploadUrl(profile.imageUrl || fallback)}
           alt=""
           className="w-full h-full object-cover brightness-[0.4]"
           onError={(e) => { e.target.onerror = null; e.target.src = fallback; }}

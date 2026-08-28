@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { MapPin, Info, ChevronDown, Star, Quote, Sparkles } from 'lucide-react';
+import { uploadUrl } from '../config';
 
 /**
  * The top, interactive card of the Hustle Bond deck.
@@ -92,7 +93,7 @@ export default function BondCard({
     >
       <div className="relative w-full h-full rounded-3xl overflow-hidden bg-[#0A0A0A] border border-white/10 shadow-2xl shadow-black/70 select-none">
         <img
-          src={profile.imageUrl || fallback}
+          src={uploadUrl(profile.imageUrl || fallback)}
           alt={profile.fullName}
           className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           draggable={false}

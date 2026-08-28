@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux';
 import { selectUser } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
 import { formatPrice } from '../utils/constants';
+import { uploadUrl } from '../config';
 
 // In-app "share to a person" sheet — mirrors Instagram's share-to-DM pattern rather than
 // only offering an OS share sheet. Defaults the pick list to people you already have a DM
@@ -187,7 +188,7 @@ export default function ShareModal({ type, item, onClose }) {
                 <div key={person.id} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/5 transition-colors">
                   <div className="w-10 h-10 rounded-full overflow-hidden bg-black border border-white/10 flex items-center justify-center shrink-0">
                     {person.avatarUrl
-                      ? <img src={person.avatarUrl} alt="" className="w-full h-full object-cover" />
+                      ? <img src={uploadUrl(person.avatarUrl)} alt="" className="w-full h-full object-cover" />
                       : <span className="text-[#CDFF00] font-black uppercase text-sm">{(name || 'U')[0]}</span>}
                   </div>
                   <span className="flex-1 min-w-0 text-sm font-semibold text-white truncate">{name}</span>

@@ -9,6 +9,7 @@ import GlobalSearch from './GlobalSearch';
 import { timeAgo } from '../utils/time';
 import PendingSalesButton from './PendingSalesButton';
 import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, Bell, CheckCheck, MoreHorizontal, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
+import { uploadUrl } from '../config';
 
 // Secondary links that don't get their own pill/tab (to avoid crowding the main
 // nav) but still need to be reachable from anywhere via the "More" menu.
@@ -335,7 +336,7 @@ export default function Navbar() {
                   >
                     <div className="w-7 h-7 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-[10px] uppercase shadow-sm overflow-hidden">
                       {user?.avatarUrl
-                        ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        ? <img src={uploadUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
                         : user?.fullName?.[0] || 'U'}
                     </div>
                   </button>
@@ -389,7 +390,7 @@ export default function Navbar() {
                     className="w-7 h-7 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-[10px] uppercase overflow-hidden border border-white/10"
                   >
                     {user?.avatarUrl
-                      ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                      ? <img src={uploadUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
                       : user?.fullName?.[0] || 'U'}
                   </button>
 
@@ -524,7 +525,7 @@ export default function Navbar() {
                 location.pathname.startsWith('/profile') ? 'ring-2 ring-[#CDFF00]' : 'ring-1 ring-white/25'
               }`}>
                 {user?.avatarUrl
-                  ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ? <img src={uploadUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
                   : <div className="w-full h-full bg-gray-800 flex items-center justify-center text-[#CDFF00] font-black text-[9px]">{user?.fullName?.[0] || 'U'}</div>
                 }
               </div>

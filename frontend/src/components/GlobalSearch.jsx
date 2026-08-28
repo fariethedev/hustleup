@@ -8,6 +8,7 @@ import { lockBodyScroll } from '../utils/lockBodyScroll';
 import { algoliaEnabled, searchListings } from '../utils/algolia';
 import { Search, X, ShoppingBag, Store, User, MapPin, SearchX } from 'lucide-react';
 import SmartImage from './SmartImage';
+import { uploadUrl } from '../config';
 
 const matches = (query, ...fields) =>
   fields.some((f) => typeof f === 'string' && f.toLowerCase().includes(query));
@@ -145,7 +146,7 @@ export default function GlobalSearch({ open, onClose }) {
                           className="w-full px-5 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
                           <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-800 shrink-0 flex items-center justify-center">
                             {l.mediaUrls?.[0]
-                              ? <img src={l.mediaUrls[0]} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+                              ? <img src={uploadUrl(l.mediaUrls[0])} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
                               : <ShoppingBag className="w-4 h-4 text-gray-600" />}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -185,7 +186,7 @@ export default function GlobalSearch({ open, onClose }) {
                           className="w-full px-5 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
                           <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800 shrink-0 flex items-center justify-center">
                             {u.avatarUrl
-                              ? <img src={u.avatarUrl} className="w-full h-full object-cover" />
+                              ? <img src={uploadUrl(u.avatarUrl)} className="w-full h-full object-cover" />
                               : <span className="text-[#CDFF00] font-black text-sm">{u.fullName?.[0] || <User className="w-4 h-4" />}</span>}
                           </div>
                           <div className="flex-1 min-w-0">

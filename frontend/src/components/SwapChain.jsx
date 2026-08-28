@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Repeat, ArrowRight, Package } from 'lucide-react';
 import { swapsApi } from '../api/client';
+import { uploadUrl } from '../config';
 
 /**
  * The public swap chain: recent accepted trades, rendered as a horizontal neon chain.
@@ -87,7 +88,7 @@ function Thumb({ side }) {
     <div className="flex-1 min-w-0">
       <div className="w-full h-14 rounded-lg overflow-hidden bg-black/40 mb-1">
         {side?.imageUrl
-          ? <img src={side.imageUrl} alt="" className="w-full h-full object-cover" />
+          ? <img src={uploadUrl(side.imageUrl)} alt="" className="w-full h-full object-cover" />
           : <div className="w-full h-full flex items-center justify-center"><Package className="w-4 h-4 text-gray-600" /></div>}
       </div>
       <p className="text-[9px] font-bold text-gray-400 truncate leading-tight">{side?.title || '—'}</p>
