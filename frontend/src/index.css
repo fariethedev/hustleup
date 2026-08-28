@@ -130,9 +130,11 @@
    text-sm (14px) or smaller, which triggers it on every single one.
 
    Bumping the computed size to 16px on touch devices is the fix Safari actually
-   documents. The alternative — user-scalable=no / maximum-scale=1 on the viewport
-   tag — also stops the zoom but takes pinch-to-zoom away from everyone, which
-   fails WCAG 1.4.4 and is a genuine problem for anyone who needs to magnify.
+   documents, and it stays necessary even though the viewport is now locked (see
+   the block below and src/utils/lockViewport.js). Locking stops the page being
+   rescaled; it does not make 14px text comfortable to read, and with zoom gone
+   there is no longer any way for the reader to compensate. If anything this rule
+   matters more now, not less.
 
    Scoped to (pointer: coarse) so it only touches real touch devices: the desktop
    type scale is unchanged, and it covers tablets too, which a width breakpoint
@@ -146,5 +148,37 @@
   textarea,
   select {
     font-size: 16px !important;
+  }
+}
+
+/* ── Locked viewport ───────────────────────────────────────────────────────────
+   The page sits at 1:1 on touch devices and stays there.
+
+   `touch-action` is the declarative half of the lock. `pan-x pan-y` keeps both
+   scroll axes — the message list, the shelves, the flyer carousels all still
+   swipe — while withdrawing the two gestures the browser would otherwise handle
+   itself: pinch-zoom and double-tap-zoom. The imperative half, for iOS Safari
+   which ignores the viewport tag's user-scalable, lives in
+   src/utils/lockViewport.js.
+
+   `overscroll-behavior: none` stops the rubber-band at the top and bottom of the
+   document, and with it Android's pull-to-refresh. Applied to the root only, so
+   scroll containers inside the page keep their own overscroll behaviour.
+
+   Scoped to (pointer: coarse) so a desktop trackpad is untouched, matching the
+   rule above. Browser zoom (Ctrl/⌘ +) is a separate mechanism and is unaffected
+   everywhere — this only governs touch gestures. */
+@media (pointer: coarse) {
+  html {
+    touch-action: pan-x pan-y;
+    /* Stop iOS inflating text in rotated/narrow columns, which silently defeats a
+       fixed scale by changing the type size instead of the viewport. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  html,
+  body {
+    overscroll-behavior: none;
   }
 }

@@ -5,8 +5,13 @@ import { Provider } from 'react-redux';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import * as Sentry from '@sentry/react';
 import { store } from './store';
+import { lockViewport } from './utils/lockViewport';
 import './index.css';
 import App from './App.jsx';
+
+// Outside React: these are document-level listeners with no bearing on any component, and
+// StrictMode would otherwise mount/unmount them twice in development.
+lockViewport();
 
 // No-ops safely if VITE_SENTRY_DSN is unset (blank dsn just disables the SDK).
 Sentry.init({
