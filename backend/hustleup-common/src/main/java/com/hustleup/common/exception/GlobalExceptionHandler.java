@@ -2,6 +2,7 @@ package com.hustleup.common.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -247,6 +248,40 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles anything thrown by the persistence layer.
+     *
+     * <p><b>Why this is separate from {@link #handleRuntimeException}:</b><br>
+     * {@code DataAccessException} is a {@code RuntimeException}, so without this handler a
+     * database failure fell into the generic one below and its message was copied
+     * verbatim into the response body. Spring wraps the driver error, so that message is
+     * the raw JDBC/Hibernate text — a real one served to the browser on registration read:
+     *
+     * <pre>{@code
+     * could not execute statement [Data truncation: Data too long for column 'token' at
+     * row 1] [insert into refresh_tokens (expiry_date,token,user_id,id) values (?,?,?,?)]
+     * }</pre>
+     *
+     * <p>That is two problems at once. It is unreadable to the person who just wanted to
+     * sign in, and it hands an anonymous caller the table name, every column name and the
+     * exact statement — a free schema dump from a failed request.
+     *
+     * <p><b>Why a fixed message rather than a tidied-up one:</b><br>
+     * There is no safe way to summarise a driver error for a user: the useful part is
+     * always an implementation detail. The detail belongs in the log, where it is already
+     * written in full with a stack trace, and the response says only what the caller can
+     * act on.
+     *
+     * @param ex the persistence failure — logged in full, never echoed to the client
+     * @return a 500 carrying a generic message
+     */
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<Map<String, String>> handleDataAccess(DataAccessException ex) {
+        log.error("Database error: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Something went wrong on our end. Please try again in a moment."));
+    }
+
+    /**
      * Handles {@link RuntimeException} — a broad catch for unchecked application errors.
      *
      * <p><b>Typical cause:</b><br>
@@ -284,18 +319,22 @@ public class GlobalExceptionHandler {
      * otherwise bypass all the handlers above and fall through to Spring's default error
      * handler. This method ensures they also produce a clean JSON 500 response.
      *
-     * <p><b>Security consideration:</b><br>
-     * The exception message is included in the response. In production, consider replacing
-     * this with a generic message to avoid leaking internal implementation details (e.g.
-     * SQL error messages, file paths) to clients.
+     * <p><b>Why the message is not echoed:</b><br>
+     * This used to return {@code ex.getMessage()} and carried a note suggesting that be
+     * changed before production. Nothing reaching this handler is a business rule the
+     * caller can act on — those are thrown as {@link RuntimeException},
+     * {@link IllegalArgumentException} or {@code ResponseStatusException} and are answered
+     * above with their real text. What lands here is a checked exception from the plumbing,
+     * whose message is a file path, a host name, or a stack of driver internals. So it goes
+     * to the log, in full, and the caller gets a sentence instead.
      *
-     * @param ex the unhandled exception
-     * @return a 500 response with the exception message
+     * @param ex the unhandled exception — logged in full, never echoed to the client
+     * @return a 500 response with a generic message
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneralException(Exception ex) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex); // Log full stack trace for debugging
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred"));
+                .body(Map.of("error", "Something went wrong on our end. Please try again in a moment."));
     }
 }
