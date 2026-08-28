@@ -32,6 +32,13 @@
 -- Safe to run twice: the INSERT is guarded, so a second run inserts nothing
 -- rather than doubling every shop's review count.
 
+-- The review text below contains Polish diacritics and em dashes, and this file is
+-- UTF-8. The mysql client on Windows negotiates cp850, which turns every one of
+-- those into box-drawing rubbish on the way in and reports no error at all.
+-- Declared here rather than left to a --default-character-set flag so the file is
+-- correct however it is invoked.
+SET NAMES utf8mb4;
+
 -- ── The seed ────────────────────────────────────────────────────────────────
 INSERT INTO reviews (id, booking_id, reviewer_id, reviewed_id, rating, comment, created_at)
 WITH
