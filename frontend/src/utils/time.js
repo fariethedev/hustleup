@@ -37,7 +37,22 @@ export function parseServerDate(value) {
   }
 
   // 2026-08-26T12:04:37.400303 -> 2026-08-26T12:04:37.400
-  const normalised = String(value).trim().replace(/(\.\d{3})\d+/, '$1');
+  let normalised = String(value).trim().replace(/(\.\d{3})\d+/, '$1');
+
+  // Anchor a bare timestamp to UTC.
+  //
+  // The services run in containers with no TZ set, so they are on UTC — their logs are
+  // stamped `...05:15:23.219Z` — and `LocalDateTime.now()` records that UTC wall clock
+  // with no offset attached. Left alone, `new Date()` reads those digits as *local* time,
+  // so every timestamp in the app was wrong by the viewer's UTC offset: in Poland
+  // (UTC+2) a post made seconds ago rendered as "2h", and one made an hour ago as "3h".
+  //
+  // Only added when the string carries no zone of its own, so a properly offset
+  // timestamp (or a plain date) is never touched.
+  const hasZone = /(?:[Zz]|[+-]\d{2}:?\d{2})$/.test(normalised);
+  const hasTime = normalised.includes('T') || /\d{2}:\d{2}/.test(normalised);
+  if (hasTime && !hasZone) normalised += 'Z';
+
   const parsed = new Date(normalised);
   return isNaN(parsed.getTime()) ? null : parsed;
 }

@@ -337,6 +337,18 @@ export const feedApi = {
   savePost: (postId) => api.post(`/feed/${postId}/save`),
   unsavePost: (postId) => api.delete(`/feed/${postId}/save`),
   mySaved: () => api.get('/feed/saved/me'),
+  /**
+   * Every post by one author, newest first.
+   *
+   * The profile page used to pull the whole feed and filter it by author in the browser,
+   * so it only ever showed posts that happened to be in the page already loaded. This
+   * queries by author, so older posts appear too.
+   */
+  getByAuthor: (userId) => api.get(`/feed/user/${userId}`),
+  /** Edit your own post's text. Media is fixed once published. */
+  updatePost: (postId, content) => api.patch(`/feed/${postId}`, { content }),
+  /** Delete your own post, along with its likes, comments and saves. */
+  deletePost: (postId) => api.delete(`/feed/${postId}`),
 };
 
 // Social graph: follow/unfollow, relationship summary, block, report.

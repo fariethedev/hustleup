@@ -58,6 +58,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.Map;
@@ -295,6 +296,116 @@ public class FeedController {
         return ResponseEntity.ok(posts.stream()
                 .map(post -> PostDto.from(post, likedPostIds.contains(post.getId()), storageService::refreshUrl))
                 .toList());
+    }
+
+    /**
+     * Every post by one author, newest first.
+     *
+     * <p><b>GET /api/v1/feed/user/{userId}</b> — public, no auth required.
+     *
+     * <p>The profile page used to fetch the whole feed and filter it in the browser by
+     * author id, which meant a profile only ever showed the posts that happened to be in
+     * the feed page already loaded — anyone with older posts appeared to have none. This
+     * queries by author instead, so a profile shows the author's actual history.
+     *
+     * <p>Anonymous posts are excluded. They are stripped of author identity in the feed on
+     * purpose, so listing them under the author's profile would undo exactly that.
+     */
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<PostDto>> getByAuthor(@PathVariable String userId) {
+        List<Post> posts = postRepository.findByAuthorIdOrderByCreatedAtDesc(userId).stream()
+                .filter(post -> !post.isAnonymous())
+                .toList();
+
+        Set<String> likedPostIds = getCurrentUser()
+                .map(user -> postLikeRepository.findByIdUserIdAndIdPostIdIn(
+                                user.getId().toString(),
+                                posts.stream().map(Post::getId).toList())
+                        .stream()
+                        .map(postLike -> postLike.getId().getPostId())
+                        .collect(Collectors.toSet()))
+                .orElseGet(HashSet::new);
+
+        return ResponseEntity.ok(posts.stream()
+                .map(post -> PostDto.from(post, likedPostIds.contains(post.getId()), storageService::refreshUrl))
+                .toList());
+    }
+
+    /**
+     * Edits the text of a post you wrote.
+     *
+     * <p><b>PATCH /api/v1/feed/{postId}</b> — body {@code {"content":"..."}}
+     *
+     * <p>Only the text is editable. Swapping the media of a post that already has likes and
+     * comments would let someone bait engagement with one image and then replace it with
+     * another, so media is fixed once posted.
+     *
+     * @return 200 with the updated post, 403 if you are not the author, 404 if it is gone
+     */
+    @PatchMapping("/{postId}")
+    @CacheEvict(value = "feed", allEntries = true)
+    public ResponseEntity<?> updatePost(@PathVariable String postId,
+                                        @RequestBody Map<String, String> body) {
+        Optional<User> current = getCurrentUser();
+        if (current.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        Optional<Post> found = postRepository.findById(postId);
+        if (found.isEmpty()) return ResponseEntity.notFound().build();
+        Post post = found.get();
+
+        // Ownership is checked server-side: hiding the edit button in the browser decides
+        // what is offered, not what is permitted.
+        if (!current.get().getId().toString().equals(post.getAuthorId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "You can only edit your own posts"));
+        }
+
+        String content = body == null ? null : body.get("content");
+        if (content == null || content.isBlank()) {
+            // A post may legitimately be media-only, but an EDIT that blanks the text is
+            // almost certainly a mistake, and there is no undo.
+            return ResponseEntity.badRequest().body(Map.of("error", "Content cannot be empty"));
+        }
+
+        post.setContent(content.trim());
+        post.setEditedAt(LocalDateTime.now());
+        Post saved = postRepository.save(post);
+
+        return ResponseEntity.ok(PostDto.from(saved, false, storageService::refreshUrl));
+    }
+
+    /**
+     * Deletes a post you wrote.
+     *
+     * <p><b>DELETE /api/v1/feed/{postId}</b>
+     *
+     * <p>Likes, comments and saves are removed alongside it. Left behind they would be rows
+     * pointing at a post that no longer exists, which surfaces as phantom entries in
+     * "posts you've liked" and in saved posts.
+     *
+     * @return 204 on success, 403 if you are not the author, 404 if it is already gone
+     */
+    @DeleteMapping("/{postId}")
+    @CacheEvict(value = "feed", allEntries = true)
+    public ResponseEntity<?> deletePost(@PathVariable String postId) {
+        Optional<User> current = getCurrentUser();
+        if (current.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        Optional<Post> found = postRepository.findById(postId);
+        if (found.isEmpty()) return ResponseEntity.notFound().build();
+        Post post = found.get();
+
+        if (!current.get().getId().toString().equals(post.getAuthorId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "You can only delete your own posts"));
+        }
+
+        commentRepository.deleteByPostId(postId);
+        postLikeRepository.deleteByIdPostId(postId);
+        savedPostRepository.deleteByIdPostId(postId);
+        postRepository.delete(post);
+
+        return ResponseEntity.noContent().build();
     }
 
     /**

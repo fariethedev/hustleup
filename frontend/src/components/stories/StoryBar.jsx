@@ -126,38 +126,54 @@ export default function StoryBar() {
 
     return (
       <div key={person.id} className="flex flex-col items-center gap-1.5 shrink-0 w-[72px]">
-        <button
-          type="button"
-          onClick={() => {
-            if (isCurrentUser && !hasStories) {
-              setIsCreatorOpen(true);
-              return;
+        {/* The + is a button in its own right rather than decoration inside the avatar
+            button. Previously the avatar handled both jobs and could only do one: with no
+            story it opened the creator, but the moment you had one it always opened the
+            viewer — so the + stayed on screen looking like "add" while doing nothing, and
+            there was no way to post a second story at all.
+            A nested <button> is invalid HTML, so this is a positioned sibling. */}
+        <div className="relative w-16 h-16">
+          <button
+            type="button"
+            onClick={() => {
+              if (hasStories) setSelectedUserIndex(globalIndex);
+              else if (isCurrentUser) setIsCreatorOpen(true);
+            }}
+            aria-label={
+              hasStories
+                ? `View ${isCurrentUser ? 'your' : getDisplayName(person) + "'s"} story`
+                : 'Add to your story'
             }
-            if (hasStories) setSelectedUserIndex(globalIndex);
-          }}
-          className={`relative w-16 h-16 rounded-full p-[2px] transition-transform active:scale-95 ${
-            hasUnseenStories
-              ? 'bg-gradient-to-tr from-[#FF00FF] to-[#00FFFF]'
-              : hasStories
-                ? 'bg-white/15'
-                : 'bg-white/5'
-          } ${clickable ? 'cursor-pointer hover:scale-105' : 'cursor-default opacity-50'}`}
-        >
-          <div className="w-full h-full rounded-full bg-black overflow-hidden border-2 border-[#050505]">
-            <img
-              src={getAvatarUrl(person)}
-              alt={getDisplayName(person)}
-              onError={(e) => fallbackAvatar(e, person)}
-              className="w-full h-full object-cover"
-            />
-          </div>
+            className={`w-full h-full rounded-full p-[2px] transition-transform active:scale-95 ${
+              hasUnseenStories
+                ? 'bg-gradient-to-tr from-[#FF00FF] to-[#00FFFF]'
+                : hasStories
+                  ? 'bg-white/15'
+                  : 'bg-white/5'
+            } ${clickable ? 'cursor-pointer hover:scale-105' : 'cursor-default opacity-50'}`}
+          >
+            <div className="w-full h-full rounded-full bg-black overflow-hidden border-2 border-[#050505]">
+              <img
+                src={getAvatarUrl(person)}
+                alt={getDisplayName(person)}
+                onError={(e) => fallbackAvatar(e, person)}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </button>
 
           {isCurrentUser && (
-            <div className="absolute bottom-0 right-0 w-5 h-5 bg-[#CDFF00] rounded-full border-2 border-[#050505] flex items-center justify-center">
-              <Plus className="w-3 h-3 text-black stroke-[3px]" />
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsCreatorOpen(true)}
+              aria-label="Add to your story"
+              title="Add to your story"
+              className="absolute -bottom-0.5 -right-0.5 w-6 h-6 bg-[#CDFF00] rounded-full border-2 border-[#050505] flex items-center justify-center z-10 transition-transform hover:scale-110 active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5 text-black stroke-[3px]" />
+            </button>
           )}
-        </button>
+        </div>
 
         <Link to={`/profile/${person.id}`} className="max-w-full">
           <p className={`text-[11px] font-semibold truncate text-center hover:text-white transition-colors ${

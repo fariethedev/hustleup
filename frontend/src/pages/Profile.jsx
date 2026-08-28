@@ -61,7 +61,10 @@ export default function Profile() {
     Promise.allSettled([
       usersApi.getProfile(id),
       reviewsApi.getForUser(id),
-      feedApi.getAll(),
+      // Query by author rather than pulling the whole feed and filtering it here: the feed
+      // is a bounded page, so anyone whose posts had scrolled out of it showed an empty
+      // Posts tab even though the posts existed.
+      feedApi.getByAuthor(id),
       followsApi.relationship(id),
     ]).then(([profRes, revRes, feedRes, relRes]) => {
       if (profRes.status === 'rejected') { setLoading(false); return; }
@@ -75,7 +78,7 @@ export default function Profile() {
       setBannerPreview(p.shopBannerUrl || '');
 
       setReviews(revRes.status === 'fulfilled' ? revRes.value.data : []);
-      setPosts((feedRes.status === 'fulfilled' ? feedRes.value.data : []).filter((post) => post.authorId === id));
+      setPosts(feedRes.status === 'fulfilled' ? (feedRes.value.data || []) : []);
       if (relRes.status === 'fulfilled') setRel(relRes.value.data);
 
       if (p.role === 'SELLER') {
@@ -324,11 +327,23 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Row 2: stats */}
-          <div className="flex items-center gap-6 sm:gap-8 mt-3 text-sm">
-            <span className="text-gray-300"><b className="text-white font-bold">{listings.length}</b> listings</span>
-            <span className="text-gray-300"><b className="text-white font-bold">{rel.followers}</b> followers</span>
-            <span className="text-gray-300"><b className="text-white font-bold">{rel.following}</b> following</span>
+          {/* Row 2: stats.
+              Followers and following are the numbers people actually come here to read, so
+              they are pulled out as chips in the brand colour instead of sitting in the same
+              grey run-on line as everything else. */}
+          <div className="flex flex-wrap items-center gap-2 mt-3 text-sm">
+            <span className="inline-flex items-baseline gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
+              <b className="text-white font-bold">{listings.length}</b>
+              <span className="text-gray-400 text-xs font-medium">listings</span>
+            </span>
+            <span className="inline-flex items-baseline gap-1.5 px-3 py-1.5 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/30">
+              <b className="text-[#CDFF00] font-extrabold">{rel.followers}</b>
+              <span className="text-[#CDFF00]/70 text-xs font-semibold">followers</span>
+            </span>
+            <span className="inline-flex items-baseline gap-1.5 px-3 py-1.5 rounded-xl bg-[#00FFFF]/10 border border-[#00FFFF]/30">
+              <b className="text-[#00FFFF] font-extrabold">{rel.following}</b>
+              <span className="text-[#00FFFF]/70 text-xs font-semibold">following</span>
+            </span>
           </div>
 
           {/* Row 3: role + bio + meta (hidden on very small screens, shown below) */}

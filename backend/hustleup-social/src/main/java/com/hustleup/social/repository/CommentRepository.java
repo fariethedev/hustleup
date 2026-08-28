@@ -21,6 +21,7 @@ package com.hustleup.social.repository;
 
 import com.hustleup.social.model.Comment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,4 +53,13 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
      * open the full comment thread first.
      */
     Optional<Comment> findFirstByPostIdOrderByCreatedAtDesc(String postId);
+
+    /**
+     * Removes every comment on a post, for when the post itself is deleted.
+     *
+     * <p>{@code @Transactional} is required: Spring Data derived deletes run as a
+     * modifying query and are rejected outside a transaction.
+     */
+    @Transactional
+    void deleteByPostId(String postId);
 }

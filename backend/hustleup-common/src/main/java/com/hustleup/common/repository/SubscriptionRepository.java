@@ -2,6 +2,8 @@ package com.hustleup.common.repository;
 
 import com.hustleup.common.model.Subscription;
 import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -48,4 +50,18 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
      * @return an Optional containing the seller's Subscription, or empty if none exists
      */
     Optional<Subscription> findBySellerId(UUID sellerId);
+
+    /**
+     * Subscriptions for a batch of accounts, so callers that need to know "which of these
+     * people are premium" can ask once instead of per user. Used by the Bond discovery
+     * stack, which would otherwise issue a query per profile it considers.
+     */
+    List<Subscription> findBySellerIdIn(Collection<UUID> sellerIds);
+
+    /**
+     * Every subscription on a given plan and status — the small set, rather than asking
+     * "are you premium?" about every account on the platform. Expiry is still checked in
+     * code, since a lapsed row keeps status ACTIVE until something sweeps it.
+     */
+    List<Subscription> findByPlanAndStatus(String plan, String status);
 }

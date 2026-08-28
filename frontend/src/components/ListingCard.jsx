@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectUser } from '../store/authSlice';
 import { LISTING_TYPES, formatPrice, convertToPLN, displayCity } from '../utils/constants';
-import { MapPin, BadgeCheck, ShoppingCart, Check, Star, HandCoins, Images, Trash2 } from 'lucide-react';
+import { MapPin, BadgeCheck, ShoppingCart, Check, Star, HandCoins, Trash2 } from 'lucide-react';
 import { addToCart, selectCartItems } from '../store/cartSlice';
 import { useState } from 'react';
-import SmartImage from './SmartImage';
+import CardCarousel from './CardCarousel';
 import { coverImage, mediaList } from '../utils/media';
 
 /**
@@ -17,6 +17,10 @@ import { coverImage, mediaList } from '../utils/media';
  *
  * - The image is a 4:3 ratio rather than a fixed height, so the card scales with its column
  *   instead of going letterbox-thin when the column narrows.
+ * - Every image is swipeable in place via `CardCarousel`. A listing carries five or so photos
+ *   and the card used to show exactly one of them, with a small "5" badge as the only hint the
+ *   rest existed — so seeing a listing properly meant opening it. The badge is gone; the dots
+ *   under the image say the same thing and can be acted on.
  * - Add-to-cart floats on the image, which removes a whole stacked row.
  * - The description is hidden below `sm`. At two-up it rendered as two clipped lines and
  *   pushed the price out of view; the title and price are what people actually scan.
@@ -33,9 +37,12 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
   const isOwn = user?.id === listing.sellerId;
   const typeInfo = LISTING_TYPES.find((t) => t.value === listing.listingType) || LISTING_TYPES[0];
   // coverImage prefers a still over a video: a card showing a clip's first frame is usually
-  // just a black rectangle.
+  // just a black rectangle. Still needed on its own for the cart thumbnail, which is a single
+  // fixed image.
   const imageUrl = coverImage(listing);
-  const mediaCount = mediaList(listing).length;
+  // Falls back to the cover so a listing with no `mediaUrls` still renders one slide.
+  const media = mediaList(listing);
+  const slides = media.length > 0 ? media : [imageUrl].filter(Boolean);
   const TypeIcon = typeInfo.icon;
   const [added, setAdded] = useState(false);
   const inCart = cartItems.some((i) => i.listingId === listing.id);
@@ -62,13 +69,19 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
         <Link to={`/listing/${listing.id}`} className="flex flex-col h-full">
           {/* ── Image ── */}
           <div className="relative aspect-[4/3] overflow-hidden bg-black shrink-0">
-            <SmartImage
-              src={imageUrl}
-              alt={listing.title}
+            <CardCarousel
+              media={slides}
+              title={listing.title}
               fallbackIcon={TypeIcon}
               fallbackClassName={`bg-gradient-to-br ${typeInfo.color} opacity-30`}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+              // The hover zoom is dropped once there is more than one slide: a scaled image
+              // inside a snapping track drifts against its neighbours as you swipe.
+              imageClassName={`w-full h-full object-cover ${
+                slides.length > 1 ? '' : 'group-hover:scale-105 transition-transform duration-500 ease-out'
+              }`}
             />
+            {/* Drawn over the track, under the z-10 controls: it is what keeps the cart button
+                and the dots legible on a bright photo. */}
             <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
 
             {/* The one exceptional fact about a listing, as an icon. Dropping the "Nego"
@@ -82,12 +95,6 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                 className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#CDFF00] text-black flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
               >
                 <HandCoins className="w-3.5 h-3.5" strokeWidth={2.5} />
-              </span>
-            )}
-
-            {mediaCount > 1 && (
-              <span className="absolute bottom-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[8px] font-black text-white/80">
-                <Images className="w-2.5 h-2.5" /> {mediaCount}
               </span>
             )}
 

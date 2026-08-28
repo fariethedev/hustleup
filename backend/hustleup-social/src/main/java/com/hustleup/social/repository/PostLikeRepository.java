@@ -23,6 +23,7 @@ import com.hustleup.social.model.PostLike;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.List;
@@ -88,4 +89,11 @@ public interface PostLikeRepository extends JpaRepository<PostLike, PostLike.Pos
 
     /** All like rows for one post — used to list exactly who liked it. */
     List<PostLike> findByIdPostId(String postId);
+
+    /**
+     * Clears every like on a post, for when the post itself is deleted. Left behind, these
+     * rows show up as phantom entries in "posts you've liked".
+     */
+    @Transactional
+    void deleteByIdPostId(String postId);
 }

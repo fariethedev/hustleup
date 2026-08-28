@@ -173,7 +173,7 @@ function EventCarousel({ events }) {
       <div
         ref={trackRef}
         onScroll={syncEdges}
-        className="flex gap-5 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2"
+        className="flex gap-3 sm:gap-5 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2"
       >
         {events.map((event, i) => {
           const startsOn = formatEventDate(event.eventStartsAt);
@@ -184,13 +184,13 @@ function EventCarousel({ events }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
-              // A sliver of the next flyer stays visible on mobile, so the row reads as
-              // something to swipe rather than as a single stranded card.
-              className="snap-start shrink-0 w-[78%] sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
+              // Two-up on mobile, matching the carousels on Explore and News — sized off the
+              // track minus the single gap so the second card lands flush with the edge.
+              className="snap-start shrink-0 w-[calc((100%-0.75rem)/2)] sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
             >
               <div className="group flex flex-col h-full rounded-3xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-[#CDFF00]/40 transition-all">
                 <Link to={`/listing/${event.id}`} className="block">
-                  <div className="aspect-[4/5] overflow-hidden relative">
+                  <div className="aspect-square sm:aspect-[4/5] overflow-hidden relative">
                     <img
                       src={event.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=60'}
                       alt={event.title}

@@ -6,7 +6,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * The single authority on whether an account currently holds Premium.
@@ -59,6 +62,37 @@ public class PremiumAccess {
         return subscriptionRepository.findBySellerId(userId)
                 .map(PremiumAccess::isActivePremium)
                 .orElse(false);
+    }
+
+    /**
+     * Which of these accounts currently hold Premium.
+     *
+     * <p>The batched form of {@link #isPremium}. Callers filtering a list — the Bond
+     * discovery stack, say — would otherwise run one query per candidate.
+     *
+     * @param userIds accounts to check; may be empty
+     * @return the subset that hold an active, unexpired paid plan
+     */
+    public Set<UUID> premiumAmong(Collection<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) return Set.of();
+        return subscriptionRepository.findBySellerIdIn(userIds).stream()
+                .filter(PremiumAccess::isActivePremium)
+                .map(Subscription::getSellerId)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Every account currently holding Premium.
+     *
+     * <p>Preferred over {@link #premiumAmong} when the question is "filter this large list
+     * down to subscribers": subscribers are far fewer than users, so this reads the small
+     * table instead of sending every user id back as an IN clause.
+     */
+    public Set<UUID> allPremiumUserIds() {
+        return subscriptionRepository.findByPlanAndStatus(PREMIUM_PLAN, "ACTIVE").stream()
+                .filter(PremiumAccess::isActivePremium)
+                .map(Subscription::getSellerId)
+                .collect(Collectors.toSet());
     }
 
     /**

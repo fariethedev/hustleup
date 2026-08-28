@@ -160,8 +160,22 @@ public class Post {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    /**
+     * When the author last edited the text, or null if they never have.
+     *
+     * <p>Recorded so the UI can mark a post as edited. Silently changing what someone
+     * already replied to, with no trace, misrepresents the conversation.
+     */
+    @Column(name = "edited_at")
+    private LocalDateTime editedAt;
+
     /** Required no-args constructor for JPA (Hibernate needs to instantiate entities via reflection). */
     public Post() {}
+
+    /** Returns when the post was last edited, or null if it never was. */
+    public LocalDateTime getEditedAt() { return editedAt; }
+    /** Records an edit; set to now() whenever the content changes after publication. */
+    public void setEditedAt(LocalDateTime editedAt) { this.editedAt = editedAt; }
 
     // ── Getters and Setters ───────────────────────────────────────────────────
     // Standard JavaBeans convention. Spring Data and Jackson use these for reading

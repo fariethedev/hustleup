@@ -7,6 +7,7 @@ import { isPremiumActive, isPremiumRequiredError } from '../utils/premium';
 import {
   Heart, MessageCircle, Send, Bookmark, Image as ImageIcon, ShoppingBag,
   BadgeCheck, X, Film, Star, Users, Store, Sparkles, Package, VenetianMask, Lock, Crown, Crop,
+  MoreHorizontal, Pencil, Trash2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../utils/constants';
@@ -67,8 +68,58 @@ function HeartBurst({ show }) {
  *    avatar/name/timestamp header, larger body text, and a compact action row —
  *    a big image block would be empty space for a post that's just words.
  */
-function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpenComments, onOpenLikers, onShare }) {
+function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpenComments, onOpenLikers, onShare, isOwn, onEdit, onDelete }) {
   const [burst, setBurst] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  /**
+   * The ⋯ menu, shown only on your own posts.
+   *
+   * Ownership is also enforced by the API, which returns 403 for someone else's post —
+   * hiding this only decides what is offered.
+   */
+  const OwnerMenu = () => {
+    if (!isOwn) return null;
+    return (
+      <div className="relative ml-auto shrink-0">
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="Post options"
+          aria-expanded={menuOpen}
+          className="p-1.5 -mr-1 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          <MoreHorizontal className="w-4 h-4" />
+        </button>
+        {menuOpen && (
+          <>
+            {/* Click-away layer, so the menu closes without needing a document listener. */}
+            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+            <div className="absolute right-0 top-8 z-50 w-36 rounded-xl border border-white/10 bg-[#0a0a0a] shadow-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); onEdit?.(post); }}
+                className="w-full px-3 py-2.5 text-left text-xs font-semibold text-gray-200 hover:bg-white/5 flex items-center gap-2"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMenuOpen(false); onDelete?.(post); }}
+                className="w-full px-3 py-2.5 text-left text-xs font-semibold text-red-400 hover:bg-red-500/10 flex items-center gap-2"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  /** "· edited" after the age, so a changed post is not passed off as the original. */
+  const EditedMark = () =>
+    post.editedAt ? <span className="text-gray-600 shrink-0" title={`Edited ${timeAgo(post.editedAt)} ago`}>· edited</span> : null;
   const hasMedia = post.media && post.media.length > 0;
   const singleImage = !hasMedia && (post.imageUrl || extractUrl(post.content));
 
@@ -169,6 +220,8 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
             <div className="flex items-center gap-1.5 text-sm">
               <AuthorName className="font-bold text-white" />
               <span className="text-gray-500 shrink-0">· {timeAgo(post.createdAt)}</span>
+              <EditedMark />
+              <OwnerMenu />
             </div>
             <p className="text-white text-[15px] leading-relaxed mt-0.5 whitespace-pre-wrap break-words">{post.content}</p>
             <div className="mt-3 max-w-sm">
@@ -201,8 +254,11 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
         )}
         <div className="min-w-0">
           <AuthorName className="text-sm font-bold text-white block" />
-          <span className="text-xs text-gray-500">{timeAgo(post.createdAt)} ago</span>
+          <span className="text-xs text-gray-500">
+            {timeAgo(post.createdAt)} ago {post.editedAt ? '· edited' : ''}
+          </span>
         </div>
+        <OwnerMenu />
       </div>
 
       <div className="relative" onDoubleClick={doubleTapLike}>
@@ -378,6 +434,11 @@ export default function Feed() {
   const [premium, setPremium] = useState(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
+  // Post being edited, plus its working text. Held separately from the post so cancelling
+  // discards the draft rather than mutating what is on screen.
+  const [editingPost, setEditingPost] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Comment Modal State
   const [selectedPost, setSelectedPost] = useState(null);
@@ -565,6 +626,48 @@ export default function Feed() {
     } catch {
       dispatchToast('Could not start checkout — try again', 'error');
       setUpgrading(false);
+    }
+  };
+
+  /** Saves an edit, then patches the post in place so the feed does not have to reload. */
+  const handleSaveEdit = async () => {
+    if (!editingPost) return;
+    const text = editDraft.trim();
+    if (!text) { dispatchToast('Post cannot be empty', 'error'); return; }
+    if (text === (editingPost.content || '')) { setEditingPost(null); return; }
+
+    setSavingEdit(true);
+    try {
+      const res = await feedApi.updatePost(editingPost.id, text);
+      patchPost(editingPost.id, (p) => ({
+        ...p,
+        content: res.data?.content ?? text,
+        editedAt: res.data?.editedAt ?? new Date().toISOString(),
+      }));
+      setEditingPost(null);
+      dispatchToast('Post updated', 'success');
+    } catch (e) {
+      dispatchToast(e.response?.data?.error || 'Could not update post', 'error');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  /**
+   * Deletes a post after confirming.
+   *
+   * Removed from view only once the server confirms: an optimistic removal that then
+   * failed would leave the post looking deleted until the next reload.
+   */
+  const handleDeletePost = async (post) => {
+    if (!window.confirm('Delete this post? This cannot be undone.')) return;
+    try {
+      await feedApi.deletePost(post.id);
+      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+      setSavedPosts((prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev));
+      dispatchToast('Post deleted', 'success');
+    } catch (e) {
+      dispatchToast(e.response?.data?.error || 'Could not delete post', 'error');
     }
   };
 
@@ -846,6 +949,12 @@ export default function Feed() {
                   onOpenComments={openComments}
                   onOpenLikers={openLikers}
                   onShare={(p) => { setShareType('post'); setShareItem(p); }}
+                  // Anonymous posts come back with authorId stripped, so they never match
+                  // and correctly show no owner menu — editing one in place would let the
+                  // author rewrite a post nobody can attribute to them.
+                  isOwn={!!user?.id && item.data.authorId === user.id}
+                  onEdit={(p) => { setEditingPost(p); setEditDraft(p.content || ''); }}
+                  onDelete={handleDeletePost}
                 />
               );
             })
@@ -1026,6 +1135,54 @@ export default function Feed() {
       )}
 
       <AnimatePresence>
+        {editingPost && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => !savingEdit && setEditingPost(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl p-5"
+            >
+              <h3 className="text-base font-bold text-white mb-1">Edit post</h3>
+              {/* Set expectations before they look for a way to change the photo. */}
+              <p className="text-[11px] text-gray-500 mb-3">
+                Only the text can be changed. Photos and videos stay as posted.
+              </p>
+              <textarea
+                value={editDraft}
+                onChange={(e) => setEditDraft(e.target.value)}
+                rows={5}
+                autoFocus
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-gray-500 focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none resize-none"
+                placeholder="What's on your mind?"
+              />
+              <div className="flex gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingPost(null)}
+                  disabled={savingEdit}
+                  className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm hover:bg-white/10 transition-colors disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={savingEdit || !editDraft.trim()}
+                  className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:brightness-110 transition-all disabled:opacity-60"
+                >
+                  {savingEdit ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {showUpgrade && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
             <motion.div

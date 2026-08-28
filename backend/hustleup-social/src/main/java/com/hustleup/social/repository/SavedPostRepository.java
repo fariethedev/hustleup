@@ -12,6 +12,7 @@ import com.hustleup.social.model.SavedPost;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.List;
@@ -26,4 +27,11 @@ public interface SavedPostRepository extends JpaRepository<SavedPost, SavedPost.
     /** Every post ID a user has saved, newest save first — powers the "Saved" tab. */
     @Query("SELECT sp.id.postId FROM SavedPost sp WHERE sp.id.userId = :userId ORDER BY sp.createdAt DESC")
     List<String> findSavedPostIdsByUserId(@Param("userId") String userId);
+
+    /**
+     * Clears every save of a post, for when the post itself is deleted. Left behind, these
+     * rows leave dead entries in the Saved tab that cannot be opened or un-saved.
+     */
+    @Transactional
+    void deleteByIdPostId(String postId);
 }

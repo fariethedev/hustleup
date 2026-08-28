@@ -226,6 +226,18 @@ public class DatingController {
             Map<UUID, DatingProfile> profileMap = datingRepo.findAll().stream()
                     .collect(Collectors.toMap(DatingProfile::getId, p -> p));
 
+            // Who is allowed to appear in the deck at all.
+            //
+            // The deck is built from userRepo.findAll(), so before this every registered
+            // account was a candidate — including people who never opened Bond and, more to
+            // the point, free accounts that filled in a profile and then sat in every paying
+            // member's stack collecting likes without subscribing. Being discovered is the
+            // part that is paid for.
+            //
+            // One read of the (small) subscriptions table, rather than a premium lookup per
+            // candidate or every user id sent back as an IN clause.
+            Set<UUID> paying = premiumAccess.allPremiumUserIds();
+
             // Try to get the current user's ID so we can exclude them from results.
             UUID currentId = null;
             try {
@@ -258,6 +270,8 @@ public class DatingController {
 
             // Return all users as discoverable profiles, enriched with dating profile if they have one.
             List<DatingProfile> result = userRepo.findAll().stream()
+                    // Paying members only — see `paying` above.
+                    .filter(u -> paying.contains(u.getId()))
                     // Filter out the current user and anyone already swiped on.
                     .filter(u -> finalCurrentId == null || !u.getId().equals(finalCurrentId))
                     .filter(u -> !swiped.contains(u.getId()))

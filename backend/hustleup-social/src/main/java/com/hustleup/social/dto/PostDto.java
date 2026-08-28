@@ -117,6 +117,9 @@ public class PostDto {
     /** Timestamp of when the post was created. */
     LocalDateTime createdAt;
 
+    /** When the author last edited the text, or null. Drives the "edited" marker in the UI. */
+    LocalDateTime editedAt;
+
     // ── Static factory methods (entity → DTO transformation) ─────────────────
 
     /**
@@ -210,6 +213,7 @@ public class PostDto {
                 .topComment(topComment)
                 .anonymous(post.isAnonymous())
                 .createdAt(post.getCreatedAt())
+                .editedAt(post.getEditedAt())
                 .build();
     }
 
