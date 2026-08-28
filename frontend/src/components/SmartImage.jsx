@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
+import { uploadUrl } from '../config';
 
 /**
  * An <img> that never renders as a broken image.
@@ -12,6 +13,12 @@ import { Image as ImageIcon } from 'lucide-react';
  * This component substitutes a branded placeholder instead, so a missing image looks like part
  * of the design rather than a bug. It covers the two failure modes together — no `src` at all,
  * and a `src` that fails to load — because to the person looking at the page they're identical.
+ *
+ * Server-relative paths are resolved here rather than at each call site. Uploads come back
+ * from the API as "/uploads/…", which a deployed frontend would otherwise resolve against its
+ * own origin — where nothing serves them. The Vite dev proxy forwards /uploads to the gateway,
+ * so this only ever shows up in production, which is the worst place to find it. Absolute URLs
+ * (S3 presigned links, stock photos) and blob:/data: previews pass through untouched.
  *
  * @param {string}   src        image URL; a falsy value renders the placeholder immediately
  * @param {string}   alt        alt text, also used as the placeholder's accessible label
@@ -29,13 +36,14 @@ export default function SmartImage({
   ...rest
 }) {
   const [failed, setFailed] = useState(false);
+  const resolved = uploadUrl(src);
 
   // Reset when the source changes. Without this a gallery that reuses one <SmartImage> for the
   // selected item would stay stuck on the placeholder after a single bad image, because the
   // failed flag from the previous src would carry over to the next one.
   useEffect(() => { setFailed(false); }, [src]);
 
-  if (!src || failed) {
+  if (!resolved || failed) {
     return (
       <div
         role="img"
@@ -49,7 +57,7 @@ export default function SmartImage({
 
   return (
     <img
-      src={src}
+      src={resolved}
       alt={alt}
       className={className}
       // loading="lazy" keeps long browse grids from firing dozens of parallel image requests.
