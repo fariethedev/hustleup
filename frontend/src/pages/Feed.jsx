@@ -75,12 +75,14 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
   /**
    * The ⋯ menu, shown only on your own posts.
    *
+   * Held as an element rather than a nested component function: a component declared
+   * inside another component is a fresh type on every render, so React tears down and
+   * rebuilds the subtree each time — which closes the open menu as you click it.
+   *
    * Ownership is also enforced by the API, which returns 403 for someone else's post —
-   * hiding this only decides what is offered.
+   * this only decides what is offered.
    */
-  const OwnerMenu = () => {
-    if (!isOwn) return null;
-    return (
+  const ownerMenu = !isOwn ? null : (
       <div className="relative ml-auto shrink-0">
         <button
           type="button"
@@ -114,12 +116,12 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
           </>
         )}
       </div>
-    );
-  };
+  );
 
   /** "· edited" after the age, so a changed post is not passed off as the original. */
-  const EditedMark = () =>
-    post.editedAt ? <span className="text-gray-600 shrink-0" title={`Edited ${timeAgo(post.editedAt)} ago`}>· edited</span> : null;
+  const editedMark = post.editedAt
+    ? <span className="text-gray-600 shrink-0" title={`Edited ${timeAgo(post.editedAt)} ago`}>· edited</span>
+    : null;
   const hasMedia = post.media && post.media.length > 0;
   const singleImage = !hasMedia && (post.imageUrl || extractUrl(post.content));
 
@@ -220,8 +222,8 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
             <div className="flex items-center gap-1.5 text-sm">
               <AuthorName className="font-bold text-white" />
               <span className="text-gray-500 shrink-0">· {timeAgo(post.createdAt)}</span>
-              <EditedMark />
-              <OwnerMenu />
+              {editedMark}
+              {ownerMenu}
             </div>
             <p className="text-white text-[15px] leading-relaxed mt-0.5 whitespace-pre-wrap break-words">{post.content}</p>
             <div className="mt-3 max-w-sm">
@@ -258,7 +260,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
             {timeAgo(post.createdAt)} ago {post.editedAt ? '· edited' : ''}
           </span>
         </div>
-        <OwnerMenu />
+        {ownerMenu}
       </div>
 
       <div className="relative" onDoubleClick={doubleTapLike}>

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useSelector } from 'react-redux';
-import { selectIsAuthenticated, selectIsSeller } from '../store/authSlice';
+import { useSelector, useDispatch } from 'react-redux';
+import { selectIsAuthenticated, selectIsSeller, logout } from '../store/authSlice';
 import { listingsApi } from '../api/client';
 import { LISTING_TYPES, CURRENCIES, POLISH_CITIES } from '../utils/constants';
-import { Lock, Image as ImageIcon, Check, X, ArrowRight, ArrowLeft, Play, CalendarClock } from 'lucide-react';
+import { Lock, Image as ImageIcon, Check, X, ArrowRight, ArrowLeft, Play, CalendarClock, Store, LogOut } from 'lucide-react';
 import { isVideoUrl } from '../utils/media';
 
 /**
@@ -23,6 +23,7 @@ export default function CreateListing() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const isSeller = useSelector(selectIsSeller);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
@@ -36,14 +37,54 @@ export default function CreateListing() {
 
   if (!isAuthenticated) { navigate('/login'); return null; }
   if (!isSeller) {
+    /**
+     * Buyer accounts cannot list, and an account's role is fixed at registration — there is
+     * no upgrade path, so selling means a second account.
+     *
+     * The old version of this screen said "Become a Seller" and dropped the user on
+     * /register while still signed in as a buyer, which reads as though it will convert the
+     * account they already have. It says what actually has to happen now, and signs them
+     * out on the way so registration starts from a clean session instead of landing on a
+     * page that still shows them logged in.
+     */
+    const startSellerAccount = () => {
+      dispatch(logout());
+      navigate('/register');
+    };
+
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="text-center glass rounded-3xl p-10 max-w-md border border-white/5">
-          <Lock className="w-16 h-16 mx-auto text-gray-600 mb-6" />
-          <h2 className="text-2xl font-black text-white uppercase tracking-wider mb-2">Sellers Only</h2>
-          <p className="text-gray-400 mb-8 font-medium">You need a seller account to post listings on the marketplace.</p>
-          <button onClick={() => navigate('/register')} className="w-full py-4 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:bg-[#E0FF4D] transition-all">
-            Become a Seller
+        <div className="glass rounded-3xl p-8 max-w-md border border-white/5">
+          <div className="w-14 h-14 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-5">
+            <Store className="w-7 h-7 text-[#CDFF00]" />
+          </div>
+          <h2 className="text-xl font-black text-white uppercase tracking-wider mb-2 text-center">
+            You need a seller account
+          </h2>
+          <p className="text-gray-400 text-sm leading-relaxed mb-5 text-center">
+            You're signed in as a <b className="text-white">buyer</b>. Buying and selling are
+            separate accounts on HustleSpace, so listing requires signing up again as a seller —
+            you can use a different email and switch between the two whenever you like.
+          </p>
+
+          <div className="rounded-xl bg-white/5 border border-white/10 p-3.5 mb-5">
+            <p className="text-[11px] text-gray-400 leading-relaxed">
+              <b className="text-gray-200">Keeping this account?</b> Nothing is lost — your
+              buyer account, orders and saved items stay exactly as they are.
+            </p>
+          </div>
+
+          <button
+            onClick={startSellerAccount}
+            className="w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:bg-[#E0FF4D] transition-all flex items-center justify-center gap-2"
+          >
+            <LogOut className="w-4 h-4" /> Sign out &amp; create seller account
+          </button>
+          <button
+            onClick={() => navigate(-1)}
+            className="w-full mt-2.5 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-sm hover:bg-white/10 transition-colors"
+          >
+            Not now
           </button>
         </div>
       </div>

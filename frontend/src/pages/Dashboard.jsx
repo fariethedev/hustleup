@@ -134,17 +134,48 @@ export default function Dashboard() {
   const awaitingReview = bookings.filter((b) => b.status === 'COMPLETED' && b.reviewedByMe === false);
   const totalRevenue = salesBookings.reduce((sum, b) => sum + (b.agreedPrice || 0), 0);
 
-  const tabs = [
-    { id: 'bookings', label: 'Bookings', icon: ListTodo, count: bookings.length },
-    // Only surfaced once there's something in the wallet — an empty tab is noise.
-    ...(tickets.length > 0 ? [{ id: 'tickets', label: 'Tickets', icon: Ticket, count: tickets.filter((t) => t.status === 'VALID').length }] : []),
-    ...(isSeller && hasEventListing ? [{ id: 'door', label: 'Door', icon: ScanLine, count: eventListings.length }] : []),
-    ...(isSeller ? [{ id: 'shop', label: 'Shop', icon: Store, count: 0 }] : []),
-    ...(isSeller ? [{ id: 'listings', label: 'Listings', icon: ClipboardList, count: listings.length }] : []),
-    ...(isSeller ? [{ id: 'sales', label: 'Sales', icon: TrendingUp, count: salesBookings.length }] : []),
-    ...(isSeller && hasServiceListing ? [{ id: 'availability', label: 'Availability', icon: CalendarClock, count: slots.length }] : []),
-    ...(isSeller ? [{ id: 'payouts', label: 'Payouts', icon: Landmark, count: payoutStatus?.payoutsEnabled ? 0 : 1 }] : []),
-    { id: 'notifications', label: 'Alerts', icon: BellRing, count: notifications.filter((n) => !n.read).length },
+  /** Requests from buyers a seller has not yet accepted or declined — their real to-do list. */
+  const pendingRequests = bookings.filter((b) => b.role === 'seller' && b.status === 'INQUIRED');
+  /** Sold and paid for, but not yet delivered and marked complete. */
+  const inProgress = bookings.filter((b) => b.role === 'seller' && b.status === 'BOOKED');
+
+  /**
+   * Tabs, grouped rather than presented as one flat row.
+   *
+   * A seller with events and services saw nine equally-weighted tabs in a single centered
+   * line, with their own storefront sitting between "Door" and "Sales" and the buyer-side
+   * tabs mixed in among them. Splitting by who the tab is for gives the row a shape: what
+   * you sell, what you bought, and your account.
+   */
+  const tabGroups = [
+    ...(isSeller ? [{
+      key: 'selling',
+      label: 'Selling',
+      tabs: [
+        { id: 'listings', label: 'Listings', icon: ClipboardList, count: listings.length },
+        { id: 'shop', label: 'Shop', icon: Store, count: 0 },
+        { id: 'sales', label: 'Sales', icon: TrendingUp, count: salesBookings.length },
+        ...(hasServiceListing ? [{ id: 'availability', label: 'Availability', icon: CalendarClock, count: slots.length }] : []),
+        ...(hasEventListing ? [{ id: 'door', label: 'Door', icon: ScanLine, count: eventListings.length }] : []),
+      ],
+    }] : []),
+    {
+      key: 'activity',
+      label: isSeller ? 'Orders' : 'Your activity',
+      tabs: [
+        { id: 'bookings', label: 'Bookings', icon: ListTodo, count: bookings.length },
+        // Only surfaced once there's something in the wallet — an empty tab is noise.
+        ...(tickets.length > 0 ? [{ id: 'tickets', label: 'Tickets', icon: Ticket, count: tickets.filter((t) => t.status === 'VALID').length }] : []),
+      ],
+    },
+    {
+      key: 'account',
+      label: 'Account',
+      tabs: [
+        ...(isSeller ? [{ id: 'payouts', label: 'Payouts', icon: Landmark, count: payoutStatus?.payoutsEnabled ? 0 : 1 }] : []),
+        { id: 'notifications', label: 'Alerts', icon: BellRing, count: notifications.filter((n) => !n.read).length },
+      ],
+    },
   ];
 
   return (
@@ -153,33 +184,79 @@ export default function Dashboard() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-10">
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Control row: tabs + actions, all centered */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-5 pb-4 border-b border-white/5">
-            {tabs.map((t) => {
-              const Icon = t.icon;
-              const isActive = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all border ${
-                    isActive
-                      ? 'bg-[#CDFF00] text-black border-[#CDFF00] shadow-[0_0_20px_rgba(205,255,0,0.15)]'
-                      : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/20'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {t.label}
-                  {t.count > 0 && (
-                    <span className={`ml-1 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded font-black text-[8px] ${
-                      isActive ? 'bg-black text-[#CDFF00]' : 'bg-gray-800 text-gray-300'
-                    }`}>
-                      {t.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          {/* Seller summary. Revenue was only visible after opening the Sales tab, and the
+              two numbers that actually need acting on — unanswered requests, and whether
+              payouts are even set up — were not shown anywhere. A dashboard should answer
+              "what needs me?" before it offers navigation. */}
+          {isSeller && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
+              <button onClick={() => setTab('sales')} className="text-left rounded-2xl border border-[#CDFF00]/25 bg-[#CDFF00]/[0.06] p-3.5 hover:bg-[#CDFF00]/10 transition-colors">
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#CDFF00]/70">Revenue</p>
+                <p className="text-lg font-black text-[#CDFF00] mt-0.5 truncate">{formatPrice(totalRevenue, 'PLN')}</p>
+              </button>
+              <button onClick={() => setTab('bookings')} className={`text-left rounded-2xl border p-3.5 transition-colors ${
+                pendingRequests.length > 0
+                  ? 'border-amber-400/40 bg-amber-400/10 hover:bg-amber-400/15'
+                  : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+              }`}>
+                <p className={`text-[9px] font-black uppercase tracking-[0.18em] ${pendingRequests.length > 0 ? 'text-amber-300/80' : 'text-gray-500'}`}>Needs reply</p>
+                <p className={`text-lg font-black mt-0.5 ${pendingRequests.length > 0 ? 'text-amber-300' : 'text-white'}`}>{pendingRequests.length}</p>
+              </button>
+              <button onClick={() => setTab('bookings')} className="text-left rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors">
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-gray-500">In progress</p>
+                <p className="text-lg font-black text-white mt-0.5">{inProgress.length}</p>
+              </button>
+              <button onClick={() => setTab('payouts')} className={`text-left rounded-2xl border p-3.5 transition-colors ${
+                payoutStatus?.payoutsEnabled
+                  ? 'border-emerald-400/30 bg-emerald-400/[0.07] hover:bg-emerald-400/10'
+                  : 'border-red-400/40 bg-red-400/10 hover:bg-red-400/15'
+              }`}>
+                <p className={`text-[9px] font-black uppercase tracking-[0.18em] ${payoutStatus?.payoutsEnabled ? 'text-emerald-300/80' : 'text-red-300/80'}`}>Payouts</p>
+                <p className={`text-sm font-black mt-1 ${payoutStatus?.payoutsEnabled ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {payoutStatus?.payoutsEnabled ? 'Active' : payoutStatus?.connected ? 'Finish setup' : 'Not set up'}
+                </p>
+              </button>
+            </div>
+          )}
+
+          {/* Control row: tabs grouped by who they serve, plus actions */}
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2.5 mb-5 pb-4 border-b border-white/5">
+            {tabGroups.filter((g) => g.tabs.length > 0).map((group, gi) => (
+              <div key={group.key} className="flex items-center gap-2">
+                {gi > 0 && <div className="w-px h-5 bg-white/10 mr-1" />}
+                {/* Only worth labelling once there is more than one group to tell apart. */}
+                {tabGroups.filter((g) => g.tabs.length > 0).length > 1 && (
+                  <span className="hidden sm:inline text-[8px] font-black uppercase tracking-[0.18em] text-gray-600 mr-0.5">
+                    {group.label}
+                  </span>
+                )}
+                {group.tabs.map((t) => {
+                  const Icon = t.icon;
+                  const isActive = tab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setTab(t.id)}
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all border ${
+                        isActive
+                          ? 'bg-[#CDFF00] text-black border-[#CDFF00] shadow-[0_0_20px_rgba(205,255,0,0.15)]'
+                          : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/20'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {t.label}
+                      {t.count > 0 && (
+                        <span className={`ml-1 inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded font-black text-[8px] ${
+                          isActive ? 'bg-black text-[#CDFF00]' : 'bg-gray-800 text-gray-300'
+                        }`}>
+                          {t.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
             <div className="w-px h-5 bg-white/10 mx-1.5" />
             {isSeller && (
               <Link to="/create" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase tracking-widest text-[9px] hover:bg-[#E0FF4D] transition-all">
