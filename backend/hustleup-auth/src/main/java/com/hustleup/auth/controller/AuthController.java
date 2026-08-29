@@ -121,7 +121,7 @@ public class AuthController {
     // AuthTokenRepository persists single-use email-verification / password-reset tokens.
     private final AuthTokenRepository authTokenRepository;
 
-    // Shared Resend wrapper (hustleup-common) — no-ops (logs only) until RESEND_API_KEY is set.
+    // Shared SMTP sender (hustleup-common) — logs instead of sending until MAIL_HOST is set.
     private final EmailService emailService;
 
     // Used to build links back to the web app inside verification/reset emails.
