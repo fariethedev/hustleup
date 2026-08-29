@@ -2,22 +2,43 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
-import { ArrowLeft, ShieldCheck, Check, ShoppingBag, Lock, User, Mail, Phone } from 'lucide-react';
-import { selectCartItems, selectCartTotal, clearCart } from '../store/cartSlice';
+import { ArrowLeft, ArrowRight, ShieldCheck, ShoppingBag, Lock, User, Mail, Phone, CreditCard, Clock } from 'lucide-react';
+import { selectCartItems, selectCartTotal, selectCartShipping, clearCart } from '../store/cartSlice';
 import { bookingsApi } from '../api/client';
 import { formatPrice } from '../utils/constants';
 import SmartImage from '../components/SmartImage';
 import { ApplePayMark, PayPalMark, VisaMark, MastercardMark } from '../components/PaymentBrands';
-import PaymentMethodPicker from '../components/PaymentMethodPicker';
-import { findMethod } from '../utils/paymentMethods';
 
+/**
+ * Basket checkout.
+ *
+ * <h3>There is no payment-method picker</h3>
+ * There used to be one, and it was theatre. Whatever you chose, `placeOrder` created the
+ * bookings and handed you to Stripe Checkout, which then asked you to pick a payment method
+ * again — the earlier choice was never sent anywhere and could not be honoured. Two costs to
+ * that: a screen of decisions that changed nothing, and a summary line reading "Paying with
+ * PayPal" next to a button that might well take a card. Stripe owns that choice, so the page
+ * now says so and shows which methods are waiting on the next screen instead of pretending
+ * to collect one.
+ *
+ * <h3>Shape</h3>
+ * What is left is one short form and a receipt, so the page is built as exactly that: details
+ * on the left, a summary that stays in view beside them, and a single button whose label
+ * names what actually happens next. The old numbered steps went with the picker — numbering
+ * a list of one is noise.
+ */
 export default function Checkout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const items = useSelector(selectCartItems);
-  const total = useSelector(selectCartTotal);
+  const subtotal = useSelector(selectCartTotal);
+  // Postage is a separate line rather than folded into the subtotal, and is added once per
+  // item in the basket rather than per unit — the same arithmetic the server does when it
+  // builds the Stripe session, so this page cannot promise a total the charge contradicts.
+  const shipping = useSelector(selectCartShipping);
+  const total = subtotal + shipping;
 
-  const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '', paymentMethod: 'paypal' });
+  const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -90,9 +111,8 @@ export default function Checkout() {
     !customer.fullName && 'name',
     !customer.email && 'email address',
   ].filter(Boolean).join(' and ');
-  const selected = findMethod(customer.paymentMethod);
 
-  const field = (key, placeholder, type, Icon) => (
+  const field = (key, placeholder, type, Icon, autoComplete) => (
     <div className="relative">
       <Icon className="w-4 h-4 text-gray-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
       <input
@@ -100,6 +120,7 @@ export default function Checkout() {
         value={customer[key]}
         onChange={(e) => setCustomer((c) => ({ ...c, [key]: e.target.value }))}
         placeholder={placeholder}
+        autoComplete={autoComplete}
         className="w-full rounded-xl bg-black/40 border border-white/10 pl-10 pr-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-[#CDFF00]/60 focus:bg-black/60 transition-colors"
       />
     </div>
@@ -116,12 +137,22 @@ export default function Checkout() {
         </Link>
 
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
-          {/* Header */}
+          {/* ── Header. The two-step rail replaces the old numbered sections: payment is a
+                 real step, it just happens on Stripe rather than here, and showing it stops
+                 the redirect feeling like the page threw you somewhere unexpected. ── */}
           <div className="text-center mb-6">
             <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">Checkout</h1>
-            <p className="inline-flex items-center gap-1.5 text-[11px] text-gray-500 font-bold mt-1.5">
-              <Lock className="w-3 h-3" /> Encrypted · {items.length} item{items.length === 1 ? '' : 's'}
-            </p>
+            <div className="mt-3 inline-flex items-center gap-2 sm:gap-3 text-[10px] font-black uppercase tracking-widest">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#CDFF00] text-black">
+                <span className="w-4 h-4 rounded-full bg-black/20 flex items-center justify-center text-[9px]">1</span>
+                Your details
+              </span>
+              <span className="w-4 sm:w-6 h-px bg-white/20" />
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-400">
+                <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[9px]">2</span>
+                Pay on Stripe
+              </span>
+            </div>
           </div>
 
           {error && (
@@ -131,36 +162,64 @@ export default function Checkout() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.85fr] gap-4">
-            {/* ── Left: details + payment ── */}
+            {/* ── Left: the only thing this page actually collects ── */}
             <div className="space-y-4">
               <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="w-6 h-6 rounded-full bg-[#CDFF00] text-black text-[11px] font-black flex items-center justify-center">1</span>
-                  <h2 className="text-xs font-black text-white uppercase tracking-widest">Your details</h2>
-                </div>
+                <h2 className="text-xs font-black text-white uppercase tracking-widest mb-1">Your details</h2>
+                <p className="text-[11px] text-gray-500 mb-4">So the seller knows who to deliver to.</p>
                 <div className="space-y-2.5">
-                  {field('fullName', 'Full name', 'text', User)}
-                  {field('email', 'Email address', 'email', Mail)}
-                  {field('phone', 'Phone number (optional)', 'tel', Phone)}
+                  {field('fullName', 'Full name', 'text', User, 'name')}
+                  {field('email', 'Email address', 'email', Mail, 'email')}
+                  {field('phone', 'Phone number (optional)', 'tel', Phone, 'tel')}
                 </div>
               </section>
 
+              {/* Where the payment picker used to be. It states what the next screen does
+                  rather than asking for a choice this page cannot act on. */}
               <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="w-6 h-6 rounded-full bg-[#CDFF00] text-black text-[11px] font-black flex items-center justify-center">2</span>
-                  <h2 className="text-xs font-black text-white uppercase tracking-widest">Payment method</h2>
+                <div className="flex items-start gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/25 flex items-center justify-center shrink-0">
+                    <CreditCard className="w-4 h-4 text-[#CDFF00]" />
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="text-xs font-black text-white uppercase tracking-widest">Payment</h2>
+                    <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
+                      You&apos;ll choose how to pay on Stripe&apos;s secure page — card, Apple&nbsp;Pay,
+                      Google&nbsp;Pay, BLIK or PayPal, depending on what&apos;s available for your
+                      basket. Your card details never touch HustleSpace.
+                    </p>
+                    <div className="mt-3 flex items-center gap-2 opacity-80">
+                      <span className="h-6 px-1.5 rounded bg-white flex items-center"><VisaMark className="h-3 w-auto" /></span>
+                      <span className="h-6 px-1.5 rounded bg-white flex items-center"><MastercardMark className="h-3.5 w-auto" /></span>
+                      <span className="h-6 px-1.5 rounded bg-white flex items-center"><ApplePayMark className="h-3.5 w-auto" /></span>
+                      <span className="h-6 px-1.5 rounded bg-white flex items-center"><PayPalMark className="h-3 w-auto" /></span>
+                    </div>
+                  </div>
                 </div>
+              </section>
 
-                <PaymentMethodPicker
-                  value={customer.paymentMethod}
-                  onChange={(id) => setCustomer((c) => ({ ...c, paymentMethod: id }))}
-                />
+              {/* A basket can mix goods (charged now) with services (charged after the seller
+                  accepts). Saying so here stops a part-charged order looking like a fault. */}
+              <section className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                <div className="flex items-start gap-2.5">
+                  <Clock className="w-3.5 h-3.5 text-gray-500 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-gray-500 leading-relaxed">
+                    Goods are paid for now. Anything that needs the seller to accept first
+                    isn&apos;t charged yet — you&apos;ll be notified when it&apos;s approved,
+                    and can pay it from your dashboard.
+                  </p>
+                </div>
               </section>
             </div>
 
-            {/* ── Right: order summary ── */}
+            {/* ── Right: the receipt, in view while the form is filled ── */}
             <aside className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5 h-fit lg:sticky lg:top-20">
-              <h2 className="text-xs font-black text-white uppercase tracking-widest mb-3">Order summary</h2>
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-xs font-black text-white uppercase tracking-widest">Order summary</h2>
+                <span className="text-[10px] font-bold text-gray-500">
+                  {items.length} item{items.length === 1 ? '' : 's'}
+                </span>
+              </div>
 
               <div className="space-y-2 mb-4 max-h-[220px] overflow-y-auto scrollbar-hide pr-0.5">
                 <AnimatePresence>
@@ -197,16 +256,22 @@ export default function Checkout() {
               <div className="border-t border-white/10 pt-3 space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-400">Subtotal</span>
-                  <span className="text-white font-bold">{formatPrice(total, currency)}</span>
+                  <span className="text-white font-bold">{formatPrice(subtotal, currency)}</span>
+                </div>
+                {/* Shown even at zero: free delivery is worth saying out loud, and a basket
+                    that silently omits the line reads as one that might add it later. */}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-400">Delivery</span>
+                  <span className={shipping > 0 ? 'text-white font-bold' : 'text-[#CDFF00] font-bold'}>
+                    {shipping > 0 ? formatPrice(shipping, currency) : 'Free'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-400">Fees</span>
                   <span className="text-[#CDFF00] font-bold">Included</span>
                 </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-400">Paying with</span>
-                  <span className="text-white font-bold">{selected?.label}</span>
-                </div>
+                {/* The "Paying with" row went with the picker — it named a choice that was
+                    never sent to Stripe and could not be honoured. */}
                 <div className="flex items-center justify-between pt-2.5 border-t border-white/5">
                   <span className="text-white font-black uppercase tracking-widest text-xs">Total</span>
                   <span className="text-[#CDFF00] text-2xl font-black">{formatPrice(total, currency)}</span>
@@ -222,6 +287,8 @@ export default function Checkout() {
                 </p>
               )}
 
+              {/* Labelled for what it does. "Place order" implied this page completed the
+                  purchase, when it hands off to Stripe. */}
               <button
                 type="button"
                 onClick={placeOrder}
@@ -229,27 +296,27 @@ export default function Checkout() {
                 className="mt-4 w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all shadow-[0_8px_24px_rgba(205,255,0,0.22)]"
               >
                 {loading ? (
-                  <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  <>
+                    <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                    Taking you to Stripe…
+                  </>
                 ) : (
-                  <><Lock className="w-3.5 h-3.5" /> Place order</>
+                  <>Continue to payment <ArrowRight className="w-3.5 h-3.5" /></>
                 )}
               </button>
 
-              <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/5">
-                <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black uppercase tracking-widest">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Secure booking
-                </div>
-                <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
-                  Bookings are confirmed with sellers before payment is captured.
-                </p>
+              <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-500">
+                <Lock className="w-3 h-3" /> Encrypted checkout powered by Stripe
               </div>
 
-              {/* Trust strip */}
-              <div className="mt-3 flex items-center justify-center gap-2 opacity-70">
-                <span className="h-6 px-1.5 rounded bg-white flex items-center"><VisaMark className="h-3 w-auto" /></span>
-                <span className="h-6 px-1.5 rounded bg-white flex items-center"><MastercardMark className="h-3.5 w-auto" /></span>
-                <span className="h-6 px-1.5 rounded bg-white flex items-center"><ApplePayMark className="h-3.5 w-auto" /></span>
-                <span className="h-6 px-1.5 rounded bg-white flex items-center"><PayPalMark className="h-3 w-auto" /></span>
+              <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/5">
+                <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black uppercase tracking-widest">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Buyer protection
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
+                  Money is held by HustleSpace and only released to the seller once your order
+                  is marked complete.
+                </p>
               </div>
             </aside>
           </div>

@@ -7,6 +7,7 @@ import { notificationsApi, directMessagesApi } from '../api/client';
 import { selectCartCount, openCart } from '../store/cartSlice';
 import GlobalSearch from './GlobalSearch';
 import { timeAgo } from '../utils/time';
+import { displayName } from '../utils/displayName';
 import PendingSalesButton from './PendingSalesButton';
 import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, Bell, CheckCheck, MoreHorizontal, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
 import { uploadUrl } from '../config';
@@ -337,13 +338,13 @@ export default function Navbar() {
                     <div className="w-7 h-7 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-[10px] uppercase shadow-sm overflow-hidden">
                       {user?.avatarUrl
                         ? <img src={uploadUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
-                        : user?.fullName?.[0] || 'U'}
+                        : displayName(user)[0]?.toUpperCase() || 'U'}
                     </div>
                   </button>
                   <div className="absolute right-0 top-full mt-1.5 w-48 py-2 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-1 group-hover:translate-y-0 backdrop-blur-3xl">
                     <div className="px-3 py-1.5 border-b border-white/5 mb-1.5">
                       <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Signed in as</p>
-                      <p className="text-xs text-white font-black truncate">{user?.fullName}</p>
+                      <p className="text-xs text-white font-black truncate">{displayName(user)}</p>
                     </div>
                     <Link to={`/profile/${user?.id}`} className="flex items-center px-3 py-1.5 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold"><User className="w-3.5 h-3.5 mr-2" /> Profile</Link>
                     <Link to="/dashboard" className="flex items-center px-3 py-1.5 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold"><LayoutDashboard className="w-3.5 h-3.5 mr-2" /> Dashboard</Link>
@@ -391,7 +392,7 @@ export default function Navbar() {
                   >
                     {user?.avatarUrl
                       ? <img src={uploadUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
-                      : user?.fullName?.[0] || 'U'}
+                      : displayName(user)[0]?.toUpperCase() || 'U'}
                   </button>
 
                   <AnimatePresence>
@@ -405,7 +406,7 @@ export default function Navbar() {
                       >
                         <div className="px-3 py-1.5 border-b border-white/5 mb-1.5">
                           <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Signed in as</p>
-                          <p className="text-xs text-white font-black truncate">{user?.fullName}</p>
+                          <p className="text-xs text-white font-black truncate">{displayName(user)}</p>
                         </div>
                         <Link to={`/profile/${user?.id}`} className="flex items-center px-3 py-2 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold">
                           <User className="w-3.5 h-3.5 mr-2" /> Profile
@@ -526,7 +527,7 @@ export default function Navbar() {
               }`}>
                 {user?.avatarUrl
                   ? <img src={uploadUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full bg-gray-800 flex items-center justify-center text-[#CDFF00] font-black text-[9px]">{user?.fullName?.[0] || 'U'}</div>
+                  : <div className="w-full h-full bg-gray-800 flex items-center justify-center text-[#CDFF00] font-black text-[9px]">{displayName(user)[0]?.toUpperCase() || 'U'}</div>
                 }
               </div>
             </Link>

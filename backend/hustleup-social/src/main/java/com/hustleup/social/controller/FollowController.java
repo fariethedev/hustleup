@@ -216,8 +216,7 @@ public class FollowController {
             User meUser = userRepository.findById(me).orElse(null);
             if (meUser != null) {
                 // Use full name if available; otherwise derive a display name from the email.
-                String followerName = meUser.getFullName() != null && !meUser.getFullName().isBlank()
-                        ? meUser.getFullName() : meUser.getEmail().split("@")[0];
+                String followerName = meUser.displayName();
                 notificationRepository.save(Notification.builder()
                         .userId(target)                         // recipient is the person being followed
                         .title("New follower")

@@ -7,6 +7,7 @@ import { usersApi, reviewsApi, listingsApi, feedApi, followsApi } from '../api/c
 import { useToast } from '../context/ToastContext';
 import ReviewStars from '../components/ReviewStars';
 import ListingCard from '../components/ListingCard';
+import { displayName } from '../utils/displayName';
 import DistanceBadge from '../components/DistanceBadge';
 import { timeAgo } from '../utils/time';
 import { uploadUrl } from '../config';
@@ -122,11 +123,11 @@ export default function Profile() {
       if (rel.blocked) {
         await followsApi.unblock(id);
         setRel((r) => ({ ...r, blocked: false }));
-        showToast(`${profile.fullName} unblocked`, 'success');
+        showToast(`${displayName(profile)} unblocked`, 'success');
       } else {
         await followsApi.block(id);
         setRel((r) => ({ ...r, blocked: true, isFollowing: false }));
-        showToast(`${profile.fullName} blocked`, 'success');
+        showToast(`${displayName(profile)} blocked`, 'success');
       }
     } catch (e) {
       showToast('Action failed — try again', 'error');
@@ -228,7 +229,7 @@ export default function Profile() {
           <div className="w-20 h-20 sm:w-36 sm:h-36 rounded-full overflow-hidden bg-black border-2 border-white/10 flex items-center justify-center">
             {profile.avatarUrl
               ? <img src={uploadUrl(profile.avatarUrl)} className="w-full h-full object-cover" />
-              : <span className="text-[#CDFF00] font-black text-3xl sm:text-5xl uppercase">{profile.fullName?.[0]}</span>}
+              : <span className="text-[#CDFF00] font-black text-3xl sm:text-5xl uppercase">{displayName(profile)[0]}</span>}
           </div>
           {profile.idVerified && (
             <div className="absolute bottom-0 right-0 sm:bottom-1 sm:right-1 w-7 h-7 rounded-full bg-[#CDFF00] text-black flex items-center justify-center border-[3px] border-[#050505]">
@@ -246,11 +247,11 @@ export default function Profile() {
               h1 had `truncate` without `min-w-0`, it refused to shrink and squeezed the
               actions off the edge on narrow screens. */}
           <h1 className="text-xl sm:text-2xl font-bold text-white truncate min-w-0 sm:hidden">
-            {profile.fullName || profile.username}
+            {displayName(profile)}
           </h1>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-3 sm:mt-0 [&>a]:flex-1 [&>button]:flex-1 sm:[&>a]:flex-none sm:[&>button]:flex-none">
             <h1 className="hidden sm:block text-xl sm:text-2xl font-bold text-white truncate min-w-0 flex-none">
-              {profile.fullName || profile.username}
+              {displayName(profile)}
             </h1>
 
             {isOwn ? (
@@ -460,12 +461,12 @@ export default function Profile() {
                     {(viewingPost.authorAvatarUrl || profile.avatarUrl)
                       ? <img src={uploadUrl(viewingPost.authorAvatarUrl || profile.avatarUrl)} alt="" className="w-full h-full object-cover" />
                       : <span className="text-sm font-black text-black">
-                          {(viewingPost.authorName || profile.fullName || '?')[0]?.toUpperCase()}
+                          {(viewingPost.authorName || displayName(profile))[0]?.toUpperCase()}
                         </span>}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-white truncate">
-                      {viewingPost.authorName || profile.fullName}
+                      {viewingPost.authorName || displayName(profile)}
                     </p>
                     <p className="text-[10px] text-gray-500 font-bold">{timeAgo(viewingPost.createdAt)}</p>
                   </div>
@@ -521,7 +522,7 @@ export default function Profile() {
               className="relative w-full max-w-md bg-[#141414] border border-white/10 rounded-2xl p-6"
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-bold flex items-center gap-2"><Flag className="w-4 h-4 text-red-400" /> Report {profile.fullName}</h3>
+                <h3 className="text-white font-bold flex items-center gap-2"><Flag className="w-4 h-4 text-red-400" /> Report {displayName(profile)}</h3>
                 <button onClick={() => setReportOpen(false)} className="p-1.5 rounded-full hover:bg-white/10 text-gray-500"><X className="w-4 h-4" /></button>
               </div>
               <textarea

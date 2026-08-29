@@ -287,7 +287,7 @@ public class StoryController {
                     userRepository.findById(UUID.fromString(viewerId)).ifPresent(u -> {
                         Map<String, Object> entry = new LinkedHashMap<>();
                         entry.put("id", u.getId().toString());
-                        entry.put("name", u.getFullName());
+                        entry.put("name", u.displayName());
                         entry.put("avatarUrl", u.getAvatarUrl());
                         entry.put("verified", u.isIdVerified());
                         entry.put("viewedAt", view.getViewedAt() != null ? view.getViewedAt().toString() : null);
@@ -406,7 +406,7 @@ public class StoryController {
             Story story = new Story();
             story.setId(UUID.randomUUID().toString());
             story.setAuthorId(currentUser.getId().toString());
-            story.setAuthorName(currentUser.getFullName());
+            story.setAuthorName(currentUser.displayName());
             story.setType(storyType);
             story.setContent(content);
             story.setCreatedAt(LocalDateTime.now());

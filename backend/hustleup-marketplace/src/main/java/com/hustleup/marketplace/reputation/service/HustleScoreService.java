@@ -109,7 +109,7 @@ public class HustleScoreService {
         Stats s = allStats(null).getOrDefault(userId, Stats.empty(userId));
         HustleScoreDto dto = toScoreDto(s);
         userRepository.findById(userId).ifPresent(u -> {
-            dto.setUserName(u.getFullName());
+            dto.setUserName(u.displayName());
             dto.setAvatarUrl(refresh(u.getAvatarUrl()));
         });
         return dto;
@@ -161,7 +161,7 @@ public class HustleScoreService {
             out.add(LeaderboardEntryDto.builder()
                     .rank(i + 1)
                     .userId(s.userId)
-                    .userName(u != null ? u.getFullName() : "Unknown hustler")
+                    .userName(u != null ? u.displayName() : "Unknown hustler")
                     .avatarUrl(u != null ? refresh(u.getAvatarUrl()) : null)
                     .city(u != null ? u.getCity() : null)
                     .verified(u != null && u.isIdVerified())

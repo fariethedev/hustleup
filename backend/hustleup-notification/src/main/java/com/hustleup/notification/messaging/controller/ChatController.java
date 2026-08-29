@@ -155,7 +155,7 @@ public class ChatController {
          // Enrich the DTO with the sender's human-readable name so the front-end
          // can display it without making a separate /users/{id} request.
          userRepository.findById(saved.getSenderId())
-                 .ifPresent(u -> dto.setSenderName(u.getFullName()));
+                 .ifPresent(u -> dto.setSenderName(u.displayName()));
 
          // Broadcast the enriched DTO to every STOMP client subscribed to
          // /topic/booking/{bookingId}.  This covers both the sender (so they
@@ -198,7 +198,7 @@ public class ChatController {
 
                      // Look up and attach the sender's display name.
                      userRepository.findById(msg.getSenderId())
-                             .ifPresent(u -> dto.setSenderName(u.getFullName()));
+                             .ifPresent(u -> dto.setSenderName(u.displayName()));
 
                      return dto;
                  })

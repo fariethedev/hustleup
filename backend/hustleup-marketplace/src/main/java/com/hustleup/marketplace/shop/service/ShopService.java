@@ -83,7 +83,7 @@ public class ShopService {
         dto.setListingCount(listingRepository.countBySellerIdAndStatus(shop.getOwnerId(), ListingStatus.ACTIVE));
 
         if (owner != null) {
-            dto.setOwnerName(owner.getFullName());
+            dto.setOwnerName(owner.displayName());
             dto.setOwnerAvatarUrl(owner.getAvatarUrl());
             dto.setOwnerVerified(owner.isIdVerified());
         }

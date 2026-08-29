@@ -12,13 +12,16 @@ import { useNavigate, Link } from 'react-router-dom';
 import BondCard from '../components/BondCard';
 import { formatPrice } from '../utils/constants';
 import { uploadUrl } from '../config';
+import { displayName, shortName } from '../utils/displayName';
 
 const getAvatar = (p) =>
   p?.imageUrl ||
   p?.avatarUrl ||
-  `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(p?.fullName || 'user')}`;
+  `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName(p))}`;
 
-const firstName = (p) => (p?.fullName || '').split(' ')[0] || 'them';
+// Was the first word of the full name. Now the handle, whole: a handle is already
+// short, and cutting one at a dot or underscore produces someone else's handle.
+const firstName = (p) => (p ? shortName(p) : 'them');
 
 // Swiping is a physical gesture, so it gets a physical response where the device has one.
 // Silently ignored on desktop and on iOS, neither of which expose the Vibration API.

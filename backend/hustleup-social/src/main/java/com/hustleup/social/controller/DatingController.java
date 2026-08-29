@@ -428,7 +428,7 @@ public class DatingController {
                 notificationRepo.save(Notification.builder()
                         .userId(profileId)
                         .title("Someone super liked you")
-                        .message(user.getFullName() + " super liked you on Bond")
+                        .message(user.displayName() + " super liked you on Bond")
                         .notificationType("DATING_SUPER_LIKE")
                         .referenceId(user.getId())
                         .build());
@@ -450,14 +450,14 @@ public class DatingController {
                     notificationRepo.save(Notification.builder()
                             .userId(user.getId())
                             .title("It's a match!")
-                            .message("You and " + target.getFullName() + " liked each other")
+                            .message("You and " + target.displayName() + " liked each other")
                             .notificationType("DATING_MATCH")
                             .referenceId(profileId)
                             .build());
                     notificationRepo.save(Notification.builder()
                             .userId(profileId)
                             .title("It's a match!")
-                            .message("You and " + user.getFullName() + " liked each other")
+                            .message("You and " + user.displayName() + " liked each other")
                             .notificationType("DATING_MATCH")
                             .referenceId(user.getId())
                             .build());

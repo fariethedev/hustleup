@@ -251,11 +251,11 @@ public class SwapService {
                 .incoming(viewerId != null && viewerId.equals(offer.getTargetOwnerId()));
 
         userRepository.findById(offer.getProposerId()).ifPresent(u -> {
-            b.proposerName(u.getFullName());
+            b.proposerName(u.displayName());
             b.proposerAvatarUrl(refresh(u.getAvatarUrl()));
         });
         userRepository.findById(offer.getTargetOwnerId()).ifPresent(u -> {
-            b.targetOwnerName(u.getFullName());
+            b.targetOwnerName(u.displayName());
             b.targetOwnerAvatarUrl(refresh(u.getAvatarUrl()));
         });
 

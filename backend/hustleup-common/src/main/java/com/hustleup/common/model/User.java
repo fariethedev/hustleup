@@ -332,4 +332,30 @@ public class User {
      */
     @Column(name = "push_token")
     private String pushToken;
+
+    /**
+     * The name to show other people: the public handle, falling back to the real name.
+     *
+     * <p>Every list, card, story ring, chat header and review byline in the app used to
+     * denormalise {@link #getFullName()} into a {@code *Name} field, so the platform showed
+     * people's real names to strangers by default. A handle is what a marketplace profile
+     * should lead with — it is the thing that appears in {@code /u/{username}} links, it is
+     * chosen rather than given, and it does not disclose someone's legal name to every
+     * anonymous browser.
+     *
+     * <p>The fallback matters as much as the preference: username was optional for most of
+     * this project's life, so a majority of existing accounts still have none. Preferring the
+     * handle without falling back would render those people nameless, which is worse than
+     * showing the name they already had.
+     *
+     * <p>Deliberately not used for admin views, support tickets, invoices or emails. Those
+     * want the real person, and {@code getFullName()} is still correct there.
+     *
+     * @return the username if set, otherwise the full name, otherwise the empty-safe fallback
+     */
+    public String displayName() {
+        if (username != null && !username.isBlank()) return username;
+        if (fullName != null && !fullName.isBlank()) return fullName;
+        return "Hustler";
+    }
 }

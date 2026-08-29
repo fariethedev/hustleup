@@ -282,7 +282,7 @@ public class DirectMessageController {
                     // a predictable JSON field order for the front-end.
                     Map<String, Object> partner = new LinkedHashMap<>();
                     partner.put("id", user.getId().toString());
-                    partner.put("name", user.getFullName());
+                    partner.put("name", user.displayName());
                     partner.put("avatarUrl", user.getAvatarUrl());
                     partner.put("verified", user.isIdVerified());   // ID-verified badge
                     partner.put("online", isOnline);
@@ -574,7 +574,7 @@ public class DirectMessageController {
         try {
             // Resolve the sender's display name for the notification title.
             String senderName = userRepo.findById(UUID.fromString(currentUserId))
-                    .map(u -> u.getFullName())
+                    .map(u -> u.displayName())
                     .orElse("Someone"); // fallback if the user record is missing
 
             String preview;
@@ -659,7 +659,7 @@ public class DirectMessageController {
         // Best-effort notification, mirroring the text-message flow.
         try {
             String senderName = userRepo.findById(UUID.fromString(currentUserId))
-                    .map(u -> u.getFullName())
+                    .map(u -> u.displayName())
                     .orElse("Someone");
             notificationRepo.save(Notification.builder()
                     .userId(UUID.fromString(partnerId))

@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShieldCheck, Lock, User, Mail, Phone, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ShieldCheck, Lock, User, Mail, Phone, Loader2, AlertCircle, CreditCard } from 'lucide-react';
 import { formatPrice } from '../utils/constants';
+import { getMethod } from '../utils/shipping';
 import { useShopProduct } from '../hooks/useShops';
 import { shopsApi } from '../api/client';
 import SmartImage from '../components/SmartImage';
-import PaymentMethodPicker from '../components/PaymentMethodPicker';
-import { findMethod } from '../utils/paymentMethods';
 import { ApplePayMark, PayPalMark, VisaMark, MastercardMark } from '../components/PaymentBrands';
 
 const STORAGE_KEY = 'hustleup_shop_checkout_draft';
@@ -15,16 +14,20 @@ const STORAGE_KEY = 'hustleup_shop_checkout_draft';
 /**
  * Checkout for a single shop product.
  *
- * Deliberately the same shape as the cart checkout: numbered steps on the left, a summary
- * that stays in view on the right, the same payment picker, and the same wording for the
- * money. Buying one item from a storefront and checking out a full cart used to look like
- * two different products.
+ * Deliberately the same shape as the cart checkout: details on the left, a summary that
+ * stays in view on the right, and the same wording for the money. Buying one item from a
+ * storefront and checking out a full cart used to look like two different products.
+ *
+ * <p>The payment-method picker is gone for the same reason it went from the cart: this flow
+ * ends in a Stripe Checkout redirect, which asks for the method itself. Whatever was chosen
+ * here was never sent anywhere, so the page collected a decision it could not honour and
+ * then printed it back as "Paying with PayPal" beside a button that might take a card.
  */
 export default function ShopCheckout() {
   const { id, productId } = useParams();
   const navigate = useNavigate();
   const { shop, product, loading, notFound } = useShopProduct(id, productId);
-  const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '', paymentMethod: 'paypal' });
+  const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -58,9 +61,12 @@ export default function ShopCheckout() {
 
   const quantity = Number(draft.quantity) || 1;
   const unitPrice = draft.offer ? Number(draft.offer) : Number(product.price);
-  const total = unitPrice * quantity;
+  // Postage is charged once per order, not per unit — the server does the same arithmetic
+  // when it builds the Stripe session, so the number here is the number that gets charged.
+  const shipping = Number(product.shippingPrice) || 0;
+  const shippingMethod = getMethod(product.shippingMethod);
+  const total = unitPrice * quantity + shipping;
 
-  const selected = findMethod(customer.paymentMethod);
   const canSubmit = !!(customer.fullName && customer.email) && !submitting;
   // Names the specific blocker so a disabled pay button is never a mystery.
   const missing = [
@@ -128,19 +134,28 @@ export default function ShopCheckout() {
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-6">
             <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">Checkout</h1>
-            <p className="inline-flex items-center gap-1.5 text-[11px] text-gray-500 font-bold mt-1.5">
-              <Lock className="w-3 h-3" /> Encrypted · {shop.name}
-            </p>
+            <p className="text-[11px] text-gray-500 font-bold mt-1.5">{shop.name}</p>
+            {/* Payment is a real step, it just happens on Stripe — showing it stops the
+                redirect feeling like the page threw you somewhere unexpected. */}
+            <div className="mt-3 inline-flex items-center gap-2 sm:gap-3 text-[10px] font-black uppercase tracking-widest">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#CDFF00] text-black">
+                <span className="w-4 h-4 rounded-full bg-black/20 flex items-center justify-center text-[9px]">1</span>
+                Your details
+              </span>
+              <span className="w-4 sm:w-6 h-px bg-white/20" />
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-400">
+                <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[9px]">2</span>
+                Pay on Stripe
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.85fr] gap-4">
             {/* ── Left: details + payment ── */}
             <div className="space-y-4">
               <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="w-6 h-6 rounded-full bg-[#CDFF00] text-black text-[11px] font-black flex items-center justify-center">1</span>
-                  <h2 className="text-xs font-black text-white uppercase tracking-widest">Your details</h2>
-                </div>
+                <h2 className="text-xs font-black text-white uppercase tracking-widest mb-1">Your details</h2>
+                <p className="text-[11px] text-gray-500 mb-4">So {shop.name} knows who to deliver to.</p>
                 <div className="space-y-2.5">
                   {field('fullName', 'Full name', 'text', User)}
                   {field('email', 'Email address', 'email', Mail)}
@@ -148,15 +163,28 @@ export default function ShopCheckout() {
                 </div>
               </section>
 
+              {/* Where the picker used to be: what the next screen does, not a choice this
+                  page cannot act on. */}
               <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="w-6 h-6 rounded-full bg-[#CDFF00] text-black text-[11px] font-black flex items-center justify-center">2</span>
-                  <h2 className="text-xs font-black text-white uppercase tracking-widest">Payment method</h2>
+                <div className="flex items-start gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/25 flex items-center justify-center shrink-0">
+                    <CreditCard className="w-4 h-4 text-[#CDFF00]" />
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="text-xs font-black text-white uppercase tracking-widest">Payment</h2>
+                    <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
+                      You&apos;ll choose how to pay on Stripe&apos;s secure page — card,
+                      Apple&nbsp;Pay, Google&nbsp;Pay, BLIK or PayPal, depending on what&apos;s
+                      available. Your card details never touch HustleSpace.
+                    </p>
+                    <div className="mt-3 flex items-center gap-2 opacity-80">
+                      <span className="h-6 px-1.5 rounded bg-white flex items-center"><VisaMark className="h-3 w-auto" /></span>
+                      <span className="h-6 px-1.5 rounded bg-white flex items-center"><MastercardMark className="h-3.5 w-auto" /></span>
+                      <span className="h-6 px-1.5 rounded bg-white flex items-center"><ApplePayMark className="h-3.5 w-auto" /></span>
+                      <span className="h-6 px-1.5 rounded bg-white flex items-center"><PayPalMark className="h-3 w-auto" /></span>
+                    </div>
+                  </div>
                 </div>
-                <PaymentMethodPicker
-                  value={customer.paymentMethod}
-                  onChange={(methodId) => setCustomer((c) => ({ ...c, paymentMethod: methodId }))}
-                />
               </section>
             </div>
 
@@ -183,15 +211,23 @@ export default function ShopCheckout() {
                   <span className="text-gray-400">Quantity</span>
                   <span className="text-white font-bold">{quantity}</span>
                 </div>
+                {/* Named with the method, not just a number: "Delivery 15 PLN" and
+                    "Parcel locker 15 PLN" are the same charge, but only the second tells the
+                    buyer what they're getting for it. Shown even when free, because free
+                    delivery is worth saying out loud. */}
+                {shippingMethod && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-400">{shippingMethod.label}</span>
+                    <span className={shipping > 0 ? 'text-white font-bold' : 'text-[#CDFF00] font-bold'}>
+                      {shipping > 0 ? formatPrice(shipping, product.currency) : 'Free'}
+                    </span>
+                  </div>
+                )}
                 {/* Stated outright rather than left as a dash — an unexplained "Fees" line is
                     exactly what makes people brace for a surprise on the next screen. */}
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-400">Fees</span>
                   <span className="text-[#CDFF00] font-bold">Included</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-400">Paying with</span>
-                  <span className="text-white font-bold">{selected?.label}</span>
                 </div>
                 <div className="flex items-center justify-between pt-2.5 border-t border-white/5">
                   <span className="text-white font-black uppercase tracking-widest text-xs">Total</span>
@@ -222,8 +258,8 @@ export default function ShopCheckout() {
                 className="mt-4 w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all shadow-[0_8px_24px_rgba(205,255,0,0.22)]"
               >
                 {submitting
-                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Taking you to payment…</>
-                  : <><Lock className="w-3.5 h-3.5" /> Pay securely</>}
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Taking you to Stripe…</>
+                  : <>Continue to payment <ArrowRight className="w-3.5 h-3.5" /></>}
               </button>
 
               {/* This flow now really does charge, so the copy says so. It previously read
@@ -238,11 +274,8 @@ export default function ShopCheckout() {
                 </p>
               </div>
 
-              <div className="mt-3 flex items-center justify-center gap-2 opacity-70">
-                <span className="h-6 px-1.5 rounded bg-white flex items-center"><VisaMark className="h-3 w-auto" /></span>
-                <span className="h-6 px-1.5 rounded bg-white flex items-center"><MastercardMark className="h-3.5 w-auto" /></span>
-                <span className="h-6 px-1.5 rounded bg-white flex items-center"><ApplePayMark className="h-3.5 w-auto" /></span>
-                <span className="h-6 px-1.5 rounded bg-white flex items-center"><PayPalMark className="h-3 w-auto" /></span>
+              <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-500">
+                <Lock className="w-3 h-3" /> Encrypted checkout powered by Stripe
               </div>
             </aside>
           </div>

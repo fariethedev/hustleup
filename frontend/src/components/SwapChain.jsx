@@ -54,7 +54,7 @@ export default function SwapChain({ limit = 8 }) {
                   {s.proposerAvatarUrl ? <img src={s.proposerAvatarUrl} alt="" className="w-full h-full object-cover" /> : null}
                 </div>
                 <span className="text-[10px] font-bold text-gray-300 truncate max-w-[70px] group-hover:text-white transition-colors">
-                  {s.proposerName?.split(' ')[0]}
+                  {s.proposerName}
                 </span>
               </Link>
 
@@ -65,7 +65,7 @@ export default function SwapChain({ limit = 8 }) {
                   {s.targetOwnerAvatarUrl ? <img src={s.targetOwnerAvatarUrl} alt="" className="w-full h-full object-cover" /> : null}
                 </div>
                 <span className="text-[10px] font-bold text-gray-300 truncate max-w-[70px] group-hover:text-white transition-colors">
-                  {s.targetOwnerName?.split(' ')[0]}
+                  {s.targetOwnerName}
                 </span>
               </Link>
             </div>
