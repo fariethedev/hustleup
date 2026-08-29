@@ -27,6 +27,8 @@ import com.hustleup.marketplace.booking.repository.BookingRepository;
 import com.hustleup.marketplace.review.dto.ReviewDto;
 import com.hustleup.marketplace.review.model.Review;
 import com.hustleup.marketplace.review.repository.ReviewRepository;
+import com.hustleup.marketplace.shop.model.ShopOrder;
+import com.hustleup.marketplace.shop.repository.ShopOrderRepository;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
@@ -49,15 +51,17 @@ public class ReviewController {
     private final ReviewRepository reviewRepository;     // save and query Review entities
     private final BookingRepository bookingRepository;   // verify booking status before allowing a review
     private final UserRepository userRepository;         // look up reviewer display name
+    private final ShopOrderRepository shopOrderRepository; // verify storefront orders the same way
 
     /**
      * Constructor injection: Spring provides all three repository beans automatically.
      */
     public ReviewController(ReviewRepository reviewRepository, BookingRepository bookingRepository,
-                            UserRepository userRepository) {
+                            UserRepository userRepository, ShopOrderRepository shopOrderRepository) {
         this.reviewRepository = reviewRepository;
         this.bookingRepository = bookingRepository;
         this.userRepository = userRepository;
+        this.shopOrderRepository = shopOrderRepository;
     }
 
     /**
@@ -95,38 +99,85 @@ public class ReviewController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         // Parse fields from the flexible Map body
-        UUID bookingId = UUID.fromString((String) body.get("bookingId"));
-        int rating = (int) body.get("rating");          // Jackson deserialises JSON integers as int
+        UUID bookingId = parseId(body.get("bookingId"));
+        UUID shopOrderId = parseId(body.get("shopOrderId"));
         String comment = (String) body.get("comment");  // optional; may be null
 
-        // Look up the booking to validate the review is permitted
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
-
-        // Rule 1: Only completed bookings can be reviewed.
-        // This prevents buyers from reviewing a seller they never actually transacted with.
-        if (booking.getStatus() != BookingStatus.COMPLETED) {
-            // ResponseEntity.badRequest() returns HTTP 400 — a client error (invalid input)
-            return ResponseEntity.badRequest().body(Map.of("error", "Can only review completed bookings"));
+        // Rating is the one field with no safe default. A malformed or absent value used to
+        // reach `(int) body.get("rating")` and throw a ClassCastException / NPE, surfacing as
+        // a 500 on what is plainly a bad request.
+        Object rawRating = body.get("rating");
+        if (!(rawRating instanceof Number)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "A rating between 1 and 5 is required"));
+        }
+        int rating = ((Number) rawRating).intValue();
+        if (rating < 1 || rating > 5) {
+            return ResponseEntity.badRequest().body(Map.of("error", "A rating between 1 and 5 is required"));
         }
 
-        // Rule 2: One review per booking. The unique constraint on Review.bookingId also
-        // enforces this at the DB level, but we check here first to give a friendly error message.
-        // Rule 2: one review per person per booking — NOT one per booking. The old check
-        // asked whether anyone had reviewed, so a seller rating their buyer silently removed
-        // the buyer's ability to rate the seller, which is the review a shop page lives on.
-        if (reviewRepository.existsByBookingIdAndReviewerId(bookingId, reviewer.getId())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "You have already reviewed this booking"));
+        // Exactly one source. Reviews are earned by a specific transaction, so a request that
+        // names neither has nothing to prove the reviewer ever dealt with the seller, and one
+        // that names both is ambiguous about which transaction is being spent.
+        if ((bookingId == null) == (shopOrderId == null)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "A review must reference exactly one booking or shop order"));
         }
 
-        // Determine who is being reviewed: the reviewer reviews the OTHER party in the booking.
-        // If the reviewer is the seller → they review the buyer; otherwise → they review the seller.
-        UUID reviewedId = booking.getSellerId().equals(reviewer.getId()) ?
-                booking.getBuyerId() : booking.getSellerId();
+        UUID reviewedId;
+
+        if (bookingId != null) {
+            Booking booking = bookingRepository.findById(bookingId)
+                    .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+            // Rule 1: Only completed bookings can be reviewed.
+            // This prevents buyers from reviewing a seller they never actually transacted with.
+            if (booking.getStatus() != BookingStatus.COMPLETED) {
+                // ResponseEntity.badRequest() returns HTTP 400 — a client error (invalid input)
+                return ResponseEntity.badRequest().body(Map.of("error", "Can only review completed bookings"));
+            }
+
+            // Rule 2: one review per person per booking — NOT one per booking. The old check
+            // asked whether anyone had reviewed, so a seller rating their buyer silently removed
+            // the buyer's ability to rate the seller, which is the review a shop page lives on.
+            if (reviewRepository.existsByBookingIdAndReviewerId(bookingId, reviewer.getId())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "You have already reviewed this booking"));
+            }
+
+            // Determine who is being reviewed: the reviewer reviews the OTHER party in the booking.
+            // If the reviewer is the seller → they review the buyer; otherwise → they review the seller.
+            reviewedId = booking.getSellerId().equals(reviewer.getId())
+                    ? booking.getBuyerId() : booking.getSellerId();
+        } else {
+            ShopOrder order = shopOrderRepository.findById(shopOrderId)
+                    .orElseThrow(() -> new RuntimeException("Shop order not found"));
+
+            // Only the buyer reviews here. A booking is a negotiation between two people and
+            // both sides rate each other; a storefront sale is one-directional, and letting a
+            // seller rate the customer who bought a mug would be a way to retaliate against a
+            // bad review, not a reputation signal anyone benefits from.
+            if (!order.getBuyerId().equals(reviewer.getId())) {
+                return ResponseEntity.status(403).body(Map.of("error", "You can only review your own orders"));
+            }
+
+            // FULFILLED, not PAID: paying starts the transaction, and the thing being rated is
+            // whether the seller actually delivered. Rating at PAID would let someone score a
+            // seller for an order that had not shipped.
+            if (order.getStatus() != ShopOrder.ShopOrderStatus.FULFILLED) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "You can review an order once the seller has marked it fulfilled"));
+            }
+
+            if (reviewRepository.existsByShopOrderIdAndReviewerId(shopOrderId, reviewer.getId())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "You have already reviewed this order"));
+            }
+
+            reviewedId = order.getSellerId();
+        }
 
         // Build and save the review entity
         Review review = Review.builder()
                 .bookingId(bookingId)
+                .shopOrderId(shopOrderId)
                 .reviewerId(reviewer.getId())
                 .reviewedId(reviewedId)
                 .rating(rating)
@@ -135,7 +186,7 @@ public class ReviewController {
 
         ReviewDto dto = ReviewDto.fromEntity(reviewRepository.save(review));
         // Enrich the DTO with the reviewer's display name (not stored on the Review entity)
-        dto.setReviewerName(reviewer.getFullName());
+        dto.setReviewerName(reviewer.displayName());
         return ResponseEntity.ok(dto);
     }
 
@@ -164,7 +215,7 @@ public class ReviewController {
                         ReviewDto dto = ReviewDto.fromEntity(r); // map entity to DTO
                         // Enrich each review with the reviewer's display name
                         userRepository.findById(r.getReviewerId())
-                                .ifPresent(u -> dto.setReviewerName(u.getFullName()));
+                                .ifPresent(u -> dto.setReviewerName(u.displayName()));
                         return dto;
                     })
                     .collect(Collectors.toList());
@@ -173,6 +224,22 @@ public class ReviewController {
             // If any part of the query or enrichment fails, return an empty list
             // rather than propagating a 500 error to the profile page.
             return ResponseEntity.ok(List.of());
+        }
+    }
+
+    /**
+     * Reads an optional UUID out of the request body.
+     *
+     * <p>Returns null for absent, blank and unparseable values alike. The caller decides what
+     * a missing id means; the alternative — {@code UUID.fromString((String) body.get(...))} —
+     * threw on every one of those cases and surfaced as a 500.
+     */
+    private static UUID parseId(Object raw) {
+        if (!(raw instanceof String str) || str.isBlank()) return null;
+        try {
+            return UUID.fromString(str.trim());
+        } catch (IllegalArgumentException e) {
+            return null;
         }
     }
 }

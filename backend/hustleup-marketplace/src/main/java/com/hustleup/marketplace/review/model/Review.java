@@ -37,11 +37,19 @@ import java.util.UUID;
 // bare unique=true, which meant whichever party reviewed first permanently locked the other
 // one out — a seller rating their buyer silently destroyed the buyer's ability to rate the
 // seller, which is the review the shop page depends on.
+// The storefront constraint is the same rule for the other source of reviews. MySQL treats
+// NULLs as distinct in a unique index, so a booking-sourced review (shop_order_id NULL) never
+// collides with another, and vice versa — the two constraints stay out of each other's way.
 @Table(
     name = "reviews",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uk_reviews_booking_reviewer",
-        columnNames = {"booking_id", "reviewer_id"})
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_reviews_booking_reviewer",
+            columnNames = {"booking_id", "reviewer_id"}),
+        @UniqueConstraint(
+            name = "uk_reviews_shop_order_reviewer",
+            columnNames = {"shop_order_id", "reviewer_id"})
+    }
 )
 // Lombok: @Getter/@Setter generate all accessors; @Builder provides a fluent builder;
 // @NoArgsConstructor is required by JPA; @AllArgsConstructor is used by @Builder.
@@ -60,8 +68,24 @@ public class Review {
     // unique = true enforces the "one review per booking" rule at the database level —
     // even if application logic fails, the DB constraint prevents duplicates.
     @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(name = "booking_id", nullable = false, columnDefinition = "VARCHAR(36)")
-    private UUID bookingId; // the booking that triggered this review (soft FK to bookings table)
+    /**
+     * The booking that earned this review, or null when it came from a storefront order.
+     *
+     * <p>Nullable since storefront sales exist: buying from a shop creates a ShopOrder and
+     * never a Booking, so requiring one here is what left storefront customers with no way to
+     * review the seller they had just paid. Exactly one of this and {@link #shopOrderId} is
+     * set — see ReviewController.create, which refuses both and neither.
+     */
+    @Column(name = "booking_id", columnDefinition = "VARCHAR(36)")
+    private UUID bookingId;
+
+    /**
+     * The storefront order that earned this review, or null when it came from a booking.
+     *
+     * <p>A soft FK to shop_orders, matching how bookingId references bookings.
+     */
+    @Column(name = "shop_order_id", columnDefinition = "VARCHAR(36)")
+    private UUID shopOrderId;
 
     // The user who wrote the review. Determined at review-creation time by the controller,
     // which reads the authenticated user's ID.

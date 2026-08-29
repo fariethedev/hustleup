@@ -23,7 +23,8 @@ public class ReviewDto {
     private UUID id;        // unique identifier of this review
 
     // --- Booking reference ---
-    private UUID bookingId; // the booking this review is attached to (one-to-one)
+    private UUID bookingId;    // the booking this review came from, or null if it was a shop order
+    private UUID shopOrderId;  // the storefront order this review came from, or null if it was a booking
 
     // --- Reviewer info ---
     private UUID reviewerId;      // UUID of the user who wrote the review
@@ -57,6 +58,7 @@ public class ReviewDto {
         return ReviewDto.builder()
                 .id(review.getId())
                 .bookingId(review.getBookingId())
+                .shopOrderId(review.getShopOrderId())
                 .reviewerId(review.getReviewerId())
                 .reviewedId(review.getReviewedId())
                 .rating(review.getRating())

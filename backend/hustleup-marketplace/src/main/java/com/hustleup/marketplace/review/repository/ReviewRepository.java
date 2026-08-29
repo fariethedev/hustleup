@@ -63,6 +63,19 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
     List<Review> findByBookingId(UUID bookingId);
 
     /**
+     * Whether this reviewer has already reviewed this storefront order.
+     *
+     * <p>The storefront counterpart of {@link #existsByBookingIdAndReviewerId}. Scoped to the
+     * reviewer rather than the order alone for the same reason: both sides of a sale may
+     * review it, and asking only "has anyone reviewed this order" would let whichever of them
+     * went first silently consume the other's turn.
+     */
+    boolean existsByShopOrderIdAndReviewerId(UUID shopOrderId, UUID reviewerId);
+
+    /** Every review this reviewer has left against the given storefront orders. */
+    List<Review> findByReviewerIdAndShopOrderIdIn(UUID reviewerId, List<UUID> shopOrderIds);
+
+    /**
      * Reviews the given person has written across a set of bookings. Used to work out which
      * of someone's completed transactions are still awaiting their review, in one query
      * rather than one per booking.

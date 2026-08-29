@@ -99,6 +99,19 @@ public class AuthDtos {
         // Phone is optional (no @NotBlank) — users may not want to provide it.
         private String phone; // optional contact phone number
 
+        /**
+         * Home city, chosen at sign-up. Optional, and deliberately so: the marketplace works
+         * without it, and making it required would cost sign-ups from anyone whose city is not
+         * on the list the form offers. Setting it is what puts a real location on the user's
+         * listings and shop card in place of the country-level "Polska" fallback.
+         *
+         * <p>Length-capped rather than restricted to a fixed set. The form offers a list, but
+         * pinning the server to it would mean a new city could not be accepted without a
+         * backend release, and the value is only ever displayed as a label.
+         */
+        @Size(max = 100, message = "City must be 100 characters or fewer")
+        private String city;
+
         // @Pattern restricts the value to a specific regex. This ensures the client
         // cannot create an account with an unsupported role (e.g., "ADMIN").
         @NotBlank(message = "Role is required")

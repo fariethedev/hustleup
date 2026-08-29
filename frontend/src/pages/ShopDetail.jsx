@@ -244,6 +244,7 @@ export default function ShopDetail() {
           {/* Left Column: Feed & Explore */}
           <div className="order-2 lg:order-1 min-w-0">
             <ShopReviews
+              shopId={shop.id}
               ownerId={shop.ownerId}
               ownerName={shop.ownerName}
               rating={shop.rating}

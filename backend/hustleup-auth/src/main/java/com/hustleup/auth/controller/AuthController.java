@@ -241,6 +241,11 @@ public class AuthController {
                 .fullName(request.getFullName())
                 .username(username)
                 .phone(request.getPhone())
+                // Blank normalises to null so "no city" is one value in the database rather
+                // than two — displayCity() on the client treats them alike, but a report
+                // grouping by city would otherwise split the same absence into two buckets.
+                .city(request.getCity() == null || request.getCity().isBlank()
+                        ? null : request.getCity().trim())
                 .role(Role.valueOf(request.getRole())) // convert "BUYER"/"SELLER" string to enum
                 .termsAcceptedAt(Instant.now().atZone(java.time.ZoneOffset.UTC).toLocalDateTime())
                 .build();
