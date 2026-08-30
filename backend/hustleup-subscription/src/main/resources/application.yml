@@ -7,11 +7,16 @@ spring:
     password: ${MYSQL_PASSWORD}
   # Schema is owned by Flyway (migrations live in hustleup-common, since all services
   # share one database). baseline-on-migrate records the pre-existing Hibernate-built
-  # schema as V1 rather than trying to recreate it; see V1__baseline.sql.
+  # Baselined at 11, above every pre-existing migration. Those V1-V11 files were never
+  # applied: Flyway was not a dependency and was never configured, so the live schema was
+  # built by Hibernate instead. They are also unguarded — V1 does a bare CREATE TABLE
+  # users, V8 a bare ADD COLUMN — so running them against the schema that already exists
+  # would fail on the first statement. Baselining above them means they never execute,
+  # and only V12 onward applies.
   flyway:
     enabled: true
     baseline-on-migrate: true
-    baseline-version: 1
+    baseline-version: 11
   jpa:
     hibernate:
       # validate, not update: Hibernate no longer changes the schema, it only checks that
