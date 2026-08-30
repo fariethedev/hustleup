@@ -150,6 +150,31 @@ public class Post {
     private boolean anonymous = false;
 
     /**
+     * The community this was posted into, or null for a post to the open feed.
+     *
+     * <p>A plain id rather than a {@code @ManyToOne}, matching how {@code authorId} is
+     * handled: the feed queries filter on it in bulk and never need the community object
+     * itself, so a join would only cost a load per post.
+     */
+    @Column(name = "community_id", columnDefinition = "VARCHAR(36)")
+    private String communityId;
+
+    /**
+     * The post this one reposts, or null for original content.
+     *
+     * <p>A repost is a real Post row rather than a join-table entry, which is what lets it
+     * carry the reposter's own commentary, sit in the timeline at the moment they shared
+     * it, and be liked and replied to on its own terms. The original is resolved at read
+     * time and nested into the DTO, so editing or deleting a repost never touches it.
+     */
+    @Column(name = "repost_of_id", columnDefinition = "VARCHAR(36)")
+    private String repostOfId;
+
+    /** How many times this post has been reposted. Denormalised, like likesCount. */
+    @Column(name = "repost_count")
+    private Integer repostCount = 0;
+
+    /**
      * Timestamp of when the post was created, set automatically by Hibernate.
      *
      * <p>{@code @CreationTimestamp} tells Hibernate to set this field to the current
@@ -235,6 +260,21 @@ public class Post {
     public Integer getCommentsCount() { return commentsCount == null ? 0 : commentsCount; }
     /** Sets the comment count. */
     public void setCommentsCount(Integer commentsCount) { this.commentsCount = commentsCount; }
+
+    /** Returns the community this was posted into, or null for the open feed. */
+    public String getCommunityId() { return communityId; }
+    /** Sets the owning community. */
+    public void setCommunityId(String communityId) { this.communityId = communityId; }
+
+    /** Returns the id of the post this one reposts, or null if it is original. */
+    public String getRepostOfId() { return repostOfId; }
+    /** Sets the reposted post's id. */
+    public void setRepostOfId(String repostOfId) { this.repostOfId = repostOfId; }
+
+    /** Returns the repost count, defaulting to 0 for rows predating the column. */
+    public Integer getRepostCount() { return repostCount == null ? 0 : repostCount; }
+    /** Sets the repost count. */
+    public void setRepostCount(Integer repostCount) { this.repostCount = repostCount; }
 
     /** Returns true if this post was published anonymously. */
     public boolean isAnonymous() { return anonymous; }

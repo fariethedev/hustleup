@@ -64,5 +64,21 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
+
+        <!-- Schema migrations.
+             Lives in common, alongside db/migration, because all six services share ONE
+             database. Putting the migrations here means every service resolves the same
+             set, so the shared flyway_schema_history stays consistent no matter which
+             service boots first — a per-service migration folder against one history table
+             would fail with "detected applied migration not resolved locally".
+             Versions come from the Spring Boot BOM. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
     </dependencies>
 </project>

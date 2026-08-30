@@ -18,6 +18,7 @@
 package com.hustleup.marketplace.booking.controller;
 
 import com.hustleup.marketplace.booking.dto.BookingDto;
+import com.hustleup.marketplace.shipping.FulfilmentUpdateRequest;
 import com.hustleup.marketplace.booking.service.BookingService;
 import com.stripe.exception.StripeException;
 import org.springframework.http.ResponseEntity;
@@ -192,6 +193,26 @@ public class BookingController {
      * @return 200 OK with a JSON array of {@link BookingDto}, ordered newest first
      */
     /**
+     * Records how the seller is sending a paid order, and how far along it is.
+     *
+     * <p><b>PATCH /api/v1/bookings/{id}/fulfilment</b> — the seller of this booking, or an
+     * admin. Body: {@code {"status":"SHIPPED","carrier":"InPost","trackingNumber":"…",
+     * "trackingUrl":"…","dropoffPoint":"…","estimatedDelivery":"2026-09-04","note":"…"}}
+     *
+     * <p>Only {@code status} is required, and only the keys sent are written — a seller
+     * adding the courier reference the morning after shipping does not have to retype the
+     * note they left the night before. Which statuses are legal depends on the shipping
+     * method the listing was posted with: see {@link com.hustleup.marketplace.shipping.ShippingMethod}.
+     *
+     * <p>Every accepted status change notifies the buyer in-app, by email and by push.
+     */
+    @PatchMapping("/{id}/fulfilment")
+    public ResponseEntity<BookingDto> updateFulfilment(
+            @PathVariable UUID id, @RequestBody FulfilmentUpdateRequest body) {
+        return ResponseEntity.ok(bookingService.updateFulfilment(id, body));
+    }
+
+    /**
      * The seller's outstanding sales — the pending-orders badge and panel.
      *
      * <p><b>GET /api/v1/bookings/pending-sales</b> — auth required, seller side only.
@@ -200,6 +221,42 @@ public class BookingController {
     @GetMapping("/pending-sales")
     public ResponseEntity<List<BookingDto>> pendingSales() {
         return ResponseEntity.ok(bookingService.getPendingSales());
+    }
+
+    /**
+     * Reconciles a Stripe checkout session the buyer has just returned from.
+     *
+     * <p><b>POST /api/v1/bookings/confirm-payment</b> — body {@code {"sessionId": "cs_..."}}
+     *
+     * <p>The webhook remains the authority on payment, but it is not something the buyer's
+     * browser can wait for: locally it never arrives at all, and in production it can land
+     * after the redirect. Until it does, a buyer who has genuinely paid sees an unpaid order
+     * with a "Pay now" button — so this asks Stripe directly, on the buyer's return, and
+     * applies exactly the same transition the webhook would.
+     *
+     * <p>Stripe is the source of truth here, not the caller: the session is fetched from the
+     * API and only a {@code payment_status} of {@code paid} counts. Passing someone else's
+     * session id therefore grants nothing that Stripe has not already been paid for.
+     *
+     * @return the updated bookings, or 202 with an empty list when the session is not paid yet
+     */
+    @PostMapping("/confirm-payment")
+    public ResponseEntity<?> confirmPayment(@RequestBody Map<String, String> body) {
+        String sessionId = body == null ? null : body.get("sessionId");
+        if (sessionId == null || sessionId.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "sessionId is required"));
+        }
+        try {
+            com.stripe.model.checkout.Session session = com.stripe.model.checkout.Session.retrieve(sessionId);
+            if (!"paid".equals(session.getPaymentStatus())) {
+                // Not an error: card authorisations and bank redirects can settle late. The
+                // client keeps whatever status it already has rather than showing a failure.
+                return ResponseEntity.accepted().body(List.of());
+            }
+            return ResponseEntity.ok(bookingService.applyPaidSession(session));
+        } catch (com.stripe.exception.StripeException e) {
+            return ResponseEntity.status(502).body(Map.of("error", "Could not verify the payment with Stripe"));
+        }
     }
 
     @GetMapping("/my") // handles GET /api/v1/bookings/my

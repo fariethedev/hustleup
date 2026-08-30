@@ -3,9 +3,11 @@ import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
-import { directMessagesApi, notificationsApi, usersApi } from '../api/client';
+import { directMessagesApi, notificationsApi, usersApi, dispatchToast } from '../api/client';
 import { formatPrice } from '../utils/constants';
 import { uploadUrl } from '../config';
+import { shortName } from '../utils/displayName';
+import SmartImage from '../components/SmartImage';
 import {
   MessageSquareOff, User, BadgeCheck, ArrowLeft,
   Paperclip, Smile, MoreVertical, Search, Send,
@@ -31,7 +33,9 @@ const STICKERS = ['🔥','❤️','😂','👍','🎉','😍','🥳','💯','�
 const ROSE = '#FF4E8E';
 const BLUSH = '#FFA6C9';
 
-const firstNameOf = (person) => (person?.name || person?.fullName || 'them').split(' ')[0];
+// See utils/displayName: a handle is returned whole, only a fallback real name is
+// shortened to its first word.
+const firstNameOf = (person) => (person ? shortName(person) : 'them');
 
 /** The date a match happened, worded the way you'd say it out loud. */
 const formatMatchDate = (iso) => {
@@ -306,6 +310,7 @@ export default function DirectMessages() {
     if (activePartner) {
       setMessages([]);
       jumpOnNextDataRef.current = true;
+      stickToBottomRef.current = true;
       loadMessages(activePartner);
       // Clear the notification bell once per conversation opened. This used to sit
       // inside loadMessages, which the 5s poll re-runs — so simply having a chat
@@ -358,6 +363,42 @@ export default function DirectMessages() {
     el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
   };
 
+  /**
+   * Keeps the thread pinned to the bottom while its own height is still settling.
+   *
+   * Opening a chat scrolled to scrollHeight once, on the render that first had messages —
+   * but at that instant no photo in the thread had loaded, so scrollHeight was measured
+   * against bubbles that were still nearly empty. Every image that decoded afterwards grew
+   * the content below the fixed scrollTop, which reads on screen as the conversation
+   * drifting upward on its own and leaving you parked somewhere in the middle of it.
+   *
+   * A ResizeObserver on the scrolling element re-pins on each of those growth steps, so the
+   * bottom stays the bottom until the layout stops moving. `stickToBottomRef` is what makes
+   * that safe: the moment the reader scrolls up to look at something, it goes false and
+   * nothing drags them back down.
+   */
+  const stickToBottomRef = useRef(true);
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el || !activePartner) return;
+    const observer = new ResizeObserver(() => {
+      if (stickToBottomRef.current) scrollToLatest(false);
+    });
+    observer.observe(el);
+    // Also watch the content itself: the container is flex-sized and may never change size
+    // while everything inside it does.
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    return () => observer.disconnect();
+  }, [activePartner]);
+
+  /** Reader's intent, sampled on every scroll: are they still following the live end? */
+  const handleThreadScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
+
   useEffect(() => {
     // No open conversation means the panel is closing or gone; there is nothing to follow.
     if (!activePartner) return;
@@ -368,6 +409,9 @@ export default function DirectMessages() {
       if (messages.length === 0) return; // wait for the conversation to load
       lastMsgKeyRef.current = lastKey;
       jumpOnNextDataRef.current = false;
+      // Opening a chat always starts at the live end, and stays there while the photos in
+      // it load — the ResizeObserver above does the staying.
+      stickToBottomRef.current = true;
       scrollToLatest(false);
       return;
     }
@@ -383,7 +427,7 @@ export default function DirectMessages() {
 
   // Shared optimistic-send plumbing: append a temp message (single gray tick),
   // run the request, swap in the server copy or roll back on failure.
-  const optimisticSend = async (optimisticFields, request, onFail) => {
+  const optimisticSend = async (optimisticFields, request, onFail, failMessage) => {
     const tempId = `tmp-${Date.now()}`;
     const optimistic = { id: tempId, senderId: user?.id, receiverId: activePartner, createdAt: new Date().toISOString(), ...optimisticFields };
     setMessages((prev) => [...prev, optimistic]);
@@ -396,6 +440,17 @@ export default function DirectMessages() {
       console.error(err);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       onFail?.();
+      // A rejected send used to vanish in silence: the bubble was pulled and nothing was
+      // said, so a photo the server refused looked exactly like a photo that "didn't show".
+      // 413 is the one worth naming, since the fix is the sender's to make.
+      const status = err.response?.status;
+      dispatchToast(
+        err.response?.data?.error
+        || (status === 413 ? 'That photo is too large to send.' : null)
+        || failMessage
+        || 'Could not send that. Check your connection and try again.',
+        'error'
+      );
       return false;
     } finally {
       setSendingIds((prev) => { const s = new Set(prev); s.delete(tempId); return s; });
@@ -415,11 +470,15 @@ export default function DirectMessages() {
       setAttachedImage(null);
       setAttachedPreview('');
       setNewMsg('');
-      await optimisticSend(
+      const sent = await optimisticSend(
         { content: caption, messageType: 'IMAGE', mediaUrl: preview },
         () => directMessagesApi.sendImage(activePartner, file, caption),
-        () => { setAttachedImage(file); setAttachedPreview(preview); setNewMsg(caption); }
+        () => { setAttachedImage(file); setAttachedPreview(preview); setNewMsg(caption); },
+        'Could not send that photo.'
       );
+      // The optimistic bubble held this blob; once the server copy has replaced it (or the
+      // send failed and the attachment was restored under a fresh preview) it is dead weight.
+      if (sent) URL.revokeObjectURL(preview);
       setUploading(false);
       inputRef.current?.focus();
       return;
@@ -1079,6 +1138,7 @@ export default function DirectMessages() {
                 {/* Messages */}
                 <div
                   ref={scrollContainerRef}
+                  onScroll={handleThreadScroll}
                   className="flex-1 min-h-0 overflow-y-auto px-4 md:px-10 py-4 scrollbar-hide"
                 >
                   {messages.length === 0 && activeIsBondMatch ? (
@@ -1351,14 +1411,16 @@ export default function DirectMessages() {
                             >
                               {isImage ? (
                                 <>
-                                  <motion.img
-                                    src={uploadUrl(msg.mediaUrl)}
+                                  {/* SmartImage, not a bare <img>: it resolves the server-relative
+                                      "/uploads/…" the API returns, passes the blob: preview of an
+                                      in-flight upload through untouched, and draws a placeholder
+                                      when the file is missing. A raw <img> gave a silent empty
+                                      bubble for all three of those. */}
+                                  <SmartImage
+                                    src={msg.mediaUrl}
                                     alt="Photo"
                                     onClick={() => setLightboxUrl(msg.mediaUrl)}
-                                    whileHover={reduceMotion ? {} : { scale: 1.015 }}
-                                    whileTap={{ scale: 0.985 }}
-                                    transition={SOFT_SPRING}
-                                    className={`rounded-xl max-h-[320px] w-full min-w-[180px] object-cover cursor-pointer ${pending ? 'opacity-60' : ''}`}
+                                    className={`rounded-xl max-h-[320px] w-full min-w-[180px] aspect-[4/3] object-cover cursor-pointer ${pending ? 'opacity-60' : ''}`}
                                   />
                                   {msg.content && (
                                     <p className="text-white whitespace-pre-wrap px-1.5 pt-1.5 pb-1">

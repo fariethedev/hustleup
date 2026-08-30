@@ -39,6 +39,11 @@ import com.hustleup.marketplace.review.repository.ReviewRepository;
 import com.hustleup.marketplace.payments.model.SellerPayoutAccount;
 import com.hustleup.marketplace.payments.repository.SellerPayoutAccountRepository;
 import com.hustleup.marketplace.payments.service.StripeConnectService;
+import com.hustleup.marketplace.shipping.Fulfilment;
+import com.hustleup.marketplace.shipping.FulfilmentStatus;
+import com.hustleup.marketplace.shipping.FulfilmentUpdateRequest;
+import com.hustleup.marketplace.shipping.ShipmentService;
+import com.hustleup.marketplace.shipping.ShippingMethod;
 import com.hustleup.marketplace.ticket.service.TicketService;
 import com.hustleup.common.email.EmailService;
 import com.hustleup.common.push.ExpoPushService;
@@ -47,13 +52,16 @@ import com.hustleup.common.model.User;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import com.stripe.exception.StripeException;
+import org.springframework.http.HttpStatus;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -87,6 +95,7 @@ public class BookingService {
     private final ExpoPushService expoPushService; // same lifecycle events, as a mobile push
     private final TicketService ticketService; // issues/voids digital tickets for EVENT bookings
     private final NotificationRepository notificationRepository; // in-app alerts — powers the real-time negotiation popup
+    private final ShipmentService shipmentService; // delivery-track updates and the alerts they generate
     private final ReviewRepository reviewRepository; // completing a booking records the completer's review in the same step
 
     /**
@@ -102,7 +111,7 @@ public class BookingService {
                           StripeConnectService stripeConnectService,
                           EmailService emailService, ExpoPushService expoPushService,
                           TicketService ticketService, NotificationRepository notificationRepository,
-                          ReviewRepository reviewRepository) {
+                          ReviewRepository reviewRepository, ShipmentService shipmentService) {
         this.bookingRepository = bookingRepository;
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
@@ -114,6 +123,7 @@ public class BookingService {
         this.ticketService = ticketService;
         this.reviewRepository = reviewRepository;
         this.notificationRepository = notificationRepository;
+        this.shipmentService = shipmentService;
     }
 
     /**
@@ -243,6 +253,7 @@ public class BookingService {
                     .offeredPrice(listing.getPrice())
                     .agreedPrice(listing.getPrice())
                     .currency(listing.getCurrency())
+                    .fulfilment(deliveryFor(listing))
                     .scheduledAt(slot.getStartTime())
                     .availabilitySlotId(slot.getId())
                     .quantity(1)
@@ -264,6 +275,7 @@ public class BookingService {
                     .offeredPrice(listing.getPrice())
                     .agreedPrice(listing.getPrice().multiply(BigDecimal.valueOf(qty)))
                     .currency(listing.getCurrency())
+                    .fulfilment(deliveryFor(listing))
                     .scheduledAt(scheduledAt)
                     .quantity(qty)
                     .status(BookingStatus.BOOKED)
@@ -289,6 +301,7 @@ public class BookingService {
                     .offeredPrice(listing.getPrice())
                     .agreedPrice(listing.getPrice().multiply(BigDecimal.valueOf(qty)))
                     .currency(listing.getCurrency())
+                    .fulfilment(deliveryFor(listing))
                     .scheduledAt(scheduledAt)
                     .quantity(qty)
                     .status(BookingStatus.BOOKED)
@@ -312,6 +325,7 @@ public class BookingService {
                 // Use the buyer's custom offer if provided; otherwise default to the listing price
                 .offeredPrice(offer)
                 .currency(listing.getCurrency()) // lock in the currency from the listing
+                .fulfilment(deliveryFor(listing))
                 .scheduledAt(scheduledAt)
                 .quantity(qty)
                 .status(BookingStatus.INQUIRED) // explicitly start at INQUIRED (formal request sent)
@@ -322,8 +336,7 @@ public class BookingService {
         // This is the moment the seller needs to hear about immediately — everything downstream
         // (accept/decline/counter) hinges on them seeing it, so it's the one booking event that
         // gets a dedicated notification type the frontend's real-time popup polls for.
-        String buyerName = buyer.getFullName() != null && !buyer.getFullName().isBlank()
-                ? buyer.getFullName() : buyer.getEmail().split("@")[0];
+        String buyerName = buyer.displayName();
         notifyInApp(listing.getSellerId(),
                 buyerName + " wants to book " + listing.getTitle(),
                 buyerName + " offered " + offer + " " + listing.getCurrency() + " for \"" + listing.getTitle() + "\".",
@@ -483,8 +496,7 @@ public class BookingService {
 
         String listingTitle = listingRepository.findById(booking.getListingId())
                 .map(Listing::getTitle).orElse("your booking");
-        String sellerName = seller.getFullName() != null && !seller.getFullName().isBlank()
-                ? seller.getFullName() : seller.getEmail().split("@")[0];
+        String sellerName = seller.displayName();
         notifyInApp(booking.getBuyerId(),
                 sellerName + " countered on " + listingTitle,
                 sellerName + " proposed " + counterPrice + " " + booking.getCurrency() + " for \"" + listingTitle + "\".",
@@ -639,6 +651,60 @@ public class BookingService {
      * @param bookingId UUID of the booking to complete
      * @return the updated booking DTO with COMPLETED status
      */
+    /**
+     * Applies a completed Stripe checkout session to the bookings it paid for.
+     *
+     * <p>Shared by two callers on purpose. The webhook is the authority, but it only ever
+     * arrives when Stripe can reach this server — in local development it never does, and in
+     * production it can lag the buyer's redirect by seconds. Without a second path the buyer
+     * lands back in the app having genuinely paid and sees an unpaid order with a "Pay now"
+     * button, which is alarming and invites a double payment.
+     *
+     * <p>Both paths run this same code so they cannot drift, and it is safe to run twice:
+     * the payment status is only written when it is not already terminal, and
+     * {@link ShipmentService#confirmPaid} returns early once a fulfilment has moved past
+     * AWAITING_PAYMENT.
+     *
+     * @param session a Stripe checkout session that has already been verified as paid
+     * @return the bookings that were updated, as DTOs for the caller who is waiting on them
+     */
+    @Transactional
+    public List<BookingDto> applyPaidSession(com.stripe.model.checkout.Session session) {
+        List<Booking> paid = new ArrayList<>();
+
+        // Bookings are identified by an id list in metadata, falling back to the payment
+        // intent for sessions created before that metadata existed.
+        String csv = session.getMetadata() == null ? null : session.getMetadata().get("bookingIds");
+        if (csv != null && !csv.isBlank()) {
+            for (String raw : csv.split(",")) {
+                try {
+                    bookingRepository.findById(UUID.fromString(raw.trim())).ifPresent(paid::add);
+                } catch (IllegalArgumentException ignored) {
+                    // A malformed id in metadata should not sink the whole reconciliation.
+                }
+            }
+        } else if (session.getPaymentIntent() != null) {
+            paid = bookingRepository.findAllByPaymentIntentId(session.getPaymentIntent());
+        }
+
+        List<BookingDto> updated = new ArrayList<>();
+        for (Booking booking : paid) {
+            // Never walk a refund or a completed payout backwards.
+            if (!List.of("PAID", "TRANSFERRED", "REFUNDED").contains(booking.getPaymentStatus())) {
+                booking.setPaymentStatus("PAID");
+            }
+            if (session.getPaymentIntent() != null) {
+                booking.setPaymentIntentId(session.getPaymentIntent());
+            }
+            String title = listingRepository.findById(booking.getListingId())
+                    .map(Listing::getTitle).orElse("your order");
+            shipmentService.confirmPaid(booking.getFulfilment(), title,
+                    booking.getId(), booking.getBuyerId(), booking.getSellerId());
+            updated.add(enrichDto(bookingRepository.save(booking), booking.getBuyerId()));
+        }
+        return updated;
+    }
+
     @Transactional
     public BookingDto complete(UUID bookingId, Integer rating, String comment) {
         User user = getCurrentUser();
@@ -664,6 +730,18 @@ public class BookingService {
 
         booking.setStatus(BookingStatus.COMPLETED);
         booking.setUpdatedAt(LocalDateTime.now());
+
+        // Close the delivery track too. A seller declaring the job done is saying the buyer
+        // has it, so leaving the tracker frozen at "Order confirmed" on a finished booking
+        // would show the buyer a parcel that never arrived. Only ever moved forward — a
+        // seller who already marked it delivered keeps the timestamp they set then.
+        Fulfilment delivery = booking.getFulfilment();
+        FulfilmentStatus reached = delivery.getFulfilmentStatus();
+        if (reached != null && reached != FulfilmentStatus.CANCELLED && !reached.isComplete()) {
+            delivery.setFulfilmentStatus(delivery.methodOrDefault().finalStep());
+            delivery.setDeliveredAt(LocalDateTime.now());
+            delivery.setUpdatedAt(LocalDateTime.now());
+        }
 
         // The completer reviews the other party. @Transactional on this method means a
         // failure here rolls the completion back too — you never get a completed booking
@@ -753,6 +831,61 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Snapshots a listing's delivery terms onto a booking being created.
+     *
+     * <p>Copied rather than read back through {@code listingId} for the same reason the
+     * agreed price is: a seller who switches from courier to collection next week must not
+     * silently rewrite the terms of an order somebody already paid postage on.
+     *
+     * <p>Starts at {@code AWAITING_PAYMENT} regardless of how the booking was created.
+     * Even the instant-purchase paths that open BOOKED have not been paid yet — the
+     * delivery track only starts when the Stripe webhook says money arrived.
+     */
+    private Fulfilment deliveryFor(Listing listing) {
+        Fulfilment fulfilment = new Fulfilment();
+        fulfilment.setShippingMethod(listing.getShippingMethod() != null
+                ? listing.getShippingMethod() : ShippingMethod.NONE);
+        // Postage is charged once per order, not per unit — a buyer taking three of
+        // something is not posted three separate parcels.
+        fulfilment.setShippingPrice(listing.getShippingPrice() != null
+                ? listing.getShippingPrice() : BigDecimal.ZERO);
+        fulfilment.setFulfilmentStatus(FulfilmentStatus.AWAITING_PAYMENT);
+        return fulfilment;
+    }
+
+    /**
+     * Records a seller's tracking update against one of their bookings.
+     *
+     * <p>Seller-only by design: the buyer is the one being informed, and letting them mark
+     * their own order delivered would make the record worthless as evidence of what the
+     * seller actually did. Admins are allowed through to fix a stuck order.
+     *
+     * @throws ResponseStatusException 404 if no such booking, 403 if the caller is not its
+     *                                 seller, 400 if the update is not legal for how this
+     *                                 order is being sent
+     */
+    public BookingDto updateFulfilment(UUID bookingId, FulfilmentUpdateRequest request) {
+        User me = getCurrentUser();
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+
+        if (!booking.getSellerId().equals(me.getId()) && me.getRole() != com.hustleup.common.model.Role.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Only the seller can update delivery on this order");
+        }
+
+        String title = listingRepository.findById(booking.getListingId())
+                .map(Listing::getTitle).orElse("your order");
+
+        String rejection = shipmentService.applyUpdate(booking.getFulfilment(), request,
+                title, booking.getId(), booking.getBuyerId());
+        if (rejection != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, rejection);
+
+        booking.setUpdatedAt(LocalDateTime.now());
+        return enrichDto(bookingRepository.save(booking), me.getId());
+    }
+
     public List<BookingDto> getMyBookings() {
         User user = getCurrentUser();
         List<Booking> bookings;
@@ -789,9 +922,9 @@ public class BookingService {
     private BookingDto enrichDto(Booking booking) {
         BookingDto dto = BookingDto.fromEntity(booking); // copy all scalar fields
         // Resolve buyer display name for the response (not stored on the booking entity)
-        userRepository.findById(booking.getBuyerId()).ifPresent(u -> dto.setBuyerName(u.getFullName()));
+        userRepository.findById(booking.getBuyerId()).ifPresent(u -> dto.setBuyerName(u.displayName()));
         // Resolve seller display name
-        userRepository.findById(booking.getSellerId()).ifPresent(u -> dto.setSellerName(u.getFullName()));
+        userRepository.findById(booking.getSellerId()).ifPresent(u -> dto.setSellerName(u.displayName()));
         // Resolve the listing title so clients don't need a second API call
         listingRepository.findById(booking.getListingId()).ifPresent(l -> dto.setListingTitle(l.getTitle()));
         return dto;

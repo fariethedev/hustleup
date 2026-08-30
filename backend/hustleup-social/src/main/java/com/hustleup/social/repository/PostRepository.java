@@ -33,6 +33,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface PostRepository extends JpaRepository<Post, String> {
 
@@ -117,4 +118,33 @@ public interface PostRepository extends JpaRepository<Post, String> {
      */
     @Query("SELECT p FROM Post p WHERE p.authorId IN :authorIds ORDER BY p.createdAt DESC")
     List<Post> findByAuthorIdIn(@Param("authorIds") List<String> authorIds);
+
+    // ── Communities ──────────────────────────────────────────────────────────
+
+    /** One community's own feed, newest first. */
+    List<Post> findByCommunityIdOrderByCreatedAtDesc(String communityId);
+
+    /**
+     * Posts across every community the caller has joined.
+     *
+     * <p>One query over the whole membership rather than a query per community, so a member
+     * of a dozen groups costs the same as a member of one.
+     */
+    List<Post> findByCommunityIdInOrderByCreatedAtDesc(List<String> communityIds);
+
+    // ── Reposts ──────────────────────────────────────────────────────────────
+
+    /** The caller's repost of one post, if they have made one. */
+    Optional<Post> findFirstByAuthorIdAndRepostOfId(String authorId, String repostOfId);
+
+    /**
+     * Which of these posts the caller has already reposted.
+     *
+     * <p>Batched for the same reason likes and saves are: the feed needs the flag on every
+     * card, and asking per card is N+1.
+     */
+    List<Post> findByAuthorIdAndRepostOfIdIn(String authorId, List<String> repostOfIds);
+
+    /** Live repost count, used to correct the denormalised counter after a change. */
+    long countByRepostOfId(String repostOfId);
 }

@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated, selectIsSeller } from '../store/authSlice';
-import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, dispatchToast } from '../api/client';
+import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, dispatchToast } from '../api/client';
 import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constants';
 import {
   Settings2, Plus, Inbox, ClipboardList, Check, X, MessageSquare, ListTodo, PackageSearch,
   BellRing, TrendingUp, CalendarClock, Pencil, Store, Trash2, Ban, Landmark, CreditCard, ShieldCheck,
-  Ticket, ScanLine, ArrowRight, Star
+  Ticket, ScanLine, ArrowRight, Star, Truck, Package
 } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
 import ShopManager from '../components/ShopManager';
 import ReviewModal from '../components/ReviewModal';
+import OrderTracker from '../components/OrderTracker';
+import TrackingUpdateModal from '../components/TrackingUpdateModal';
+import SmartImage from '../components/SmartImage';
+import { isComplete } from '../utils/shipping';
 
 // Listing categories with bespoke dashboard functionality beyond the standard buy/negotiate flow.
 const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
@@ -22,8 +26,12 @@ export default function Dashboard() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const isSeller = useSelector(selectIsSeller);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [tab, setTab] = useState('bookings');
+  // Deep-linkable tab. Stripe returns a buyer here after a storefront purchase with
+  // ?tab=orders, so the first thing they see is the order they just paid for rather than a
+  // dashboard they have to go looking through.
+  const [tab, setTab] = useState(() => searchParams.get('tab') || 'bookings');
   const [bookings, setBookings] = useState([]);
   const [listings, setListings] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -40,6 +48,10 @@ export default function Dashboard() {
   // Booking whose review dialog is open — either the seller completing it, or a buyer
   // clearing a review they still owe.
   const [reviewing, setReviewing] = useState(null);
+  const [shopOrders, setShopOrders] = useState([]);   // storefront purchases the user made
+  const [shopSales, setShopSales] = useState([]);     // storefront orders placed with their shop
+  // The order whose delivery-update dialog is open: { order, title, kind: 'booking' | 'shop' }.
+  const [tracking, setTracking] = useState(null);
 
   const hasServiceListing = listings.some((l) => SERVICE_TYPES.includes(l.listingType));
   const hasEventListing = listings.some((l) => l.listingType === 'EVENT');
@@ -49,6 +61,21 @@ export default function Dashboard() {
     if (!isAuthenticated) { navigate('/login'); return; }
     loadData();
   }, [isAuthenticated, navigate]);
+
+  // Stripe sends the buyer back here after paying for a single booking. The webhook is the
+  // authority on payment, but it is not something this page can wait for — locally it never
+  // arrives at all — so the order would still read "awaiting payment" with a Pay now button
+  // in front of someone who has just paid. Verify the session, then reload.
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    if (!isAuthenticated || searchParams.get('payment') !== 'success' || !sessionId) return;
+    let cancelled = false;
+    bookingsApi.confirmPayment(sessionId)
+      .then(() => { if (!cancelled) { dispatchToast('Payment confirmed', 'success'); loadData(); } })
+      .catch(() => { if (!cancelled) dispatchToast('Paid, but we could not confirm it yet — it will update shortly', 'error'); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, searchParams]);
 
   const loadData = async () => {
     setLoading(true);
@@ -61,6 +88,9 @@ export default function Dashboard() {
       setNotifications(notifRes.data);
       // Non-blocking: someone who's never booked an event just gets an empty wallet.
       ticketsApi.my().then((r) => setTickets(r.data)).catch(() => setTickets([]));
+      // Same treatment for storefront orders — a buyer who has never bought from a shop
+      // simply has none, which is not an error worth failing the whole dashboard over.
+      shopsApi.myOrders().then((r) => setShopOrders(r.data || [])).catch(() => setShopOrders([]));
       if (isSeller) {
         const listRes = await listingsApi.my();
         setListings(listRes.data);
@@ -68,6 +98,7 @@ export default function Dashboard() {
           availabilityApi.my().then((r) => setSlots(r.data)).catch(() => setSlots([]));
         }
         payoutsApi.status().then((r) => setPayoutStatus(r.data)).catch(() => setPayoutStatus({ connected: false }));
+        shopsApi.receivedOrders().then((r) => setShopSales(r.data || [])).catch(() => setShopSales([]));
       }
     } catch { /* fail silently */ }
     setLoading(false);
@@ -94,6 +125,29 @@ export default function Dashboard() {
       dispatchToast(e.response?.data?.error || 'Could not start payment', 'error');
       setPayingBookingId(null);
     }
+  };
+
+  /**
+   * Saves a delivery update. The caller picks the endpoint by order kind — bookings and
+   * storefront orders are different entities but take an identical update body, which is
+   * what lets one dialog drive both.
+   */
+  const submitTracking = (update) => (
+    tracking.kind === 'booking'
+      ? bookingsApi.updateFulfilment(tracking.order.id, update)
+      : shopsApi.updateFulfilment(tracking.order.id, update)
+  );
+
+  /**
+   * Folds the server's version of the updated order back into state rather than reloading
+   * the dashboard: the response already carries the new fulfilment, and a full reload would
+   * throw away the tab and scroll position a seller was working a queue from.
+   */
+  const applyTracked = (updated) => {
+    if (!updated) return;
+    const swap = (list) => list.map((o) => (o.id === updated.id ? updated : o));
+    if (tracking?.kind === 'booking') setBookings(swap);
+    else setShopSales(swap);
   };
 
   const handleBookingAction = async (id, action) => {
@@ -134,6 +188,12 @@ export default function Dashboard() {
   const awaitingReview = bookings.filter((b) => b.status === 'COMPLETED' && b.reviewedByMe === false);
   const totalRevenue = salesBookings.reduce((sum, b) => sum + (b.agreedPrice || 0), 0);
 
+  // Storefront orders still owing somebody something. Counts work outstanding rather than
+  // orders in total: an order the buyer already has needs nothing from either side, and
+  // counting it would leave the tab badge permanently lit.
+  const openShopOrders = [...shopOrders, ...shopSales]
+    .filter((o) => o.status === 'PAID' && !isComplete(o.fulfilment?.fulfilmentStatus)).length;
+
   /** Requests from buyers a seller has not yet accepted or declined — their real to-do list. */
   const pendingRequests = bookings.filter((b) => b.role === 'seller' && b.status === 'INQUIRED');
   /** Sold and paid for, but not yet delivered and marked complete. */
@@ -164,6 +224,12 @@ export default function Dashboard() {
       label: isSeller ? 'Orders' : 'Your activity',
       tabs: [
         { id: 'bookings', label: 'Bookings', icon: ListTodo, count: bookings.length },
+        // Storefront orders are a separate entity from bookings, so they get their own tab
+        // rather than being merged into one list of two different shapes. Hidden until
+        // there is one, on the same reasoning as Tickets below.
+        ...(shopOrders.length > 0 || shopSales.length > 0
+          ? [{ id: 'orders', label: 'Shop orders', icon: Package, count: openShopOrders }]
+          : []),
         // Only surfaced once there's something in the wallet — an empty tab is noise.
         ...(tickets.length > 0 ? [{ id: 'tickets', label: 'Tickets', icon: Ticket, count: tickets.filter((t) => t.status === 'VALID').length }] : []),
       ],
@@ -415,6 +481,18 @@ export default function Dashboard() {
                               </button>
                             )}
 
+                            {/* Only once money has arrived: there is nothing to track on an
+                                order nobody has paid for, and offering the control anyway
+                                invites a seller to tell a buyer their unpaid parcel shipped. */}
+                            {!isBuyer && ['PAID', 'TRANSFERRED'].includes(booking.paymentStatus) && (
+                              <button
+                                onClick={() => setTracking({ order: booking, kind: 'booking', title: booking.listingTitle })}
+                                className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black uppercase text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5"
+                              >
+                                <Truck className="w-3 h-3" /> Delivery
+                              </button>
+                            )}
+
                             {booking.status === 'BOOKED' && !isBuyer && (
                               <button onClick={() => setReviewing({ booking, mode: 'complete' })} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
                                 <Check className="w-3 h-3" /> Complete
@@ -437,6 +515,10 @@ export default function Dashboard() {
                             })()}
                           </div>
                         </div>
+
+                        {/* Renders itself away for anything with no delivery track — an
+                            unpaid order, or a service that was never going to be shipped. */}
+                        <OrderTracker fulfilment={booking.fulfilment} />
 
                         {counteringId === booking.id && (
                           <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-2">
@@ -468,6 +550,52 @@ export default function Dashboard() {
                         </div>
                       );
                     })
+                  )}
+                </div>
+              )}
+
+              {/* Shop Orders Tab — the two halves of the same list: what the user bought
+                  from other people's storefronts, and what has been bought from theirs. Kept
+                  in one tab because a seller who also shops should not have to remember
+                  which of two places their own parcel is tracked in. */}
+              {tab === 'orders' && (
+                <div className="space-y-6">
+                  {shopOrders.length > 0 && (
+                    <div>
+                      <h3 className="text-[9px] font-black uppercase tracking-[0.24em] text-gray-500 mb-2.5">
+                        Your purchases
+                      </h3>
+                      <div className="space-y-2.5">
+                        {shopOrders.map((order) => (
+                          <ShopOrderCard key={order.id} order={order} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {shopSales.length > 0 && (
+                    <div>
+                      <h3 className="text-[9px] font-black uppercase tracking-[0.24em] text-gray-500 mb-2.5">
+                        Orders to fulfil
+                      </h3>
+                      <div className="space-y-2.5">
+                        {shopSales.map((order) => (
+                          <ShopOrderCard
+                            key={order.id}
+                            order={order}
+                            // Only a paid order can be sent, so the control appears with the
+                            // money rather than with the order.
+                            onTrack={order.status === 'PAID' || order.status === 'FULFILLED'
+                              ? () => setTracking({ order, kind: 'shop', title: order.productName })
+                              : null}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {shopOrders.length === 0 && shopSales.length === 0 && (
+                    <EmptyState icon={Package} title="No Shop Orders" desc="Storefront purchases and the orders placed with your shop will appear here." />
                   )}
                 </div>
               )}
@@ -727,6 +855,16 @@ export default function Dashboard() {
         />
       )}
 
+      {tracking && (
+        <TrackingUpdateModal
+          order={tracking.order}
+          title={tracking.title}
+          onSubmit={submitTracking}
+          onDone={applyTracked}
+          onClose={() => setTracking(null)}
+        />
+      )}
+
       {editingListing && (
         <EditPriceModal
           listing={editingListing}
@@ -882,6 +1020,74 @@ function AvailabilityTab({ listings, slots, onChange }) {
     </div>
   );
 }
+
+/**
+ * One storefront order, from either side.
+ *
+ * The same card serves the buyer and the seller: both need to see what was bought, what it
+ * cost, and where it is. The only difference is the seller's update control, which is
+ * passed in rather than decided here — the parent knows which orders are theirs to fulfil.
+ */
+function ShopOrderCard({ order, onTrack }) {
+  const shipping = Number(order.fulfilment?.shippingPrice) || 0;
+  const goods = Number(order.totalPrice) || 0;
+  const paidState = SHOP_ORDER_STATES[order.status] || { label: order.status, color: 'bg-gray-800 text-gray-400' };
+
+  return (
+    <div className="glass rounded-2xl p-4 border border-white/5 hover:border-[#CDFF00]/20 transition-all">
+      <div className="flex items-start gap-3">
+        <div className="w-12 h-12 rounded-lg overflow-hidden bg-black border border-white/10 shrink-0">
+          <SmartImage src={order.productImageUrl} alt="" fallbackIcon={Package} className="w-full h-full object-cover" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-[0.15em] ${paidState.color}`}>
+              {paidState.label}
+            </span>
+            <span className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">
+              {new Date(order.createdAt).toLocaleDateString()}
+            </span>
+          </div>
+
+          <p className="text-sm font-black text-white uppercase tracking-tight truncate">{order.productName}</p>
+
+          <div className="flex flex-wrap items-center gap-3 mt-1 text-[9px] font-black uppercase tracking-[0.1em] text-gray-500">
+            <span>Qty {order.quantity}</span>
+            <span className="text-[#CDFF00]">{formatPrice(goods + shipping, order.currency)}</span>
+            {/* Postage is named separately rather than folded into the total: it is what the
+                seller charged to send it, and the buyer is entitled to see it as its own number. */}
+            {shipping > 0 && (
+              <span className="text-gray-600 normal-case font-bold">
+                incl. {formatPrice(shipping, order.currency)} delivery
+              </span>
+            )}
+          </div>
+        </div>
+
+        {onTrack && (
+          <button
+            onClick={onTrack}
+            className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black uppercase text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5 shrink-0"
+          >
+            <Truck className="w-3 h-3" /> Delivery
+          </button>
+        )}
+      </div>
+
+      <OrderTracker fulfilment={order.fulfilment} />
+    </div>
+  );
+}
+
+/** Commercial state of a storefront order — separate from where the parcel is. */
+const SHOP_ORDER_STATES = {
+  AWAITING_PAYMENT: { label: 'Awaiting payment', color: 'bg-gray-800 text-gray-400' },
+  PAID: { label: 'Paid', color: 'bg-emerald-500/15 text-emerald-400' },
+  FULFILLED: { label: 'Fulfilled', color: 'bg-green-500/15 text-green-400' },
+  CANCELLED: { label: 'Cancelled', color: 'bg-red-500/15 text-red-400' },
+  REFUNDED: { label: 'Refunded', color: 'bg-amber-500/15 text-amber-400' },
+};
 
 function EmptyState({ icon: Icon, title, desc, cta }) {
   return (

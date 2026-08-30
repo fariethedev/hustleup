@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { shopsApi, dispatchToast } from '../api/client';
+import { SHIPPING_METHODS } from '../utils/shipping';
 import { invalidateShops } from '../hooks/useShops';
 import { POLISH_CITIES, CURRENCIES, formatPrice } from '../utils/constants';
 import SmartImage from './SmartImage';
@@ -19,7 +20,12 @@ const EMPTY_SHOP = {
   bannerUrl: '', accentColor: '#CDFF00', city: '', published: true,
 };
 
-const EMPTY_PRODUCT = { name: '', description: '', price: '', currency: 'PLN', category: '', imageUrl: '' };
+const EMPTY_PRODUCT = {
+  name: '', description: '', price: '', currency: 'PLN', category: '', imageUrl: '',
+  // Collection is the safe opening default: always possible, costs nobody anything, and
+  // promises the buyer nothing the seller hasn't offered.
+  shippingMethod: 'PICKUP', shippingPrice: '',
+};
 
 /**
  * The dashboard's shop tab: everything a buyer sees on this seller's shop card and shop page,
@@ -421,6 +427,10 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
+  // Collection and digital delivery have no postage to charge, so the field is hidden
+  // rather than shown at zero for the seller to wonder about.
+  const chargesPostage = !['PICKUP', 'DIGITAL', 'NONE'].includes(form.shippingMethod || 'PICKUP');
+
   const uploadImage = async (file) => {
     if (!file) return;
     setUploading(true);
@@ -439,7 +449,13 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
     if (form.price === '' || Number(form.price) < 0) { dispatchToast('Enter a valid price', 'error'); return; }
     setSaving(true);
     try {
-      const payload = { ...form, price: Number(form.price) };
+      const payload = {
+        ...form,
+        price: Number(form.price),
+        // Methods with nothing to post send zero rather than whatever was typed before the
+        // seller switched to collection.
+        shippingPrice: chargesPostage ? Number(form.shippingPrice) || 0 : 0,
+      };
       const res = isNew
         ? await shopsApi.addProduct(shopId, payload)
         : await shopsApi.updateProduct(shopId, product.id, payload);
@@ -505,6 +521,41 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
           </div>
 
           <Field label="Shelf / category" value={form.category} onChange={(v) => set('category', v)} placeholder="e.g. Hoodies" />
+
+          {/* Delivery terms live on the shelf, not on each order: they decide what the buyer
+              is charged at checkout and which tracking steps you're offered afterwards. */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+              How you send it
+            </label>
+            <select
+              value={form.shippingMethod || 'PICKUP'}
+              onChange={(e) => set('shippingMethod', e.target.value)}
+              className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] cursor-pointer"
+            >
+              {SHIPPING_METHODS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {chargesPostage && (
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+                Delivery cost
+              </label>
+              <input
+                type="number" min="0" step="0.01"
+                value={form.shippingPrice}
+                onChange={(e) => set('shippingPrice', e.target.value)}
+                placeholder="0.00 — free delivery"
+                className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] placeholder-gray-600"
+              />
+              <p className="mt-1.5 text-[9px] text-gray-500 leading-relaxed">
+                Charged once per order on top of the price, and paid to you in full.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Photo</label>

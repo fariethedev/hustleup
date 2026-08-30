@@ -2,12 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
-import { feedApi, listingsApi, subscriptionsApi, dispatchToast } from '../api/client';
+import { feedApi, listingsApi, subscriptionsApi, communitiesApi, dispatchToast } from '../api/client';
 import { isPremiumActive, isPremiumRequiredError } from '../utils/premium';
 import {
   Heart, MessageCircle, Send, Bookmark, Image as ImageIcon, ShoppingBag,
   BadgeCheck, X, Film, Star, Users, Store, Sparkles, Package, VenetianMask, Lock, Crown, Crop,
-  MoreHorizontal, Pencil, Trash2,
+  MoreHorizontal, Pencil, Trash2, Repeat2, UsersRound, Plus, Check, MapPin, ArrowLeft,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../utils/constants';
@@ -18,6 +18,7 @@ import HeroBrief from '../components/HeroBrief';
 import ShareModal from '../components/ShareModal';
 import SmartImage from '../components/SmartImage';
 import ImageCropper from '../components/ImageCropper';
+import CommunityPanel from '../components/CommunityPanel';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 import { timeAgo } from '../utils/time';
 import { uploadUrl } from '../config';
@@ -69,7 +70,7 @@ function HeartBurst({ show }) {
  *    avatar/name/timestamp header, larger body text, and a compact action row —
  *    a big image block would be empty space for a post that's just words.
  */
-function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpenComments, onOpenLikers, onShare, isOwn, onEdit, onDelete }) {
+function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpenComments, onOpenLikers, onShare, onRepost, isOwn, onEdit, onDelete }) {
   const [burst, setBurst] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -176,6 +177,24 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
       <button onClick={() => onOpenComments(post)} className="text-gray-400 hover:text-white transition-all hover:scale-110">
         <MessageCircle className="w-6 h-6" />
       </button>
+      {/* Repost sits between reply and share because that is what it is: passing something
+          on inside the app, where Send hands it to one person outside the feed. Hidden on
+          your own posts and on anonymous ones — the server refuses both, and offering a
+          button that always fails is worse than not offering it. */}
+      {!isOwn && !post.anonymous && (
+        <button
+          onClick={() => onRepost?.(post)}
+          title={post.repostedByCurrentUser ? 'Undo repost' : 'Repost'}
+          className={`flex items-center gap-1 transition-all hover:scale-110 ${
+            post.repostedByCurrentUser ? 'text-[#00FFFF]' : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <Repeat2 className="w-6 h-6" />
+          {(post.repostCount || 0) > 0 && (
+            <span className="text-xs font-bold">{post.repostCount}</span>
+          )}
+        </button>
+      )}
       <button onClick={() => onShare(post)} className="text-gray-400 hover:text-white transition-all hover:scale-110">
         <Send className="w-5 h-5" />
       </button>
@@ -187,6 +206,56 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
       </button>
     </div>
   );
+
+  /**
+   * "in Cars in Lublin" above the post.
+   *
+   * Only rendered when the post was written into a community — an open-feed post has no
+   * such context and inventing one would be a claim about where it came from.
+   */
+  const communityLabel = !post.communityName ? null : (
+    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#CDFF00]">
+      <UsersRound className="w-3 h-3" /> {post.communityName}
+    </span>
+  );
+
+  /**
+   * The original, framed inside a repost.
+   *
+   * Rendered as a quote rather than flattened into the reposter's own post: the author,
+   * the age and the media all belong to whoever wrote it, and a share that reads as
+   * original content misattributes it. Media is shown as a single cover image rather than
+   * a nested carousel — a gallery inside a gallery is two sets of controls fighting over
+   * the same swipe.
+   */
+  const quotedPost = (() => {
+    const quoted = post.repostOf;
+    if (!quoted) return null;
+    const cover = quoted.media?.[0]?.url || quoted.imageUrl;
+    return (
+      <Link
+        to={quoted.authorId ? `/profile/${quoted.authorId}` : '#'}
+        className="block mt-2 rounded-xl border border-white/10 bg-black/40 overflow-hidden hover:border-white/20 transition-colors"
+      >
+        <div className="flex items-center gap-2 px-3 pt-2.5">
+          <Avatar name={quoted.authorName} avatarUrl={quoted.authorAvatarUrl} size="w-5 h-5" textSize="text-[10px]" />
+          <span className="text-xs font-bold text-white truncate">{quoted.authorName}</span>
+          <span className="text-[11px] text-gray-500 shrink-0">· {timeAgo(quoted.createdAt)}</span>
+        </div>
+        {quoted.content && (
+          <p className="px-3 pt-1.5 text-[13px] text-gray-300 leading-relaxed whitespace-pre-wrap break-words line-clamp-4">
+            {quoted.content}
+          </p>
+        )}
+        {cover && (
+          <div className="mt-2 aspect-[16/10] bg-black">
+            <SmartImage src={cover} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
+        <div className="h-2.5" />
+      </Link>
+    );
+  })();
 
   const CommentPreview = () => (
     <>
@@ -226,7 +295,18 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
               {editedMark}
               {ownerMenu}
             </div>
-            <p className="text-white text-[15px] leading-relaxed mt-0.5 whitespace-pre-wrap break-words">{post.content}</p>
+            {communityLabel}
+            {/* A repost with no words of its own says so, rather than showing a blank line
+                above the quote. */}
+            {post.repostOf && !post.content && (
+              <p className="flex items-center gap-1 text-[11px] font-bold text-gray-500 mt-0.5">
+                <Repeat2 className="w-3.5 h-3.5" /> Reposted
+              </p>
+            )}
+            {post.content && (
+              <p className="text-white text-[15px] leading-relaxed mt-0.5 whitespace-pre-wrap break-words">{post.content}</p>
+            )}
+            {quotedPost}
             <div className="mt-3 max-w-sm">
               <ActionRow compact />
             </div>
@@ -257,8 +337,9 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
         )}
         <div className="min-w-0">
           <AuthorName className="text-sm font-bold text-white block" />
-          <span className="text-xs text-gray-500">
-            {timeAgo(post.createdAt)} ago {post.editedAt ? '· edited' : ''}
+          <span className="flex items-center gap-2 text-xs text-gray-500">
+            <span>{timeAgo(post.createdAt)} ago {post.editedAt ? '· edited' : ''}</span>
+            {communityLabel}
           </span>
         </div>
         {ownerMenu}
@@ -421,10 +502,27 @@ export default function Feed() {
   const [listings, setListings] = useState([]);
   const { shops: allShops } = useShops();
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('foryou'); // 'foryou' | 'saved'
+  // 'foryou' | 'following' | 'communities' | 'saved'
+  const [tab, setTab] = useState('foryou');
   const [savedLoading, setSavedLoading] = useState(false);
   const [savedPosts, setSavedPosts] = useState(null);
   const [savedListings, setSavedListings] = useState(null);
+  // Each tab holds its own posts and its own null-until-fetched marker, rather than one
+  // `posts` array every tab overwrites. Switching back to a tab you have already loaded
+  // then shows it immediately instead of blanking and re-fetching.
+  const [followingPosts, setFollowingPosts] = useState(null);
+  const [followingLoading, setFollowingLoading] = useState(false);
+  const [communityPosts, setCommunityPosts] = useState(null);
+  const [communityLoading, setCommunityLoading] = useState(false);
+  // Communities the user has joined — drives the composer's destination picker as well as
+  // the Communities tab, so it is loaded once here rather than by each of them.
+  const [myCommunities, setMyCommunities] = useState([]);
+  // Which community the composer will post into; null means the open feed.
+  const [postTarget, setPostTarget] = useState(null);
+  // Repost composer: the post being shared, plus the words going above it.
+  const [repostTarget, setRepostTarget] = useState(null);
+  const [repostComment, setRepostComment] = useState('');
+  const [reposting, setReposting] = useState(false);
 
   // Post creation state
   const [content, setContent] = useState('');
@@ -468,6 +566,13 @@ export default function Feed() {
     loadFeed();
   }, []);
 
+  // The composer's destination picker needs this on every tab, not just Communities —
+  // so it is fetched on mount rather than waiting for that tab to be opened.
+  useEffect(() => {
+    if (!isAuthenticated) { setMyCommunities([]); return; }
+    communitiesApi.mine().then((r) => setMyCommunities(r.data || [])).catch(() => setMyCommunities([]));
+  }, [isAuthenticated]);
+
   // Subscription status drives whether the composer offers the anonymous toggle or the
   // upgrade prompt. A failed lookup resolves to "not premium" so the toggle stays locked
   // rather than promising something the server will refuse.
@@ -506,9 +611,45 @@ export default function Feed() {
     }
   };
 
+  /**
+   * Posts from people you follow. Deliberately not merged with the open feed: a tab called
+   * Following that quietly padded itself with strangers would be lying about where its
+   * contents came from, so following nobody shows an empty state that says so.
+   */
+  const loadFollowing = async () => {
+    setFollowingLoading(true);
+    try {
+      const res = await feedApi.following();
+      setFollowingPosts(res.data || []);
+    } catch {
+      setFollowingPosts([]);
+    } finally {
+      setFollowingLoading(false);
+    }
+  };
+
+  /** Posts from every community you've joined, plus the list of those communities. */
+  const loadCommunityFeed = async () => {
+    setCommunityLoading(true);
+    try {
+      const [postRes, mineRes] = await Promise.allSettled([
+        feedApi.communities(),
+        communitiesApi.mine(),
+      ]);
+      setCommunityPosts(postRes.status === 'fulfilled' ? (postRes.value.data || []) : []);
+      if (mineRes.status === 'fulfilled') setMyCommunities(mineRes.value.data || []);
+    } finally {
+      setCommunityLoading(false);
+    }
+  };
+
   const switchTab = (next) => {
     setTab(next);
+    // Fetch once per tab, on first visit. `null` is the not-yet-loaded marker; an empty
+    // array is a real answer and must not trigger a refetch every time you come back.
     if (next === 'saved' && savedPosts === null) loadSaved();
+    if (next === 'following' && followingPosts === null) loadFollowing();
+    if (next === 'communities' && communityPosts === null) loadCommunityFeed();
   };
 
   // Interleave a listing or shop card after every 4th post — alternating between the
@@ -570,6 +711,76 @@ export default function Feed() {
     setCropIndex(null);
   };
 
+  /**
+   * Shares someone's post onto your own timeline.
+   *
+   * Toggling off is immediate — undoing a share should not make you write anything — but
+   * sharing opens the composer first, because a repost with your own words on it is the
+   * thing people actually want and asking after the fact never works.
+   */
+  const submitRepost = async () => {
+    if (!repostTarget) return;
+    setReposting(true);
+    try {
+      const res = await feedApi.repost(repostTarget.id, repostComment.trim());
+      // Your own share belongs at the top of the feed you are looking at, and the original
+      // needs its count and toggle updated wherever it appears.
+      const shared = res.data;
+      const markShared = (list) => (list === null ? null : list.map((p) => (
+        p.id === repostTarget.id
+          ? { ...p, repostedByCurrentUser: true, repostCount: (p.repostCount || 0) + 1 }
+          : p
+      )));
+      setPosts((prev) => [shared, ...markShared(prev)]);
+      setFollowingPosts(markShared);
+      setCommunityPosts((prev) => (prev === null ? null : (shared.communityId ? [shared, ...markShared(prev)] : markShared(prev))));
+      setRepostTarget(null);
+      setRepostComment('');
+      dispatchToast('Reposted to your feed', 'success');
+    } catch (err) {
+      dispatchToast(err.response?.data?.error || 'Could not repost that', 'error');
+    } finally {
+      setReposting(false);
+    }
+  };
+
+  const undoRepost = async (post) => {
+    // Optimistic: the button is a toggle and should feel like one. Rolled back below if
+    // the server disagrees.
+    const unmark = (list) => (list === null ? null : list.map((p) => (
+      p.id === post.id
+        ? { ...p, repostedByCurrentUser: false, repostCount: Math.max(0, (p.repostCount || 1) - 1) }
+        : p
+    )));
+    setPosts(unmark);
+    setFollowingPosts(unmark);
+    setCommunityPosts(unmark);
+    try {
+      await feedApi.undoRepost(post.id);
+      // Drop your own share from view too — it is gone server-side, and leaving it on
+      // screen until reload would look like the undo failed.
+      const dropShare = (list) => (list === null ? null : list.filter((p) => p.repostOf?.id !== post.id || p.authorId !== user?.id));
+      setPosts(dropShare);
+      setFollowingPosts(dropShare);
+      setCommunityPosts(dropShare);
+    } catch (err) {
+      const remark = (list) => (list === null ? null : list.map((p) => (
+        p.id === post.id ? { ...p, repostedByCurrentUser: true, repostCount: (p.repostCount || 0) + 1 } : p
+      )));
+      setPosts(remark);
+      setFollowingPosts(remark);
+      setCommunityPosts(remark);
+      dispatchToast(err.response?.data?.error || 'Could not undo that repost', 'error');
+    }
+  };
+
+  /** Repost toggle handed to every card: share opens the composer, un-share is immediate. */
+  const handleRepost = (post) => {
+    if (!isAuthenticated) { dispatchToast('Sign in to repost', 'error'); return; }
+    if (post.repostedByCurrentUser) undoRepost(post);
+    else { setRepostTarget(post); setRepostComment(''); }
+  };
+
   const handlePost = async (e) => {
     e.preventDefault();
     if (!content.trim() && mediaFiles.length === 0) return;
@@ -584,12 +795,19 @@ export default function Feed() {
       formData.append('content', content);
       formData.append('authorName', user.fullName);
       if (anonymous) formData.append('anonymous', 'true');
+      // Absent for an open-feed post. The server re-checks membership and refuses a
+      // community the user has left, so this only decides what is offered.
+      if (postTarget) formData.append('communityId', postTarget.id);
       mediaFiles.forEach(file => {
         formData.append('media', file);
       });
 
       const res = await feedApi.createPost(formData);
-      setPosts([res.data, ...posts]);
+      // Land the new post in the tab it actually belongs to. A community post prepended to
+      // the open feed would sit there until reload and then vanish, which reads as the post
+      // having failed.
+      if (postTarget) setCommunityPosts((prev) => (prev === null ? prev : [res.data, ...prev]));
+      else setPosts([res.data, ...posts]);
       setContent('');
       setMediaFiles([]);
       setAnonymous(false);
@@ -784,8 +1002,28 @@ export default function Feed() {
       ]
     : [];
 
-  const visibleItems = showingSaved ? savedItems : feedItems;
-  const isLoadingCurrentTab = showingSaved ? savedLoading : loading;
+  // Only the open feed interleaves listing/shop promos. Following and Communities are
+  // feeds someone explicitly curated, and dropping ads into them would take the one thing
+  // that makes those tabs worth opening.
+  const asItems = (list, prefix) => (list || []).map((post) => ({
+    kind: 'post', key: `${prefix}-${post.id}`, data: post,
+  }));
+
+  const visibleItems =
+    tab === 'saved' ? savedItems
+    : tab === 'following' ? asItems(followingPosts, 'following')
+    : tab === 'communities' ? asItems(communityPosts, 'community')
+    : feedItems;
+
+  const isLoadingCurrentTab =
+    tab === 'saved' ? savedLoading
+    : tab === 'following' ? followingLoading
+    : tab === 'communities' ? communityLoading
+    : loading;
+
+  // The composer belongs on the feeds you can actually post to. Saved is a collection, not
+  // a place to write into.
+  const showComposer = isAuthenticated && tab !== 'saved';
 
   return (
     <div className="min-h-screen font-sans pb-24">
@@ -794,29 +1032,36 @@ export default function Feed() {
       <div className="max-w-xl mx-auto px-4">
         <StoryBar />
 
-        {/* For You / Saved tabs */}
+        {/* Four feeds, each answering a different question: what's happening, what the
+            people I chose are saying, what the groups I joined are saying, and what I kept.
+            Scrolls horizontally rather than wrapping — four pills do not fit a phone. */}
         {isAuthenticated && (
-          <div className="flex items-center gap-2 mb-5 p-1 rounded-full bg-white/5 border border-white/10 w-fit mx-auto">
-            <button
-              onClick={() => switchTab('foryou')}
-              className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
-                tab === 'foryou' ? 'bg-[#CDFF00] text-black' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              For you
-            </button>
-            <button
-              onClick={() => switchTab('saved')}
-              className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 ${
-                tab === 'saved' ? 'bg-[#CDFF00] text-black' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <Bookmark className="w-3.5 h-3.5" /> Saved
-            </button>
+          <div className="mb-5 -mx-4 px-4 overflow-x-auto scrollbar-hide">
+            <div className="flex items-center gap-1 p-1 rounded-full bg-white/5 border border-white/10 w-fit mx-auto">
+              {[
+                { id: 'foryou', label: 'For you', icon: Sparkles },
+                { id: 'following', label: 'Following', icon: Users },
+                { id: 'communities', label: 'Communities', icon: UsersRound },
+                { id: 'saved', label: 'Saved', icon: Bookmark },
+              ].map((t) => {
+                const Icon = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => switchTab(t.id)}
+                    className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                      tab === t.id ? 'bg-[#CDFF00] text-black' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" /> {t.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {!showingSaved && isAuthenticated && (
+        {showComposer && (
           <form onSubmit={handlePost} className="bg-white/[0.02] border border-white/10 p-4 rounded-2xl mb-6">
             <div className="flex gap-3">
               {/* The avatar previews what the post will actually look like: switch anonymity
@@ -829,10 +1074,47 @@ export default function Feed() {
                 <Avatar name={user?.fullName} avatarUrl={user?.avatarUrl} size="w-11 h-11" />
               )}
               <div className="flex-1 space-y-3">
+                {/* Where this post is going. Shown only once you belong to a community —
+                    a picker with one option is noise. It says the destination before you
+                    write rather than after, because "which feed did that go to?" is not a
+                    question anyone should have to answer by hunting for their own post. */}
+                {myCommunities.length > 0 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setPostTarget(null)}
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors shrink-0 ${
+                        postTarget === null
+                          ? 'bg-[#CDFF00] text-black'
+                          : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      Everyone
+                    </button>
+                    {myCommunities.map((community) => (
+                      <button
+                        key={community.id}
+                        type="button"
+                        onClick={() => setPostTarget(community)}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors shrink-0 ${
+                          postTarget?.id === community.id
+                            ? 'bg-[#CDFF00] text-black'
+                            : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        <UsersRound className="w-3 h-3" /> {community.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder={anonymous ? 'Post anonymously — your name and avatar stay hidden' : "What's on your mind?"}
+                  placeholder={
+                    anonymous ? 'Post anonymously — your name and avatar stay hidden'
+                    : postTarget ? `Post to ${postTarget.name}`
+                    : "What's on your mind?"
+                  }
                   className="w-full bg-transparent text-white placeholder-gray-500 resize-none outline-none leading-relaxed text-[15px]"
                   rows={2}
                 />
@@ -931,6 +1213,12 @@ export default function Feed() {
         )}
 
         <div className="space-y-5">
+          {/* Browse / create / join, above the community feed itself: someone opening this
+              tab for the first time has no posts to read and needs somewhere to start. */}
+          {tab === 'communities' && isAuthenticated && (
+            <CommunityPanel onChanged={() => { setCommunityPosts(null); loadCommunityFeed(); }} />
+          )}
+
           {isLoadingCurrentTab ? (
             [...Array(3)].map((_, i) => <div key={i} className="h-64 bg-white/[0.02] border border-white/10 rounded-2xl animate-pulse" />)
           ) : visibleItems.length > 0 ? (
@@ -952,6 +1240,7 @@ export default function Feed() {
                   onOpenComments={openComments}
                   onOpenLikers={openLikers}
                   onShare={(p) => { setShareType('post'); setShareItem(p); }}
+                  onRepost={handleRepost}
                   // Anonymous posts come back with authorId stripped, so they never match
                   // and correctly show no owner menu — editing one in place would let the
                   // author rewrite a post nobody can attribute to them.
@@ -961,11 +1250,36 @@ export default function Feed() {
                 />
               );
             })
-          ) : showingSaved ? (
+          ) : tab === 'saved' ? (
             <div className="text-center py-24 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
               <Bookmark className="w-12 h-12 mx-auto text-gray-600 mb-4" />
               <h3 className="text-white font-bold mb-1">Nothing saved yet</h3>
               <p className="text-sm text-gray-500">Tap the bookmark icon on any post or listing to save it here.</p>
+            </div>
+          ) : tab === 'following' ? (
+            /* Says which of the two reasons this is empty, because the fix is different:
+               follow someone, or wait for the people you follow to post. */
+            <div className="text-center py-24 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
+              <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+              <h3 className="text-white font-bold mb-1">Nothing from your circle yet</h3>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto">
+                This tab only ever shows posts from people you follow. Follow a few and they'll land here.
+              </p>
+              <Link to="/explore/creators" className="inline-block mt-5 px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[11px] font-black uppercase tracking-widest">
+                Find people
+              </Link>
+            </div>
+          ) : tab === 'communities' ? (
+            <div className="text-center py-16 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
+              <UsersRound className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+              <h3 className="text-white font-bold mb-1">
+                {myCommunities.length === 0 ? 'Join a community' : 'No posts here yet'}
+              </h3>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto">
+                {myCommunities.length === 0
+                  ? 'Communities are groups with one subject — "Cars in Lublin", say. Join one and only its posts show up here.'
+                  : 'Be the first to post in one of your communities.'}
+              </p>
             </div>
           ) : (
             <div className="text-center py-24 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
@@ -975,6 +1289,102 @@ export default function Feed() {
             </div>
           )}
         </div>
+
+        {/* Repost composer. Sharing opens this rather than firing immediately, because a
+            repost carrying your own line is the thing people actually want and there is no
+            good moment to ask for it afterwards. Posting with the box empty is a plain
+            share — the Repost button says so. */}
+        <AnimatePresence>
+          {repostTarget && (
+            <div className="fixed inset-0 z-[400] flex items-center justify-center px-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setRepostTarget(null)}
+                className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 24 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 24 }}
+                className="relative w-full max-w-lg bg-[#0A0A0A] border border-white/10 rounded-3xl p-5"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="flex items-center gap-2 text-sm font-black text-white uppercase tracking-tight">
+                    <Repeat2 className="w-4 h-4 text-[#00FFFF]" /> Repost
+                  </h3>
+                  <button
+                    onClick={() => setRepostTarget(null)}
+                    className="p-1.5 rounded-lg text-gray-500 hover:bg-white/10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <textarea
+                  autoFocus
+                  rows={2}
+                  value={repostComment}
+                  onChange={(e) => setRepostComment(e.target.value)}
+                  placeholder="Add your own take — or post it as is."
+                  className="w-full bg-transparent text-white placeholder-gray-500 resize-none outline-none text-[15px] leading-relaxed"
+                />
+
+                {/* The thing being shared, framed exactly as it will appear on the feed. */}
+                <div className="rounded-xl border border-white/10 bg-black/40 overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 pt-2.5">
+                    <Avatar
+                      name={repostTarget.authorName}
+                      avatarUrl={repostTarget.authorAvatarUrl}
+                      size="w-5 h-5"
+                      textSize="text-[10px]"
+                    />
+                    <span className="text-xs font-bold text-white truncate">{repostTarget.authorName}</span>
+                    <span className="text-[11px] text-gray-500 shrink-0">· {timeAgo(repostTarget.createdAt)}</span>
+                  </div>
+                  {repostTarget.content && (
+                    <p className="px-3 pt-1.5 pb-2.5 text-[13px] text-gray-300 leading-relaxed line-clamp-4 whitespace-pre-wrap break-words">
+                      {repostTarget.content}
+                    </p>
+                  )}
+                  {(repostTarget.media?.[0]?.url || repostTarget.imageUrl) && (
+                    <div className="aspect-[16/10] bg-black">
+                      <SmartImage
+                        src={repostTarget.media?.[0]?.url || repostTarget.imageUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {repostTarget.communityName && (
+                  <p className="mt-3 text-[11px] text-gray-500 leading-relaxed">
+                    This was posted in <span className="text-[#CDFF00] font-bold">{repostTarget.communityName}</span>,
+                    so your repost stays there too.
+                  </p>
+                )}
+
+                <div className="flex gap-2.5 mt-4">
+                  <button
+                    onClick={() => setRepostTarget(null)}
+                    className="flex-1 py-3 rounded-xl border border-white/10 text-white font-black uppercase tracking-widest text-[10px] hover:bg-white/5 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={submitRepost}
+                    disabled={reposting}
+                    className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest text-[10px] hover:bg-[#E0FF4D] transition-colors disabled:opacity-50"
+                  >
+                    {reposting ? 'Reposting' : 'Repost'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* Comments Modal */}
         <AnimatePresence>

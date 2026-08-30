@@ -18,6 +18,7 @@
 package com.hustleup.marketplace.booking.dto;
 
 import com.hustleup.marketplace.booking.model.Booking;
+import com.hustleup.marketplace.shipping.Fulfilment;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -56,6 +57,17 @@ public class BookingDto {
     // Payment status only — the raw Stripe paymentIntentId/transferId are internal
     // reconciliation details and are deliberately not exposed to the client.
     private String paymentStatus;      // PENDING / AWAITING_PAYMENT / PAID / TRANSFERRED / REFUNDED / FAILED
+
+    /**
+     * Delivery: how this is being sent, what postage cost, and where it has got to.
+     *
+     * <p>The entity's own value object is passed straight through rather than being
+     * re-flattened into a dozen DTO fields. It holds nothing internal — no Stripe ids, no
+     * seller-only data — and reusing it is what makes a booking and a storefront order
+     * arrive at the client with an identical {@code fulfilment} shape, so one tracker
+     * component can render either.
+     */
+    private Fulfilment fulfilment;
 
     // --- Status ---
     private String status;        // BookingStatus.name() — e.g. "BOOKED", "CANCELLED"
@@ -98,6 +110,10 @@ public class BookingDto {
                 .availabilitySlotId(booking.getAvailabilitySlotId())
                 .quantity(booking.getQuantity())
                 .paymentStatus(booking.getPaymentStatus())
+                // getFulfilment() rather than the field: Hibernate hands back a null
+                // embeddable for bookings predating the delivery columns, and the tracker
+                // needs an object to read a (null) status off rather than a null.
+                .fulfilment(booking.getFulfilment())
                 // .name() converts the enum constant to its string representation
                 .status(booking.getStatus().name())
                 .cancelReason(booking.getCancelReason())

@@ -32,6 +32,7 @@
  */
 package com.hustleup.marketplace.listing.model;
 
+import com.hustleup.marketplace.shipping.ShippingMethod;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -125,6 +126,26 @@ public class Listing {
     @Column(name = "is_swap_enabled", nullable = false)
     @Builder.Default
     private boolean swapEnabled = false;
+
+    // --- Delivery ---
+    // How the seller gets this to the buyer, and what they charge to do it. Asked for when
+    // the listing is posted rather than sorted out in DMs afterwards, because it decides
+    // both what the buyer is charged at checkout and which tracking steps the seller is
+    // later offered (see ShippingMethod#steps). Snapshotted onto every booking at purchase
+    // time, so changing it here never rewrites an order somebody has already paid postage on.
+    //
+    // Defaults to NONE — the honest answer for the services that make up much of the
+    // marketplace, and the reason this is an explicit choice rather than a nullable column
+    // that cannot tell "no shipping" apart from "seller never said".
+    @Enumerated(EnumType.STRING)
+    @Column(name = "shipping_method", length = 32)
+    @Builder.Default
+    private ShippingMethod shippingMethod = ShippingMethod.NONE;
+
+    // Postage, charged on top of the price. Zero for free delivery and for collection.
+    @Column(name = "shipping_price", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal shippingPrice = BigDecimal.ZERO;
 
     // --- EVENT-only fields ---
     // When the event actually starts. Null for every other listing type, and null for EVENT

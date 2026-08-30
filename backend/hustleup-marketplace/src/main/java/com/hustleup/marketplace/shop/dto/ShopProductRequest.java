@@ -14,4 +14,7 @@ public class ShopProductRequest {
     private String category;
     private String imageUrl;
     private Integer sortOrder;
+    /** ShippingMethod name; anything unrecognised is ignored rather than rejected. */
+    private String shippingMethod;
+    private BigDecimal shippingPrice;
 }

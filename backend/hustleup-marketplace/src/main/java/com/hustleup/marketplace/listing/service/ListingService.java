@@ -9,6 +9,7 @@ import com.hustleup.marketplace.listing.model.ListingStatus;
 import com.hustleup.marketplace.listing.model.ListingType;
 import com.hustleup.marketplace.listing.repository.ListingRepository;
 import com.hustleup.marketplace.review.repository.ReviewRepository;
+import com.hustleup.marketplace.shipping.ShippingMethod;
 import com.hustleup.common.storage.FileStorageService;
 import com.hustleup.common.model.User;
 import com.hustleup.common.model.Notification;
@@ -27,6 +28,14 @@ import java.util.stream.Collectors;
 
 @Service
 public class ListingService {
+
+    /**
+     * Categories that produce something physical to hand over. Used only as the fallback
+     * when a seller's shipping choice is missing or unparseable — everything else is a
+     * service performed in person, where "no shipping" is the truthful default.
+     */
+    private static final Set<ListingType> SHIPPABLE_TYPES =
+            Set.of(ListingType.GOODS, ListingType.FASHION, ListingType.FOOD);
 
     private final ListingRepository listingRepository;
     private final UserRepository userRepository;
@@ -106,7 +115,8 @@ public class ListingService {
 
     public ListingDto create(String title, String description, String listingType, BigDecimal price,
                               String currency, boolean negotiable, String city, boolean agentFee,
-                              boolean swapEnabled, String eventStartsAt, String eventVenue,
+                              boolean swapEnabled, String shippingMethod, BigDecimal shippingPrice,
+                              String eventStartsAt, String eventVenue,
                               String meta, List<MultipartFile> images) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
@@ -139,6 +149,13 @@ public class ListingService {
                 .locationCity(city)
                 .agentFee(agentFee)
                 .swapEnabled(swapEnabled)
+                // An unrecognised or absent method falls back to NONE rather than failing the
+                // post: a seller who has written a good listing should not lose it to a bad
+                // enum name, and NONE is the safe reading (nothing is promised to be shipped).
+                .shippingMethod(resolveShipping(ShippingMethod.parse(shippingMethod), type))
+                // Postage cannot be negative, and a blank field means free.
+                .shippingPrice(shippingPrice != null && shippingPrice.compareTo(BigDecimal.ZERO) > 0
+                        ? shippingPrice : BigDecimal.ZERO)
                 // Only meaningful for EVENT listings; parseEventStart returns null for the
                 // blank strings every other category's create form sends.
                 .eventStartsAt(type == ListingType.EVENT ? parseEventStart(eventStartsAt) : null)
@@ -173,6 +190,19 @@ public class ListingService {
         }
     }
 
+    /**
+     * Picks the shipping method to store when the seller's choice did not survive the wire.
+     *
+     * <p>A physical thing with no stated method defaults to PICKUP — the one method that is
+     * always available and costs nobody anything — while services default to NONE, since
+     * there is nothing to send. Guessing COURIER here would silently promise a delivery the
+     * seller never offered.
+     */
+    private ShippingMethod resolveShipping(ShippingMethod chosen, ListingType type) {
+        if (chosen != null) return chosen;
+        return SHIPPABLE_TYPES.contains(type) ? ShippingMethod.PICKUP : ShippingMethod.NONE;
+    }
+
     /** Treats a blank form field as absent, so empty strings don't reach the database. */
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
@@ -184,8 +214,9 @@ public class ListingService {
             List<String> followerIds = jdbcTemplate.queryForList(
                     "SELECT follower_id FROM follows WHERE following_id = ?", String.class, sellerId);
             if (!followerIds.isEmpty()) {
-                String sellerName = seller.getFullName() != null && !seller.getFullName().isBlank()
-                        ? seller.getFullName() : seller.getEmail().split("@")[0];
+                // Handle first: a listing card is public, and the seller's legal name is not
+                // the thing to lead with. displayName() already falls back to the full name.
+                String sellerName = seller.displayName();
                 List<Notification> notifs = followerIds.stream().map(fid -> {
                     try {
                         return Notification.builder()
@@ -205,7 +236,7 @@ public class ListingService {
 
     public ListingDto update(UUID id, String title, String description, BigDecimal price,
                               boolean negotiable, String city, String meta, String status,
-                              Boolean swapEnabled) {
+                              Boolean swapEnabled, String shippingMethod, BigDecimal shippingPrice) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -225,6 +256,13 @@ public class ListingService {
         if (meta != null) listing.setMeta(meta);
         if (status != null) listing.setStatus(ListingStatus.valueOf(status));
         if (swapEnabled != null) listing.setSwapEnabled(swapEnabled);
+        // Only overwrite on a method the enum actually knows — a typo should leave the
+        // seller's existing delivery terms alone rather than blanking them.
+        ShippingMethod method = ShippingMethod.parse(shippingMethod);
+        if (method != null) listing.setShippingMethod(method);
+        if (shippingPrice != null && shippingPrice.compareTo(BigDecimal.ZERO) >= 0) {
+            listing.setShippingPrice(shippingPrice);
+        }
 
         Listing saved = listingRepository.save(listing);
         algoliaIndexService.indexListing(saved);
@@ -259,7 +297,7 @@ public class ListingService {
         ListingDto dto = ListingDto.fromEntity(listing, fileStorageService::refreshUrl);
         try {
             userRepository.findById(listing.getSellerId()).ifPresent(seller -> {
-                dto.setSellerName(seller.getFullName());
+                dto.setSellerName(seller.displayName());
                 String avatarUrl = seller.getAvatarUrl();
                 dto.setSellerAvatarUrl(avatarUrl != null ? fileStorageService.refreshUrl(avatarUrl) : null);
                 dto.setSellerVerified(seller.isIdVerified());

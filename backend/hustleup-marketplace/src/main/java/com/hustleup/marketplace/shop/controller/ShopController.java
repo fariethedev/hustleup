@@ -11,6 +11,7 @@ package com.hustleup.marketplace.shop.controller;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.common.storage.FileStorageService;
+import com.hustleup.marketplace.shipping.ShippingMethod;
 import com.hustleup.marketplace.shop.dto.*;
 import com.hustleup.marketplace.shop.model.Shop;
 import com.hustleup.marketplace.shop.model.ShopProduct;
@@ -233,6 +234,11 @@ public class ShopController {
                 .currency(trimToNull(body.getCurrency()) == null ? "PLN" : body.getCurrency().trim())
                 .category(trimToNull(body.getCategory()))
                 .imageUrl(trimToNull(body.getImageUrl()))
+                // An unrecognised method falls back to PICKUP rather than failing the save:
+                // collection is always possible and promises the buyer nothing the seller
+                // has not offered, unlike defaulting to a courier that may not exist.
+                .shippingMethod(shippingOrPickup(body.getShippingMethod()))
+                .shippingPrice(nonNegative(body.getShippingPrice()))
                 // New items land at the end of the shelf unless the seller says otherwise.
                 .sortOrder(body.getSortOrder() != null
                         ? body.getSortOrder()
@@ -267,6 +273,11 @@ public class ShopController {
         if (body.getCategory() != null)    product.setCategory(trimToNull(body.getCategory()));
         if (body.getImageUrl() != null)    product.setImageUrl(trimToNull(body.getImageUrl()));
         if (body.getSortOrder() != null)   product.setSortOrder(body.getSortOrder());
+        // Absent keys leave the delivery terms alone — editing a price must not silently
+        // reset how the seller ships. A typo'd method name is ignored for the same reason.
+        ShippingMethod method = ShippingMethod.parse(body.getShippingMethod());
+        if (method != null) product.setShippingMethod(method);
+        if (body.getShippingPrice() != null) product.setShippingPrice(nonNegative(body.getShippingPrice()));
 
         return ResponseEntity.ok(ShopProductDto.from(productRepository.save(product)));
     }
@@ -276,6 +287,17 @@ public class ShopController {
         Shop shop = requireOwned(idOrSlug);
         productRepository.delete(requireProductOf(shop, productId));
         return ResponseEntity.noContent().build();
+    }
+
+    /** Seller's chosen method, or collection when they did not give a usable one. */
+    private ShippingMethod shippingOrPickup(String raw) {
+        ShippingMethod method = ShippingMethod.parse(raw);
+        return method != null ? method : ShippingMethod.PICKUP;
+    }
+
+    /** Postage floors at zero — a negative charge would pay the buyer to order. */
+    private BigDecimal nonNegative(BigDecimal value) {
+        return value != null && value.compareTo(BigDecimal.ZERO) > 0 ? value : BigDecimal.ZERO;
     }
 
     /**

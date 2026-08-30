@@ -37,6 +37,7 @@
  */
 package com.hustleup.marketplace.booking.model;
 
+import com.hustleup.marketplace.shipping.Fulfilment;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -144,6 +145,18 @@ public class Booking {
     @Builder.Default
     private String paymentStatus = "PENDING";
 
+    // --- Delivery ---
+    // How this order physically reaches the buyer, and where it has got to. Copied from the
+    // listing's shipping choice when the booking is created, then owned by the seller's
+    // tracking updates (see ShipmentService).
+    //
+    // Deliberately separate from `status` above: BookingStatus answers "is this deal agreed
+    // and paid for", fulfilment answers "where is my stuff". Folding the second into the
+    // first would give one column that a refund and a courier hand-off both fight to write.
+    @Embedded
+    @Builder.Default
+    private Fulfilment fulfilment = new Fulfilment();
+
     // The current state in the booking lifecycle state machine.
     // @Enumerated(EnumType.STRING) stores it as "INQUIRED" etc. rather than a number.
     @Enumerated(EnumType.STRING)
@@ -171,4 +184,17 @@ public class Booking {
     @Column(name = "updated_at")
     @Builder.Default
     private LocalDateTime updatedAt = LocalDateTime.now(); // when the booking was last modified
+
+    /**
+     * The delivery state, never null.
+     *
+     * <p>Hand-written rather than Lombok-generated because Hibernate materialises an
+     * embeddable as {@code null} when every one of its columns is null — which is exactly
+     * what every booking created before this feature looks like. Without this, reading an
+     * old booking and asking where it is would NPE.
+     */
+    public Fulfilment getFulfilment() {
+        if (fulfilment == null) fulfilment = new Fulfilment();
+        return fulfilment;
+    }
 }

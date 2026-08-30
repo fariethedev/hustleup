@@ -271,15 +271,20 @@ export default function PostMediaGallery({ media = [], className = '', author, o
         onTouchStart={handleDragStart}
         onTouchEnd={handleDragEnd}
       >
+        {/* The track stays exactly one viewport wide and its slides overflow it.
+            translateX(%) resolves against the transformed element's OWN border box, so a
+            track sized to `media.length * 100%` moved by `current * 100%` jumped a full
+            track-width per step — three images meant slide 2 landed three viewports away
+            and every slide after the first showed blank black. Keeping the track at 100%
+            makes one step exactly one slide, whatever the count. */}
         <div
-          className="flex h-full transition-transform duration-500 ease-[0.16,1,0.3,1]"
-          style={{ transform: `translateX(-${current * 100}%)`, width: `${media.length * 100}%` }}
+          className="flex h-full w-full transition-transform duration-500 ease-[0.16,1,0.3,1]"
+          style={{ transform: `translateX(-${current * 100}%)` }}
         >
           {media.map((item, index) => (
             <div
               key={`${item.url}-${index}`}
-              className="relative h-full flex-shrink-0"
-              style={{ width: `${100 / media.length}%` }}
+              className="relative h-full w-full flex-shrink-0"
             >
               {item.type === 'VIDEO' ? (
                 <VideoPlayer

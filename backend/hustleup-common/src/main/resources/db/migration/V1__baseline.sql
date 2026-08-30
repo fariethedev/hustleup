@@ -1,0 +1,34 @@
+-- ============================================================================
+--  V1 — baseline marker. Deliberately contains no DDL.
+-- ============================================================================
+--
+--  The schema up to this point was not built by migrations. Hibernate created it
+--  from the entity classes under ddl-auto=update, over months, across six
+--  services — there was never a script, so there is nothing truthful to put here
+--  short of dumping ~30 tables and claiming they were authored.
+--
+--  Instead, `spring.flyway.baseline-on-migrate=true` with
+--  `baseline-version=1` tells Flyway to record the database it finds as already
+--  being at version 1 and to start applying from V2 onward. This file exists so
+--  that version 1 resolves to something, and so the numbering has an obvious
+--  floor.
+--
+--  WHAT THIS MEANS FOR A BRAND-NEW DATABASE
+--  A completely empty database will NOT be built by these migrations — it gets
+--  baselined at V1 with nothing in it, V2 then fails on tables that were never
+--  created, and the service will not start. To stand one up:
+--
+--    1. Start ONE service with SPRING_JPA_HIBERNATE_DDL_AUTO=update so Hibernate
+--       creates the base schema, then stop it.
+--    2. Set it back to validate. Flyway baselines what is now there and applies
+--       V2 onward normally.
+--
+--    Or restore a dump of an existing database, which is the better option for
+--    anything resembling staging.
+--
+--  Capturing a real V1 from the production schema (mysqldump --no-data) would
+--  remove that caveat and is worth doing next time someone needs a fresh
+--  environment. It is not done here because writing it blind, without a database
+--  to diff against, is exactly how a baseline ends up subtly wrong.
+
+SELECT 'baseline' AS flyway_v1_marker;

@@ -18,6 +18,7 @@ import DistanceBadge from '../components/DistanceBadge';
 import ListingGallery from '../components/ListingGallery';
 import SmartImage from '../components/SmartImage';
 import { coverImage, mediaList } from '../utils/media';
+import { getMethod } from '../utils/shipping';
 import { uploadUrl } from '../config';
 
 const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
@@ -111,6 +112,10 @@ export default function ListingDetail() {
       image: coverImage(listing),
       sellerId: listing.sellerId,
       sellerName: listing.sellerName || seller?.fullName || 'Seller',
+      // Delivery travels with the line, converted to PLN like the price above, so the cart
+      // can show postage before checkout rather than after payment.
+      shippingMethod: listing.shippingMethod,
+      shippingPrice: convertToPLN(listing.shippingPrice || 0, listing.currency || 'PLN'),
     }));
     setAddedToCart(true);
     showToast('Added to cart!');
@@ -215,6 +220,10 @@ export default function ListingDetail() {
       image: coverImage(listing),
       sellerId: listing.sellerId,
       sellerName: listing.sellerName || seller?.fullName || 'Seller',
+      // Delivery travels with the line, converted to PLN like the price above, so the cart
+      // can show postage before checkout rather than after payment.
+      shippingMethod: listing.shippingMethod,
+      shippingPrice: convertToPLN(listing.shippingPrice || 0, listing.currency || 'PLN'),
     }));
     navigate('/checkout');
   };
@@ -357,6 +366,26 @@ export default function ListingDetail() {
                     </span>
                   )}
                 </div>
+
+                {/* Delivery terms sit with the price, not in the description: they are part
+                    of what this costs and part of what the seller is promising, and finding
+                    them out at checkout is finding them out too late. Hidden for listings
+                    with nothing to send. */}
+                {(() => {
+                  const method = getMethod(listing.shippingMethod);
+                  if (!method || listing.shippingMethod === 'NONE') return null;
+                  const postage = Number(listing.shippingPrice) || 0;
+                  const Icon = method.icon;
+                  return (
+                    <div className="flex items-center gap-2 mb-3 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                      <Icon className="w-3.5 h-3.5 text-[#CDFF00]" />
+                      <span>{method.label}</span>
+                      <span className={postage > 0 ? 'text-white' : 'text-[#CDFF00]'}>
+                        {postage > 0 ? `+ ${formatPrice(postage, listing.currency)}` : 'Free'}
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {!isSeller && showSlotPicker && (
                   <div className="space-y-3">

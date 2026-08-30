@@ -3,15 +3,29 @@ spring:
     name: hustleup-notification
   servlet:
     multipart:
-      max-file-size: 15MB
-      max-request-size: 20MB
+      # Matched to auth/social/marketplace rather than left at 15MB. A photo straight off a
+      # modern phone routinely clears that, and Spring rejects the part before any of this
+      # service's own code runs — so the sender got an opaque failure on an ordinary photo
+      # while the same file uploaded fine as a post or a listing image.
+      max-file-size: 500MB
+      max-request-size: 500MB
   datasource:
     url: jdbc:mysql://localhost:3306/hustleup?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
     password: ${MYSQL_PASSWORD}
+  # Schema is owned by Flyway (migrations live in hustleup-common, since all services
+  # share one database). baseline-on-migrate records the pre-existing Hibernate-built
+  # schema as V1 rather than trying to recreate it; see V1__baseline.sql.
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1
   jpa:
     hibernate:
-      ddl-auto: update
+      # validate, not update: Hibernate no longer changes the schema, it only checks that
+      # the entities match what Flyway produced. A mismatch is then a loud startup failure
+      # instead of a silent, undocumented column appearing in production.
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect

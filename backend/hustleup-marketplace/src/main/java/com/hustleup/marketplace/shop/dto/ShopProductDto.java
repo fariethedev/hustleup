@@ -20,6 +20,11 @@ public class ShopProductDto {
     private String imageUrl;
     private int sortOrder;
 
+    /** ShippingMethod.name() — how the seller sends this, e.g. "PARCEL_LOCKER". */
+    private String shippingMethod;
+    /** Postage charged on top of {@code price}. */
+    private BigDecimal shippingPrice;
+
     public static ShopProductDto from(ShopProduct p) {
         if (p == null) return new ShopProductDto();
         return ShopProductDto.builder()
@@ -32,6 +37,10 @@ public class ShopProductDto {
                 .category(p.getCategory())
                 .imageUrl(p.getImageUrl())
                 .sortOrder(p.getSortOrder())
+                // Null on products added before sellers were asked how they ship — the shop
+                // page reads that as "ask the seller", not as free delivery.
+                .shippingMethod(p.getShippingMethod() != null ? p.getShippingMethod().name() : null)
+                .shippingPrice(p.getShippingPrice())
                 .build();
     }
 }

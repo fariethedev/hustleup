@@ -4,8 +4,9 @@ import { motion } from 'framer-motion';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectIsAuthenticated, selectIsSeller, logout } from '../store/authSlice';
 import { listingsApi } from '../api/client';
-import { LISTING_TYPES, CURRENCIES, POLISH_CITIES } from '../utils/constants';
-import { Lock, Image as ImageIcon, Check, X, ArrowRight, ArrowLeft, Play, CalendarClock, Store, LogOut } from 'lucide-react';
+import { LISTING_TYPES, CURRENCIES, POLISH_CITIES, formatPrice } from '../utils/constants';
+import { SHIPPING_METHODS, defaultMethodFor, getMethod } from '../utils/shipping';
+import { Lock, Image as ImageIcon, Check, X, ArrowRight, ArrowLeft, Play, CalendarClock, Store, LogOut, Truck } from 'lucide-react';
 import { isVideoUrl } from '../utils/media';
 
 /**
@@ -30,6 +31,10 @@ export default function CreateListing() {
     title: '', description: '', listingType: '', price: '', currency: 'PLN',
     negotiable: false, swapEnabled: false, city: '', meta: '',
     eventStartsAt: '', eventVenue: '',
+    // Preselected from the category in step 1 rather than left blank — every listing needs
+    // an answer, and "collection" for goods / "no shipping" for a service is right often
+    // enough that most sellers only have to confirm it.
+    shippingMethod: '', shippingPrice: '',
   });
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -108,6 +113,10 @@ export default function CreateListing() {
       formData.append('negotiable', form.negotiable);
       formData.append('swapEnabled', form.swapEnabled);
       formData.append('city', form.city);
+      // Delivery terms. Sent on every listing, including services, so "no shipping" is a
+      // recorded choice rather than a blank the buyer has to interpret.
+      formData.append('shippingMethod', form.shippingMethod || defaultMethodFor(form.listingType));
+      formData.append('shippingPrice', chargesPostage ? (form.shippingPrice || '0') : '0');
       // EVENT-only. Sent as plain strings and parsed leniently server-side, so a blank
       // value from a non-event listing is simply ignored rather than rejected.
       if (form.listingType === 'EVENT') {
@@ -127,6 +136,19 @@ export default function CreateListing() {
   };
 
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  /**
+   * Picking a category also picks the delivery default, because the honest default differs
+   * per category: goods can always be collected, a haircut is never posted. The seller can
+   * still change it in step 2 — this only saves them from starting on a blank.
+   */
+  const setCategory = (value) =>
+    setForm((prev) => ({ ...prev, listingType: value, shippingMethod: defaultMethodFor(value) }));
+
+  // Collection, digital delivery and services have nothing to charge postage for, so the
+  // price field is hidden rather than shown at zero for the seller to wonder about.
+  const shippingMeta = getMethod(form.shippingMethod);
+  const chargesPostage = !!shippingMeta && !['PICKUP', 'DIGITAL', 'NONE'].includes(form.shippingMethod);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 mt-10">
@@ -168,7 +190,7 @@ export default function CreateListing() {
                       <button
                         key={type.value}
                         type="button"
-                        onClick={() => set('listingType', type.value)}
+                        onClick={() => setCategory(type.value)}
                         className={`p-4 rounded-xl border text-center transition-all flex flex-col items-center gap-2 ${
                           isActive
                             ? 'bg-[#CDFF00]/10 border-[#CDFF00] text-[#CDFF00]'
@@ -278,6 +300,67 @@ export default function CreateListing() {
                   <p className="text-xs text-gray-500 font-medium">Let people trade an item or a skill for this instead of cash</p>
                 </div>
               </button>
+
+              {/* Delivery. Asked here, next to the price, because it is part of what the buyer
+                  pays and part of what the seller is promising — not an afterthought to sort
+                  out in DMs once money has changed hands. The choice also decides which
+                  tracking steps the seller is offered after the sale. */}
+              <div>
+                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <Truck className="w-3.5 h-3.5" /> How do you deliver this? *
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {SHIPPING_METHODS.map((m) => {
+                    const Icon = m.icon;
+                    const isActive = form.shippingMethod === m.value;
+                    return (
+                      <button
+                        key={m.value}
+                        type="button"
+                        onClick={() => set('shippingMethod', m.value)}
+                        className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
+                          isActive
+                            ? 'bg-[#CDFF00]/10 border-[#CDFF00] text-[#CDFF00]'
+                            : 'bg-black/50 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-black uppercase tracking-widest leading-tight">{m.label}</span>
+                          <span className="block text-[10px] text-gray-500 font-medium mt-1 leading-snug">{m.hint}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {chargesPostage && (
+                  <div className="mt-3">
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">
+                      Delivery cost
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={form.shippingPrice}
+                      onChange={(e) => set('shippingPrice', e.target.value)}
+                      className="w-full px-5 py-3.5 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-black"
+                      placeholder="0.00 — leave at 0 for free delivery"
+                    />
+                    {/* Says plainly what the buyer will be charged, so nobody discovers the
+                        postage on Stripe's page. Postage is charged once per order, not per
+                        unit, and passes to the seller in full with no platform fee on it. */}
+                    <p className="mt-2 text-[10px] text-gray-500 font-medium leading-relaxed">
+                      Buyers pay{' '}
+                      <span className="text-[#CDFF00] font-black">
+                        {formatPrice(Number(form.shippingPrice) || 0, form.currency)}
+                      </span>{' '}
+                      on top of the price, charged once per order. It reaches you in full.
+                    </p>
+                  </div>
+                )}
+              </div>
 
               {/* City picker rather than free text: browse filters everything by Polish city,
                   so a typo'd or blank city quietly drops the listing out of every city view. */}

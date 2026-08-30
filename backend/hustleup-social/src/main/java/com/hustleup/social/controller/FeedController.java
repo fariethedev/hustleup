@@ -38,6 +38,9 @@ import com.hustleup.social.repository.PostLikeRepository;
 import com.hustleup.social.repository.SavedPostRepository;
 import com.hustleup.social.repository.PostRepository;
 import com.hustleup.social.repository.FollowRepository;
+import com.hustleup.social.model.Community;
+import com.hustleup.social.repository.CommunityRepository;
+import com.hustleup.social.repository.CommunityMemberRepository;
 import com.hustleup.common.storage.FileStorageService;
 import com.hustleup.common.model.User;
 import com.hustleup.common.model.Notification;
@@ -115,6 +118,10 @@ public class FeedController {
     /** JPA repository for Notification entities; used to fan out in-app notifications. */
     private final NotificationRepository notificationRepository;
 
+    /** Communities a post can belong to, and who is in them — see the feeds above. */
+    private final CommunityRepository communityRepository;
+    private final CommunityMemberRepository communityMemberRepository;
+
     /**
      * Stateless scoring engine that produces a personalised feed for a given user.
      * It combines recency, engagement, social graph proximity, and author affinity.
@@ -147,7 +154,9 @@ public class FeedController {
             FollowRepository followRepository,
             NotificationRepository notificationRepository,
             RecommendationEngine recommendationEngine,
-            PremiumAccess premiumAccess) {
+            PremiumAccess premiumAccess,
+            CommunityRepository communityRepository,
+            CommunityMemberRepository communityMemberRepository) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.savedPostRepository = savedPostRepository;
@@ -159,6 +168,8 @@ public class FeedController {
         this.notificationRepository = notificationRepository;
         this.recommendationEngine = recommendationEngine;
         this.premiumAccess = premiumAccess;
+        this.communityRepository = communityRepository;
+        this.communityMemberRepository = communityMemberRepository;
     }
 
     // ── Endpoints ─────────────────────────────────────────────────────────────
@@ -216,27 +227,53 @@ public class FeedController {
             default         -> postRepository.findAllByOrderByCreatedAtDesc(); // "latest"
         };
 
-        // Determine which posts the current user has already liked.
-        // We do a single batch query (findByIdUserIdAndIdPostIdIn) rather than one query
-        // per post — this is the N+1 query problem avoidance pattern.
-        Set<String> likedPostIds = getCurrentUser()
-                .map(user -> postLikeRepository.findByIdUserIdAndIdPostIdIn(
-                                user.getId().toString(),
-                                posts.stream().map(Post::getId).toList())
-                        .stream()
-                        .map(postLike -> postLike.getId().getPostId())
-                        .collect(Collectors.toSet()))
-                .orElseGet(HashSet::new); // anonymous user has no likes
+        return ResponseEntity.ok(decorate(posts));
+    }
 
-        // Same batch pattern as likes, for the "did I save this?" flag.
-        Set<String> savedPostIds = getCurrentUser()
-                .map(user -> savedPostRepository.findByIdUserIdAndIdPostIdIn(
-                                user.getId().toString(),
-                                posts.stream().map(Post::getId).toList())
-                        .stream()
-                        .map(savedPost -> savedPost.getId().getPostId())
-                        .collect(Collectors.toSet()))
+    /**
+     * Turns a page of posts into fully-populated DTOs.
+     *
+     * <p>Extracted so the four feeds that now exist — everything, following, your
+     * communities, and one community — return cards identical in every respect except which
+     * posts are in them. While this logic lived inline in the main feed, any new feed either
+     * duplicated forty lines of batch loading or quietly shipped without saved flags, top
+     * comments or avatars.
+     *
+     * <p>Every lookup is batched: rendering a feed costs a fixed handful of queries whatever
+     * its length, rather than one per card per attribute.
+     */
+    private List<PostDto> decorate(List<Post> posts) {
+        if (posts.isEmpty()) return List.of();
+
+        List<String> postIds = posts.stream().map(Post::getId).toList();
+        Optional<User> viewer = getCurrentUser();
+
+        // What the viewer has already done to these posts. An anonymous visitor has done
+        // none of it, so all three queries are skipped rather than run against a null id.
+        Set<String> likedPostIds = viewer
+                .map(user -> postLikeRepository.findByIdUserIdAndIdPostIdIn(user.getId().toString(), postIds)
+                        .stream().map(like -> like.getId().getPostId()).collect(Collectors.toSet()))
                 .orElseGet(HashSet::new);
+
+        Set<String> savedPostIds = viewer
+                .map(user -> savedPostRepository.findByIdUserIdAndIdPostIdIn(user.getId().toString(), postIds)
+                        .stream().map(saved -> saved.getId().getPostId()).collect(Collectors.toSet()))
+                .orElseGet(HashSet::new);
+
+        Set<String> repostedPostIds = viewer
+                .map(user -> postRepository.findByAuthorIdAndRepostOfIdIn(user.getId().toString(), postIds)
+                        .stream().map(Post::getRepostOfId).collect(Collectors.toSet()))
+                .orElseGet(HashSet::new);
+
+        // The originals behind any reposts on this page, as one batch.
+        List<String> quotedIds = posts.stream()
+                .map(Post::getRepostOfId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<String, Post> quotedPosts = quotedIds.isEmpty() ? Map.of()
+                : postRepository.findAllById(quotedIds).stream()
+                        .collect(Collectors.toMap(Post::getId, post -> post, (a, b) -> a));
 
         // Top-comment preview per post (one indexed query per post — acceptable for a feed
         // page's bounded size; see CommentRepository#findFirstByPostIdOrderByCreatedAtDesc).
@@ -246,26 +283,216 @@ public class FeedController {
                 .collect(Collectors.toMap(Map.Entry::getKey,
                         entry -> new PostDto.TopCommentDto(entry.getValue().get().getAuthorName(), entry.getValue().get().getContent())));
 
-        // Bulk-load author avatars so each feed card shows the author's profile picture.
-        // Step 1: Collect all unique author IDs as UUIDs (safe parse, skip invalid).
-        List<UUID> authorUUIDs = posts.stream()
-                .map(Post::getAuthorId)
+        // Avatars for the authors of both the posts and anything they quote, in one call.
+        List<UUID> authorUUIDs = java.util.stream.Stream.concat(
+                        posts.stream().map(Post::getAuthorId),
+                        quotedPosts.values().stream().map(Post::getAuthorId))
                 .filter(Objects::nonNull)
                 .distinct()
                 .map(id -> { try { return UUID.fromString(id); } catch (Exception e) { return null; } })
                 .filter(Objects::nonNull)
                 .toList();
-        // Step 2: One findAllById call instead of one findById per post.
         Map<String, String> authorAvatarMap = userRepository.findAllById(authorUUIDs).stream()
                 .filter(u -> u.getAvatarUrl() != null && !u.getAvatarUrl().isBlank())
                 .collect(Collectors.toMap(u -> u.getId().toString(), User::getAvatarUrl));
 
-        // Convert each Post entity to a PostDto.  The urlRefresher generates a fresh
-        // pre-signed URL for each media file (important if using S3 with expiring URLs).
-        return ResponseEntity.ok(posts.stream()
-                .map(post -> PostDto.from(post, likedPostIds.contains(post.getId()), savedPostIds.contains(post.getId()),
-                        storageService::refreshUrl, authorAvatarMap.get(post.getAuthorId()), topComments.get(post.getId())))
-                .toList());
+        // Community names, so a card can say which group it was posted into without the
+        // client having to resolve an id per row.
+        List<String> communityIds = posts.stream()
+                .map(Post::getCommunityId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<String, Community> communities = communityIds.isEmpty() ? Map.of()
+                : communityRepository.findByIdIn(communityIds).stream()
+                        .collect(Collectors.toMap(Community::getId, community -> community, (a, b) -> a));
+
+        return posts.stream().map(post -> {
+            PostDto dto = PostDto.from(post,
+                    likedPostIds.contains(post.getId()),
+                    savedPostIds.contains(post.getId()),
+                    storageService::refreshUrl,
+                    authorAvatarMap.get(post.getAuthorId()),
+                    topComments.get(post.getId()));
+            dto.setRepostedByCurrentUser(repostedPostIds.contains(post.getId()));
+
+            Post quoted = post.getRepostOfId() == null ? null : quotedPosts.get(post.getRepostOfId());
+            // A repost whose original has since been deleted keeps the reposter's own
+            // commentary and simply loses the quote frame, rather than vanishing from the
+            // timeline and taking their words with it.
+            if (quoted != null) {
+                dto.setRepostOf(PostDto.quoted(quoted, storageService::refreshUrl,
+                        authorAvatarMap.get(quoted.getAuthorId())));
+            }
+
+            Community community = post.getCommunityId() == null ? null : communities.get(post.getCommunityId());
+            if (community != null) {
+                dto.setCommunityName(community.getName());
+                dto.setCommunitySlug(community.getSlug());
+            }
+            return dto;
+        }).toList();
+    }
+
+    /**
+     * Posts from the people the caller follows, newest first.
+     *
+     * <p><b>GET /api/v1/feed/following</b> — auth required.
+     *
+     * <p>Not cached, unlike the open feed: the result is different for every caller, so a
+     * shared cache entry would serve one person's following list to everybody. Following
+     * nobody returns an empty list rather than falling back to the open feed — showing
+     * strangers under a tab labelled "Following" would be a lie about where they came from.
+     */
+    @GetMapping("/following")
+    public ResponseEntity<?> followingFeed() {
+        User me = requireCurrentUser();
+        List<String> followingIds = followRepository.findByFollowerId(me.getId()).stream()
+                .map(follow -> follow.getFollowingId().toString())
+                .toList();
+        if (followingIds.isEmpty()) return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(decorate(postRepository.findByAuthorIdIn(followingIds)));
+    }
+
+    /**
+     * Posts from every community the caller has joined, newest first.
+     *
+     * <p><b>GET /api/v1/feed/communities</b> — auth required.
+     *
+     * <p>This is the point of communities: someone who joined "Cars in Lublin" opens this
+     * tab and gets cars, instead of everything everyone posted today. Membership is the
+     * filter, so the tab's contents are something the reader chose rather than something
+     * a ranking decided for them.
+     */
+    @GetMapping("/communities")
+    public ResponseEntity<?> communitiesFeed() {
+        User me = requireCurrentUser();
+        List<String> communityIds = communityMemberRepository.findByIdMemberId(me.getId().toString()).stream()
+                .map(membership -> membership.getId().getCommunityId())
+                .toList();
+        if (communityIds.isEmpty()) return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(decorate(postRepository.findByCommunityIdInOrderByCreatedAtDesc(communityIds)));
+    }
+
+    /**
+     * One community's own feed, newest first.
+     *
+     * <p><b>GET /api/v1/feed/community/{idOrSlug}</b> — public, so someone deciding whether
+     * to join can see what actually gets posted there first.
+     */
+    @GetMapping("/community/{idOrSlug}")
+    public ResponseEntity<?> communityFeed(@PathVariable String idOrSlug) {
+        Community community = communityRepository.findById(idOrSlug)
+                .or(() -> communityRepository.findBySlug(idOrSlug))
+                .orElse(null);
+        if (community == null) return ResponseEntity.status(404).body(Map.of("error", "Community not found"));
+        return ResponseEntity.ok(decorate(postRepository.findByCommunityIdOrderByCreatedAtDesc(community.getId())));
+    }
+
+    /**
+     * Reposts a post onto the caller's own timeline.
+     *
+     * <p><b>POST /api/v1/feed/{postId}/repost</b> — auth required. Body is optional:
+     * {@code {"comment": "worth reading"}} adds the reposter's own words above the quote.
+     *
+     * <p>A repost is a real post rather than a counter on the original. That is what lets it
+     * carry commentary, sit in the timeline at the moment it was shared, and be liked and
+     * replied to on its own terms — and it means deleting a repost never touches whatever it
+     * quoted.
+     *
+     * <p>Reposting is idempotent per person: a second call returns the repost already made
+     * instead of littering the timeline with duplicates.
+     */
+    @PostMapping("/{postId}/repost")
+    @CacheEvict(value = "feed", allEntries = true)
+    public ResponseEntity<?> repost(@PathVariable String postId,
+                                    @RequestBody(required = false) Map<String, String> payload) {
+        User me = requireCurrentUser();
+        Post original = postRepository.findById(postId).orElse(null);
+        if (original == null) return ResponseEntity.status(404).body(Map.of("error", "Post not found"));
+
+        // Repost the thing that was actually written, not the share of it. Without this a
+        // chain of reposts nests quote inside quote, and the original drifts further from
+        // every reader who eventually sees it.
+        Post target = original.getRepostOfId() != null
+                ? postRepository.findById(original.getRepostOfId()).orElse(original)
+                : original;
+
+        if (target.getAuthorId().equals(me.getId().toString())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "You can't repost your own post"));
+        }
+        // An anonymous post is anonymous because its author asked for that. A repost names
+        // the original's author in the quote frame, so allowing it would undo the promise
+        // the platform made when the post was published.
+        if (target.isAnonymous()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Anonymous posts can't be reposted"));
+        }
+
+        Optional<Post> existing = postRepository.findFirstByAuthorIdAndRepostOfId(
+                me.getId().toString(), target.getId());
+        if (existing.isPresent()) {
+            return ResponseEntity.ok(decorate(List.of(existing.get())).get(0));
+        }
+
+        String comment = payload == null ? null : payload.get("comment");
+
+        Post share = new Post();
+        share.setId(UUID.randomUUID().toString());
+        share.setAuthorId(me.getId().toString());
+        share.setAuthorName(me.displayName());
+        share.setContent(comment == null ? "" : comment.trim());
+        share.setRepostOfId(target.getId());
+        // A repost stays where the original lives, so sharing a community post inside that
+        // community keeps it in the community rather than leaking it to the open feed.
+        share.setCommunityId(target.getCommunityId());
+        Post saved = postRepository.save(share);
+
+        // Recount rather than increment: the count is then self-correcting if a repost is
+        // ever removed by a path that forgets to decrement it.
+        target.setRepostCount((int) postRepository.countByRepostOfId(target.getId()));
+        postRepository.save(target);
+
+        notifyRepost(me, target, saved);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(decorate(List.of(saved)).get(0));
+    }
+
+    /**
+     * Undoes the caller's repost of a post.
+     *
+     * <p><b>DELETE /api/v1/feed/{postId}/repost</b> — auth required. Deleting the repost row
+     * removes it from every timeline it appeared in; the original is untouched beyond its
+     * count being recomputed.
+     */
+    @DeleteMapping("/{postId}/repost")
+    @CacheEvict(value = "feed", allEntries = true)
+    public ResponseEntity<?> undoRepost(@PathVariable String postId) {
+        User me = requireCurrentUser();
+        Post existing = postRepository.findFirstByAuthorIdAndRepostOfId(me.getId().toString(), postId).orElse(null);
+        if (existing == null) return ResponseEntity.status(404).body(Map.of("error", "You haven't reposted this"));
+
+        postRepository.delete(existing);
+        postRepository.findById(postId).ifPresent(original -> {
+            original.setRepostCount((int) postRepository.countByRepostOfId(postId));
+            postRepository.save(original);
+        });
+        return ResponseEntity.ok(Map.of("reposted", false));
+    }
+
+    /** Tells the original author someone shared their post. Best-effort, like every other alert here. */
+    private void notifyRepost(User sharer, Post original, Post share) {
+        try {
+            notificationRepository.save(Notification.builder()
+                    .userId(UUID.fromString(original.getAuthorId()))
+                    .title(sharer.displayName() + " reposted your post")
+                    .message(original.getContent() == null || original.getContent().isBlank()
+                            ? "Shared your post"
+                            : original.getContent().substring(0, Math.min(original.getContent().length(), 80)))
+                    .notificationType("REPOST")
+                    .referenceId(UUID.fromString(share.getId()))
+                    .build());
+        } catch (Exception ignored) {
+        }
     }
 
     /**
@@ -446,7 +673,9 @@ public class FeedController {
             @RequestParam(value = "media", required = false) List<MultipartFile> mediaFiles,
             // Optional link back to a marketplace listing — used by sellers posting an
             // "event update" from their EVENT listing's page (see GET /feed/listing/{id}).
-            @RequestParam(value = "linkedListingId", required = false) String linkedListingId) {
+            @RequestParam(value = "linkedListingId", required = false) String linkedListingId,
+            // Posting into a community rather than the open feed. Absent for an ordinary post.
+            @RequestParam(value = "communityId", required = false) String communityId) {
 
         // This throws AccessDeniedException if no authenticated user is found,
         // which Spring Security converts to a 403 response.
@@ -476,15 +705,37 @@ public class FeedController {
                     "feature", "ANONYMOUS_POST"));
         }
 
+        // Posting into a community you have not joined is refused rather than silently
+        // downgraded to an open-feed post. A community is a room with a door: writing into
+        // one you are not in is exactly the thing membership is supposed to mean, and a
+        // post that quietly lands somewhere else is worse than one that is turned away.
+        Community community = null;
+        if (communityId != null && !communityId.isBlank()) {
+            community = communityRepository.findById(communityId)
+                    .or(() -> communityRepository.findBySlug(communityId))
+                    .orElse(null);
+            if (community == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "That community doesn't exist"));
+            }
+            boolean member = communityMemberRepository
+                    .findByIdMemberIdAndIdCommunityIdIn(userId, List.of(community.getId()))
+                    .stream().findAny().isPresent();
+            if (!member) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Join this community before posting in it"));
+            }
+        }
+
         // Build the Post entity manually (no Lombok @Builder here because the class uses
         // plain getters/setters for simplicity).
         Post post = new Post();
         post.setId(UUID.randomUUID().toString()); // generate a UUID string primary key
         post.setAuthorId(userId);
-        post.setAuthorName(authorName != null && !authorName.isBlank() ? authorName : currentUser.getFullName());
+        post.setAuthorName(authorName != null && !authorName.isBlank() ? authorName : currentUser.displayName());
         post.setContent(content == null ? "" : content.trim());
         post.setAnonymous(anonymous);
         post.setLinkedListingId(linkedListingId != null && !linkedListingId.isBlank() ? linkedListingId : null);
+        post.setCommunityId(community == null ? null : community.getId());
 
         if (!validMediaFiles.isEmpty()) {
             // Upload each file to storage and collect the resulting storage keys/URLs.
@@ -517,8 +768,7 @@ public class FeedController {
                 List<Follow> followers = followRepository.findByFollowingId(currentUser.getId());
                 if (!followers.isEmpty()) {
                     // Determine the display name to show in the notification title.
-                    String displayName = currentUser.getFullName() != null && !currentUser.getFullName().isBlank()
-                            ? currentUser.getFullName() : currentUser.getEmail().split("@")[0];
+                    String displayName = currentUser.displayName();
                     // Truncate post content to 80 chars for the notification snippet.
                     String snippet = post.getContent() != null && !post.getContent().isBlank()
                             ? post.getContent().substring(0, Math.min(post.getContent().length(), 80)) : "Shared new content";
@@ -535,7 +785,7 @@ public class FeedController {
             }
         } catch (Exception ignored) {}
 
-        return ResponseEntity.ok(PostDto.from(savedPost, false, storageService::refreshUrl));
+        return ResponseEntity.ok(decorate(List.of(savedPost)).get(0));
     }
 
     /**
@@ -576,7 +826,7 @@ public class FeedController {
                 userRepository.findById(UUID.fromString(like.getId().getUserId())).ifPresent(u -> {
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("id", u.getId().toString());
-                    row.put("name", u.getFullName());
+                    row.put("name", u.displayName());
                     String avatar = u.getAvatarUrl();
                     row.put("avatarUrl", avatar != null ? storageService.refreshUrl(avatar) : null);
                     row.put("verified", u.isIdVerified());
@@ -653,7 +903,7 @@ public class FeedController {
         comment.setId(UUID.randomUUID().toString());
         comment.setPostId(postId);
         comment.setAuthorId(currentUser.getId().toString());
-        comment.setAuthorName(currentUser.getFullName());
+        comment.setAuthorName(currentUser.displayName());
         comment.setContent(content.trim());
 
         // If parentId is supplied, this is a reply; store the reference for threading.

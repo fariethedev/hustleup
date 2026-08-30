@@ -52,7 +52,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
     e.preventDefault(); e.stopPropagation();
     // Normalized to PLN at add-time so a cart mixing listings/shops that were priced in
     // different currencies still sums to a correct total.
-    dispatch(addToCart({ listingId: listing.id, title: listing.title, price: convertToPLN(listing.price, listing.currency || 'PLN'), currency: 'PLN', image: imageUrl, sellerId: listing.sellerId, sellerName: listing.sellerName || 'Seller' }));
+    dispatch(addToCart({ listingId: listing.id, title: listing.title, price: convertToPLN(listing.price, listing.currency || 'PLN'), currency: 'PLN', image: imageUrl, sellerId: listing.sellerId, sellerName: listing.sellerName || 'Seller', shippingMethod: listing.shippingMethod, shippingPrice: convertToPLN(listing.shippingPrice || 0, listing.currency || 'PLN') }));
     setAdded(true); setTimeout(() => setAdded(false), 2000);
   };
 

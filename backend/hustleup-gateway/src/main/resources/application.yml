@@ -65,6 +65,13 @@ spring:
           predicates:
             - Path=/api/v1/feed/**,/api/v1/feed
 
+        # Member-created communities ("Cars in Lublin"). Social, not marketplace: a
+        # community is a group with its own feed, and the feed it filters lives here.
+        - id: social-communities
+          uri: ${SOCIAL_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/communities/**,/api/v1/communities
+
         # News desk — articles published by verified outlets. Lives in the social service
         # because it shares that service's content and moderation concerns, not the
         # marketplace's transactional ones.

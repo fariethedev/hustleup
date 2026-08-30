@@ -4,6 +4,11 @@ import com.hustleup.common.model.Role;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.marketplace.payments.service.StripeConnectService;
+import com.hustleup.marketplace.shipping.Fulfilment;
+import com.hustleup.marketplace.shipping.FulfilmentStatus;
+import com.hustleup.marketplace.shipping.FulfilmentUpdateRequest;
+import com.hustleup.marketplace.shipping.ShipmentService;
+import com.hustleup.marketplace.shipping.ShippingMethod;
 import com.hustleup.marketplace.shop.model.Shop;
 import com.hustleup.marketplace.shop.model.ShopOrder;
 import com.hustleup.marketplace.shop.model.ShopProduct;
@@ -42,6 +47,7 @@ public class ShopOrderController {
     private final ShopOrderRepository orderRepository;
     private final UserRepository userRepository;
     private final StripeConnectService stripeConnectService;
+    private final ShipmentService shipmentService;
 
     /** Platform default — {@link ShopProduct} carries a price with no currency of its own. */
     private static final String CURRENCY = "PLN";
@@ -113,6 +119,16 @@ public class ShopOrderController {
             // could name its own price for someone else's goods.
             BigDecimal unit = product.getPrice() != null ? product.getPrice() : BigDecimal.ZERO;
 
+            // Delivery terms are snapshotted from the shelf for the same reason the name and
+            // price are: repricing postage tomorrow must not rewrite what was agreed today.
+            Fulfilment delivery = new Fulfilment();
+            delivery.setShippingMethod(product.getShippingMethod() != null
+                    ? product.getShippingMethod() : ShippingMethod.PICKUP);
+            // Charged once per line, not per unit — three of an item is still one parcel.
+            delivery.setShippingPrice(product.getShippingPrice() != null
+                    ? product.getShippingPrice() : BigDecimal.ZERO);
+            delivery.setFulfilmentStatus(FulfilmentStatus.AWAITING_PAYMENT);
+
             created.add(orderRepository.save(ShopOrder.builder()
                     .buyerId(buyer.getId())
                     .shopId(shop.getId())
@@ -128,6 +144,7 @@ public class ShopOrderController {
                     .customerEmail(str(customer.get("email")) != null ? str(customer.get("email")) : buyer.getEmail())
                     .customerPhone(str(customer.get("phone")))
                     .notes(notes)
+                    .fulfilment(delivery)
                     .build()));
         }
 
@@ -180,6 +197,46 @@ public class ShopOrderController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error",
                     "Invalid status. Allowed: AWAITING_PAYMENT, PAID, FULFILLED, CANCELLED, REFUNDED"));
+        }
+        order.setUpdatedAt(java.time.LocalDateTime.now());
+        return ResponseEntity.ok(orderRepository.save(order));
+    }
+
+    /**
+     * Records how the seller is sending a storefront order, and how far along it is.
+     *
+     * <p><b>PATCH /api/v1/shops/orders/{id}/fulfilment</b> — the shop owner, or an admin.
+     * Same contract as the marketplace equivalent on {@code /api/v1/bookings}: only
+     * {@code status} is required, absent keys are left alone, and which statuses are legal
+     * depends on the shipping method the product was sold under.
+     *
+     * <p>Deliberately separate from the status PATCH above. That one is commercial — paid,
+     * cancelled, refunded — and is the seller telling us about the money. This one is
+     * physical, and is the seller telling the buyer where their parcel is.
+     */
+    @PatchMapping("/orders/{id}/fulfilment")
+    @Transactional
+    public ResponseEntity<?> updateFulfilment(@PathVariable UUID id,
+                                              @RequestBody FulfilmentUpdateRequest body) {
+        User me = currentUser();
+        if (me == null) return ResponseEntity.status(401).build();
+        ShopOrder order = orderRepository.findById(id).orElse(null);
+        if (order == null) return ResponseEntity.status(404).body(Map.of("error", "Order not found"));
+        if (!order.getSellerId().equals(me.getId()) && me.getRole() != Role.ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Only the shop owner can update delivery on this order"));
+        }
+
+        String rejection = shipmentService.applyUpdate(order.getFulfilment(), body,
+                order.getProductName(), order.getId(), order.getBuyerId());
+        if (rejection != null) return ResponseEntity.badRequest().body(Map.of("error", rejection));
+
+        // Keep the commercial status in step: an order the buyer now physically has is
+        // fulfilled, and there is no second place for the seller to have to say so.
+        if (order.getFulfilment().getFulfilmentStatus() != null
+                && order.getFulfilment().getFulfilmentStatus().isComplete()
+                && order.getStatus() == ShopOrder.ShopOrderStatus.PAID) {
+            order.setStatus(ShopOrder.ShopOrderStatus.FULFILLED);
         }
         order.setUpdatedAt(java.time.LocalDateTime.now());
         return ResponseEntity.ok(orderRepository.save(order));

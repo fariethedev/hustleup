@@ -1,5 +1,6 @@
 package com.hustleup.marketplace.shop.model;
 
+import com.hustleup.marketplace.shipping.Fulfilment;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -110,10 +111,44 @@ public class ShopOrder {
     @Column(name = "payment_intent_id")
     private String paymentIntentId;
 
+    // ---- Delivery -----------------------------------------------------------
+
+    /**
+     * How this order reaches the buyer and where it has got to.
+     *
+     * <p>The shipping method and price are snapshotted from {@link ShopProduct} at purchase
+     * time for the same reason the name and unit price above are: a seller who switches
+     * from courier to collection next month must not rewrite what someone already paid
+     * postage for. Everything else here is written by the seller's tracking updates.
+     *
+     * <p>Note {@code totalPrice} above stays the goods total — postage is deliberately kept
+     * out of it so a seller's sales figures are not inflated by carrier charges.
+     */
+    @Embedded
+    @Builder.Default
+    private Fulfilment fulfilment = new Fulfilment();
+
     @Column(name = "created_at", nullable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    /**
+     * The delivery state, never null.
+     *
+     * <p>Hibernate materialises an embeddable as {@code null} when every one of its columns
+     * is null, which is what every order placed before this feature looks like.
+     */
+    public Fulfilment getFulfilment() {
+        if (fulfilment == null) fulfilment = new Fulfilment();
+        return fulfilment;
+    }
+
+    /** Goods plus postage — what the buyer actually pays. */
+    public BigDecimal grandTotal() {
+        return (totalPrice != null ? totalPrice : BigDecimal.ZERO)
+                .add(getFulfilment().shippingPriceOrZero());
+    }
 }

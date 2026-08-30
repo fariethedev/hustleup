@@ -149,6 +149,14 @@ export const shopsApi = {
   myOrders: () => api.get('/shops/orders/mine'),
   receivedOrders: () => api.get('/shops/orders/received'),
   updateOrder: (id, status) => api.patch(`/shops/orders/${id}`, { status }),
+  /**
+   * Seller's delivery update on a storefront order. Only `status` is required; keys you
+   * leave out are kept as they were, so adding a tracking number tomorrow doesn't wipe
+   * today's note. Every accepted status change notifies the buyer.
+   * update: { status, carrier?, trackingNumber?, trackingUrl?, dropoffPoint?,
+   *           estimatedDelivery?, note? }
+   */
+  updateFulfilment: (id, update) => api.patch(`/shops/orders/${id}/fulfilment`, update),
   // Shared by the banner and product photos; returns { url }.
   uploadMedia: (id, file) => {
     const formData = new FormData();
@@ -173,6 +181,10 @@ export const bookingsApi = {
   // rejects the call without a 1-5 rating. See BookingService#complete.
   complete: (id, review) => api.patch(`/bookings/${id}/complete`, review),
   my: () => api.get('/bookings/my'),
+  // Verifies a Stripe checkout session on the buyer's return and applies the same update
+  // the webhook would. The webhook stays the authority; this exists because the buyer's
+  // browser cannot wait for it — locally it never arrives at all.
+  confirmPayment: (sessionId) => api.post('/bookings/confirm-payment', { sessionId }),
   // Returns a Stripe-hosted checkout URL for the buyer to pay for a BOOKED booking.
   checkoutSession: (id) => api.post(`/bookings/${id}/checkout-session`),
   /**
@@ -186,6 +198,9 @@ export const bookingsApi = {
   // Seller's outstanding sales (INQUIRED / NEGOTIATING / BOOKED) — powers the pending
   // badge and panel. Seller side only; a seller's own purchases are not included.
   pendingSales: () => api.get('/bookings/pending-sales'),
+  // Same delivery-update contract as shopsApi.updateFulfilment — one tracker component
+  // drives both, because a buyer doesn't care which kind of order they placed.
+  updateFulfilment: (id, update) => api.patch(`/bookings/${id}/fulfilment`, update),
 };
 
 // Digital event tickets. There is no create() here on purpose — tickets are issued by the
@@ -325,6 +340,9 @@ export const usersApi = {
 // Feed
 export const feedApi = {
   getAll: () => api.get('/feed'),
+  // FormData fields: content, media[], anonymous, linkedListingId?, communityId?.
+  // communityId posts into a community instead of the open feed; the server refuses it
+  // unless you have joined that community.
   createPost: (formData) => api.post('/feed', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   getComments: (postId) => api.get(`/feed/${postId}/comments`),
   addComment: (postId, content) => api.post(`/feed/${postId}/comments`, { content }),
@@ -349,6 +367,48 @@ export const feedApi = {
   updatePost: (postId, content) => api.patch(`/feed/${postId}`, { content }),
   /** Delete your own post, along with its likes, comments and saves. */
   deletePost: (postId) => api.delete(`/feed/${postId}`),
+  /** Posts from the people you follow. Empty when you follow nobody — never a fallback. */
+  following: () => api.get('/feed/following'),
+  /** Posts from every community you've joined. */
+  communities: () => api.get('/feed/communities'),
+  /** One community's own feed, by id or slug. Public. */
+  byCommunity: (idOrSlug) => api.get(`/feed/community/${idOrSlug}`),
+  /**
+   * Share someone's post onto your own timeline, optionally with your own words above it.
+   * Creates a real post that quotes the original, so it can be liked and replied to on its
+   * own terms. Idempotent — reposting twice returns the share you already made.
+   */
+  repost: (postId, comment = '') => api.post(`/feed/${postId}/repost`, { comment }),
+  /** Undo your repost. Removes your share; the original is untouched. */
+  undoRepost: (postId) => api.delete(`/feed/${postId}/repost`),
+};
+
+/**
+ * Member-created communities — "Cars in Lublin", "Warsaw street food".
+ *
+ * A community is a group with a membership, not a hashtag: joining is what puts its posts
+ * in your Communities feed, and posting into one you haven't joined is refused server-side.
+ */
+export const communitiesApi = {
+  browse: () => api.get('/communities'),
+  mine: () => api.get('/communities/mine'),
+  getById: (idOrSlug) => api.get(`/communities/${idOrSlug}`),
+  members: (idOrSlug) => api.get(`/communities/${idOrSlug}/members`),
+  /** Multipart so the banner uploads with the community rather than needing a second call. */
+  create: ({ name, description, city, category, image }) => {
+    const formData = new FormData();
+    formData.append('name', name);
+    if (description) formData.append('description', description);
+    if (city) formData.append('city', city);
+    if (category) formData.append('category', category);
+    if (image) formData.append('image', image);
+    return api.post('/communities', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  join: (idOrSlug) => api.post(`/communities/${idOrSlug}/join`),
+  leave: (idOrSlug) => api.delete(`/communities/${idOrSlug}/join`),
+  remove: (idOrSlug) => api.delete(`/communities/${idOrSlug}`),
 };
 
 // Social graph: follow/unfollow, relationship summary, block, report.

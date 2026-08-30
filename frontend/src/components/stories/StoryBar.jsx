@@ -1,14 +1,13 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Eye, PlusCircle } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { authApi, storiesApi, usersApi } from '../../api/client';
 import { selectUser } from '../../store/authSlice';
 import StoryViewer from './StoryViewer';
 import StoryCreator from './StoryCreator';
-
-const getDisplayName = (person) => person?.fullName || person?.name || 'User';
+import { displayName as getDisplayName, shortName } from '../../utils/displayName';
 
 const getAvatarUrl = (person) => {
   if (person?.avatarUrl) return person.avatarUrl;
@@ -28,6 +27,11 @@ export default function StoryBar() {
   const [loading, setLoading] = useState(true);
   const [selectedUserIndex, setSelectedUserIndex] = useState(null);
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
+  // Open when you tap your own ring and you already have a story running. Tapping it used
+  // to go straight to the viewer, which meant the only way to add a second story was the
+  // small + badge — easy to miss, and easy to hit by accident when you meant to watch.
+  // Asking once is the only way a single target can honestly serve both intents.
+  const [ownStoryChoiceOpen, setOwnStoryChoiceOpen] = useState(false);
   const scrollRef = useRef(null);
 
   const fetchStories = async () => {
@@ -90,6 +94,9 @@ export default function StoryBar() {
     });
   }, [currentProfile, users, groupedStories, currentUserId]);
 
+  /** How many of your own stories are still live — the subtitle on the view option. */
+  const ownStoryCount = (groupedStories[currentUserId] || []).length;
+
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
@@ -136,13 +143,20 @@ export default function StoryBar() {
           <button
             type="button"
             onClick={() => {
-              if (hasStories) setSelectedUserIndex(globalIndex);
+              // Your own ring with something on it is ambiguous — watch it, or add to it?
+              // Everyone else's has only one meaning, so it still opens straight away.
+              if (isCurrentUser && hasStories) setOwnStoryChoiceOpen(true);
+              else if (hasStories) setSelectedUserIndex(globalIndex);
               else if (isCurrentUser) setIsCreatorOpen(true);
             }}
+            aria-haspopup={isCurrentUser && hasStories ? 'menu' : undefined}
+            aria-expanded={isCurrentUser && hasStories ? ownStoryChoiceOpen : undefined}
             aria-label={
-              hasStories
-                ? `View ${isCurrentUser ? 'your' : getDisplayName(person) + "'s"} story`
-                : 'Add to your story'
+              isCurrentUser && hasStories
+                ? 'Your story — view it or add to it'
+                : hasStories
+                  ? `View ${getDisplayName(person)}'s story`
+                  : 'Add to your story'
             }
             className={`w-full h-full rounded-full p-[2px] transition-transform active:scale-95 ${
               hasUnseenStories
@@ -179,7 +193,7 @@ export default function StoryBar() {
           <p className={`text-[11px] font-semibold truncate text-center hover:text-white transition-colors ${
             isCurrentUser ? 'text-white' : hasUnseenStories ? 'text-white' : 'text-gray-400'
           }`}>
-            {isCurrentUser ? 'Your story' : getDisplayName(person).split(' ')[0]}
+            {isCurrentUser ? 'Your story' : shortName(person)}
           </p>
         </Link>
       </div>
@@ -241,6 +255,79 @@ export default function StoryBar() {
       </div>
 
       <AnimatePresence>
+        {/* Two doors behind one ring. Deliberately a sheet rather than a hover menu: the
+            story tray is a touch target first, and a hover-only affordance would be
+            unreachable on the phones most stories are posted from. */}
+        {ownStoryChoiceOpen && (
+          <>
+            <motion.div
+              key="own-story-scrim"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setOwnStoryChoiceOpen(false)}
+              className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm"
+            />
+            <motion.div
+              key="own-story-choice"
+              role="menu"
+              aria-label="Your story"
+              initial={{ opacity: 0, y: 24, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24, scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+              className="fixed z-[201] left-1/2 -translate-x-1/2 bottom-6 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 w-[min(22rem,calc(100vw-2rem))] rounded-3xl border border-white/10 bg-[#0A0A0A] p-2 shadow-[0_28px_80px_-24px_rgba(0,0,0,0.95)]"
+            >
+              <p className="px-4 pt-3 pb-2 text-[10px] font-black uppercase tracking-[0.24em] text-gray-500">
+                Your story
+              </p>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOwnStoryChoiceOpen(false);
+                  // The current user is always sorted to index 0 of peopleWithStories, but
+                  // find it rather than assume — the sort is a detail this shouldn't depend on.
+                  const index = peopleWithStories.findIndex((p) => p.id === currentUserId);
+                  setSelectedUserIndex(index >= 0 ? index : 0);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left hover:bg-white/5 transition-colors"
+              >
+                <span className="w-10 h-10 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0">
+                  <Eye className="w-4.5 h-4.5 text-white" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-white">View your story</span>
+                  <span className="block text-[11px] text-gray-500">
+                    {ownStoryCount === 1 ? '1 story live' : `${ownStoryCount} stories live`}
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { setOwnStoryChoiceOpen(false); setIsCreatorOpen(true); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left hover:bg-white/5 transition-colors"
+              >
+                <span className="w-10 h-10 rounded-full bg-[#CDFF00]/15 border border-[#CDFF00]/30 flex items-center justify-center shrink-0">
+                  <PlusCircle className="w-4.5 h-4.5 text-[#CDFF00]" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-white">Add to your story</span>
+                  <span className="block text-[11px] text-gray-500">Post a new photo or clip</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOwnStoryChoiceOpen(false)}
+                className="w-full mt-1 px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          </>
+        )}
+
         {selectedUserIndex !== null && (
           <StoryViewer
             users={peopleWithStories}

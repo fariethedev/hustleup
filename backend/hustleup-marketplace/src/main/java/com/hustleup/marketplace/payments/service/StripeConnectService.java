@@ -36,6 +36,7 @@ import com.hustleup.common.repository.UserRepository;
 import com.hustleup.marketplace.booking.model.Booking;
 import com.hustleup.marketplace.payments.model.SellerPayoutAccount;
 import com.hustleup.marketplace.payments.repository.SellerPayoutAccountRepository;
+import com.hustleup.marketplace.shipping.ShippingMethod;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Account;
@@ -160,9 +161,9 @@ public class StripeConnectService {
         int quantity = Math.max(1, booking.getQuantity());
         long totalMinorUnits = toMinorUnits(booking.getAgreedPrice());
 
-        SessionCreateParams params = SessionCreateParams.builder()
+        SessionCreateParams.Builder params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl(frontendUrl + "/dashboard?payment=success")
+                .setSuccessUrl(frontendUrl + "/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}")
                 .setCancelUrl(frontendUrl + "/dashboard?payment=cancelled")
                 // transfer_group ties this charge to the later Transfer for the same booking
                 // so the eventual seller payout can be reconciled back to the original payment.
@@ -184,10 +185,13 @@ public class StripeConnectService {
                                         .setName(listingTitle)
                                         .build())
                                 .build())
-                        .build())
-                .build();
+                        .build());
 
-        Session session = Session.create(params);
+        addShippingLineItem(params, booking.getCurrency(),
+                booking.getFulfilment().shippingPriceOrZero(),
+                booking.getFulfilment().methodOrDefault());
+
+        Session session = Session.create(params.build());
         // For a payment-mode Checkout Session, Stripe creates the underlying PaymentIntent
         // synchronously — its ID is available immediately for us to store and reconcile later.
         return new CheckoutResult(session.getUrl(), session.getPaymentIntent());
@@ -233,7 +237,7 @@ public class StripeConnectService {
 
         SessionCreateParams.Builder params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl(frontendUrl + "/checkout/confirmation?payment=success")
+                .setSuccessUrl(frontendUrl + "/checkout/confirmation?payment=success&session_id={CHECKOUT_SESSION_ID}")
                 .setCancelUrl(frontendUrl + "/checkout?payment=cancelled")
                 // Booking ids go on the SESSION, not only on the PaymentIntent. Stripe does
                 // not create the PaymentIntent until the customer actually starts paying, so
@@ -269,6 +273,14 @@ public class StripeConnectService {
                     .build());
         }
 
+        // One combined postage line rather than one per booking: a cart is a single charge,
+        // and a buyer reading their receipt wants "Delivery" once, not five times.
+        addShippingLineItem(params, currency,
+                bookings.stream()
+                        .map(b -> b.getFulfilment().shippingPriceOrZero())
+                        .reduce(BigDecimal.ZERO, BigDecimal::add),
+                null);
+
         Session session = Session.create(params.build());
         return new CheckoutResult(session.getUrl(), session.getPaymentIntent());
     }
@@ -303,7 +315,11 @@ public class StripeConnectService {
 
         SessionCreateParams.Builder params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl(frontendUrl + "/shop/" + shopSlug + "/orders?payment=success")
+                // The dashboard's Shop orders tab, not the storefront: the buyer has just
+                // paid, and what they want next is to see their order and follow it. The
+                // previous target, /shop/{slug}/orders, was not a route at all — the client's
+                // catch-all bounced them to the homepage with no acknowledgement of the sale.
+                .setSuccessUrl(frontendUrl + "/dashboard?tab=orders&payment=success&session_id={CHECKOUT_SESSION_ID}")
                 .setCancelUrl(frontendUrl + "/shop/" + shopSlug + "?payment=cancelled")
                 // On the session, not only on the PaymentIntent: Stripe does not create the
                 // PaymentIntent until the buyer starts paying, so there is nothing to store
@@ -331,8 +347,45 @@ public class StripeConnectService {
                     .build());
         }
 
+        addShippingLineItem(params, currency,
+                orders.stream()
+                        .map(o -> o.getFulfilment().shippingPriceOrZero())
+                        .reduce(BigDecimal.ZERO, BigDecimal::add),
+                orders.size() == 1 ? orders.get(0).getFulfilment().methodOrDefault() : null);
+
         Session session = Session.create(params.build());
         return new CheckoutResult(session.getUrl(), session.getPaymentIntent());
+    }
+
+    /**
+     * Appends the postage the seller set on their listing or product as its own line item.
+     *
+     * <p>A separate line rather than folded into the item price, so the buyer sees on
+     * Stripe's page exactly what the goods cost and exactly what delivery costs — and so the
+     * order rows keep goods and postage apart, which is what stops a seller's revenue
+     * figures being inflated by carrier charges.
+     *
+     * <p>Zero postage adds nothing: free delivery and collection should not put a "Delivery
+     * 0,00" line on someone's receipt.
+     *
+     * @param method names the method on the line when the whole charge shares one; null for
+     *               a mixed basket, where a single label would be a lie about some of it
+     */
+    private void addShippingLineItem(SessionCreateParams.Builder params, String currency,
+                                     BigDecimal shipping, ShippingMethod method) {
+        if (shipping == null || shipping.compareTo(BigDecimal.ZERO) <= 0) return;
+
+        String label = method != null ? "Delivery — " + method.label() : "Delivery";
+        params.addLineItem(SessionCreateParams.LineItem.builder()
+                .setQuantity(1L)
+                .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
+                        .setCurrency(currency.toLowerCase())
+                        .setUnitAmount(toMinorUnits(shipping))
+                        .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                .setName(label)
+                                .build())
+                        .build())
+                .build());
     }
 
     /** Simple holder so callers get both the redirect URL and the PaymentIntent id to persist. */
@@ -352,6 +405,12 @@ public class StripeConnectService {
                 .multiply(keepFraction)
                 .setScale(0, RoundingMode.HALF_UP)
                 .longValueExact();
+
+        // Postage passes through whole, with no platform fee taken off it. The buyer paid it
+        // as a separate line at checkout and the seller hands every zloty of it to a carrier
+        // — commissioning it would leave a seller who quoted the exact postage out of pocket
+        // on every order, which is a quiet way of teaching them to pad their shipping prices.
+        payoutMinorUnits += toMinorUnits(booking.getFulfilment().shippingPriceOrZero());
 
         TransferCreateParams params = TransferCreateParams.builder()
                 .setAmount(payoutMinorUnits)

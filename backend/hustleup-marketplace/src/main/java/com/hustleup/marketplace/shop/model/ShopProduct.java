@@ -9,6 +9,7 @@
  */
 package com.hustleup.marketplace.shop.model;
 
+import com.hustleup.marketplace.shipping.ShippingMethod;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -59,6 +60,23 @@ public class ShopProduct {
     @Column(name = "sort_order", nullable = false)
     @Builder.Default
     private int sortOrder = 0;
+
+    /**
+     * How the seller sends this item, and what they charge to send it.
+     *
+     * <p>Set on the shelf rather than negotiated per order, because it decides what the
+     * buyer is charged at checkout and which tracking steps the seller is later offered.
+     * Both are snapshotted onto every {@link ShopOrder} at purchase time.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "shipping_method", length = 32)
+    @Builder.Default
+    private ShippingMethod shippingMethod = ShippingMethod.PICKUP;
+
+    /** Postage charged on top of {@link #price}. Zero for free delivery or collection. */
+    @Column(name = "shipping_price", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal shippingPrice = BigDecimal.ZERO;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

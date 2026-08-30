@@ -38,6 +38,10 @@ public class PayoutController {
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
     private final com.hustleup.marketplace.shop.repository.ShopOrderRepository shopOrderRepository;
+    private final com.hustleup.marketplace.listing.repository.ListingRepository listingRepository;
+    /** Opens the delivery track and tells buyer and seller once a charge actually clears. */
+    private final com.hustleup.marketplace.shipping.ShipmentService shipmentService;
+    private final com.hustleup.marketplace.booking.service.BookingService bookingService;
 
     @Value("${app.stripe.connect-webhook-secret}")
     private String webhookSecret;
@@ -46,12 +50,18 @@ public class PayoutController {
                              SellerPayoutAccountRepository payoutAccountRepository,
                              UserRepository userRepository,
                              BookingRepository bookingRepository,
-                             com.hustleup.marketplace.shop.repository.ShopOrderRepository shopOrderRepository) {
+                             com.hustleup.marketplace.shop.repository.ShopOrderRepository shopOrderRepository,
+                             com.hustleup.marketplace.listing.repository.ListingRepository listingRepository,
+                             com.hustleup.marketplace.shipping.ShipmentService shipmentService,
+                             com.hustleup.marketplace.booking.service.BookingService bookingService) {
         this.stripeConnectService = stripeConnectService;
         this.payoutAccountRepository = payoutAccountRepository;
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
         this.shopOrderRepository = shopOrderRepository;
+        this.listingRepository = listingRepository;
+        this.shipmentService = shipmentService;
+        this.bookingService = bookingService;
     }
 
     private User currentUser() {
@@ -194,6 +204,15 @@ public class PayoutController {
                                                 if (session.getPaymentIntent() != null) {
                                                     o.setPaymentIntentId(session.getPaymentIntent());
                                                 }
+                                                // This is the moment the delivery track starts:
+                                                // money has actually arrived, so the buyer now has
+                                                // something to follow and the seller owes them goods.
+                                                // Both are told here, and only here — the seller
+                                                // marking their own order paid would not be evidence
+                                                // of anything.
+                                                shipmentService.confirmPaid(o.getFulfilment(),
+                                                        o.getProductName(), o.getId(),
+                                                        o.getBuyerId(), o.getSellerId());
                                                 o.setUpdatedAt(java.time.LocalDateTime.now());
                                                 shopOrderRepository.save(o);
                                             });
@@ -206,32 +225,10 @@ public class PayoutController {
 
                         String csv = meta != null ? meta.get("bookingIds") : null;
 
-                        java.util.List<com.hustleup.marketplace.booking.model.Booking> paid =
-                                new java.util.ArrayList<>();
-
-                        if (csv != null && !csv.isBlank()) {
-                            for (String raw : csv.split(",")) {
-                                try {
-                                    bookingRepository.findById(java.util.UUID.fromString(raw.trim()))
-                                            .ifPresent(paid::add);
-                                } catch (IllegalArgumentException ignored) {
-                                    // Not a UUID — skip rather than failing the whole webhook.
-                                }
-                            }
-                        } else if (session.getPaymentIntent() != null) {
-                            // Fallback for any session created before the metadata was added.
-                            paid = bookingRepository.findAllByPaymentIntentId(session.getPaymentIntent());
-                        }
-
-                        for (var booking : paid) {
-                            booking.setPaymentStatus("PAID");
-                            // Record the PaymentIntent now that one exists — the seller payout
-                            // on completion reconciles against it.
-                            if (session.getPaymentIntent() != null) {
-                                booking.setPaymentIntentId(session.getPaymentIntent());
-                            }
-                            bookingRepository.save(booking);
-                        }
+                        // Shared with POST /bookings/confirm-payment, which the buyer's
+                        // browser calls on its return from Stripe. One implementation means
+                        // the two paths cannot drift, and either order of arrival is safe.
+                        bookingService.applyPaidSession(session);
                     }
                 }
                 default -> { /* no-op: unhandled event types are safely ignored */ }

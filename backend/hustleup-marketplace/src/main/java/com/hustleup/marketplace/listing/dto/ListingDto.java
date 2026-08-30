@@ -64,6 +64,13 @@ public class ListingDto {
     // Whether the seller accepts barter offers on this listing (Swap Mode)
     private boolean swapEnabled;
 
+    // --- Delivery ---
+    // ShippingMethod.name() (e.g. "PARCEL_LOCKER") and the postage charged on top of price.
+    // Shown on the listing page and the checkout summary so nobody discovers the delivery
+    // terms after paying, and copied onto the booking when the listing is bought.
+    private String shippingMethod;
+    private BigDecimal shippingPrice;
+
     // --- EVENT-only fields (null for every other listing type) ---
     private LocalDateTime eventStartsAt; // when the event starts — printed on every ticket
     private String eventVenue;           // venue name or address, more specific than locationCity
@@ -124,6 +131,11 @@ public class ListingDto {
                 .locationCity(listing.getLocationCity())
                 .agentFee(listing.isAgentFee())
                 .swapEnabled(listing.isSwapEnabled())
+                // Null for listings posted before sellers were asked how they ship; the
+                // clients read that as "arrange with the seller" rather than free delivery.
+                .shippingMethod(listing.getShippingMethod() != null
+                        ? listing.getShippingMethod().name() : null)
+                .shippingPrice(listing.getShippingPrice())
                 .eventStartsAt(listing.getEventStartsAt())
                 .eventVenue(listing.getEventVenue())
                 .meta(listing.getMeta())

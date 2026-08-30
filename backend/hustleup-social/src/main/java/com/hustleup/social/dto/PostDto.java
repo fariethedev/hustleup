@@ -114,6 +114,40 @@ public class PostDto {
     /** Whether this post was published anonymously. When true, authorId/authorName/authorAvatarUrl are masked. */
     boolean anonymous;
 
+    // ── Community ────────────────────────────────────────────────────────────
+
+    /** Id of the community this was posted into, or null for the open feed. */
+    String communityId;
+
+    /**
+     * The community's display name and slug, resolved at read time.
+     *
+     * <p>Denormalised into the DTO rather than made the client's problem: a feed card has
+     * to say "in Cars in Lublin" above the post, and looking that up per card would be one
+     * request per row. Null when the post is not in a community, or when the community it
+     * was posted into has since been deleted — the post survives either way.
+     */
+    String communityName;
+    String communitySlug;
+
+    // ── Repost ───────────────────────────────────────────────────────────────
+
+    /**
+     * The post this one reposts, or null for original content.
+     *
+     * <p>Nested rather than flattened so the client renders the original inside a quote
+     * frame with its own author, media and age — exactly what it is. The nested copy never
+     * carries its own {@code repostOf}, so a repost of a repost quotes the thing that was
+     * actually shared instead of unrolling a chain of frames.
+     */
+    PostDto repostOf;
+
+    /** How many times this post has been reposted. */
+    Integer repostCount;
+
+    /** Whether the caller has already reposted this — drives the toggle in the action row. */
+    boolean repostedByCurrentUser;
+
     /** Timestamp of when the post was created. */
     LocalDateTime createdAt;
 
@@ -212,9 +246,22 @@ public class PostDto {
                 .savedByCurrentUser(savedByCurrentUser)
                 .topComment(topComment)
                 .anonymous(post.isAnonymous())
+                .communityId(post.getCommunityId())
+                .repostCount(post.getRepostCount())
                 .createdAt(post.getCreatedAt())
                 .editedAt(post.getEditedAt())
                 .build();
+    }
+
+    /**
+     * Builds the nested copy of an original post shown inside a repost's quote frame.
+     *
+     * <p>Deliberately drops the viewer-specific flags: like and save state belong to the
+     * repost the reader is looking at, not to the thing it quotes, and showing the
+     * original's counts as if they were the repost's would misreport both.
+     */
+    public static PostDto quoted(Post original, UnaryOperator<String> urlRefresher, String authorAvatarUrl) {
+        return from(original, false, false, urlRefresher, authorAvatarUrl, null);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

@@ -82,6 +82,11 @@ public class ListingController {
             @RequestParam(required = false) String city,
             @RequestParam(defaultValue = "false") boolean agentFee,
             @RequestParam(defaultValue = "false") boolean swapEnabled,
+            // How the seller sends this, and what they charge to send it. Optional on the
+            // wire so older clients still post successfully; the service defaults a missing
+            // or unrecognised method to NONE rather than rejecting the whole listing.
+            @RequestParam(required = false) String shippingMethod,
+            @RequestParam(required = false) BigDecimal shippingPrice,
             // EVENT listings only. ISO-8601 local datetime (e.g. 2026-09-14T19:30). Sent blank
             // by the create form for every other category, so it is parsed leniently in the
             // service rather than bound as a LocalDateTime here — a stray empty string from a
@@ -92,7 +97,7 @@ public class ListingController {
             @RequestParam(required = false) List<MultipartFile> images) {
         return ResponseEntity.ok(listingService.create(title, description, listingType,
                 price, currency, negotiable, city, agentFee, swapEnabled,
-                eventStartsAt, eventVenue, meta, images));
+                shippingMethod, shippingPrice, eventStartsAt, eventVenue, meta, images));
     }
 
     // JSON body (not @RequestParam/form fields) — matches how the dashboard's price/negotiable
@@ -114,7 +119,14 @@ public class ListingController {
         Boolean swapEnabled = body.get("swapEnabled") != null
                 ? Boolean.valueOf(Boolean.TRUE.equals(body.get("swapEnabled")))
                 : null;
-        return ResponseEntity.ok(listingService.update(id, title, description, price, negotiable, city, meta, status, swapEnabled));
+        // Same tri-state rule: a seller editing their price must not silently reset how
+        // they ship just because the edit form did not resend those keys.
+        String shippingMethod = (String) body.get("shippingMethod");
+        BigDecimal shippingPrice = body.get("shippingPrice") != null
+                ? new BigDecimal(body.get("shippingPrice").toString())
+                : null;
+        return ResponseEntity.ok(listingService.update(id, title, description, price, negotiable, city,
+                meta, status, swapEnabled, shippingMethod, shippingPrice));
     }
 
     @GetMapping("/user/{userId}")

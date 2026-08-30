@@ -76,6 +76,10 @@ export default function ShopDetail() {
       image: product.imageUrl,
       sellerId: `shop:${shop.id}`,
       sellerName: shop.name,
+      // Delivery travels with the line, in PLN like the price, so the cart total is the
+      // amount that actually gets charged rather than the goods total alone.
+      shippingMethod: product.shippingMethod,
+      shippingPrice: convertToPLN(product.shippingPrice || 0, product.currency),
     }));
     setJustAdded(product.id);
     setTimeout(() => setJustAdded((cur) => (cur === product.id ? null : cur)), 1500);
@@ -337,6 +341,16 @@ export default function ShopDetail() {
                         <span className="text-base sm:text-2xl font-black text-white tracking-tighter truncate">
                           {formatPrice(product.price, product.currency)}
                         </span>
+                        {/* Postage named on the tile, not saved for checkout — a shopper
+                            comparing two shops is comparing what it costs to get the thing,
+                            not what it costs before delivery is added. */}
+                        {product.shippingMethod && product.shippingMethod !== 'NONE' && (
+                          <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 mt-0.5 truncate">
+                            {Number(product.shippingPrice) > 0
+                              ? `+ ${formatPrice(product.shippingPrice, product.currency)} delivery`
+                              : 'Free delivery'}
+                          </span>
+                        )}
                       </div>
                       <button
                         onClick={(e) => addProductToCart(e, product)}
