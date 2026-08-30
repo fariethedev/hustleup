@@ -231,13 +231,55 @@ public class ShopOrderController {
                 order.getProductName(), order.getId(), order.getBuyerId());
         if (rejection != null) return ResponseEntity.badRequest().body(Map.of("error", rejection));
 
-        // Keep the commercial status in step: an order the buyer now physically has is
-        // fulfilled, and there is no second place for the seller to have to say so.
-        if (order.getFulfilment().getFulfilmentStatus() != null
-                && order.getFulfilment().getFulfilmentStatus().isComplete()
-                && order.getStatus() == ShopOrder.ShopOrderStatus.PAID) {
-            order.setStatus(ShopOrder.ShopOrderStatus.FULFILLED);
+        // The commercial status deliberately does NOT follow the seller here any more.
+        //
+        // This used to flip the order to FULFILLED as soon as the seller ticked DELIVERED, so
+        // an order was complete on the say-so of the person being paid for it. FULFILLED is
+        // what releases payout and what makes the sale reviewable, which meant a seller could
+        // mark a parcel delivered that never left the house and then review it themselves.
+        // Closing the order is now the buyer's to do — see confirmReceipt below.
+        order.setUpdatedAt(java.time.LocalDateTime.now());
+        return ResponseEntity.ok(orderRepository.save(order));
+    }
+
+    /**
+     * The buyer confirming the order actually arrived.
+     *
+     * <p><b>PATCH /api/v1/shops/orders/{id}/received</b> — the buyer on the order, or an admin.
+     *
+     * <p>This is the only thing that moves a paid order to FULFILLED, and FULFILLED is what
+     * releases the seller's payout and makes the sale reviewable. Both of those are claims
+     * about the buyer's experience, so both wait on the buyer.
+     *
+     * <p>Not gated on the seller having marked it delivered first. A seller who never updates
+     * tracking is common, and refusing to let a buyer confirm a parcel they are holding —
+     * because the sender never filled in a form — would be an obstacle with nothing behind it.
+     */
+    @PatchMapping("/orders/{id}/received")
+    @Transactional
+    public ResponseEntity<?> confirmReceipt(@PathVariable UUID id) {
+        User me = currentUser();
+        if (me == null) return ResponseEntity.status(401).build();
+        ShopOrder order = orderRepository.findById(id).orElse(null);
+        if (order == null) return ResponseEntity.status(404).body(Map.of("error", "Order not found"));
+
+        if (!order.getBuyerId().equals(me.getId()) && me.getRole() != Role.ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Only the buyer can confirm they received this order"));
         }
+
+        // Nothing to confirm on an order that was never paid for, and confirming a cancelled
+        // or refunded one would quietly resurrect it as a completed sale.
+        if (order.getStatus() != ShopOrder.ShopOrderStatus.PAID
+                && order.getStatus() != ShopOrder.ShopOrderStatus.FULFILLED) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Only a paid order can be confirmed as received"));
+        }
+
+        if (order.getFulfilment() != null && order.getFulfilment().getBuyerConfirmedAt() == null) {
+            order.getFulfilment().setBuyerConfirmedAt(java.time.LocalDateTime.now());
+        }
+        order.setStatus(ShopOrder.ShopOrderStatus.FULFILLED);
         order.setUpdatedAt(java.time.LocalDateTime.now());
         return ResponseEntity.ok(orderRepository.save(order));
     }

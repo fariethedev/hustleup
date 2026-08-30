@@ -130,13 +130,15 @@ public class ListingService {
         }
 
         ListingType type = ListingType.valueOf(listingType);
-        // Every listing ships with a full gallery: the seller's own uploads stay at the front,
-        // and anything short of ListingMediaLibrary.MIN_MEDIA is topped up with category-matched
-        // supporting shots. Done here (rather than when reading) so the gallery is persisted and
-        // stays stable for the life of the listing. The listing has no id yet, so the title is
-        // the variety seed — enough to stop two listings in the same category being padded with
-        // exactly the same supporting shots.
-        mediaUrlsCsv = mediaLibrary.padToMinimum(mediaUrlsCsv, type, title);
+        // A listing shows the seller's own photographs and nothing else.
+        //
+        // This used to top every gallery up to ListingMediaLibrary.MIN_MEDIA with curated,
+        // category-matched stock shots, so a seller who uploaded two photos of their actual
+        // item had three pictures of somebody else's item added to the listing — presented
+        // identically to their own, with nothing marking them as illustrative. A buyer
+        // swiping that gallery is looking at things that are not for sale.
+        //
+        // A thin gallery is the honest representation of a thin gallery.
 
         Listing listing = Listing.builder()
                 .sellerId(seller.getId())

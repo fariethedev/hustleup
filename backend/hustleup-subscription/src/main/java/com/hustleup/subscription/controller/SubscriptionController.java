@@ -204,6 +204,43 @@ public class SubscriptionController {
         }
     }
 
+    /**
+     * Confirms a checkout the buyer has just been redirected back from, and grants Premium.
+     *
+     * <p><b>POST /api/v1/subscriptions/confirm</b> — body {@code {"sessionId": "cs_..."}}
+     *
+     * <p>The webhook remains the authority when it arrives, but it is not guaranteed to. It
+     * has to be registered in the Stripe dashboard and able to reach this server, and where it
+     * is not, the payment succeeded and the buyer got nothing — which is exactly the failure
+     * this endpoint exists to close. Driven by the buyer's own browser, it works in any
+     * environment Stripe can redirect to, including local development with no tunnel.
+     *
+     * <p>Safe to call repeatedly. The grant is keyed on the session id, so this and the
+     * webhook cannot both add a term for the same payment.
+     *
+     * @return 200 with {@code {premiumActive, message}} — {@code premiumActive} false is a
+     *         normal answer (payment still clearing, or not a Premium purchase), not an error
+     */
+    @PostMapping("/confirm")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> confirm(@RequestBody(required = false) Map<String, String> body) {
+        String sessionId = body == null ? null : body.get("sessionId");
+        if (sessionId == null || sessionId.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "sessionId is required"));
+        }
+
+        try {
+            StripeService.ConfirmResult result = stripeService.confirmCheckout(sessionId, getCurrentUser().getId());
+            return ResponseEntity.ok(Map.of(
+                    "premiumActive", result.premiumActive(),
+                    "message", result.message()));
+        } catch (StripeException e) {
+            log.error("Could not confirm checkout session {}", sessionId, e);
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(Map.of("error", "Could not confirm that payment. Please try again."));
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------

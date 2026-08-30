@@ -124,6 +124,18 @@ public class Subscription {
     // The timestamp when this subscription will expire. Null means the subscription
     // has no expiry (e.g. FREE plans never expire). Set to startedAt + 1 month when
     // the seller upgrades to a paid plan.
+    /**
+     * The Stripe Checkout Session that last extended this subscription.
+     *
+     * <p>Purely an idempotency key. A paid term is granted from two places now — the webhook,
+     * and the buyer landing back on the success page — and the grant stacks months onto any
+     * remaining time. Without somewhere to record which session has already been honoured,
+     * a buyer whose webhook fired normally would be granted the term twice simply for
+     * returning to the page. Both paths check this first and skip a session they have seen.
+     */
+    @Column(name = "last_checkout_session_id", length = 255)
+    private String lastCheckoutSessionId;
+
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 }

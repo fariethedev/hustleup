@@ -126,11 +126,26 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
                     className="w-full h-full object-contain bg-black"
                   />
                 ) : (
-                  <SmartImage
-                    src={url}
-                    alt={i === 0 ? title : `${title} — item ${i + 1}`}
-                    className="w-full h-full object-cover"
-                  />
+                  <>
+                    {/* A blurred, over-scaled copy of the same photo fills the space that
+                        object-contain leaves. Letterboxing a portrait shot against flat black
+                        reads as a broken image; against its own colours it reads as framing. */}
+                    <SmartImage
+                      src={url}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40"
+                    />
+                    {/* object-contain, not object-cover: the whole photo is shown. Cropping to
+                        fill cut the top and bottom off anything portrait — which is most phone
+                        photographs — and on a marketplace the part cropped away is routinely
+                        the part the buyer needed to see. */}
+                    <SmartImage
+                      src={url}
+                      alt={i === 0 ? title : `${title} — item ${i + 1}`}
+                      className="relative w-full h-full object-contain"
+                    />
+                  </>
                 )}
 
                 {/* The gradient scrim would swallow clicks on the video's controls, so it's
@@ -166,14 +181,6 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
           </button>
         )}
 
-        {typeLabel && (
-          <div className="absolute top-4 left-4 pointer-events-none z-10">
-            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-violet text-[#CDFF00] font-black text-[9px] uppercase tracking-widest border border-white/10">
-              <Zap className="w-3 h-3 fill-[#CDFF00]" /> {typeLabel}
-            </span>
-          </div>
-        )}
-
         <div className="absolute bottom-3 right-3 px-2 py-1 rounded-lg bg-black/70 text-white text-[9px] font-black uppercase tracking-widest pointer-events-none z-10">
           {active + 1} / {media.length}
         </div>
@@ -198,6 +205,17 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
           </div>
         )}
       </motion.div>
+
+      {/* The category sits under the photograph rather than on top of it. Laid over the
+          image it covered part of what the buyer came to look at, and on a pale shot it was
+          barely legible anyway — a label about the item does not need to be inside it. */}
+      {typeLabel && (
+        <div className="mt-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-violet text-[#CDFF00] font-black text-[9px] uppercase tracking-widest border border-white/10">
+            <Zap className="w-3 h-3 fill-[#CDFF00]" /> {typeLabel}
+          </span>
+        </div>
+      )}
 
       {/* Thumbnail strip */}
       {hasMultiple && (

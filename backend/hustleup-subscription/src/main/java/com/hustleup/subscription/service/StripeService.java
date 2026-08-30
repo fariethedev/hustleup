@@ -317,8 +317,31 @@ public class StripeService {
             return;
         }
 
+        grantPremium(userId, p, s.getId());
+    }
+
+    /**
+     * Grants a paid term, idempotently per checkout session.
+     *
+     * <p>Shared by the webhook and by the confirm-on-return endpoint, which both observe the
+     * same completed payment and would otherwise each stack a term onto the account. The
+     * session id is recorded on the subscription and re-checked here, so whichever path
+     * arrives second is a no-op rather than a free extra month.
+     *
+     * <p>Synchronized because the two paths genuinely race: Stripe fires the webhook at
+     * roughly the moment it redirects the buyer, so both can be inside this method at once,
+     * and a check-then-write across two threads would let both pass the guard.
+     *
+     * @return true if this call granted the term, false if the session had already been honoured
+     */
+    public synchronized boolean grantPremium(UUID userId, SubscriptionPlan p, String sessionId) {
         Subscription sub = subscriptionRepository.findBySellerId(userId)
                 .orElseGet(() -> Subscription.builder().sellerId(userId).build());
+
+        if (sessionId != null && sessionId.equals(sub.getLastCheckoutSessionId())) {
+            log.info("Session {} already granted for user {} — skipping duplicate", sessionId, userId);
+            return false;
+        }
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime base = (sub.getExpiresAt() != null && sub.getExpiresAt().isAfter(now))
@@ -331,9 +354,58 @@ public class StripeService {
         sub.setPricePerMonth(p.getPricePerMonth());
         if (sub.getStartedAt() == null) sub.setStartedAt(now);
         sub.setExpiresAt(base.plusMonths(p.getMonths()));
+        sub.setLastCheckoutSessionId(sessionId);
 
         subscriptionRepository.save(sub);
         log.info("Premium activated for user {} on plan {} until {} (session {})",
-                userId, p, sub.getExpiresAt(), s.getId());
+                userId, p, sub.getExpiresAt(), sessionId);
+        return true;
     }
+
+    /**
+     * Honours a completed checkout the buyer has just been redirected back from.
+     *
+     * <p>The webhook is the authority when it arrives, but it is not guaranteed to: it has to
+     * be registered in the Stripe dashboard and able to reach this server, and when it is not,
+     * payment succeeds and the buyer is left with nothing. This path is driven by the buyer's
+     * own browser, so it works in any environment Stripe can redirect to.
+     *
+     * <p>The session is fetched from Stripe rather than trusted from the query string — the id
+     * arrives via the URL, so treating it as proof of anything without asking Stripe would let
+     * anyone grant themselves Premium by inventing one. The caller must also own the session,
+     * or a real session id observed once could be replayed by somebody else.
+     *
+     * @param sessionId the Stripe Checkout Session id from the success URL
+     * @param userId    the authenticated caller, who must be the session's payer
+     * @throws StripeException if Stripe cannot be reached
+     */
+    public ConfirmResult confirmCheckout(String sessionId, UUID userId) throws StripeException {
+        Session s = Session.retrieve(sessionId);
+
+        // "paid" is the only status that means money moved. A session can be complete with
+        // payment_status "unpaid" (an async method still clearing), and granting on that would
+        // hand out Premium for a payment that may yet fail.
+        if (!"paid".equals(s.getPaymentStatus())) {
+            return new ConfirmResult(false, "Payment is not complete yet");
+        }
+
+        Map<String, String> metadata = s.getMetadata() == null ? Map.of() : s.getMetadata();
+        String rawUserId = s.getClientReferenceId() != null ? s.getClientReferenceId() : metadata.get("userId");
+        if (rawUserId == null || !rawUserId.equals(userId.toString())) {
+            return new ConfirmResult(false, "That payment belongs to a different account");
+        }
+
+        Optional<SubscriptionPlan> plan = SubscriptionPlan.from(metadata.get("plan"));
+        if (plan.isEmpty()) {
+            // Not a subscription purchase — a storefront order or booking uses the same event
+            // shape. Nothing to grant, and nothing wrong.
+            return new ConfirmResult(false, "That payment was not a Premium purchase");
+        }
+
+        grantPremium(userId, plan.get(), sessionId);
+        return new ConfirmResult(true, "Premium is active");
+    }
+
+    /** Outcome of {@link #confirmCheckout}: whether Premium is now active, and why not if it is not. */
+    public record ConfirmResult(boolean premiumActive, String message) {}
 }

@@ -257,23 +257,24 @@ public class MarketplaceApplication {
     }
 
     /**
-     * Brings every existing listing's gallery up to {@link ListingMediaLibrary#MIN_MEDIA}
-     * supporting images/videos, and strips any media URL that is known to have gone dead
-     * upstream.
+     * Strips media URLs that are known to have gone dead upstream.
      *
-     * <p>New listings are padded at creation time (see
-     * {@link com.hustleup.marketplace.listing.service.ListingService#create}), but rows that
-     * predate that — including everything the seeder above inserts and anything a seller posted
-     * with a single photo — would otherwise stay at one image forever. This runner fixes them in
-     * place on boot.
+     * <p>This runner used to also pad every gallery up to {@link ListingMediaLibrary#MIN_MEDIA}
+     * with curated stock shots. That has been removed: a listing shows the seller's own
+     * photographs, and topping one up with pictures of a different item — rendered identically
+     * to the seller's own, with nothing marking them as illustrative — showed buyers things
+     * that were not for sale. Removing dead links is the half of this worth keeping.
      *
-     * <p>It is safe to run on every startup: {@link ListingMediaLibrary#needsPadding} returns
-     * false once a listing is healthy, so the second and subsequent boots touch nothing and the
-     * runner costs one query. Deleted listings are skipped — there is no point rewriting media
-     * for a row nobody can see.
+     * <p>Note that it does not un-pad rows padded before this change. Stock URLs were written
+     * into media_urls alongside genuine uploads and are not distinguishable from them after the
+     * fact, so existing galleries keep whatever they were given. New and edited listings get
+     * only what the seller uploaded.
+     *
+     * <p>Safe on every startup: a listing with no dead media is left alone, so repeat boots
+     * cost one query. Deleted listings are skipped.
      *
      * @param repo    listing repository, used to read every row and save the ones that changed
-     * @param library the curated gallery pool and padding rules
+     * @param library the media rules, used here only to identify dead URLs
      */
     @Bean
     @Order(2) // runs after seedListings
@@ -283,19 +284,18 @@ public class MarketplaceApplication {
 
             for (Listing listing : repo.findAll()) {
                 if (listing.getStatus() == ListingStatus.DELETED) continue;
-                if (!library.needsPadding(listing.getMediaUrls())) continue;
 
-                // The listing id is a stable variety seed, so a given listing is always padded
-                // with the same supporting shots however many times this runner executes.
-                listing.setMediaUrls(library.padToMinimum(
-                        listing.getMediaUrls(), listing.getListingType(), listing.getId().toString()));
+                String cleaned = library.stripDeadUrls(listing.getMediaUrls());
+                if (cleaned == null) continue; // nothing dead in this row
+
+                listing.setMediaUrls(cleaned);
                 updated.add(listing);
             }
 
             if (!updated.isEmpty()) {
                 repo.saveAll(updated);
-                System.out.println("MARKETPLACE_MEDIA_BACKFILL: topped up " + updated.size()
-                        + " listing(s) to " + ListingMediaLibrary.MIN_MEDIA + " media items.");
+                System.out.println("MARKETPLACE_MEDIA_BACKFILL: removed dead media from "
+                        + updated.size() + " listing(s).");
             }
         };
     }

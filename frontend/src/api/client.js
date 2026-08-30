@@ -453,6 +453,17 @@ export const subscriptionsApi = {
    * @param {'MONTHLY'|'QUARTERLY'|'ANNUAL'} plan
    */
   checkout: (plan) => api.post('/subscriptions/checkout', { plan }),
+  /**
+   * Honours a checkout the buyer has just returned from, and activates Premium.
+   *
+   * The webhook is still the authority when it arrives, but it only arrives if it has been
+   * registered in Stripe and can reach the server. This is driven by the buyer's own browser,
+   * so the payment is honoured in any environment Stripe can redirect back to. Safe to call
+   * more than once — the grant is keyed on the session id.
+   *
+   * → { premiumActive, message }
+   */
+  confirm: (sessionId) => api.post('/subscriptions/confirm', { sessionId }),
 };
 
 // Stories

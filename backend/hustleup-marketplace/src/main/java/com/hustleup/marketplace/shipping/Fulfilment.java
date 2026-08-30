@@ -91,6 +91,18 @@ public class Fulfilment {
     @Column(name = "delivered_at")
     private LocalDateTime deliveredAt;
 
+    /**
+     * When the BUYER confirmed they actually received this order.
+     *
+     * <p>Distinct from {@link #deliveredAt}, which is the seller's account of when they handed
+     * it over. Both are useful and they are not the same claim: one is what the sender says
+     * happened, the other is the recipient agreeing it did. Only this one closes the order,
+     * because the seller marking their own sale complete is what released payout and unlocked
+     * reviewing without the buyer ever being asked.
+     */
+    @Column(name = "buyer_confirmed_at")
+    private LocalDateTime buyerConfirmedAt;
+
     /** Last time anything here changed — drives "updated 2h ago" on the tracker. */
     @Column(name = "fulfilment_updated_at")
     private LocalDateTime updatedAt;

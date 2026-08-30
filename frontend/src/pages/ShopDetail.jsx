@@ -1,11 +1,11 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { useShop, useShops } from '../hooks/useShops';
-import { listingsApi } from '../api/client';
+import { listingsApi, followsApi } from '../api/client';
 import { formatPrice, convertToPLN, displayCity } from '../utils/constants';
 import { addToCart, selectCartItems } from '../store/cartSlice';
-import { selectUser } from '../store/authSlice';
+import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
 import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, Heart, Check, CalendarClock, ShoppingBag, Pencil, ClipboardList } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
@@ -38,6 +38,8 @@ export default function ShopDetail() {
   const { shop, loading } = useShop(id);
   const { shops: allShops } = useShops();
   const currentUser = useSelector(selectUser);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('All');
   const dispatch = useDispatch();
   const cartItems = useSelector(selectCartItems);
@@ -63,6 +65,61 @@ export default function ShopDetail() {
   const confirmSlot = (time) => {
     setSelectedTime(time);
     showToast(`Slot selected — ${availability[selectedDay].label}, ${time}`, 'success');
+  };
+
+  // Following the shop means following its owner — the platform has one social graph, and a
+  // separate "saved shops" list would be a second, weaker one that nothing else reads. This
+  // way the shop's posts show up in the follower's feed, which is what following it should do.
+  const [following, setFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated || !shop?.ownerId || isOwner) { setFollowing(false); return undefined; }
+    let cancelled = false;
+    followsApi.relationship(shop.ownerId)
+      .then((r) => { if (!cancelled) setFollowing(!!r.data?.isFollowing); })
+      .catch(() => { if (!cancelled) setFollowing(false); });
+    return () => { cancelled = true; };
+  }, [isAuthenticated, shop?.ownerId, isOwner]);
+
+  const toggleFollowShop = async () => {
+    if (!isAuthenticated) { navigate('/login'); return; }
+    if (!shop?.ownerId) return;
+    const next = !following;
+    setFollowing(next);          // optimistic — the button should answer the tap immediately
+    setFollowBusy(true);
+    try {
+      await (next ? followsApi.follow(shop.ownerId) : followsApi.unfollow(shop.ownerId));
+      showToast(next ? `Following ${shop.name}` : `Unfollowed ${shop.name}`, 'success');
+    } catch (e) {
+      setFollowing(!next);       // put it back — the server said no
+      showToast(e.response?.data?.error || 'Could not update that', 'error');
+    } finally {
+      setFollowBusy(false);
+    }
+  };
+
+  // The native share sheet where there is one, which on a phone is the whole point of a share
+  // button — it reaches WhatsApp and Instagram, which a copy-link cannot. Desktop browsers
+  // mostly lack it, so there the link goes to the clipboard and we say so.
+  const shareShop = async () => {
+    const url = window.location.href;
+    const payload = {
+      title: shop?.name || 'HustleSpace shop',
+      text: shop?.tagline || `Check out ${shop?.name} on HustleSpace`,
+      url,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(payload);
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      showToast('Link copied', 'success');
+    } catch (e) {
+      // AbortError is the user dismissing the share sheet — not a failure worth reporting.
+      if (e?.name !== 'AbortError') showToast('Could not share that link', 'error');
+    }
   };
 
   const addProductToCart = (e, product) => {
@@ -182,13 +239,31 @@ export default function ShopDetail() {
                 <Pencil className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="hidden sm:inline">Edit shop</span>
               </Link>
             )}
-            {/* Previously unlabelled icon buttons — nothing announced them but "button". */}
-            <button aria-label="Share this shop" className="w-10 h-10 rounded-2xl bg-black/70 backdrop-blur-md border border-white/15 flex items-center justify-center hover:scale-110 transition-transform">
+            {/* Both of these used to be rendered with an aria-label and no onClick — they
+                looked like controls, took the tap, and did nothing whatsoever. */}
+            <button
+              onClick={shareShop}
+              aria-label="Share this shop"
+              className="w-10 h-10 rounded-2xl bg-black/70 backdrop-blur-md border border-white/15 flex items-center justify-center hover:scale-110 transition-transform active:scale-95"
+            >
               <Share2 className="w-4 h-4" />
             </button>
-            <button aria-label="Save this shop" className="w-10 h-10 rounded-2xl bg-black/70 backdrop-blur-md border border-white/15 flex items-center justify-center hover:scale-110 transition-transform">
-              <Heart className="w-4 h-4" />
-            </button>
+            {/* Hidden on your own shop: following yourself is not a thing. */}
+            {!isOwner && (
+              <button
+                onClick={toggleFollowShop}
+                disabled={followBusy}
+                aria-label={following ? 'Unfollow this shop' : 'Follow this shop'}
+                aria-pressed={following}
+                className={`w-10 h-10 rounded-2xl backdrop-blur-md border flex items-center justify-center hover:scale-110 transition-transform active:scale-95 disabled:opacity-50 ${
+                  following
+                    ? 'bg-[#FF00FF]/20 border-[#FF00FF]/50 text-[#FF00FF]'
+                    : 'bg-black/70 border-white/15 text-white'
+                }`}
+              >
+                <Heart className={`w-4 h-4 ${following ? 'fill-[#FF00FF]' : ''}`} />
+              </button>
+            )}
           </div>
         </div>
 

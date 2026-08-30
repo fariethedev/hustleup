@@ -25,10 +25,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -92,6 +94,7 @@ class DatingControllerTest {
         authenticate(currentUser);
 
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        discoverable(femaleUser, maleUser);
         when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser));
         when(datingProfileRepository.findAll()).thenReturn(List.of(currentProfile, femaleProfile, maleProfile));
         when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
@@ -117,6 +120,7 @@ class DatingControllerTest {
         authenticate(currentUser);
 
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        discoverable(femaleUser, maleUser);
         when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser));
         when(datingProfileRepository.findAll()).thenReturn(List.of(currentProfile, femaleProfile, maleProfile));
         when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
@@ -143,6 +147,7 @@ class DatingControllerTest {
         authenticate(currentUser);
 
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        discoverable(femaleUser, maleUser, noProfileUser);
         when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser, noProfileUser));
         when(datingProfileRepository.findAll()).thenReturn(List.of(currentProfile, femaleProfile, maleProfile));
         when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
@@ -165,6 +170,7 @@ class DatingControllerTest {
 
         authenticate(currentUser);
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        discoverable(femaleUser, maleUser);
         when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser));
         when(datingProfileRepository.findAll()).thenReturn(List.of(
                 currentProfile,
@@ -191,6 +197,7 @@ class DatingControllerTest {
 
         authenticate(currentUser);
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
+        discoverable(femaleUser, maleUser, noProfileUser);
         when(userRepository.findAll()).thenReturn(List.of(currentUser, femaleUser, maleUser, noProfileUser));
         when(datingProfileRepository.findAll()).thenReturn(List.of(
                 currentProfile,
@@ -216,6 +223,7 @@ class DatingControllerTest {
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
         // Deliberately behind the other candidate in the source order — the badge is what
         // should move it to the front, not the order the users came back in.
+        discoverable(plainUser, admirer);
         when(userRepository.findAll()).thenReturn(List.of(currentUser, plainUser, admirer));
         when(datingProfileRepository.findAll()).thenReturn(List.of());
         when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
@@ -371,6 +379,19 @@ class DatingControllerTest {
                 new UsernamePasswordAuthenticationToken(user.getEmail(), null, List.of())
         );
         when(premiumAccess.isPremium(user.getId())).thenReturn(true);
+    }
+
+    /**
+     * Declares which accounts hold Premium, and so may appear in the deck at all.
+     *
+     * <p>Discovery is paying-members-only: a free account that fills in a profile no longer
+     * sits in every subscriber's stack collecting likes. Nothing reaches the deck without
+     * being named here, so every discovery test has to say who is paying — which is also what
+     * makes the rule visible in the tests rather than implied.
+     */
+    private void discoverable(User... users) {
+        when(premiumAccess.allPremiumUserIds())
+                .thenReturn(Arrays.stream(users).map(User::getId).collect(Collectors.toSet()));
     }
 
     @SuppressWarnings("unchecked")

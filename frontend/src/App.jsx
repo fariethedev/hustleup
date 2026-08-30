@@ -40,6 +40,8 @@ import CheckoutConfirmation from './pages/CheckoutConfirmation';
 import Tickets from './pages/Tickets';
 import TicketDetail from './pages/TicketDetail';
 import EventDoor from './pages/EventDoor';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentCancelled from './pages/PaymentCancelled';
 import { selectIsAuthenticated } from './store/authSlice';
 import { ToastProvider } from './context/ToastContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -119,6 +121,10 @@ export default function App() {
             <Route path="/admin" element={<Admin />} />
             <Route path="/swaps" element={<Swaps />} />
           </Route>
+          {/* Stripe redirects here after Premium checkout. Both routes were missing, so
+              the catch-all below silently sent paying customers to the home page. */}
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/cancel" element={<PaymentCancelled />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

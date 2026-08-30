@@ -174,6 +174,14 @@ public class ReviewController {
             reviewedId = order.getSellerId();
         }
 
+        // Nobody reviews themselves. The booking path can reach this when a seller buys
+        // through their own listing, and the storefront path when they order from their own
+        // shop — both are ways to write yourself a five-star review, and the rating is what
+        // the shop card, the profile and the leaderboard are all built on.
+        if (reviewedId.equals(reviewer.getId())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "You cannot review yourself"));
+        }
+
         // Build and save the review entity
         Review review = Review.builder()
                 .bookingId(bookingId)

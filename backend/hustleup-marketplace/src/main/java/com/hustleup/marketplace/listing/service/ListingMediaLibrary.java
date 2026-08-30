@@ -159,6 +159,20 @@ public class ListingMediaLibrary {
         return urls;
     }
 
+    /**
+     * The stored CSV with dead and blank entries removed, and nothing added.
+     *
+     * <p>Gallery padding was removed — a listing shows the seller's own photographs — but
+     * dropping media that no longer loads is still worth doing, and this is that half on its
+     * own. Returns null when nothing would change, so a caller can skip the write.
+     */
+    public String stripDeadUrls(String existingCsv) {
+        List<String> live = liveUrls(existingCsv);
+        int rawTokens = existingCsv == null || existingCsv.isBlank() ? 0 : existingCsv.split(",").length;
+        if (live.size() == rawTokens) return null; // nothing dead — leave the row alone
+        return String.join(",", live);
+    }
+
     /** True if the URL matches a known-dead upstream asset. */
     private boolean isDead(String url) {
         return DEAD_URL_FRAGMENTS.stream().anyMatch(url::contains);
