@@ -86,4 +86,18 @@ export const selectCartTotal = (s) =>
     0
   );
 
+/**
+ * Postage across the basket.
+ *
+ * Deliberately NOT multiplied by quantity: a seller's shipping price is what it costs to
+ * send one order, and someone taking three of an item is not posted three parcels. The
+ * server does the same sum when it builds the Stripe session, so what the cart shows is
+ * what gets charged.
+ *
+ * Kept out of {@link selectCartTotal} so the checkout can show goods and delivery as two
+ * lines — a single blended number is exactly what makes people suspect a hidden fee.
+ */
+export const selectCartShipping = (s) =>
+  s.cart.items.reduce((acc, i) => acc + (Number(i.shippingPrice) || 0), 0);
+
 export default cartSlice.reducer;
