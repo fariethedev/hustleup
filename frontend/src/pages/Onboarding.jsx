@@ -483,7 +483,9 @@ export default function Onboarding() {
       <div className="flex items-center justify-between gap-3 mt-8 pt-5 border-t border-white/5">
         {step === 0 ? (
           <button
-            onClick={() => navigate('/dashboard')}
+            /* Skipping means nothing was set up, so there is nothing to manage — the
+               dashboard would be an empty admin panel. The feed is where the app is. */
+            onClick={() => navigate('/feed')}
             className="text-sm font-semibold text-gray-500 hover:text-white transition-colors"
           >
             Skip for now

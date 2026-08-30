@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Briefcase, MapPin, Clock, Search, Factory, Baby, GraduationCap, Stethoscope,
+  Briefcase, MapPin, Clock, Search,
   Users, Zap, Check, LayoutGrid, Plus, BadgeCheck, Image as ImageIcon, ShieldCheck,
-  Wallet, Globe, X, Loader2
+  Wallet, Globe, X, Loader2, ExternalLink,
 } from 'lucide-react';
 import { jobsApi, publishersApi, dispatchToast } from '../api/client';
+import { JOB_CATEGORIES } from '../utils/taxonomy';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import MobileFilterBar from '../components/MobileFilterBar';
@@ -15,12 +16,6 @@ import { timeAgoLong as timeAgo } from '../utils/time';
 import JobComposer from '../components/jobs/JobComposer';
 import JobApplyModal from '../components/jobs/JobApplyModal';
 
-const JOB_CATEGORIES = [
-  { id: 'factory', name: 'Industrial & Factory', icon: Factory },
-  { id: 'babysitting', name: 'Family & Childcare', icon: Baby },
-  { id: 'teaching', name: 'Education & Tutoring', icon: GraduationCap },
-  { id: 'nursing', name: 'Graduate Nursing', icon: Stethoscope },
-];
 
 /** Renders the stored numeric pay range as the string a human expects to read. */
 const formatPay = (job) => {
@@ -304,21 +299,35 @@ export default function Jobs() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => setApplyTo(job)}
-                            disabled={applied || job.ownedByCurrentUser}
-                            className={`px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 ${
-                              applied || job.ownedByCurrentUser
-                                ? 'bg-white/5 border border-white/10 text-gray-500'
-                                : 'bg-[#CDFF00] text-black hover:scale-105 active:scale-95'
-                            }`}
-                          >
-                            {job.ownedByCurrentUser
-                              ? <>Your advert</>
-                              : applied
-                                ? <><Check className="w-3.5 h-3.5" /> Applied</>
-                                : <><Zap className="w-3.5 h-3.5" /> Apply now</>}
-                          </button>
+                          {/* An aggregated advert has no employer on HustleSpace to receive
+                              an application, so it sends the candidate to the board it came
+                              from. Showing Apply here would collect a CV into a void. */}
+                          {job.sourceUrl ? (
+                            <a
+                              href={job.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 bg-[#CDFF00] text-black hover:scale-105 active:scale-95"
+                            >
+                              Apply on {job.sourceName} <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          ) : (
+                            <button
+                              onClick={() => setApplyTo(job)}
+                              disabled={applied || job.ownedByCurrentUser}
+                              className={`px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                                applied || job.ownedByCurrentUser
+                                  ? 'bg-white/5 border border-white/10 text-gray-500'
+                                  : 'bg-[#CDFF00] text-black hover:scale-105 active:scale-95'
+                              }`}
+                            >
+                              {job.ownedByCurrentUser
+                                ? <>Your advert</>
+                                : applied
+                                  ? <><Check className="w-3.5 h-3.5" /> Applied</>
+                                  : <><Zap className="w-3.5 h-3.5" /> Apply now</>}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

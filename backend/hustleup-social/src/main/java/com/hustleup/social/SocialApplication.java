@@ -28,6 +28,7 @@ import com.hustleup.common.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -39,6 +40,11 @@ import org.springframework.transaction.annotation.Transactional;
 //   @EnableAutoConfiguration – let Spring Boot wire common infrastructure automatically
 //   @ComponentScan  – scan for @Component/@Service/@Repository (extended below)
 @SpringBootApplication
+
+// Turns on this service's @Scheduled methods. Without it Spring registers no scheduler at
+// all and every @Scheduled method is silently inert — which is what had been happening to
+// the expired-story cleanup, and is what the news feed importer needs to run at all.
+@EnableScheduling
 
 // Scan JPA repositories in BOTH the common library and this service's own repository package.
 // Without this, Spring Data would only pick up repositories under com.hustleup.social.

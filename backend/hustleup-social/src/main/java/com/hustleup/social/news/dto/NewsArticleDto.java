@@ -41,6 +41,17 @@ public class NewsArticleDto {
     /** True only for the outlet that wrote it — gates edit controls in the UI. */
     private Boolean ownedByCurrentUser;
 
+    /**
+     * Set on articles aggregated from an outside feed; null on native ones.
+     *
+     * <p>The client uses {@code sourceName} to credit the outlet and {@code sourceUrl} to
+     * send the reader to the original. Both are needed: an imported article stores only the
+     * feed's summary, so a reader who wants the story has to be sent to the people who
+     * wrote it rather than shown a truncated body with no way out.
+     */
+    private String sourceName;
+    private String sourceUrl;
+
     /** Card projection: everything the news grid needs, without the article body. */
     public static NewsArticleDto card(NewsArticle a, Boolean owned) {
         if (a == null) return null;
@@ -72,6 +83,8 @@ public class NewsArticleDto {
                 .readingMinutes(a.readingMinutes())
                 .publishedAt(a.getPublishedAt())
                 .createdAt(a.getCreatedAt())
+                .sourceName(a.getSourceName())
+                .sourceUrl(a.getSourceUrl())
                 .ownedByCurrentUser(owned);
     }
 }

@@ -138,7 +138,9 @@ function GuestOnlyRoute() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
 
   if (!isAuthenticated) return <Outlet />;
-  return <Navigate to="/dashboard" replace />;
+  // Same destination as a fresh sign-in (see Login.jsx#landingRoute) — an already
+  // signed-in visitor opening /login should land where logging in would have put them.
+  return <Navigate to="/feed" replace />;
 }
 
 function ProtectedRoute() {

@@ -8,12 +8,13 @@ import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constan
 import {
   Settings2, Plus, Inbox, ClipboardList, Check, X, MessageSquare, ListTodo, PackageSearch,
   BellRing, TrendingUp, CalendarClock, Pencil, Store, Trash2, Ban, Landmark, CreditCard, ShieldCheck,
-  Ticket, ScanLine, ArrowRight, Star, Truck, Package
+  Ticket, ScanLine, ArrowRight, Star, Truck, Package, Megaphone
 } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
 import ShopManager from '../components/ShopManager';
 import ReviewModal from '../components/ReviewModal';
 import OrderTracker from '../components/OrderTracker';
+import PublishingPanel from '../components/PublishingPanel';
 import TrackingUpdateModal from '../components/TrackingUpdateModal';
 import SmartImage from '../components/SmartImage';
 import { isComplete } from '../utils/shipping';
@@ -232,6 +233,17 @@ export default function Dashboard() {
           : []),
         // Only surfaced once there's something in the wallet — an empty tab is noise.
         ...(tickets.length > 0 ? [{ id: 'tickets', label: 'Tickets', icon: Ticket, count: tickets.filter((t) => t.status === 'VALID').length }] : []),
+      ],
+    },
+    {
+      key: 'publishing',
+      label: 'Publishing',
+      // Always shown, to everyone. Someone who has not been approved yet still needs to
+      // find out that publishing exists and how to apply — hiding the tab until they are
+      // approved would mean the only people who can see the route are the ones who no
+      // longer need it.
+      tabs: [
+        { id: 'publishing', label: 'News & Jobs', icon: Megaphone, count: 0 },
       ],
     },
     {
@@ -670,6 +682,11 @@ export default function Dashboard() {
 
               {/* Shop Tab — every field on the seller's shop card and shop page. */}
               {tab === 'shop' && <ShopManager user={user} />}
+
+              {/* Writing an article and posting a vacancy, plus what you've already put out.
+                  Both composers existed but were only reachable from /news and /jobs, which
+                  nothing on the dashboard linked to. */}
+              {tab === 'publishing' && <PublishingPanel />}
 
               {/* Listings Tab */}
               {tab === 'listings' && (

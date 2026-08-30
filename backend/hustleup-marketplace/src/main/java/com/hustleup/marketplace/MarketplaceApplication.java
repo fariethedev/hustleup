@@ -30,6 +30,7 @@ import com.hustleup.marketplace.listing.service.ListingMediaLibrary;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -47,6 +48,11 @@ import java.util.UUID;
 //   @ComponentScan   — scans for @Component/@Service/@Controller etc. in the current package
 // We override the default @ComponentScan behaviour below with our own explicit list.
 @SpringBootApplication
+
+// Turns on this service's @Scheduled methods. Without it Spring registers no scheduler
+// at all and every @Scheduled method is silently inert — which is what the Adzuna job
+// importer runs on.
+@EnableScheduling
 // Tell Spring Data JPA where to find repository interfaces. Spring generates
 // concrete implementations backed by Hibernate at startup. Without this, only
 // repositories in com.hustleup.marketplace would be discovered.

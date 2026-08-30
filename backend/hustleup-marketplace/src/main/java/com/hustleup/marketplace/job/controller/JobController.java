@@ -12,6 +12,7 @@ import com.hustleup.marketplace.job.model.Job;
 import com.hustleup.marketplace.job.model.JobApplication;
 import com.hustleup.marketplace.job.repository.JobApplicationRepository;
 import com.hustleup.marketplace.job.repository.JobRepository;
+import com.hustleup.marketplace.job.ingest.AdzunaJobImporter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +45,8 @@ public class JobController {
     private final JobApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final PublisherGuard publisherGuard;
+    /** Aggregated vacancies — see the import endpoint below. */
+    private final AdzunaJobImporter adzunaJobImporter;
     private final FileStorageService fileStorageService;
 
     // ---- Public board -------------------------------------------------------
@@ -193,6 +196,43 @@ public class JobController {
     }
 
     /** Adverts posted by the caller. <b>GET /api/v1/jobs/mine</b> */
+    /**
+     * Pulls vacancies from Adzuna now rather than waiting for the next scheduled run.
+     *
+     * <p><b>POST /api/v1/jobs/import</b> — admin only.
+     *
+     * <p>Exists so the integration can be verified the moment the keys are set: the
+     * response says how many adverts were fetched, stored and already had. Without it, a
+     * wrong key is invisible until someone notices the board is still empty two hours later.
+     */
+    @PostMapping("/import")
+    public ResponseEntity<?> importNow() {
+        User me = publisherGuard.currentUser().orElse(null);
+        if (me == null) return ResponseEntity.status(401).build();
+        if (me.getRole() != Role.ADMIN) return forbidden("Admins only");
+
+        if (!adzunaJobImporter.isConfigured()) {
+            return ResponseEntity.ok(Map.of(
+                    "imported", 0,
+                    "message", "Adzuna is not configured. Set ADZUNA_APP_ID and ADZUNA_APP_KEY "
+                             + "(free at developer.adzuna.com) and restart this service."));
+        }
+
+        AdzunaJobImporter.ImportReport report = adzunaJobImporter.importAll();
+        return ResponseEntity.ok(Map.of(
+                "fetched", report.fetched(),
+                "imported", report.imported(),
+                "skipped", report.skipped(),
+                "failures", report.failures()));
+    }
+
+    /** True when this advert belongs to the given user. False for imported adverts. */
+    private boolean isOwnedBy(Job job, User user) {
+        return user != null
+                && job.getPublisherUserId() != null
+                && job.getPublisherUserId().equals(user.getId());
+    }
+
     @GetMapping("/mine")
     public ResponseEntity<?> mine() {
         User me = publisherGuard.currentUser().orElse(null);
@@ -212,7 +252,10 @@ public class JobController {
         if (me == null) return ResponseEntity.status(401).build();
         Job job = jobRepository.findById(id).orElse(null);
         if (job == null) return notFound("Job not found");
-        if (!job.getPublisherUserId().equals(me.getId()) && me.getRole() != Role.ADMIN) {
+        // Null-safe: an imported advert has no publisherUserId, so equals() on it would NPE.
+        // Nobody owns an aggregated advert, which leaves admins — correct, since it is
+        // not any employer here to manage.
+        if (!isOwnedBy(job, me) && me.getRole() != Role.ADMIN) {
             return forbidden("You can only change your own adverts");
         }
         try {
@@ -243,7 +286,7 @@ public class JobController {
         Job job = jobRepository.findById(id).orElse(null);
         if (job == null) return notFound("Job not found");
         if (!job.isLive()) return badRequest("This job is no longer accepting applications");
-        if (job.getPublisherUserId().equals(me.getId())) {
+        if (isOwnedBy(job, me)) {
             return badRequest("You cannot apply to your own advert");
         }
 
@@ -287,7 +330,10 @@ public class JobController {
         if (me == null) return ResponseEntity.status(401).build();
         Job job = jobRepository.findById(id).orElse(null);
         if (job == null) return notFound("Job not found");
-        if (!job.getPublisherUserId().equals(me.getId()) && me.getRole() != Role.ADMIN) {
+        // Null-safe: an imported advert has no publisherUserId, so equals() on it would NPE.
+        // Nobody owns an aggregated advert, which leaves admins — correct, since it is
+        // not any employer here to manage.
+        if (!isOwnedBy(job, me) && me.getRole() != Role.ADMIN) {
             return forbidden("Only the company that posted this advert can see its applicants");
         }
 
@@ -332,7 +378,10 @@ public class JobController {
         if (app == null) return notFound("Application not found");
         Job job = jobRepository.findById(app.getJobId()).orElse(null);
         if (job == null) return notFound("Job not found");
-        if (!job.getPublisherUserId().equals(me.getId()) && me.getRole() != Role.ADMIN) {
+        // Null-safe: an imported advert has no publisherUserId, so equals() on it would NPE.
+        // Nobody owns an aggregated advert, which leaves admins — correct, since it is
+        // not any employer here to manage.
+        if (!isOwnedBy(job, me) && me.getRole() != Role.ADMIN) {
             return forbidden("Only the hiring company can update an application");
         }
         try {

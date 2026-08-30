@@ -71,6 +71,26 @@ app:
     refresh-token-expiration-ms: 604800000
   stories:
     expiration-hours: 24
+  news:
+    # Outlets aggregated into the news page, as comma-separated "Name|url|category" entries.
+    #
+    # url may be a feed URL or the outlet's homepage — the reader discovers the feed from
+    # the page's <link rel="alternate"> tag, so the homepage (the one URL that reliably
+    # survives a site rebuild) is usually the better thing to configure.
+    #
+    # category is a section id from the news page's own list: lublin, students,
+    # immigration, housing, poland, opportunity, event, regulation, business, tech. It is
+    # only the fallback — NewsCategoryMapper files individual articles by what they are
+    # about, so a visa story from a Lublin outlet still lands under "Visas & residence".
+    #
+    # Empty by default: with no sources configured nothing is fetched and the news page
+    # shows only what HustleSpace publishers wrote. Set NEWS_SOURCES to switch it on, e.g.
+    #   NEWS_SOURCES="Dziennik Wschodni|https://www.dziennikwschodni.pl|lublin,    #                 Notes from Poland|https://notesfrompoland.com|students"
+    # Verify each URL loads in a browser first, then POST /api/v1/news/import as an admin
+    # to fetch immediately and see per-source success/failure rather than waiting 30 minutes.
+    sources: ${NEWS_SOURCES:}
+    # Imported articles are pruned after this many days. Native articles are never pruned.
+    retention-days: ${NEWS_RETENTION_DAYS:45}
   upload:
     dir: ${UPLOAD_DIR:./uploads}
   aws:

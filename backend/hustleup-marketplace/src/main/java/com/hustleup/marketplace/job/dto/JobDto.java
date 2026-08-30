@@ -51,6 +51,17 @@ public class JobDto {
     /** True only for the advert's owner — gates the edit/close controls in the UI. */
     private Boolean ownedByCurrentUser;
 
+    /**
+     * Set on adverts aggregated from an outside board; null on native ones.
+     *
+     * <p>The client needs both: {@code sourceName} to credit the board and to know there is
+     * no employer here to apply to, and {@code sourceUrl} to send the candidate to where
+     * applying actually happens. Showing an Apply button on an imported advert would
+     * collect a CV nobody would ever read.
+     */
+    private String sourceName;
+    private String sourceUrl;
+
     public static JobDto from(Job j, Boolean applied, Boolean owned) {
         if (j == null) return null;
         return JobDto.builder()
@@ -80,6 +91,8 @@ public class JobDto {
                 .expiresAt(j.getExpiresAt())
                 .appliedByCurrentUser(applied)
                 .ownedByCurrentUser(owned)
+                .sourceName(j.getSourceName())
+                .sourceUrl(j.getSourceUrl())
                 .build();
     }
 }

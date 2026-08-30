@@ -51,7 +51,14 @@ public class Job {
     // ── Who posted it ────────────────────────────────────────────────────────
 
     /** The posting user (the publisher's owning account). */
-    @Column(name = "publisher_user_id", nullable = false)
+    /**
+     * The HustleSpace account that posted this, or null for an imported advert.
+     *
+     * <p>Nullable because aggregated adverts belong to an outside board, not to a verified
+     * hiring company here. Inventing a synthetic publisher for them would put a fake
+     * employer on a real job and break "adverts by this company".
+     */
+    @Column(name = "publisher_user_id")
     private UUID publisherUserId;
 
     /** The PublisherProfile row that authorised this post — kept for audit. */
@@ -133,6 +140,33 @@ public class Job {
     private List<String> tags = new ArrayList<>();
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
+
+    // ---- Aggregation --------------------------------------------------------
+    // Set only on adverts pulled from an outside board; all null for native ones.
+
+    /**
+     * The board this was fetched from, e.g. "Adzuna".
+     *
+     * <p>Doubles as the "not ours" flag. An imported advert cannot be applied to through
+     * HustleSpace — there is nobody here to receive the application — so the client sends
+     * the candidate to {@link #sourceUrl} instead of showing an Apply button that would
+     * drop their CV into a void.
+     */
+    @Column(name = "source_name")
+    private String sourceName;
+
+    /** The advert on the board it came from — where applying actually happens. */
+    @Column(name = "source_url", length = 1024)
+    private String sourceUrl;
+
+    /** The board's own id for this advert. The dedupe key across repeated imports. */
+    @Column(name = "external_id", length = 512)
+    private String externalId;
+
+    /** True when this came from an outside board rather than a HustleSpace employer. */
+    public boolean isImported() {
+        return sourceName != null && !sourceName.isBlank();
+    }
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

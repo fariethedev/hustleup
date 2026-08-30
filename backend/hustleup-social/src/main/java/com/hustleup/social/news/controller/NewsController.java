@@ -8,6 +8,8 @@ import com.hustleup.common.storage.FileStorageService;
 import com.hustleup.social.news.dto.NewsArticleDto;
 import com.hustleup.social.news.model.NewsArticle;
 import com.hustleup.social.news.repository.NewsArticleRepository;
+import com.hustleup.social.news.ingest.NewsImportService;
+import com.hustleup.social.news.ingest.NewsSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -37,6 +39,8 @@ public class NewsController {
     private final NewsArticleRepository articleRepository;
     private final PublisherGuard publisherGuard;
     private final FileStorageService fileStorageService;
+    /** Feed aggregation — see the import/sources endpoints below. */
+    private final NewsImportService newsImportService;
 
     // ---- Public reading -----------------------------------------------------
 
@@ -182,6 +186,58 @@ public class NewsController {
     }
 
     /**
+     * Pulls every configured outlet now, rather than waiting for the next scheduled run.
+     *
+     * <p><b>POST /api/v1/news/import</b> — admin only.
+     *
+     * <p>Exists so a source can be added to {@code NEWS_SOURCES} and verified immediately:
+     * the response reports how many items each run fetched, stored and skipped, plus the
+     * sources that failed and why. Without it, a mistyped feed URL is invisible until
+     * someone notices the news page is thin half an hour later.
+     */
+    @PostMapping("/import")
+    public ResponseEntity<?> importNow() {
+        User me = publisherGuard.currentUser().orElse(null);
+        if (me == null) return ResponseEntity.status(401).build();
+        if (me.getRole() != Role.ADMIN) return forbidden("Admins only");
+
+        List<NewsSource> configured = newsImportService.sources();
+        if (configured.isEmpty()) {
+            return ResponseEntity.ok(Map.of(
+                    "imported", 0,
+                    "message", "No sources configured. Set NEWS_SOURCES to a comma-separated "
+                             + "list of \"Name|url|category\" entries and restart."));
+        }
+
+        NewsImportService.ImportReport report = newsImportService.importAll();
+        return ResponseEntity.ok(Map.of(
+                "sources", report.sources(),
+                "fetched", report.fetched(),
+                "imported", report.imported(),
+                "skipped", report.skipped(),
+                "failures", report.failures()));
+    }
+
+    /**
+     * The outlets currently configured. <b>GET /api/v1/news/sources</b> — admin only.
+     *
+     * <p>Read-only, and deliberately so: the list is an env var, which is the thing that
+     * survives a redeploy. An editable copy in the database would drift from it.
+     */
+    @GetMapping("/sources")
+    public ResponseEntity<?> sources() {
+        User me = publisherGuard.currentUser().orElse(null);
+        if (me == null) return ResponseEntity.status(401).build();
+        if (me.getRole() != Role.ADMIN) return forbidden("Admins only");
+        return ResponseEntity.ok(newsImportService.sources().stream()
+                .map(source -> Map.of(
+                        "name", source.name(),
+                        "url", source.url(),
+                        "category", source.defaultCategory() == null ? "" : source.defaultCategory()))
+                .toList());
+    }
+
+    /**
      * Changes an article's state, e.g. publishing a draft or archiving a story.
      *
      * <p><b>PATCH /api/v1/news/{id}/status</b> - author or admin only.
@@ -192,7 +248,12 @@ public class NewsController {
         if (me == null) return ResponseEntity.status(401).build();
         NewsArticle article = articleRepository.findById(id).orElse(null);
         if (article == null) return notFound("Article not found");
-        if (!article.getPublisherUserId().equals(me.getId()) && me.getRole() != Role.ADMIN) {
+        // Null-safe: an imported article has no publisherUserId, so calling equals() on it
+        // would NPE. Nobody owns an aggregated article, which leaves admins as the only
+        // people who can change its state — correct, since it is not anyone's to edit.
+        boolean isOwner = article.getPublisherUserId() != null
+                && article.getPublisherUserId().equals(me.getId());
+        if (!isOwner && me.getRole() != Role.ADMIN) {
             return forbidden("You can only change your own articles");
         }
 

@@ -23,19 +23,32 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
 
+  /**
+   * Where signing in lands you.
+   *
+   * The feed, not the dashboard. The dashboard is a workspace for the subset of people who
+   * sell something — it answers "what do I owe my customers", which is not a question most
+   * people have on opening the app. Landing there meant the first screen after every login
+   * was an empty admin panel with no route into the feed, news or jobs; the feed is the
+   * live surface everything else is reachable from.
+   *
+   * Onboarding still wins while it is unfinished — that is a step, not a destination.
+   */
+  const landingRoute = (payload) => (payload?.onboardingCompleted ? '/feed' : '/onboarding');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     dispatch(clearError());
 
     const resultAction = await dispatch(loginUser(form));
     if (loginUser.fulfilled.match(resultAction)) {
-      navigate(resultAction.payload?.onboardingCompleted ? '/dashboard' : '/onboarding');
+      navigate(landingRoute(resultAction.payload));
     }
   };
 
   const afterSocialLogin = (resultAction, matcher) => {
     if (matcher.match(resultAction)) {
-      navigate(resultAction.payload?.onboardingCompleted ? '/dashboard' : '/onboarding');
+      navigate(landingRoute(resultAction.payload));
     }
   };
 

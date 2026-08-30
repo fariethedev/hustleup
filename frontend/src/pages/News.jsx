@@ -2,23 +2,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Calendar, ArrowLeft, Newspaper, BadgeCheck, Plus, ShieldCheck,
-  Clock, Eye, LayoutGrid, X
+  Clock, Eye, LayoutGrid, X, ExternalLink
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { newsApi, publishersApi } from '../api/client';
+import { SECTIONS } from '../utils/taxonomy';
 import HeroBrief from '../components/HeroBrief';
 import MobileFilterBar from '../components/MobileFilterBar';
 import ArticleComposer from '../components/news/ArticleComposer';
 
-const SECTIONS = [
-  { id: 'regulation', name: 'Regulation' },
-  { id: 'event', name: 'Events' },
-  { id: 'opportunity', name: 'Opportunity' },
-  { id: 'tech', name: 'Tech' },
-  { id: 'business', name: 'Business' },
-];
 
 const formatDate = (iso) => {
   if (!iso) return '';
@@ -289,7 +283,12 @@ export default function News() {
                       <img src={selected.outletLogoUrl} alt="" className="w-4 h-4 rounded object-cover" />
                     )}
                     {selected.outletName}
-                    <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00]" />
+                    {/* The tick means "verified HustleSpace outlet". An aggregated article
+                        has not been verified by anyone here, so it says where it came from
+                        instead of borrowing a badge it did not earn. */}
+                    {selected.sourceName
+                      ? <span className="text-gray-600 normal-case">· via feed</span>
+                      : <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00]" />}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Calendar className="w-3 h-3" /> {formatDate(selected.publishedAt || selected.createdAt)}
@@ -300,6 +299,28 @@ export default function News() {
 
                 {selected.summary && (
                   <p className="text-base text-gray-300 leading-relaxed font-semibold mb-6">{selected.summary}</p>
+                )}
+
+                {/* An aggregated article stores the feed's summary, not the full text —
+                    scraping the body would be republishing someone else's work. So the
+                    prominent action is to go and read it where it was written. */}
+                {selected.sourceUrl && (
+                  <a
+                    href={selected.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between gap-3 mb-6 px-4 py-3.5 rounded-2xl border border-[#CDFF00]/25 bg-[#CDFF00]/[0.06] hover:border-[#CDFF00]/60 transition-colors group"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-[10px] font-black uppercase tracking-widest text-[#CDFF00]">
+                        Read the full story
+                      </span>
+                      <span className="block text-xs text-gray-400 truncate">
+                        Published by {selected.sourceName}
+                      </span>
+                    </span>
+                    <ExternalLink className="w-4 h-4 text-[#CDFF00] group-hover:translate-x-0.5 transition-transform shrink-0" />
+                  </a>
                 )}
 
                 {selected.body === null ? (

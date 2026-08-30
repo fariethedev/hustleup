@@ -90,6 +90,22 @@ app:
     domain: ${CDN_DOMAIN:}
   email:
     from: ${EMAIL_FROM:HustleSpace <notifications@hustlespace.space>}
+  adzuna:
+    # Aggregated job adverts for Poland. Free credentials at https://developer.adzuna.com —
+    # register an app and it gives you an app_id and an app_key.
+    #
+    # Dormant when either is blank: the service starts normally and the jobs board simply
+    # shows only natively posted adverts, exactly as it did before.
+    app-id: ${ADZUNA_APP_ID:}
+    app-key: ${ADZUNA_APP_KEY:}
+    # Adzuna's country path segment. "pl" is Poland — the point of the integration.
+    country: ${ADZUNA_COUNTRY:pl}
+    # Fuzzy location match, so a city also pulls in the surrounding area. Blank = whole country.
+    where: ${ADZUNA_WHERE:Lublin}
+    # Pages per run, 50 adverts each.
+    pages: ${ADZUNA_PAGES:4}
+    # Imported adverts are dropped after this many days; natively posted ones are never pruned.
+    retention-days: ${ADZUNA_RETENTION_DAYS:30}
   algolia:
     app-id: ${ALGOLIA_APP_ID:}
     admin-key: ${ALGOLIA_ADMIN_KEY:}

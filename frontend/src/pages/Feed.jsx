@@ -7,7 +7,7 @@ import { isPremiumActive, isPremiumRequiredError } from '../utils/premium';
 import {
   Heart, MessageCircle, Send, Bookmark, Image as ImageIcon, ShoppingBag,
   BadgeCheck, X, Film, Star, Users, Store, Sparkles, Package, VenetianMask, Lock, Crown, Crop,
-  MoreHorizontal, Pencil, Trash2, Repeat2, UsersRound, Plus, Check, MapPin, ArrowLeft,
+  MoreHorizontal, Pencil, Trash2, Repeat2, UsersRound,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../utils/constants';

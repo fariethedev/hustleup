@@ -40,4 +40,22 @@ public interface NewsArticleRepository extends JpaRepository<NewsArticle, UUID> 
     List<NewsArticle> findAllByOrderByCreatedAtDesc();
 
     long countByStatus(NewsArticle.ArticleStatus status);
+
+    /**
+     * Whether an imported article is already stored.
+     *
+     * <p>The dedupe check behind every feed poll. Feeds re-serve their whole contents on
+     * every fetch, so without this each poll would republish every article in them.
+     */
+    boolean existsByExternalId(String externalId);
+
+    /**
+     * Imported articles older than a cut-off, oldest first.
+     *
+     * <p>Aggregated news has a short shelf life and no editorial reason to be kept: nobody
+     * opens the news page for a three-month-old headline from someone else's site. Native
+     * articles are deliberately excluded — those belong to their publisher, and deleting
+     * somebody's work to save space is not this service's call.
+     */
+    List<NewsArticle> findBySourceNameIsNotNullAndPublishedAtBefore(java.time.LocalDateTime before);
 }

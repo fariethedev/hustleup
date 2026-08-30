@@ -43,4 +43,22 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
     List<Job> findAllByOrderByCreatedAtDesc();
 
     long countByStatus(Job.JobStatus status);
+
+    /**
+     * Whether an imported advert is already stored.
+     *
+     * <p>The dedupe check behind every import run. A job board re-serves the same adverts
+     * on every query, so without this each run would duplicate the whole result set.
+     */
+    boolean existsByExternalId(String externalId);
+
+    /**
+     * Imported adverts older than a cut-off.
+     *
+     * <p>Aggregated jobs go stale fast and nothing here can tell when one is filled — the
+     * board simply stops returning it. Dropping old ones is the only way to keep the board
+     * from filling with roles that no longer exist. Native adverts are excluded: those are
+     * their employer's to close.
+     */
+    List<Job> findBySourceNameIsNotNullAndCreatedAtBefore(java.time.LocalDateTime before);
 }

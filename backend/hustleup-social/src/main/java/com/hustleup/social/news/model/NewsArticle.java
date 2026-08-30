@@ -40,7 +40,14 @@ public class NewsArticle {
 
     // ---- Who published it ---------------------------------------------------
 
-    @Column(name = "publisher_user_id", nullable = false)
+    /**
+     * The HustleSpace account that published this, or null for an imported article.
+     *
+     * <p>Nullable because aggregated articles have no publisher here — they belong to an
+     * outside outlet. Attributing them to a synthetic "system" user instead would put a
+     * fake account on a real byline and make "articles by this publisher" wrong.
+     */
+    @Column(name = "publisher_user_id")
     private UUID publisherUserId;
 
     @Column(name = "publisher_profile_id")
@@ -85,6 +92,38 @@ public class NewsArticle {
     @Column(name = "tag")
     @Builder.Default
     private List<String> tags = new ArrayList<>();
+
+    // ---- Aggregation --------------------------------------------------------
+    // Set only on articles pulled in from an outside feed; all null for native ones.
+
+    /**
+     * The outlet this was fetched from, e.g. "Dziennik Wschodni".
+     *
+     * <p>Doubles as the "this is not ours" flag: a non-null source means the body here is a
+     * summary and the real article lives at {@link #sourceUrl}. The reader view uses it to
+     * credit the outlet and send people to the original rather than presenting someone
+     * else's reporting as HustleSpace's.
+     */
+    @Column(name = "source_name")
+    private String sourceName;
+
+    /** Canonical link to the article on the outlet's own site. */
+    @Column(name = "source_url", length = 1024)
+    private String sourceUrl;
+
+    /**
+     * The feed's own id for this entry, or its link where it has none.
+     *
+     * <p>The dedupe key. Feeds are polled repeatedly and re-serve the same entries every
+     * time; without a unique id to match on, every poll would republish the whole feed.
+     */
+    @Column(name = "external_id", length = 512)
+    private String externalId;
+
+    /** True when this came from a feed rather than from a HustleSpace publisher. */
+    public boolean isImported() {
+        return sourceName != null && !sourceName.isBlank();
+    }
 
     // ---- Lifecycle ----------------------------------------------------------
 
