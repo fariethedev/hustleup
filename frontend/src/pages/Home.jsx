@@ -400,17 +400,12 @@ export default function Home() {
       {!eventsLoading && events.length > 0 && (
         <section className="py-16 border-t border-white/5">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
-              <div>
-                <p className="text-[#CDFF00] text-sm font-bold mb-3">Don't miss out</p>
-                <h2 className="text-3xl font-heading font-black text-white tracking-tight">Events</h2>
-              </div>
-              <Link
-                to="/explore"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/15 text-white text-sm font-bold hover:bg-white/5 hover:border-white/30 transition-all"
-              >
-                View all <ArrowRight className="w-4 h-4" />
-              </Link>
+            {/* No "View all" here — the carousel already scrolls through every upcoming
+                event, and the old link only ever pointed at unfiltered /explore rather than
+                anything event-specific. */}
+            <div className="mb-10">
+              <p className="text-[#CDFF00] text-sm font-bold mb-3">Don't miss out</p>
+              <h2 className="text-3xl font-heading font-black text-white tracking-tight">Events</h2>
             </div>
 
             <EventCarousel events={events.slice(0, 9)} />
