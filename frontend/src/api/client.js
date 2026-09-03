@@ -72,6 +72,13 @@ api.interceptors.response.use(
           const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
           const newToken = res.data.accessToken;
           localStorage.setItem('hustleup_token', newToken);
+          // The server now ROTATES the refresh token: the one just sent has been deleted
+          // server-side. Failing to store the replacement would leave the stored token
+          // pointing at a row that no longer exists, so the next refresh 400s and the user
+          // is signed out — worse than the problem rotation was added to fix.
+          if (res.data.refreshToken) {
+            localStorage.setItem('hustleup_refresh', res.data.refreshToken);
+          }
           original.headers.Authorization = `Bearer ${newToken}`;
           return api(original);
         } catch {

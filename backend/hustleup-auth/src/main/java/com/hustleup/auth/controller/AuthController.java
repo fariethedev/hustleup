@@ -80,6 +80,18 @@ public class AuthController {
     private static final String PASSWORD_POLICY_MESSAGE =
             "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number";
 
+    /**
+     * How long a refresh token stays valid — 7 days.
+     *
+     * <p>Because {@code /refresh} now rotates the token, this is a window of inactivity
+     * rather than a hard cap on a session: every refresh restarts it, so someone using the
+     * app stays signed in and only a genuine 7-day absence expires them.
+     *
+     * <p>Was written out as a bare {@code 604800000} in three places, which is exactly how
+     * two of them end up disagreeing later.
+     */
+    private static final long REFRESH_TOKEN_TTL_MS = 7L * 24 * 60 * 60 * 1000;
+
     // -------------------------------------------------------------------------
     // Dependencies (injected by Spring at startup)
     // -------------------------------------------------------------------------
@@ -370,7 +382,7 @@ public class AuthController {
         refreshTokenRepository.save(RefreshToken.builder()
                 .userId(user.getId())
                 .token(refreshTokenStr)
-                .expiryDate(Instant.now().plusMillis(604800000))
+                .expiryDate(Instant.now().plusMillis(REFRESH_TOKEN_TTL_MS))
                 .build());
 
         log.info("OAuth sign-in via {}: userId={}", provider, user.getId());
@@ -425,15 +437,33 @@ public class AuthController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         // Generate a brand-new access token with the user's current role.
-        // The refresh token itself is reused (no rotation here) — a simpler approach
-        // that is still secure as long as refresh tokens are stored server-side and
-        // can be revoked.
         String newAccessToken = tokenProvider.generateAccessToken(user.getEmail(), user.getRole().name());
 
-        // Return the new access token alongside the same refresh token.
+        // Rotate the refresh token, giving the session a SLIDING window.
+        //
+        // This used to hand the same refresh token back untouched, which meant the 7-day
+        // expiry ran from the moment of login and nothing could extend it. Someone using
+        // the app every single day was still signed out on day seven, mid-session, for no
+        // reason they could see. Issuing a fresh token here restarts the clock on every
+        // refresh, so continued use keeps you signed in and only genuine absence expires
+        // the session.
+        //
+        // Rotation is also strictly safer than reuse: the old token is deleted, so a
+        // refresh token captured earlier stops working the moment the real client refreshes
+        // — a stolen one is useful only until then, rather than for the rest of the week.
+        String rotatedRefreshToken = tokenProvider.generateRefreshToken(user.getEmail());
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(user.getId())
+                .token(rotatedRefreshToken)
+                .expiryDate(Instant.now().plusMillis(REFRESH_TOKEN_TTL_MS))
+                .build());
+        // Delete the old row only after the replacement is stored. The other order would
+        // leave a window where a crash between the two writes logs the user out.
+        refreshTokenRepository.delete(refreshToken);
+
         return ResponseEntity.ok(AuthDtos.AuthResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(request.getRefreshToken()) // reuse existing refresh token
+                .refreshToken(rotatedRefreshToken)
                 .tokenType("Bearer")                     // OAuth 2.0 standard token type prefix
                 .role(user.getRole().name())
                 .fullName(user.getFullName())
@@ -772,7 +802,7 @@ public class AuthController {
         RefreshToken refreshToken = RefreshToken.builder()
                 .userId(user.getId())
                 .token(refreshTokenStr)
-                .expiryDate(Instant.now().plusMillis(604800000)) // 7 days from now
+                .expiryDate(Instant.now().plusMillis(REFRESH_TOKEN_TTL_MS))
                 .build();
         refreshTokenRepository.save(refreshToken);
 

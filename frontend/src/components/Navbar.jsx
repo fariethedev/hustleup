@@ -140,6 +140,66 @@ export default function Navbar() {
     setUnread((u) => Math.max(0, u - 1));
   };
 
+  /**
+   * The notifications list, shared by the desktop dropdown and the mobile sheet.
+   *
+   * Only the wrapper differs between them — a 320px dropdown anchored to the bell on
+   * desktop, a full-width sheet under the bar on mobile — so the contents live here once
+   * rather than being duplicated and drifting apart.
+   *
+   * An element, not a nested component: a component declared inside another is a fresh type
+   * on every render, so React would tear down and rebuild the list whenever anything else in
+   * the navbar changed. It also has to be declared AFTER markAllRead and markOneRead —
+   * `onClick={markAllRead}` is evaluated when this element is created, so referencing a
+   * `const` defined further down throws on first render.
+   */
+  const notifPanelBody = (
+    <>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+        <p className="text-xs text-white font-black uppercase tracking-widest">Notifications</p>
+        {notifications.some((n) => !n.read) && (
+          <button onClick={markAllRead} className="flex items-center gap-1 text-[10px] font-bold text-[#CDFF00] hover:underline">
+            <CheckCheck className="w-3 h-3" /> Mark all read
+          </button>
+        )}
+      </div>
+      <div className="max-h-[380px] overflow-y-auto">
+        {notifLoading ? (
+          <div className="py-10 text-center">
+            <div className="w-6 h-6 border-2 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin mx-auto" />
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="py-10 text-center">
+            <Bell className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+            <p className="text-xs text-gray-500 font-semibold">No notifications yet</p>
+          </div>
+        ) : (
+          notifications.map((n) => (
+            <button
+              key={n.id}
+              onClick={() => markOneRead(n)}
+              // Unread rows carry a tinted background and a lime left edge, so the ones
+              // that need attention are visible at a glance rather than differing from
+              // read ones only by opacity.
+              className={`w-full text-left px-4 py-3 flex gap-3 border-b border-white/5 last:border-0 transition-colors ${
+                n.read
+                  ? 'opacity-60 hover:bg-white/[0.04]'
+                  : 'bg-[#CDFF00]/[0.06] border-l-2 border-l-[#CDFF00] hover:bg-[#CDFF00]/10'
+              }`}
+            >
+              <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.read ? 'bg-transparent' : 'bg-[#CDFF00] shadow-[0_0_6px_rgba(205,255,0,0.8)]'}`} />
+              <span className="flex-1 min-w-0">
+                <span className={`block text-xs font-bold truncate ${n.read ? 'text-gray-300' : 'text-white'}`}>{n.title}</span>
+                {n.message && <span className="block text-[11px] text-gray-400 leading-snug line-clamp-2 mt-0.5">{n.message}</span>}
+              </span>
+              <span className="text-[10px] text-gray-600 font-bold shrink-0">{timeAgo(n.createdAt)}</span>
+            </button>
+          ))
+        )}
+      </div>
+    </>
+  );
+
   // Reduced nav items — Jobs & News removed
   const navItems = [
     { to: '/',        icon: Home,         label: 'Home',    always: true },
@@ -271,44 +331,8 @@ export default function Navbar() {
                   {notifOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-                      <div className="absolute right-0 top-full mt-2 w-80 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-3xl">
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-                          <p className="text-xs text-white font-black uppercase tracking-widest">Notifications</p>
-                          {notifications.some((n) => !n.read) && (
-                            <button onClick={markAllRead} className="flex items-center gap-1 text-[10px] font-bold text-[#CDFF00] hover:underline">
-                              <CheckCheck className="w-3 h-3" /> Mark all read
-                            </button>
-                          )}
-                        </div>
-                        <div className="max-h-[380px] overflow-y-auto">
-                          {notifLoading ? (
-                            <div className="py-10 text-center">
-                              <div className="w-6 h-6 border-2 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin mx-auto" />
-                            </div>
-                          ) : notifications.length === 0 ? (
-                            <div className="py-10 text-center">
-                              <Bell className="w-8 h-8 text-gray-700 mx-auto mb-2" />
-                              <p className="text-xs text-gray-500 font-semibold">No notifications yet</p>
-                            </div>
-                          ) : (
-                            notifications.map((n) => (
-                              <button
-                                key={n.id}
-                                onClick={() => markOneRead(n)}
-                                className={`w-full text-left px-4 py-3 flex gap-3 border-b border-white/5 last:border-0 transition-colors hover:bg-white/[0.04] ${
-                                  n.read ? 'opacity-60' : ''
-                                }`}
-                              >
-                                <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.read ? 'bg-transparent' : 'bg-[#CDFF00]'}`} />
-                                <span className="flex-1 min-w-0">
-                                  <span className="block text-xs text-white font-bold truncate">{n.title}</span>
-                                  {n.message && <span className="block text-[11px] text-gray-400 leading-snug line-clamp-2 mt-0.5">{n.message}</span>}
-                                </span>
-                                <span className="text-[10px] text-gray-600 font-bold shrink-0">{timeAgo(n.createdAt)}</span>
-                              </button>
-                            ))
-                          )}
-                        </div>
+                      <div className="absolute right-0 top-full mt-2 w-80 bg-[#0a0a0a] border border-[#CDFF00]/20 rounded-2xl shadow-2xl shadow-black/60 z-50 overflow-hidden backdrop-blur-3xl">
+                        {notifPanelBody}
                       </div>
                     </>
                   )}
@@ -344,7 +368,14 @@ export default function Navbar() {
                   <div className="absolute right-0 top-full mt-1.5 w-48 py-2 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-1 group-hover:translate-y-0 backdrop-blur-3xl">
                     <div className="px-3 py-1.5 border-b border-white/5 mb-1.5">
                       <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Signed in as</p>
-                      <p className="text-xs text-white font-black truncate">{displayName(user)}</p>
+                      <p className="text-xs text-[#CDFF00] font-black truncate">{displayName(user)}</p>
+                      {/* Real name under the handle. Rendered only when it is not already
+                          what is shown above — for an account with no username,
+                          displayName() has fallen back to the full name, and repeating it
+                          would just print the same string twice. */}
+                      {user?.username && user?.fullName && (
+                        <p className="text-[10px] text-gray-400 font-semibold truncate">{user.fullName}</p>
+                      )}
                     </div>
                     <Link to={`/profile/${user?.id}`} className="flex items-center px-3 py-1.5 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold"><User className="w-3.5 h-3.5 mr-2" /> Profile</Link>
                     <Link to="/dashboard" className="flex items-center px-3 py-1.5 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold"><LayoutDashboard className="w-3.5 h-3.5 mr-2" /> Dashboard</Link>
@@ -361,7 +392,7 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Mobile right — search + cart + avatar or sign-in */}
+            {/* Mobile right — search + notifications + cart + avatar or sign-in */}
             <div className="flex md:hidden items-center gap-1.5">
               <button
                 onClick={() => setSearchOpen(true)}
@@ -369,6 +400,39 @@ export default function Navbar() {
               >
                 <Search className="w-4.5 h-4.5" />
               </button>
+              {/* Notifications had no mobile entry point at all: the bell was inside the
+                  `hidden md:flex` desktop cluster, so on a phone there was no way to see
+                  that anything had happened — a sold item, a booking request, a match — short
+                  of opening the dashboard and finding the Alerts tab.
+                  The panel is a full-width sheet here rather than the desktop's 320px
+                  dropdown, which would overflow a small screen anchored to this button. */}
+              {isAuthenticated && (
+                <>
+                  <button
+                    onClick={openNotifications}
+                    aria-label="Notifications"
+                    aria-expanded={notifOpen}
+                    className={`relative flex items-center justify-center w-8 h-8 rounded-lg transition-all ${
+                      notifOpen ? 'text-[#CDFF00] bg-[#CDFF00]/10' : 'text-gray-400 hover:text-[#CDFF00] hover:bg-white/5'
+                    }`}
+                  >
+                    <Bell className="w-4.5 h-4.5" />
+                    {unread > 0 && (
+                      <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-0.5 text-[8px] font-black text-white bg-[#FF00FF] rounded-full ring-2 ring-black shadow-[0_0_8px_rgba(255,0,255,0.6)]">
+                        {unread > 9 ? '9+' : unread}
+                      </span>
+                    )}
+                  </button>
+                  {notifOpen && (
+                    <>
+                      <div className="fixed inset-0 z-[240] bg-black/40" onClick={() => setNotifOpen(false)} />
+                      <div className="fixed left-2 right-2 top-[calc(3.5rem+env(safe-area-inset-top))] z-[250] bg-[#0a0a0a] border border-[#CDFF00]/20 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden backdrop-blur-3xl">
+                        {notifPanelBody}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
               <button
                 onClick={() => dispatch(openCart())}
                 className="relative flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-[#CDFF00] hover:bg-white/5 transition-all"
@@ -406,7 +470,10 @@ export default function Navbar() {
                       >
                         <div className="px-3 py-1.5 border-b border-white/5 mb-1.5">
                           <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Signed in as</p>
-                          <p className="text-xs text-white font-black truncate">{displayName(user)}</p>
+                          <p className="text-xs text-[#CDFF00] font-black truncate">{displayName(user)}</p>
+                          {user?.username && user?.fullName && (
+                            <p className="text-[10px] text-gray-400 font-semibold truncate">{user.fullName}</p>
+                          )}
                         </div>
                         <Link to={`/profile/${user?.id}`} className="flex items-center px-3 py-2 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold">
                           <User className="w-3.5 h-3.5 mr-2" /> Profile

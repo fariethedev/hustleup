@@ -246,13 +246,30 @@ export default function Profile() {
               name pushed the buttons onto a second row at ragged widths — and because the
               h1 had `truncate` without `min-w-0`, it refused to shrink and squeezed the
               actions off the edge on narrow screens. */}
-          <h1 className="text-xl sm:text-2xl font-bold text-white truncate min-w-0 sm:hidden">
-            {displayName(profile)}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-3 sm:mt-0 [&>a]:flex-1 [&>button]:flex-1 sm:[&>a]:flex-none sm:[&>button]:flex-none">
-            <h1 className="hidden sm:block text-xl sm:text-2xl font-bold text-white truncate min-w-0 flex-none">
+          {/* Handle leads, real name sits under it — the pattern people already read on
+              every other social profile. Showing only one meant a handle like `mkzstudio`
+              never told you who it was, while the fallback showed a legal name with no
+              handle to mention or link. Both, with the handle dominant.
+              The real name renders only when it adds something: for an account with no
+              username, displayName() has already fallen back to it, and repeating it
+              underneath would just print the same string twice. */}
+          <div className="min-w-0 sm:hidden">
+            <h1 className="text-xl font-bold text-white truncate min-w-0">
               {displayName(profile)}
             </h1>
+            {profile?.username && profile?.fullName && (
+              <p className="text-sm text-gray-400 truncate">{profile.fullName}</p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-3 sm:mt-0 [&>a]:flex-1 [&>button]:flex-1 sm:[&>a]:flex-none sm:[&>button]:flex-none">
+            <div className="hidden sm:block min-w-0 flex-none">
+              <h1 className="text-xl sm:text-2xl font-bold text-white truncate min-w-0">
+                {displayName(profile)}
+              </h1>
+              {profile?.username && profile?.fullName && (
+                <p className="text-sm text-gray-400 truncate -mt-0.5">{profile.fullName}</p>
+              )}
+            </div>
 
             {isOwn ? (
               <>
