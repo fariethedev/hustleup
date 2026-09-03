@@ -256,17 +256,24 @@ export default function Profile() {
 
             {isOwn ? (
               <>
+                {/* Icon-only: the label added nothing an icon plus a tooltip doesn't already
+                    say, and on mobile these were stretching full-width via the row's flex-1
+                    rule — !flex-none opts them out of that so they stay compact squares. */}
                 <Link
                   to="/create"
-                  className="px-4 py-2 rounded-lg bg-[#CDFF00] hover:bg-[#d9ff33] text-black text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+                  title="Add listing"
+                  aria-label="Add listing"
+                  className="!flex-none w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#CDFF00] hover:bg-[#d9ff33] text-black transition-colors flex items-center justify-center shrink-0"
                 >
-                  <Plus className="w-4 h-4" /> Add listing
+                  <Plus className="w-4.5 h-4.5" />
                 </Link>
                 <button
                   onClick={() => setIsModalOpen(true)}
-                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+                  title="Edit profile"
+                  aria-label="Edit profile"
+                  className="!flex-none w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-white/10 hover:bg-white/15 text-white transition-colors flex items-center justify-center shrink-0"
                 >
-                  <Settings className="w-4 h-4" /> Edit profile
+                  <Settings className="w-4.5 h-4.5" />
                 </button>
               </>
             ) : rel.blocked ? (
