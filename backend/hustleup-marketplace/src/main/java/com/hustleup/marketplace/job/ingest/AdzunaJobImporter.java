@@ -234,7 +234,7 @@ public class AdzunaJobImporter {
                 .jobType(contractType(advert))
                 .salaryMin(decimal(advert, "salary_min"))
                 .salaryMax(decimal(advert, "salary_max"))
-                .salaryCurrency("PLN")
+                .salaryCurrency(currencyForCountry())
                 // Adzuna normalises every salary to an annual figure regardless of how the
                 // advert stated it, so labelling these per-year is the only honest reading.
                 .salaryPeriod("YEAR")
@@ -244,6 +244,37 @@ public class AdzunaJobImporter {
                 .status(Job.JobStatus.OPEN)
                 .createdAt(created(advert))
                 .build();
+    }
+
+    /**
+     * The currency Adzuna quotes salaries in for the configured country.
+     *
+     * <p>Adzuna reports each market's figures in that market's own currency and does not
+     * say which in the response, so it has to be derived from the country we asked for.
+     * Hardcoding PLN would have been right only for the default country and silently wrong
+     * for every other — a German advert would have shown its euro salary labelled złoty.
+     *
+     * <p>Covers Adzuna's markets; anything unrecognised falls back to the platform's own
+     * base currency rather than guessing.
+     */
+    private String currencyForCountry() {
+        return switch (country == null ? "" : country.trim().toLowerCase()) {
+            case "pl" -> "PLN";
+            case "gb" -> "GBP";
+            case "us" -> "USD";
+            case "ca" -> "CAD";
+            case "au" -> "AUD";
+            case "nz" -> "NZD";
+            case "za" -> "ZAR";
+            case "in" -> "INR";
+            case "sg" -> "SGD";
+            case "br" -> "BRL";
+            case "mx" -> "MXN";
+            case "ch" -> "CHF";
+            // The euro markets Adzuna covers.
+            case "de", "fr", "nl", "it", "es", "at", "be" -> "EUR";
+            default -> "PLN";
+        };
     }
 
     /**

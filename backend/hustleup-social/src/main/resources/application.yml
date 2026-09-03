@@ -75,20 +75,31 @@ app:
     # Outlets aggregated into the news page, as comma-separated "Name|url|category" entries.
     #
     # url may be a feed URL or the outlet's homepage — the reader discovers the feed from
-    # the page's <link rel="alternate"> tag, so the homepage (the one URL that reliably
-    # survives a site rebuild) is usually the better thing to configure.
+    # the page's <link rel="alternate"> tag, so a homepage is fine when the feed path is
+    # unknown or looks likely to move.
     #
     # category is a section id from the news page's own list: lublin, students,
     # immigration, housing, poland, opportunity, event, regulation, business, tech. It is
     # only the fallback — NewsCategoryMapper files individual articles by what they are
     # about, so a visa story from a Lublin outlet still lands under "Visas & residence".
     #
-    # Empty by default: with no sources configured nothing is fetched and the news page
-    # shows only what HustleSpace publishers wrote. Set NEWS_SOURCES to switch it on, e.g.
-    #   NEWS_SOURCES="Dziennik Wschodni|https://www.dziennikwschodni.pl|lublin,    #                 Notes from Poland|https://notesfrompoland.com|students"
-    # Verify each URL loads in a browser first, then POST /api/v1/news/import as an admin
-    # to fetch immediately and see per-source success/failure rather than waiting 30 minutes.
-    sources: ${NEWS_SOURCES:}
+    # The defaults below were each fetched and confirmed to serve a valid feed:
+    #   - Five channels from lublin.eu, the Lublin city portal's own RSS (the full list of
+    #     20 is at https://lublin.eu/kanaly-rss/ — education, culture, business and the two
+    #     general news channels are the ones this audience reads).
+    #   - Notes from Poland, an English-language Poland desk — the one source here an
+    #     international student can read on day one, before any Polish.
+    #
+    # Override with NEWS_SOURCES to add or drop outlets without a rebuild; set it to a
+    # single space to turn aggregation off entirely. After changing it, POST
+    # /api/v1/news/import as an admin to fetch immediately and see per-source success and
+    # failure counts rather than waiting for the next 30-minute poll.
+    # Single-quoted for YAML (the value carries ":" and "|"); no quotes inside the
+    # ${...:default} expression, which would otherwise land in the string literally.
+    # Outlet names are the byline readers see, so they are in English rather than Polish —
+    # this audience is largely international, and it keeps the value pure ASCII so nothing
+    # is mangled passing through an env var or a Docker file.
+    sources: '${NEWS_SOURCES:Lublin City|https://lublin.eu/rss/pl/66/2.xml|lublin,Lublin Residents|https://lublin.eu/rss/pl/464/2.xml|lublin,Lublin Education|https://lublin.eu/rss/pl/1082/2.xml|students,Lublin Culture|https://lublin.eu/rss/pl/41/2.xml|event,Lublin Business|https://lublin.eu/rss/pl/791/2.xml|business,Notes from Poland|https://notesfrompoland.com/feed/|poland}'
     # Imported articles are pruned after this many days. Native articles are never pruned.
     retention-days: ${NEWS_RETENTION_DAYS:45}
   upload:

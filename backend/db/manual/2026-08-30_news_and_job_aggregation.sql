@@ -112,8 +112,17 @@ DROP PROCEDURE IF EXISTS add_index_if_missing;
 -- Expect eight rows, with publisher_user_id showing IS_NULLABLE = YES on both tables.
 -- Then restart hustleup-social and hustleup-marketplace.
 --
--- Turning the importers on (both are dormant until configured):
---   NEWS_SOURCES="Name|https://outlet.example|lublin,Other|https://other.example|students"
+-- After restarting:
+--
+-- NEWS aggregation is already on. It ships with six verified feeds — five channels from
+-- the Lublin city portal's own RSS (lublin.eu/kanaly-rss) and Notes from Poland for
+-- English-language coverage — and starts pulling about a minute after startup. Override
+-- NEWS_SOURCES to change the list; set it to a single space to turn it off.
+--
+-- JOBS aggregation needs credentials, and is dormant without them:
 --   ADZUNA_APP_ID / ADZUNA_APP_KEY   (free at https://developer.adzuna.com)
--- Then, as an admin, POST /api/v1/news/import and POST /api/v1/jobs/import to fetch
--- immediately and see per-source success and failure counts.
+-- Adzuna covers Poland as country code "pl", which is the configured default.
+--
+-- To fetch immediately rather than waiting for the next poll, as an admin:
+--   POST /api/v1/news/import     -> per-source fetched / imported / skipped / failures
+--   POST /api/v1/jobs/import     -> the same, or a message saying Adzuna is unconfigured
