@@ -78,6 +78,19 @@ app:
     # Platform's cut of each completed booking, as a percentage (e.g. 8 = 8%). The seller
     # receives agreedPrice minus this fee when a booking is marked COMPLETED.
     platform-fee-percent: ${STRIPE_PLATFORM_FEE_PERCENT:8}
+
+  # ── Storefront payouts ────────────────────────────────────────────────────
+  # Money is held on the platform balance from checkout until the sale is settled, so a
+  # buyer whose parcel never arrives can still be refunded from funds the platform holds.
+  payouts:
+    # How long a DISPATCHED order waits before releasing without the buyer confirming.
+    # Buyers forget; a seller whose payout depended only on a buyer pressing a button would
+    # be financing the platform through no fault of their own. Measured from dispatch, not
+    # from payment — a seller who has not sent anything should accrue no claim by waiting.
+    hold-days: ${PAYOUT_HOLD_DAYS:7}
+    # How often the sweep looks for orders that have come due. Hourly is ample against a
+    # hold measured in days, and one query beats thousands of per-order timers.
+    sweep-ms: ${PAYOUT_SWEEP_MS:3600000}
   frontend:
     url: ${FRONTEND_URL:http://localhost:5174}
   aws:

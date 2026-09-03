@@ -11,6 +11,7 @@ import com.hustleup.marketplace.shipping.ShipmentService;
 import com.hustleup.marketplace.shipping.ShippingMethod;
 import com.hustleup.marketplace.shop.model.Shop;
 import com.hustleup.marketplace.shop.model.ShopOrder;
+import com.hustleup.marketplace.shop.service.OrderPayoutService;
 import com.hustleup.marketplace.shop.model.ShopProduct;
 import com.hustleup.marketplace.shop.repository.ShopOrderRepository;
 import com.hustleup.marketplace.shop.repository.ShopProductRepository;
@@ -48,6 +49,7 @@ public class ShopOrderController {
     private final UserRepository userRepository;
     private final StripeConnectService stripeConnectService;
     private final ShipmentService shipmentService;
+    private final OrderPayoutService orderPayoutService;
 
     /** Platform default — {@link ShopProduct} carries a price with no currency of its own. */
     private static final String CURRENCY = "PLN";
@@ -281,7 +283,15 @@ public class ShopOrderController {
         }
         order.setStatus(ShopOrder.ShopOrderStatus.FULFILLED);
         order.setUpdatedAt(java.time.LocalDateTime.now());
-        return ResponseEntity.ok(orderRepository.save(order));
+        ShopOrder saved = orderRepository.save(order);
+
+        // Release the seller's money now. A buyer holding their goods has no reason to wait
+        // for the seller to be paid, and that is the whole point of having held it until now.
+        // A failure here is not fatal to the confirmation — the order is still received, and
+        // the hourly sweep retries anything left held.
+        orderPayoutService.release(saved);
+
+        return ResponseEntity.ok(saved);
     }
 
     // ---- Helpers ------------------------------------------------------------

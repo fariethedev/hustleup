@@ -34,6 +34,7 @@ package com.hustleup.marketplace.payments.service;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.marketplace.booking.model.Booking;
+import com.hustleup.marketplace.shop.model.ShopOrder;
 import com.hustleup.marketplace.payments.model.SellerPayoutAccount;
 import com.hustleup.marketplace.payments.repository.SellerPayoutAccountRepository;
 import com.hustleup.marketplace.shipping.ShippingMethod;
@@ -418,6 +419,40 @@ public class StripeConnectService {
                 .setDestination(sellerStripeAccountId)
                 .setTransferGroup(booking.getId().toString())
                 .putMetadata("bookingId", booking.getId().toString())
+                .build();
+
+        return Transfer.create(params).getId();
+    }
+
+    /**
+     * Pays a storefront seller their share of an order — goods total minus the platform fee,
+     * plus postage in full.
+     *
+     * <p>The storefront counterpart of {@link #transferToSeller(Booking, String)}, and it
+     * splits the money the same way for the same reason: postage passes through untouched
+     * because the seller hands every zloty of it to a carrier, and commissioning it would
+     * leave a seller who quoted exact postage out of pocket on every order.
+     *
+     * <p>Only called against an order whose charge has actually been captured.
+     *
+     * @return the Stripe Transfer id, stored on the order for reconciliation
+     */
+    public String transferToSeller(ShopOrder order, String sellerStripeAccountId) throws StripeException {
+        BigDecimal keepFraction = BigDecimal.ONE.subtract(
+                platformFeePercent.divide(BigDecimal.valueOf(100)));
+        long payoutMinorUnits = BigDecimal.valueOf(toMinorUnits(order.getTotalPrice()))
+                .multiply(keepFraction)
+                .setScale(0, RoundingMode.HALF_UP)
+                .longValueExact();
+
+        payoutMinorUnits += toMinorUnits(order.getFulfilment().shippingPriceOrZero());
+
+        TransferCreateParams params = TransferCreateParams.builder()
+                .setAmount(payoutMinorUnits)
+                .setCurrency(order.getCurrency().toLowerCase())
+                .setDestination(sellerStripeAccountId)
+                .setTransferGroup(order.getId().toString())
+                .putMetadata("shopOrderId", order.getId().toString())
                 .build();
 
         return Transfer.create(params).getId();

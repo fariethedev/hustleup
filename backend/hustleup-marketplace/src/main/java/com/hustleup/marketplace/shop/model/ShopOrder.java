@@ -108,6 +108,33 @@ public class ShopOrder {
     private ShopOrderStatus status = ShopOrderStatus.AWAITING_PAYMENT;
 
     /** Set by the webhook once a PaymentIntent exists; null until the buyer pays. */
+    /**
+     * The Stripe Transfer that paid this order out, or null while the money is still held.
+     *
+     * <p>Storefront sales had no payout path at all: the buyer's charge landed on the
+     * platform's Stripe balance and nothing ever moved it to the seller. Bookings have had
+     * this since Connect was added; orders were simply missed.
+     */
+    @Column(name = "transfer_id")
+    private String transferId;
+
+    /**
+     * HELD (charge captured, money on the platform balance) → RELEASED (transferred to the
+     * seller) / REFUNDED / FAILED.
+     *
+     * <p>Deliberately distinct from {@link #status}: that tracks the sale, this tracks the
+     * money. An order can be FULFILLED with the payout still pending — a seller who has not
+     * finished Connect onboarding has nowhere to receive it — and conflating the two would
+     * hide money the platform still owes.
+     */
+    @Column(name = "payout_status", length = 20)
+    @Builder.Default
+    private String payoutStatus = "HELD";
+
+    /** When the payout was released, for reconciliation against Stripe. */
+    @Column(name = "released_at")
+    private LocalDateTime releasedAt;
+
     @Column(name = "payment_intent_id")
     private String paymentIntentId;
 
