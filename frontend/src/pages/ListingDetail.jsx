@@ -150,10 +150,30 @@ export default function ListingDetail() {
     if (!selectedSlotId) return;
     setSlotBooking(true);
     try {
-      await bookingsApi.create({ listingId: listing.id, availabilitySlotId: selectedSlotId });
+      // Booking the slot and paying for it are one action to the buyer, so they are one
+      // action here. This used to stop at "Slot booked — check your dashboard", which asked
+      // someone who had just decided to buy to go and find the thing they had decided to buy
+      // in a list, and press a second button. Every step between deciding and paying is a
+      // step a buyer can leave through, and the seller carries the cost of that.
+      const booking = await bookingsApi.create({
+        listingId: listing.id,
+        availabilitySlotId: selectedSlotId,
+      });
       setSlots((prev) => prev.map((s) => (s.id === selectedSlotId ? { ...s, booked: true } : s)));
       setSelectedSlotId(null);
-      showToast('Slot booked! Check your dashboard for details.');
+
+      const bookingId = booking.data?.id;
+      if (bookingId) {
+        const session = await bookingsApi.checkoutSession(bookingId);
+        const url = session.data?.checkoutUrl || session.data?.url;
+        if (url) {
+          window.location.href = url;  // hand off to Stripe
+          return;
+        }
+      }
+      // The slot is genuinely held either way, so the fallback says so rather than implying
+      // the booking failed — the buyer can still pay from the dashboard.
+      showToast('Slot booked — finish payment from your dashboard.');
     } catch (e) {
       showToast(e.response?.data?.error || 'Could not book that slot', 'error');
     } finally {
