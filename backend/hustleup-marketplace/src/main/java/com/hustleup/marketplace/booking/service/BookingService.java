@@ -281,9 +281,10 @@ public class BookingService {
                     .status(BookingStatus.BOOKED)
                     .build();
             Booking saved = bookingRepository.save(booking);
-            // The purchase is confirmed the moment it's made, so the buyer gets their scannable
-            // tickets immediately rather than waiting on the organiser.
-            issueTicketsIfEvent(saved, listing);
+            // No ticket yet. This used to mint one here, with paymentStatus still PENDING —
+            // a scannable ticket that would admit someone at the door who had paid nothing,
+            // and an attendee list made of people who had clicked rather than people who had
+            // paid. Tickets are issued when the money lands; see confirmPayment below.
             return enrichDto(saved);
         }
 
@@ -545,10 +546,13 @@ public class BookingService {
             booking.setUpdatedAt(LocalDateTime.now());
             Booking saved = bookingRepository.save(booking);
 
-            // An accepted request to join an event is the other route to a confirmed EVENT
-            // booking, so this is where those attendees get their tickets.
+            // The other route into an event. A ticket is still only for someone who has
+            // paid: a free event has nothing to charge, so the booking arrives PAID and is
+            // ticketed here, while a paid one waits for the charge to clear like any other.
             Listing bookedListing = listingRepository.findById(booking.getListingId()).orElse(null);
-            issueTicketsIfEvent(saved, bookedListing);
+            if ("PAID".equals(saved.getPaymentStatus())) {
+                issueTicketsIfEvent(saved, bookedListing);
+            }
 
             String listingTitle = bookedListing != null ? bookedListing.getTitle() : "your booking";
             notifyByEmail(booking.getBuyerId(), "Booking confirmed: " + listingTitle,
@@ -700,6 +704,16 @@ public class BookingService {
                     .map(Listing::getTitle).orElse("your order");
             shipmentService.confirmPaid(booking.getFulfilment(), title,
                     booking.getId(), booking.getBuyerId(), booking.getSellerId());
+
+            // Payment is what earns a ticket, so this is where one is minted. issueForBooking
+            // is idempotent, which matters here: Stripe can deliver the same session more than
+            // once, and a buyer returning to the success page re-runs this path — neither may
+            // hand out a second ticket for one purchase.
+            if ("PAID".equals(booking.getPaymentStatus())) {
+                listingRepository.findById(booking.getListingId())
+                        .ifPresent(listing -> issueTicketsIfEvent(booking, listing));
+            }
+
             updated.add(enrichDto(bookingRepository.save(booking), booking.getBuyerId()));
         }
         return updated;

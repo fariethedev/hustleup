@@ -43,6 +43,24 @@ const formatEventDate = (iso) => {
 };
 
 /**
+ * Whether an event is actually on right now.
+ *
+ * Listings carry a start time but no end, so "still running" has to be estimated: an event
+ * counts as live from its start until six hours later, which covers an ordinary night out
+ * without leaving last week's party pulsing away on the home page. An event with no start
+ * time recorded is never live — the honest answer to "when is this?" is silence, not a badge
+ * asserting it is happening this moment.
+ */
+const LIVE_WINDOW_MS = 6 * 60 * 60 * 1000;
+const isHappeningNow = (iso) => {
+  if (!iso) return false;
+  const start = new Date(iso).getTime();
+  if (Number.isNaN(start)) return false;
+  const now = Date.now();
+  return start <= now && now - start < LIVE_WINDOW_MS;
+};
+
+/**
  * Shared behaviour for the horizontal card rows on this page.
  *
  * Pages by a full visible width so each click advances one clean set rather than a fraction of
@@ -178,13 +196,18 @@ function EventCarousel({ events }) {
       >
         {events.map((event, i) => {
           const startsOn = formatEventDate(event.eventStartsAt);
+          const isLive = isHappeningNow(event.eventStartsAt);
           return (
             <motion.div
               key={event.id}
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
+              // animate, not whileInView. In a horizontally scrolling track, viewport-triggered
+              // reveals leave every card past the right edge sitting at opacity 0 — swiping the
+              // row showed blank space where the next flyer should be. Only the first few are
+              // staggered, so the entrance still reads as one row arriving rather than a
+              // cascade that outlasts the scroll.
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: Math.min(i, 3) * 0.06 }}
               // Two-up on mobile, matching the carousels on Explore and News — sized off the
               // track minus the single gap so the second card lands flush with the edge.
               className="snap-start shrink-0 w-[calc((100%-0.75rem)/2)] sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-2.5rem)/3)]"
@@ -200,14 +223,18 @@ function EventCarousel({ events }) {
                       onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=60'; }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                    <span className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#CDFF00] text-black text-[10px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" /> LIVE
-                    </span>
-                    {startsOn && (
-                      <span className="absolute top-3 right-3 px-3 py-1 rounded-full bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold">
+                    {/* One badge, and only when it says something true. Every card used to be
+                        stamped LIVE — including events months away and events with no start
+                        time recorded — and a badge that is always on carries no information. */}
+                    {isLive ? (
+                      <span className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#CDFF00] text-black text-[10px] font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" /> LIVE
+                      </span>
+                    ) : startsOn ? (
+                      <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold">
                         {startsOn}
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </Link>
 

@@ -185,13 +185,29 @@ export default function ListingDetail() {
     if (!listing) return;
     setTicketLoading(true);
     try {
-      await bookingsApi.create({ listingId: listing.id, quantity: ticketQty });
-      // The booking confirms instantly, which means the backend has already issued the
-      // scannable tickets — pull them straight back so the buyer lands on "you're going"
-      // with a link to the QR rather than being told to go hunting in the dashboard.
+      const booking = await bookingsApi.create({ listingId: listing.id, quantity: ticketQty });
+
+      // Straight to payment. Tickets are minted when the money lands, not when the booking
+      // is made — a ticket that admits someone at the door has to mean they paid, and this
+      // used to hand one over the instant they clicked buy.
+      const bookingId = booking.data?.id;
+      if (bookingId) {
+        const session = await bookingsApi.checkoutSession(bookingId);
+        const url = session.data?.checkoutUrl || session.data?.url;
+        if (url) {
+          window.location.href = url;
+          return;
+        }
+      }
+
+      // A free event has nothing to charge, so it arrives paid and the tickets already exist.
       const res = await ticketsApi.forEventMine(listing.id);
       setMyTickets(res.data);
-      showToast(`${ticketQty} ticket${ticketQty > 1 ? 's' : ''} booked — your QR is ready.`);
+      if (res.data?.length) {
+        showToast(`${ticketQty} ticket${ticketQty > 1 ? 's' : ''} confirmed — your QR is ready.`);
+      } else {
+        showToast('Reserved — finish payment from your dashboard to get your tickets.');
+      }
       setTicketQty(1);
     } catch (e) {
       showToast(e.response?.data?.error || 'Could not complete ticket purchase', 'error');
