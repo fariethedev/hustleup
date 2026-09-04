@@ -924,6 +924,27 @@ public class BookingService {
     }
 
     /**
+     * A single booking by id, for the live-updating offer card in a DM thread.
+     *
+     * <p>Ownership-checked the same way {@link #accept} is: only the buyer or seller on this
+     * booking may read it, since {@code offeredPrice}/{@code counterPrice} are only meant for
+     * the two negotiating parties.
+     *
+     * @param bookingId UUID of the booking to fetch
+     * @return the booking DTO, role-tagged for the caller
+     * @throws RuntimeException if the booking doesn't exist or the caller is neither party
+     */
+    public BookingDto getById(UUID bookingId) {
+        User user = getCurrentUser();
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+        if (!booking.getBuyerId().equals(user.getId()) && !booking.getSellerId().equals(user.getId())) {
+            throw new RuntimeException("Not authorized");
+        }
+        return enrichDto(booking, user.getId());
+    }
+
+    /**
      * Converts a {@link Booking} entity to an enriched {@link BookingDto} by resolving
      * display names and the listing title via additional repository lookups.
      *

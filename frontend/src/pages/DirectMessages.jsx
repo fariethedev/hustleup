@@ -3,11 +3,12 @@ import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
-import { directMessagesApi, notificationsApi, usersApi, dispatchToast } from '../api/client';
+import { directMessagesApi, notificationsApi, usersApi, bookingsApi, dispatchToast } from '../api/client';
 import { formatPrice } from '../utils/constants';
 import { uploadUrl } from '../config';
 import { shortName } from '../utils/displayName';
 import SmartImage from '../components/SmartImage';
+import OfferMessageCard from '../components/OfferMessageCard';
 import {
   MessageSquareOff, User, BadgeCheck, ArrowLeft,
   Paperclip, Smile, MoreVertical, Search, Send,
@@ -247,6 +248,10 @@ export default function DirectMessages() {
   const [search, setSearch] = useState('');
   const [sendingIds, setSendingIds] = useState(new Set());
   const [listingContext, setListingContext] = useState(navState?.listing || null);
+  // The buyer's proposed price for listingContext, and whether that offer is mid-flight
+  // (creates a Booking, then sends the OFFER card that references it — see submitOffer).
+  const [offerPrice, setOfferPrice] = useState('');
+  const [offerBusy, setOfferBusy] = useState(false);
   // Composer extras: emoji/sticker picker, image attachment, in-chat search, header menu, lightbox
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState('emoji');
@@ -485,16 +490,39 @@ export default function DirectMessages() {
     }
 
     if (!newMsg.trim()) return;
-    let content = newMsg;
-    if (listingContext) content = `[Negotiation for: ${listingContext.title}] ${newMsg}`;
+    const content = newMsg;
     setNewMsg('');
-    setListingContext(null);
     inputRef.current?.focus();
     await optimisticSend(
       { content, messageType: 'TEXT' },
       () => directMessagesApi.sendMessage(activePartner, content),
       () => setNewMsg(content)
     );
+  };
+
+  // Turns the listingContext strip's price field into a real Booking (INQUIRED, at the
+  // buyer's proposed price) and shares it into the thread as a live OFFER card. Any text
+  // already sitting in the composer rides along as the offer's caption, the same way an
+  // attached photo borrows the composer text as its caption.
+  const submitOffer = async () => {
+    const price = parseFloat(offerPrice);
+    if (!price || price <= 0 || !listingContext || !activePartner) return;
+    setOfferBusy(true);
+    const caption = newMsg.trim();
+    try {
+      const { data: booking } = await bookingsApi.create({ listingId: listingContext.id, offeredPrice: price });
+      await optimisticSend(
+        { content: caption, messageType: 'OFFER', offerBookingId: booking.id },
+        () => directMessagesApi.sendOffer(activePartner, booking.id, caption)
+      );
+      setOfferPrice('');
+      setNewMsg('');
+      setListingContext(null);
+    } catch (err) {
+      dispatchToast(err.response?.data?.error || 'Could not send that offer.', 'error');
+    } finally {
+      setOfferBusy(false);
+    }
   };
 
   // Stickers send immediately on tap — no input round-trip, like WhatsApp.
@@ -1115,21 +1143,45 @@ export default function DirectMessages() {
                   )}
                 </AnimatePresence>
 
-                {/* Negotiation context strip */}
+                {/* Negotiation context strip — where a buyer actually names a price. Sending
+                    it creates the Booking and shares it into the thread as a live OFFER card;
+                    from then on the negotiation plays out on that card, not in here. */}
                 <AnimatePresence initial={false}>
                   {listingContext && (
                     <motion.div {...STRIP_MOTION} className="shrink-0 overflow-hidden border-b border-white/5 bg-black/40">
-                      <div className="px-4 py-2.5 flex items-center gap-2">
+                      <div className="px-4 pt-2.5 pb-2 flex items-center gap-2">
                         <Tag className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />
-                        <span className="text-xs text-[#CDFF00] font-bold truncate">Negotiating: {listingContext.title}</span>
+                        <span className="text-xs text-[#CDFF00] font-bold truncate flex-1">{listingContext.title}</span>
+                        {listingContext.price != null && (
+                          <span className="text-[10px] text-gray-500 shrink-0">Listed {formatPrice(listingContext.price, listingContext.currency)}</span>
+                        )}
                         <motion.button
                           whileHover={{ scale: 1.15, rotate: 90 }}
                           whileTap={{ scale: 0.9 }}
-                          onClick={() => setListingContext(null)}
-                          className="ml-auto text-gray-500 hover:text-white"
+                          onClick={() => { setListingContext(null); setOfferPrice(''); }}
+                          className="text-gray-500 hover:text-white shrink-0"
                         >
                           <X className="w-3.5 h-3.5" />
                         </motion.button>
+                      </div>
+                      <div className="px-4 pb-2.5 flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={offerPrice}
+                          onChange={(e) => setOfferPrice(e.target.value)}
+                          placeholder={`Your offer (${listingContext.currency || 'PLN'})`}
+                          className="flex-1 min-w-0 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#CDFF00] transition-colors"
+                        />
+                        <button
+                          type="button"
+                          disabled={offerBusy || !offerPrice}
+                          onClick={submitOffer}
+                          className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shrink-0"
+                        >
+                          {offerBusy ? 'Sending…' : 'Send Offer'}
+                        </button>
                       </div>
                     </motion.div>
                   )}
@@ -1382,6 +1434,31 @@ export default function DirectMessages() {
                                     </div>
                                   </Link>
                                 </motion.div>
+                                {msg.content && (
+                                  <p className={`text-[14.5px] leading-[19px] break-words px-1 ${isMe ? 'text-right' : ''} text-white`}>{msg.content}</p>
+                                )}
+                                <div className={`flex items-center gap-1 px-1 ${isMe ? 'justify-end' : ''}`}>
+                                  <span className="text-[11px] text-gray-500 leading-none">{formatClock(msg.createdAt)}</span>
+                                  {ticks}
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        }
+
+                        // A price offer: unlike the share cards above, this one is sent once
+                        // and then updates itself in place as the booking is countered,
+                        // accepted or declined — see OfferMessageCard for why.
+                        if (msg.messageType === 'OFFER' && msg.offerBookingId) {
+                          return (
+                            <motion.div
+                              key={row.id}
+                              {...bubbleIn}
+                              transition={SOFT_SPRING}
+                              className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${startsRun ? 'mt-2.5' : 'mt-[3px]'}`}
+                            >
+                              <div className="max-w-[75%] md:max-w-[65%] space-y-1">
+                                <OfferMessageCard bookingId={msg.offerBookingId} />
                                 {msg.content && (
                                   <p className={`text-[14.5px] leading-[19px] break-words px-1 ${isMe ? 'text-right' : ''} text-white`}>{msg.content}</p>
                                 )}

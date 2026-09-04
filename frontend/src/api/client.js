@@ -180,6 +180,9 @@ export const shopsApi = {
 // Bookings
 export const bookingsApi = {
   create: (data) => api.post('/bookings', data),
+  // Single booking by id, role-tagged for the caller. Powers the live offer card embedded
+  // in a DM thread — the card polls this instead of trusting a point-in-time snapshot.
+  getById: (id) => api.get(`/bookings/${id}`),
   counterOffer: (id, counterPrice) =>
     api.patch(`/bookings/${id}/counter`, { counterPrice }),
   accept: (id) => api.patch(`/bookings/${id}/accept`),
@@ -304,6 +307,14 @@ export const directMessagesApi = {
   // badge for partners with zero messages yet (the /partners list only covers people
   // you've already exchanged at least one message with).
   checkBondMatch: (partnerId) => api.get(`/direct-messages/${partnerId}/bond-match`),
+  // In-app share: sends a live price-offer card into the DM thread, referencing a Booking
+  // by id rather than snapshotting its price/status (which keep changing as the two sides
+  // negotiate). bookingId must already exist — create it with bookingsApi.create first.
+  sendOffer: (partnerId, bookingId, message = '') => api.post(`/direct-messages/${partnerId}`, {
+    content: message,
+    type: 'OFFER',
+    bookingId,
+  }),
 };
 
 // Reviews
@@ -425,6 +436,8 @@ export const followsApi = {
   follow: (userId) => api.post(`/follows/${userId}`),
   unfollow: (userId) => api.delete(`/follows/${userId}`),
   relationship: (userId) => api.get(`/follows/${userId}/relationship`),
+  // { followers, following } for ANY user — used to show follower counts on creator cards.
+  counts: (userId) => api.get(`/follows/${userId}/counts`),
   block: (userId) => api.post(`/follows/${userId}/block`),
   unblock: (userId) => api.delete(`/follows/${userId}/block`),
   report: (userId, reason) => api.post(`/follows/${userId}/report`, { reason }),

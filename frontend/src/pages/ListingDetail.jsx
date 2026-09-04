@@ -36,7 +36,6 @@ export default function ListingDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [bookingLoading, setBookingLoading] = useState(false);
   const [saved, setSaved] = useState(() => {
     try { return (JSON.parse(localStorage.getItem('hustleup_saved')) || []).includes(id); }
     catch { return false; }
@@ -122,28 +121,22 @@ export default function ListingDetail() {
     setTimeout(() => setAddedToCart(false), 2000);
   };
 
-  const handleNegotiate = async () => {
+  const handleNegotiate = () => {
     if (!listing) return;
-    // Create an inquiry booking then open DM with seller
-    setBookingLoading(true);
-    try {
-      await bookingsApi.create({ listingId: listing.id });
-      navigate(`/dm/${listing.sellerId}`, {
-        state: {
-          listing: {
-            id: listing.id,
-            title: listing.title,
-            price: listing.price,
-            currency: listing.currency,
-          },
-          prefillMessage: `Hi! I'm interested in "${listing.title}" (${formatPrice(listing.price, listing.currency)}). Can we negotiate?`,
+    // The actual Booking isn't created until the buyer names a price in the DM's offer
+    // strip (see submitOffer in DirectMessages.jsx) — this just hands that strip the
+    // listing to negotiate over.
+    navigate(`/dm/${listing.sellerId}`, {
+      state: {
+        listing: {
+          id: listing.id,
+          title: listing.title,
+          price: listing.price,
+          currency: listing.currency,
         },
-      });
-    } catch {
-      showToast('Could not start negotiation. Try messaging the seller directly.', 'error');
-    } finally {
-      setBookingLoading(false);
-    }
+        prefillMessage: `Hi! I'm interested in "${listing.title}" (${formatPrice(listing.price, listing.currency)}). Can we negotiate?`,
+      },
+    });
   };
 
   const handleBookSlot = async () => {
@@ -542,14 +535,9 @@ export default function ListingDetail() {
                     {listing.negotiable && (
                       <button
                         onClick={handleNegotiate}
-                        disabled={bookingLoading}
-                        className="w-full py-2.5 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#CDFF00]/10 transition-all disabled:opacity-50"
+                        className="w-full py-2.5 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#CDFF00]/10 transition-all"
                       >
-                        {bookingLoading ? (
-                          <span className="w-4 h-4 border-2 border-[#CDFF00]/40 border-t-[#CDFF00] rounded-full animate-spin" />
-                        ) : (
-                          <HandCoins className="w-4 h-4" />
-                        )}
+                        <HandCoins className="w-4 h-4" />
                         Negotiate via DM
                       </button>
                     )}

@@ -224,6 +224,17 @@ public class BookingController {
     }
 
     /**
+     * A single booking by id — powers the live offer card embedded in a DM thread.
+     *
+     * <p><b>GET /api/v1/bookings/{id}</b> — auth required, and only the buyer or seller on
+     * this booking may read it (see {@link BookingService#getById}).
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<BookingDto> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(bookingService.getById(id));
+    }
+
+    /**
      * Reconciles a Stripe checkout session the buyer has just returned from.
      *
      * <p><b>POST /api/v1/bookings/confirm-payment</b> — body {@code {"sessionId": "cs_..."}}

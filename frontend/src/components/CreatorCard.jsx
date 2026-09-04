@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BadgeCheck, Check, MapPin, UserPlus } from 'lucide-react';
+import { BadgeCheck, Check, MapPin, UserPlus, Users } from 'lucide-react';
 import { followsApi } from '../api/client';
 import { displayCity } from '../utils/constants';
 import { uploadUrl } from '../config';
@@ -16,6 +16,21 @@ import { uploadUrl } from '../config';
 export default function CreatorCard({ user: u, index = 0, variant = 'compact' }) {
   const [following, setFollowing] = useState(false);
   const [busy, setBusy] = useState(false);
+  // null while loading, so the card doesn't flash "0 followers" before the real number
+  // arrives — a beat of nothing there reads better than a wrong number that self-corrects.
+  const [followerCount, setFollowerCount] = useState(null);
+
+  useEffect(() => {
+    if (!u?.id) return undefined;
+    let cancelled = false;
+    followsApi.counts(u.id)
+      .then((r) => { if (!cancelled) setFollowerCount(r.data?.followers ?? 0); })
+      .catch(() => { if (!cancelled) setFollowerCount(0); });
+    return () => { cancelled = true; };
+  }, [u?.id]);
+
+  /** 12800 → "12.8k" — a follower count is social proof, not an exact ledger. */
+  const compactCount = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n));
 
   const toggleFollow = async (e) => {
     e.preventDefault();
@@ -79,11 +94,28 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
             {u.fullName}
             {u.idVerified && <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
           </span>
-          <span className="text-[8px] font-bold uppercase tracking-wider text-gray-500">{roleLabel}</span>
-          <span className="mt-0.5 mb-2 flex items-center gap-0.5 text-[8px] font-bold uppercase tracking-wider text-gray-500 max-w-full">
+          <span className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-wider text-gray-500">
+            <span>{roleLabel}</span>
+            {followerCount !== null && (
+              <>
+                <span className="w-0.5 h-0.5 rounded-full bg-gray-600 shrink-0" />
+                <span className="flex items-center gap-0.5">
+                  <Users className="w-2.5 h-2.5 text-[#00FFFF] shrink-0" /> {compactCount(followerCount)}
+                </span>
+              </>
+            )}
+          </span>
+          <span className="mt-0.5 flex items-center gap-0.5 text-[8px] font-bold uppercase tracking-wider text-gray-500 max-w-full">
             <MapPin className="w-2.5 h-2.5 text-[#CDFF00] shrink-0" />
             <span className="truncate">{displayCity(u.city)}</span>
           </span>
+          {/* One line only — at 132px wide this is the tightest spot bio appears in the
+              app, so anything past a single clipped line just reads as noise. */}
+          {u.bio && (
+            <span className="mt-1 mb-1.5 text-[8px] text-gray-400 leading-snug line-clamp-1 max-w-full px-0.5">
+              {u.bio}
+            </span>
+          )}
         </Link>
 
         {followButton('w-full px-2 py-1.5 text-[9px]')}
@@ -120,6 +152,14 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
         <div className="mt-1 flex items-center gap-2 text-[9px] font-bold uppercase tracking-wider text-gray-500">
           <span>{roleLabel}</span>
           <span className="w-px h-3 bg-white/10" />
+          {followerCount !== null && (
+            <>
+              <span className="flex items-center gap-1 shrink-0">
+                <Users className="w-3 h-3 text-[#00FFFF] shrink-0" /> {compactCount(followerCount)}
+              </span>
+              <span className="w-px h-3 bg-white/10" />
+            </>
+          )}
           <span className="flex items-center gap-1 min-w-0">
             <MapPin className="w-3 h-3 text-[#CDFF00] shrink-0" />
             <span className="truncate">{displayCity(u.city)}</span>

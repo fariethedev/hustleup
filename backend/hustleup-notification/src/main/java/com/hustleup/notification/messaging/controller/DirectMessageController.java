@@ -497,15 +497,18 @@ public class DirectMessageController {
         String type = "STICKER".equalsIgnoreCase(rawType) ? "STICKER"
                 : "LISTING".equalsIgnoreCase(rawType) ? "LISTING"
                 : "POST".equalsIgnoreCase(rawType) ? "POST"
-                : "STORY".equalsIgnoreCase(rawType) ? "STORY" : "TEXT";
+                : "STORY".equalsIgnoreCase(rawType) ? "STORY"
+                : "OFFER".equalsIgnoreCase(rawType) ? "OFFER" : "TEXT";
         boolean isListingShare = "LISTING".equals(type);
         boolean isPostShare = "POST".equals(type);
         boolean isStoryShare = "STORY".equals(type);
+        boolean isOffer = "OFFER".equals(type);
 
         String content = payload.get("content");
         String listingId = payload.get("listingId");
         String postId = payload.get("postId");
         String storyId = payload.get("storyId");
+        String offerBookingId = payload.get("bookingId");
         if (isListingShare) {
             // A shared listing IS the content — the card renders from the snapshot fields
             // below, so a text caption is optional. Only the listing reference is required.
@@ -516,6 +519,11 @@ public class DirectMessageController {
             if (content == null) content = "";
         } else if (isStoryShare) {
             if (storyId == null || storyId.isBlank()) return ResponseEntity.badRequest().build();
+            if (content == null) content = "";
+        } else if (isOffer) {
+            // The card fetches live price/status by booking id — see the entity Javadoc
+            // on offerBookingId for why nothing else is snapshotted here.
+            if (offerBookingId == null || offerBookingId.isBlank()) return ResponseEntity.badRequest().build();
             if (content == null) content = "";
         } else if (content == null || content.trim().isEmpty()) {
             // TEXT/STICKER still require real content.
@@ -555,6 +563,8 @@ public class DirectMessageController {
                     .sharedStoryType(payload.get("storyType"))
                     .sharedStoryAuthorName(payload.get("storyAuthorName"))
                     .sharedStoryAuthorId(payload.get("storyAuthorId"));
+        } else if (isOffer) {
+            builder.offerBookingId(offerBookingId);
         }
 
         // Persist the message. save() issues an INSERT and returns the managed
@@ -584,6 +594,8 @@ public class DirectMessageController {
                 preview = "📤 Shared a post";
             } else if (isStoryShare) {
                 preview = "✨ Shared a story";
+            } else if (isOffer) {
+                preview = "💰 Sent a price offer";
             } else {
                 // Truncate the message preview to 60 characters to avoid long
                 // notification text in the UI.

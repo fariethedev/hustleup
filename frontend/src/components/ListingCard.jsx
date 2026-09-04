@@ -68,7 +68,10 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
 
         <Link to={`/listing/${listing.id}`} className="flex flex-col h-full">
           {/* ── Image ── */}
-          <div className="relative aspect-[4/3] overflow-hidden bg-black shrink-0">
+          {/* 4:5, not 4:3 — the shorter ratio cropped tightly into portrait product
+              photos (the common case for fashion/goods listings), which is also the
+              ratio already used for event flyers elsewhere in the app. */}
+          <div className="relative aspect-[4/5] overflow-hidden bg-black shrink-0">
             <CardCarousel
               media={slides}
               title={listing.title}

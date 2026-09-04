@@ -241,6 +241,18 @@ public class DirectMessage {
     private String sharedStoryAuthorId;
 
     /**
+     * ── OFFER fields (messageType = "OFFER") ──
+     *
+     * <p>Unlike LISTING/POST/STORY above, this deliberately does NOT snapshot
+     * price/status onto the message. A negotiation offer keeps changing after
+     * it's sent (countered, accepted, declined), so the card renders live by
+     * fetching the referenced {@code Booking} by id rather than trusting a
+     * point-in-time copy.
+     */
+    @Column(name = "offer_booking_id")
+    private String offerBookingId;
+
+    /**
      * The UTC timestamp of when this message was persisted.
      *
      * <p>{@code @CreationTimestamp} is a Hibernate-specific annotation that
