@@ -499,7 +499,9 @@ export const storiesApi = {
   viewers: (id) => api.get(`/stories/${id}/views`),
 };
 
-// Swap Mode — barter offers against listings. A swap is a negotiation whose counter-offer
+// Swap & Top — barter offers against listings, optionally with cash on top in either
+// direction (create() takes cashAmount + cashDirection: PROPOSER_PAYS | OWNER_PAYS).
+// A swap is a negotiation whose counter-offer
 // is a listing (or a described skill) instead of a number.
 export const swapsApi = {
   // { targetListingId, offeredListingId? | offeredText?, message? }
