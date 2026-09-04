@@ -294,7 +294,15 @@ public class BookingService {
         // like the event-ticket path above. Services (HAIR_BEAUTY, SKILL) fall through to
         // the INQUIRED flow below, because those genuinely need the seller to agree scope
         // and timing before any money changes hands.
-        if (INSTANT_PURCHASE_TYPES.contains(listing.getListingType())) {
+        //
+        // Unless the buyer named a price. A buyer who came through "Negotiate via DM" and
+        // typed an offer is not shopping, and this shortcut used to swallow that: it ignored
+        // offeredPrice entirely and returned a BOOKED order at the seller's full asking
+        // price. Someone who believed they had offered 5.50 for a 19.82 item was committed
+        // to 19.82, with no offer for the seller to accept or refuse and nothing on screen
+        // saying so. Naming a price is what distinguishes the two intents, so it is what
+        // decides the branch.
+        if (INSTANT_PURCHASE_TYPES.contains(listing.getListingType()) && offeredPrice == null) {
             Booking booking = Booking.builder()
                     .buyerId(buyer.getId())
                     .sellerId(listing.getSellerId())
