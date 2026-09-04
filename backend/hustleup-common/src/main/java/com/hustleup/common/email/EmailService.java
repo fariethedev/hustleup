@@ -23,6 +23,13 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.ses.SesClient;
+import software.amazon.awssdk.services.ses.model.Body;
+import software.amazon.awssdk.services.ses.model.Content;
+import software.amazon.awssdk.services.ses.model.Destination;
+import software.amazon.awssdk.services.ses.model.Message;
+import software.amazon.awssdk.services.ses.model.SendEmailRequest;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
@@ -48,12 +55,37 @@ public class EmailService {
     private final String fromName;
     private final boolean configured;
 
+    /**
+     * Amazon SES client, or null when SES is not switched on.
+     *
+     * <p>Preferred over SMTP when both are configured. SES reuses the AWS credentials the app
+     * already holds for S3, so there is no second secret to generate or keep in step, and
+     * delivery problems surface in one place rather than two.
+     */
+    private final SesClient sesClient;
+
     public EmailService(
             @org.springframework.beans.factory.annotation.Autowired(required = false) JavaMailSender mailSender,
             @Value("${spring.mail.host:}") String smtpHost,
-            @Value("${app.email.from:HustleSpace <notifications@hustlespace.space>}") String from) {
+            @Value("${app.email.from:HustleSpace <notifications@hustlespace.space>}") String from,
+            @Value("${app.email.ses.enabled:false}") boolean sesEnabled,
+            @Value("${app.email.ses.region:us-east-1}") String sesRegion) {
 
         this.mailSender = mailSender;
+
+        // Built eagerly so a bad region fails at startup rather than on the first email a real
+        // user is waiting for. The default credentials chain picks up AWS_ACCESS_KEY_ID /
+        // AWS_SECRET_ACCESS_KEY — the same pair S3 already uses.
+        SesClient ses = null;
+        if (sesEnabled) {
+            try {
+                ses = SesClient.builder().region(Region.of(sesRegion)).build();
+            } catch (Exception e) {
+                log.error("SES is enabled but the client could not be built ({}): falling back to SMTP",
+                        e.getMessage());
+            }
+        }
+        this.sesClient = ses;
         // Boot auto-configures a JavaMailSender whenever the spring.mail.host *property*
         // exists — and ours is declared as ${MAIL_HOST:}, so with no environment override it
         // exists as an empty string and a sender is built pointing at nowhere. Checking the
@@ -72,10 +104,19 @@ public class EmailService {
                     ? "notifications@hustlespace.space" : from.trim();
         }
 
-        if (configured) {
+        if (sesClient != null) {
+            log.info("EmailService: Amazon SES active in {}, sending as {} <{}>", sesRegion, fromName, fromAddress);
+            // Worth saying plainly, because the failure it prevents is silent and total: SES
+            // only accepts a From address that is a verified identity, and a brand-new account
+            // is in the sandbox, where it will also only DELIVER to verified addresses. Both
+            // rejections look like a working app that sends nothing.
+            log.info("EmailService: SES requires {} to be a verified identity, and while the "
+                    + "account is in the SES sandbox it can only deliver to verified addresses",
+                    fromAddress);
+        } else if (configured) {
             log.info("EmailService: SMTP transport active, sending as {} <{}>", fromName, fromAddress);
         } else {
-            log.warn("EmailService: MAIL_HOST not set — emails will be logged, not sent");
+            log.warn("EmailService: no mail transport configured — emails will be logged, not sent");
         }
     }
 
@@ -90,8 +131,12 @@ public class EmailService {
      * @param htmlBody  HTML body; sent as text/html
      */
     public void send(String to, String subject, String htmlBody) {
+        if (sesClient != null) {
+            sendViaSes(to, subject, htmlBody);
+            return;
+        }
         if (!configured) {
-            log.info("SMTP not configured — skipping real send. Would have emailed {} subject=\"{}\"", to, subject);
+            log.info("No mail transport — skipping real send. Would have emailed {} subject=\"{}\"", to, subject);
             return;
         }
         try {
@@ -113,5 +158,39 @@ public class EmailService {
             // all of which are the provider's problem, not the caller's.
             log.error("Failed to send email to {}: {}", to, e.getMessage());
         }
+    }
+
+    /** The SES path. Same best-effort contract as the SMTP one: it logs, it never throws. */
+    private void sendViaSes(String to, String subject, String htmlBody) {
+        try {
+            sesClient.sendEmail(SendEmailRequest.builder()
+                    // SES takes the display name in the same RFC 5322 form as a mail header.
+                    .source(fromName + " <" + fromAddress + ">")
+                    .destination(Destination.builder().toAddresses(to).build())
+                    .message(Message.builder()
+                            .subject(Content.builder().charset("UTF-8").data(subject).build())
+                            .body(Body.builder()
+                                    .html(Content.builder().charset("UTF-8").data(htmlBody).build())
+                                    .build())
+                            .build())
+                    .build());
+            log.debug("Sent email via SES to {} subject=\"{}\"", to, subject);
+        } catch (Exception e) {
+            // The two failures worth recognising here both look like this: an unverified From
+            // identity, and a sandbox account emailing an unverified recipient. Neither is a
+            // code fault, and neither should take down the flow that triggered the message.
+            log.error("SES failed to send to {}: {}", to, e.getMessage());
+        }
+    }
+
+    /**
+     * Whether email can actually leave this process.
+     *
+     * <p>Read by registration, which only enforces email verification when there is a working
+     * transport: requiring people to click a link that was never sent would make signing up
+     * impossible rather than secure.
+     */
+    public boolean isDeliverable() {
+        return sesClient != null || configured;
     }
 }

@@ -98,8 +98,10 @@ export default function Register() {
 
     const resultAction = await dispatch(registerUser({ ...form, captchaToken, termsAccepted }));
     if (registerUser.fulfilled.match(resultAction)) {
-      // Straight to the code screen — the account exists and is signed in, but the address
-      // is unconfirmed, and confirming it is far more likely to happen now than later.
+      // Straight to the code screen. The account exists but there is no session yet — the
+      // server withholds it until the address is confirmed, and verifying is what signs you
+      // in. (Where the server has no way to send mail it signs you in here instead, since a
+      // code nobody can receive would be a lockout rather than a check.)
       navigate('/verify-code', { state: { email: form.email } });
     }
   };

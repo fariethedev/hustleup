@@ -3,6 +3,8 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MailCheck, Loader2, ArrowRight, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { authApi, dispatchToast } from '../api/client';
+import { useDispatch } from 'react-redux';
+import { sessionRestored } from '../store/authSlice';
 
 const LENGTH = 6;
 const RESEND_COOLDOWN = 30; // seconds
@@ -18,6 +20,7 @@ const RESEND_COOLDOWN = 30; // seconds
  * param so the screen still works if the email is opened on a different device.
  */
 export default function VerifyCode() {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const { state } = useLocation();
 
@@ -74,9 +77,22 @@ export default function VerifyCode() {
     setError('');
     try {
       const res = await authApi.verifyCode(email, value);
+
+      // Verifying is now what creates the session — registration deliberately withholds it
+      // until the address is confirmed — so the tokens arrive here and have to be stored, or
+      // the person lands on /onboarding signed out and is bounced to the login form.
+      const { accessToken, refreshToken, role, fullName, userId } = res.data || {};
+      if (accessToken) {
+        localStorage.setItem('hustleup_token', accessToken);
+        if (refreshToken) localStorage.setItem('hustleup_refresh', refreshToken);
+        const userData = { id: userId, email, fullName, role, onboardingCompleted: true };
+        localStorage.setItem('hustleup_user', JSON.stringify(userData));
+        dispatch(sessionRestored(userData));
+      }
+
       setVerified(true);
       dispatchToast(res.data?.alreadyVerified ? 'Already verified' : 'Email confirmed', 'success');
-      setTimeout(() => navigate('/onboarding'), 1200);
+      setTimeout(() => navigate(accessToken ? '/onboarding' : '/login'), 1200);
     } catch (e) {
       setError(e.response?.data?.error || 'That code is invalid or has expired');
       setDigits(Array(LENGTH).fill(''));

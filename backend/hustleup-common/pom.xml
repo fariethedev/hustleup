@@ -58,6 +58,14 @@
             <artifactId>s3</artifactId>
         </dependency>
 
+        <!-- Amazon SES, the transactional mail transport. Chosen over the SMTP interface
+             because it reuses the AWS credentials this app already holds for S3: there is no
+             second secret to generate, rotate or keep in step with them. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>ses</artifactId>
+        </dependency>
+
         <!-- SMTP transactional email — EmailService lives here so any service can send email.
              Managed by the Spring Boot BOM, so no explicit version. -->
         <dependency>

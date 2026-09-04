@@ -119,10 +119,20 @@ export const facebookLogin = createAsyncThunk('auth/facebookLogin', async (acces
 export const registerUser = createAsyncThunk('auth/register', async (data, { rejectWithValue }) => {
   try {
     const res = await authApi.register(data);
+
+    // Registering no longer signs you in. The server withholds the session until the address
+    // is confirmed, and answers with verificationRequired instead of tokens — so there is
+    // nothing to store yet, and the caller sends the person to the code screen.
+    if (res.data?.verificationRequired) {
+      return { verificationRequired: true, email: res.data.email || data.email };
+    }
+
+    // Still reachable where the server has no way to send mail, in which case withholding
+    // the session would lock everyone out rather than protect anything.
     const { accessToken, refreshToken, role, fullName, userId } = res.data;
     localStorage.setItem('hustleup_token', accessToken);
     localStorage.setItem('hustleup_refresh', refreshToken);
-    
+
     const userData = { id: userId, email: data.email, fullName, role, onboardingCompleted: true };
     localStorage.setItem('hustleup_user', JSON.stringify(userData));
     return userData;
@@ -164,6 +174,19 @@ const authSlice = createSlice({
       state.error = null;
       state.fieldErrors = null;
     },
+    /**
+     * Adopts a session created outside the login/register thunks.
+     *
+     * Used by the verify-code screen, which is now where a new account's session begins:
+     * registration withholds it until the address is confirmed, so the tokens come back from
+     * verification and the store has to be told about them.
+     */
+    sessionRestored(state, action) {
+      state.user = action.payload;
+      state.isAuthenticated = true;
+      state.error = null;
+      state.fieldErrors = null;
+    },
 
   },
   extraReducers: (builder) => {
@@ -187,6 +210,9 @@ const authSlice = createSlice({
       .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; state.fieldErrors = null; })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
+        // A pending verification is a successful registration with no session behind it —
+        // marking it authenticated here would let an unconfirmed account through the router.
+        if (action.payload?.verificationRequired) return;
         state.isAuthenticated = true;
         state.user = action.payload;
       })
@@ -198,7 +224,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError } = authSlice.actions;
+export const { logout, clearError, sessionRestored } = authSlice.actions;
 
 // Selectors
 export const selectAuth = (state) => state.auth;

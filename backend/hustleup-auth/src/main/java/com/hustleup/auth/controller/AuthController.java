@@ -274,15 +274,26 @@ public class AuthController {
             log.warn("Could not send verification email to {}: {}", user.getEmail(), e.getMessage());
         }
 
-        // Authenticate the freshly-registered user immediately.
-        // UsernamePasswordAuthenticationToken wraps credentials. AuthenticationManager
-        // verifies them against the DB via CustomUserDetailsService.
-        // Note: we use the PLAIN-TEXT password here because authenticationManager
-        // internally calls passwordEncoder.matches() — it expects the raw password.
+        // No session yet. Registration used to sign the account straight in, which made the
+        // verification code decorative — you could close the email and carry on using the
+        // platform, and emailVerified was written but never read. Tokens are issued by
+        // verify-code instead, so confirming the address is the step that creates the session.
+        //
+        // Only when the email can actually arrive, though. With no transport configured — or
+        // SES still in the sandbox, where mail to unverified recipients is silently dropped —
+        // withholding the session would not be a security control, it would be a lockout: a
+        // code nobody can receive, gating an account nobody can reach.
+        if (emailService.isDeliverable()) {
+            return ResponseEntity.ok(Map.of(
+                    "verificationRequired", true,
+                    "email", user.getEmail(),
+                    "message", "Check your email for a 6-digit code to finish signing up."));
+        }
+
+        log.warn("No mail transport configured — signing {} in without email verification",
+                user.getEmail());
         Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
-
-        // Issue tokens and return the auth response (shared helper below).
         return buildAuthResponse(auth, user);
     }
 
@@ -320,6 +331,25 @@ public class AuthController {
         // name (email) and authorities — we need role, fullName, avatarUrl for the response.
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Checked after the password, deliberately: answering "verify your email" to an
+        // unauthenticated guess would confirm the address has an account here.
+        //
+        // The response names the address and sets a flag rather than just refusing, so the
+        // client can send the person to the code screen instead of leaving them at a login
+        // form that will keep rejecting a password they know is right. Accounts that predate
+        // verification, and OAuth accounts (verified by the provider), are unaffected.
+        if (!user.isEmailVerified() && emailService.isDeliverable()) {
+            try {
+                issueVerificationCode(user);
+            } catch (Exception e) {
+                log.warn("Could not re-issue a verification code for {}: {}", user.getEmail(), e.getMessage());
+            }
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).body(Map.of(
+                    "error", "Confirm your email address to finish signing up. We've sent you a new code.",
+                    "verificationRequired", true,
+                    "email", user.getEmail()));
+        }
 
         return buildAuthResponse(auth, user);
     }
@@ -577,7 +607,16 @@ public class AuthController {
         userRepository.save(user);
         authTokenRepository.delete(authToken); // single-use
 
-        return ResponseEntity.ok(Map.of("message", "Email verified", "alreadyVerified", false));
+        // Signing in here is what makes verification the first step rather than an errand.
+        // The alternative — verify, then be returned to a login form — asks for the password
+        // again immediately after proving control of the address it belongs to.
+        //
+        // Not authenticated through the AuthenticationManager: there is no password in this
+        // request to authenticate with. Possession of a single-use code sent to the address on
+        // the account is what has just been proven, and that is the credential being honoured.
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                user.getEmail(), null, java.util.List.of());
+        return buildAuthResponse(auth, user);
     }
 
     /**

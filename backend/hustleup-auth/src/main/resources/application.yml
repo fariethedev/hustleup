@@ -79,7 +79,22 @@ app:
   cdn:
     domain: ${CDN_DOMAIN:}
   email:
-    from: ${EMAIL_FROM:HustleSpace <notifications@hustlespace.space>}
+    # SES will refuse a From address that is not a verified identity, so this defaults to the
+    # one the account actually has — the address in the SES ARN. Point it at a domain address
+    # once that domain is verified in SES; until then anything else is silently rejected.
+    from: ${EMAIL_FROM:HustleSpace <faraimahaso8@gmail.com>}
+
+    # ── Amazon SES ──────────────────────────────────────────────────────────
+    # Preferred over the SMTP block above when enabled. SES reuses the AWS credentials this
+    # app already holds for S3, so there is no second secret to generate or keep in step.
+    #
+    # THE SANDBOX IS THE THING TO WATCH. A new SES account can only deliver to addresses that
+    # are themselves verified, so signup emails to real users are dropped — which looks
+    # exactly like a working app that happens to send nothing. Request production access in
+    # the SES console before relying on this to reach anyone.
+    ses:
+      enabled: ${SES_ENABLED:false}
+      region: ${AWS_REGION:us-east-1}
   frontend:
     url: ${FRONTEND_URL:http://localhost:5173}
   google:
