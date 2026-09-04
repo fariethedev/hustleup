@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { feedApi, listingsApi, subscriptionsApi, communitiesApi, dispatchToast } from '../api/client';
-import { isPremiumActive, isPremiumRequiredError } from '../utils/premium';
+import { isPremiumActive, isPremiumRequiredError, PLAN_IDS } from '../utils/premium';
 import {
   Heart, MessageCircle, Send, Bookmark, Image as ImageIcon, ShoppingBag,
   BadgeCheck, X, Film, Star, Users, Store, Sparkles, Package, VenetianMask, Lock, Crown, Crop,
@@ -837,15 +837,22 @@ export default function Feed() {
    * price list here would bury the thing they were actually trying to do. The full choice
    * of terms lives on the Bond paywall.
    */
-  const startUpgrade = async (plan = 'MONTHLY') => {
+  const startUpgrade = async (plan) => {
+    // Guard the argument rather than relying on a default. A default only fills in for
+    // `undefined`, so anything passed by mistake — most easily a click event, from
+    // onClick={startUpgrade} — sails past it and gets posted as the plan. Coercing to a
+    // known id here means a wrong caller degrades to the monthly plan instead of a 400.
+    const chosen = typeof plan === 'string' && PLAN_IDS.includes(plan) ? plan : 'MONTHLY';
     setUpgrading(true);
     try {
-      const res = await subscriptionsApi.checkout(plan);
+      const res = await subscriptionsApi.checkout(chosen);
       const url = res.data?.checkoutUrl;
       if (!url) throw new Error('No checkout URL returned');
       window.location.assign(url);
-    } catch {
-      dispatchToast('Could not start checkout — try again', 'error');
+    } catch (e) {
+      // Surface what the server actually said. "Could not start checkout" gave no way to
+      // tell an unknown plan from an unreachable Stripe from an expired session.
+      dispatchToast(e.response?.data?.error || 'Could not start checkout — try again', 'error');
       setUpgrading(false);
     }
   };
@@ -1640,7 +1647,12 @@ export default function Feed() {
               </ul>
 
               <button
-                onClick={startUpgrade}
+                // Wrapped, not passed by reference. onClick={startUpgrade} hands React's
+                // click event in as the `plan` argument, and a default parameter only
+                // applies to `undefined` — so the event was posted as the plan, the server
+                // could not resolve it, and every attempt to go Premium from here failed
+                // with "Could not start checkout".
+                onClick={() => startUpgrade('MONTHLY')}
                 disabled={upgrading}
                 className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-60"
               >

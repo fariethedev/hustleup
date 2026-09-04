@@ -7,6 +7,7 @@ import com.hustleup.subscription.model.SubscriptionPlan;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
+import com.stripe.model.StripeObject;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import com.stripe.param.checkout.SessionCreateParams;
@@ -260,17 +261,40 @@ public class StripeService {
      * means someone has been charged and not upgraded.
      */
     private void activateFromSession(Event event) {
-        Optional<Session> session = event.getDataObjectDeserializer()
-                .getObject()
-                .filter(Session.class::isInstance)
-                .map(Session.class::cast);
+        // Deserialising the event object is version-sensitive: getObject() returns empty
+        // whenever the API version that produced the event differs from the one this
+        // stripe-java build expects. That is not hypothetical here — this account's default
+        // version has drifted ahead of the pinned SDK, and it is exactly what happened: a
+        // real Premium payment cleared, the webhook arrived and verified, and this method
+        // logged "could not be deserialised" and granted nothing. Money taken, nothing
+        // delivered.
+        //
+        // deserializeUnsafe() skips the version check and maps whatever fields are present.
+        // "Unsafe" only means Stripe will not guarantee every field across versions; the
+        // client_reference_id, metadata and payment_status this reads are stable, and a
+        // best-effort read is strictly better than dropping a payment on the floor.
+        //
+        // PayoutController already does this for the same reason. Keep the two in step: if
+        // one is version-sensitive and the other is not, the same Stripe upgrade breaks
+        // whichever was left behind.
+        var deserializer = event.getDataObjectDeserializer();
+        StripeObject raw = deserializer.getObject().orElseGet(() -> {
+            try {
+                log.warn("Stripe event {} ({}) needed unsafe deserialization — event API version {} "
+                         + "does not match this SDK build", event.getId(), event.getType(), event.getApiVersion());
+                return deserializer.deserializeUnsafe();
+            } catch (Exception e) {
+                log.error("Could not deserialize Stripe event {} ({}): {}",
+                        event.getId(), event.getType(), e.getMessage());
+                return null;
+            }
+        });
 
-        if (session.isEmpty()) {
-            log.error("checkout.session.completed could not be deserialised — "
+        if (!(raw instanceof Session s)) {
+            log.error("checkout.session.completed did not yield a Session — "
                     + "a payment may have succeeded without granting Premium. Event {}", event.getId());
             return;
         }
-        Session s = session.get();
 
         // Only "paid" means the money actually cleared. A session can complete with an
         // async or delayed payment method still pending, and upgrading on that would give

@@ -14,6 +14,16 @@
 export const PREMIUM_PLAN = 'VERIFIED';
 
 /**
+ * The plan ids `POST /subscriptions/checkout` accepts, mirroring the SubscriptionPlan enum.
+ *
+ * The prices themselves are deliberately NOT here — they come from
+ * `GET /subscriptions/plans` so the UI can never advertise an amount different from the one
+ * Stripe charges. This is only the set of valid identifiers, for validating what a caller
+ * passes before it reaches the server.
+ */
+export const PLAN_IDS = ['MONTHLY', 'QUARTERLY', 'ANNUAL'];
+
+/**
  * Whether a subscription record grants Premium right now.
  *
  * Fails closed: no record, a cancelled plan, or a lapsed expiry all read as not premium.
