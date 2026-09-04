@@ -2,8 +2,13 @@
  * Lifecycle states of a {@link SwapOffer}.
  *
  * <p>Deliberately smaller than {@link com.hustleup.marketplace.booking.model.BookingStatus}:
- * a swap has no payment leg, so there is nothing between "proposed" and "settled". The
- * proposer offers, the owner answers, and that is the whole negotiation.
+ * the proposer offers, the owner answers, and that is the whole negotiation.
+ *
+ * <p>This stays true now that offers can carry a cash top-up. The money is a <em>term</em>
+ * of the agreement rather than a transaction the platform runs: like the handover of the
+ * items themselves, it is settled directly between the two people. Nothing here moves
+ * funds, and no state below means "paid" — adding one without a real payment leg behind it
+ * would be a status that claims something the platform cannot actually know.
  */
 package com.hustleup.marketplace.swap.model;
 

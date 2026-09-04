@@ -19,6 +19,14 @@
  * enforces that at write time rather than relying on a DB constraint, so the API can
  * return a readable 400 instead of a driver-level integrity error.
  *
+ * <h3>Cash on top</h3>
+ * Either shape can carry a {@link #cashAmount} in one direction or the other — "my iPhone
+ * 12 plus 800 zł for your iPhone 15". Barter alone only clears when both sides happen to
+ * value their items equally, which is rare enough that without a top-up most otherwise
+ * workable trades die in the message thread. The cash is a term of the agreement, settled
+ * between the two people alongside the handover; this feature has no payment leg of its own
+ * (see {@link com.hustleup.marketplace.swap.model.SwapStatus}).
+ *
  * <h3>Soft foreign keys</h3>
  * As with {@link com.hustleup.marketplace.listing.model.Listing}, user references are
  * stored as bare UUIDs rather than JPA relationships — the User entity belongs to the
@@ -36,6 +44,7 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -87,6 +96,40 @@ public class SwapOffer {
     /** Free-text offer, e.g. "2hrs of calc tutoring". Null when a listing is offered. */
     @Column(name = "offered_text", length = 280)
     private String offeredText;
+
+    // ── Cash top-up ───────────────────────────────────────────────────────────
+    // Optional money on top of the barter, in either direction. Null/zero is a pure swap,
+    // which is what every offer made before this feature existed is.
+
+    /**
+     * Money added on top of the items, or null for a straight trade.
+     *
+     * <p>Always a positive magnitude — which side pays is {@link #cashDirection}, never the
+     * sign of this number. See {@link CashDirection} for why.
+     */
+    @Column(name = "cash_amount", precision = 12, scale = 2)
+    private BigDecimal cashAmount;
+
+    /** Who pays {@link #cashAmount}. Null exactly when there is no cash in the deal. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cash_direction", length = 20)
+    private CashDirection cashDirection;
+
+    /**
+     * Currency of {@link #cashAmount}.
+     *
+     * <p>Stored per-offer rather than assumed platform-wide, for the same reason
+     * {@code ShopOrder} stores it: the default may be PLN today, but an accepted trade is a
+     * record of what two people agreed, and a later change to the platform default must not
+     * silently reinterpret the amount somebody already shook hands on.
+     */
+    @Column(name = "cash_currency", length = 3)
+    private String cashCurrency;
+
+    /** True when this offer has real money attached, not just items. */
+    public boolean hasCash() {
+        return cashAmount != null && cashAmount.compareTo(BigDecimal.ZERO) > 0 && cashDirection != null;
+    }
 
     // ── Conversation ──────────────────────────────────────────────────────────
 

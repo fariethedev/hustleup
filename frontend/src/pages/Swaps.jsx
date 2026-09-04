@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Repeat, ArrowRight, Check, X, Undo2, Package, Loader2, Inbox } from 'lucide-react';
+import { Repeat, ArrowRight, Check, X, Undo2, Package, Loader2, Inbox, Coins } from 'lucide-react';
 import { swapsApi, dispatchToast } from '../api/client';
 import { formatPrice } from '../utils/constants';
 import { uploadUrl } from '../config';
+import { cashPhrase, cashGap, hasCash } from '../utils/swap';
 
 const STATUS_STYLES = {
   PENDING:   'bg-[#CDFF00]/15 text-[#CDFF00] border-[#CDFF00]/30',
@@ -12,6 +13,36 @@ const STATUS_STYLES = {
   DECLINED:  'bg-red-500/15 text-red-400 border-red-500/30',
   WITHDRAWN: 'bg-white/10 text-gray-400 border-white/15',
 };
+
+/**
+ * The money leg of a trade, phrased for whoever is reading it.
+ *
+ * Rendered between the two items rather than tucked under them, because it is part of the
+ * offer — "this for that, plus 800" is one sentence, and burying the plus makes the trade
+ * look like something it isn't. Money leaving is coloured differently from money arriving:
+ * they are opposite facts and should never be skim-read as the same one.
+ */
+function CashStrip({ offer, viewerIsProposer }) {
+  const phrase = cashPhrase(offer, viewerIsProposer);
+  if (!phrase) return null;
+  const gap = cashGap(offer);
+
+  return (
+    <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest ${
+      phrase.viewerPays
+        ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+        : 'bg-green-500/10 border-green-500/30 text-green-300'
+    }`}>
+      <Coins className="w-3 h-3 shrink-0" />
+      <span className="truncate">{phrase.text}</span>
+      {/* Only shown when both sides are priced listings in one currency — otherwise there
+          is no gap to be right or wrong about. */}
+      {gap?.settled && (
+        <span className="ml-auto text-gray-500 normal-case font-bold shrink-0">evens out</span>
+      )}
+    </div>
+  );
+}
 
 /** One half of a trade. `side.listingId` is null for free-text (skill/favour) offers. */
 function SideCard({ side, label }) {
@@ -84,8 +115,8 @@ export default function Swaps() {
             <Repeat className="w-5 h-5 text-black" strokeWidth={3} />
           </div>
           <div>
-            <h1 className="text-xl font-black uppercase tracking-tight leading-none">Swaps</h1>
-            <p className="text-[11px] text-gray-500 font-bold mt-1">Trade what you have for what you need.</p>
+            <h1 className="text-xl font-black uppercase tracking-tight leading-none">Swap &amp; Top</h1>
+            <p className="text-[11px] text-gray-500 font-bold mt-1">Trade what you have — add cash if it needs it.</p>
           </div>
         </div>
 
@@ -154,6 +185,15 @@ export default function Swaps() {
                   <ArrowRight className="w-4 h-4 text-gray-600 shrink-0" />
                   <SideCard side={tab === 'incoming' ? s.wants : s.gives} label={tab === 'incoming' ? 'You give' : 'You give'} />
                 </div>
+
+                {/* The money leg, if there is one. `incoming` tells us which side of this
+                    trade the viewer is on, which is what decides whether it reads as
+                    "You add" or "They add". */}
+                {hasCash(s) && (
+                  <div className="mt-2.5">
+                    <CashStrip offer={s} viewerIsProposer={tab !== 'incoming'} />
+                  </div>
+                )}
 
                 {s.message && (
                   <p className="mt-3 text-xs text-gray-400 leading-relaxed bg-white/[0.03] rounded-xl px-3 py-2 border border-white/5">

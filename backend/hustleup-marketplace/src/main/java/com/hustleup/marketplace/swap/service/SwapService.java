@@ -24,6 +24,7 @@ import com.hustleup.marketplace.listing.repository.ListingRepository;
 import com.hustleup.marketplace.swap.dto.SwapOfferDto;
 import com.hustleup.marketplace.swap.model.SwapOffer;
 import com.hustleup.marketplace.swap.model.SwapStatus;
+import com.hustleup.marketplace.swap.model.CashDirection;
 import com.hustleup.marketplace.swap.repository.SwapOfferRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -38,6 +40,16 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class SwapService {
+
+    /**
+     * Ceiling on a cash top-up.
+     *
+     * <p>A swap has no payment leg — the money is settled between the two people — so a
+     * figure large enough to be someone's rent has no business being agreed through a
+     * feature with no escrow, no receipt and no dispute path. Past this, the honest answer
+     * is that they want a sale, which the booking flow handles with Stripe behind it.
+     */
+    private static final BigDecimal MAX_CASH = new BigDecimal("50000");
 
     private final SwapOfferRepository swapOfferRepository;
     private final ListingRepository listingRepository;
@@ -62,12 +74,15 @@ public class SwapService {
      * @param targetListingId  the listing the proposer wants
      * @param offeredListingId a listing the proposer owns, or null for a text offer
      * @param offeredText      free-text offer, or null when offering a listing
+     * @param cashAmount       money on top of the items, or null/zero for a straight trade
+     * @param cashDirection    who pays {@code cashAmount}; required when there is one
      * @param message          optional note
      * @param proposer         the authenticated user making the offer
      */
     @Transactional
     public SwapOfferDto createOffer(UUID targetListingId, UUID offeredListingId,
-                                    String offeredText, String message, User proposer) {
+                                    String offeredText, BigDecimal cashAmount,
+                                    CashDirection cashDirection, String message, User proposer) {
 
         Listing target = listingRepository.findById(targetListingId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Listing not found"));
@@ -99,6 +114,15 @@ public class SwapService {
             }
         }
 
+        // Normalise the cash leg before it is stored, so "no cash" is one representation
+        // (all three columns null) rather than four near-identical ones.
+        BigDecimal cash = normaliseCash(cashAmount);
+        if (cash != null && cashDirection == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Say who is adding the money: you, or the other person");
+        }
+        if (cash == null) cashDirection = null;
+
         if (swapOfferRepository.existsByTargetListingIdAndProposerIdAndStatus(
                 targetListingId, proposer.getId(), SwapStatus.PENDING)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -111,6 +135,9 @@ public class SwapService {
                 .proposerId(proposer.getId())
                 .offeredListingId(hasListing ? offeredListingId : null)
                 .offeredText(hasText ? offeredText.trim() : null)
+                .cashAmount(cash)
+                .cashDirection(cashDirection)
+                .cashCurrency(cash == null ? null : cashCurrencyFor(target))
                 .message(message)
                 .status(SwapStatus.PENDING)
                 .build();
@@ -246,6 +273,9 @@ public class SwapService {
                 .proposerId(offer.getProposerId())
                 .targetOwnerId(offer.getTargetOwnerId())
                 .message(offer.getMessage())
+                .cashAmount(offer.getCashAmount())
+                .cashDirection(offer.getCashDirection() == null ? null : offer.getCashDirection().name())
+                .cashCurrency(offer.getCashCurrency())
                 .createdAt(offer.getCreatedAt())
                 .respondedAt(offer.getRespondedAt())
                 .incoming(viewerId != null && viewerId.equals(offer.getTargetOwnerId()));
@@ -265,6 +295,41 @@ public class SwapService {
                 : SwapOfferDto.Side.builder().title(offer.getOfferedText()).build());
 
         return b.build();
+    }
+
+    /**
+     * Validates and cleans a proposed cash top-up.
+     *
+     * @return the amount to store, or null when this is a straight trade
+     */
+    private BigDecimal normaliseCash(BigDecimal amount) {
+        if (amount == null) return null;
+        if (amount.signum() < 0) {
+            // Which side pays is CashDirection's job. A negative amount here is either a
+            // client bug or somebody trying to invert the deal past the direction check.
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Enter the amount as a positive number and pick who is paying it");
+        }
+        if (amount.signum() == 0) return null;
+        if (amount.compareTo(MAX_CASH) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "That top-up is too large for a swap — arrange a sale instead");
+        }
+        // Money to 2dp. A client sending 800.999 must not become 800.999 in the record the
+        // two of them are meant to settle against.
+        return amount.setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Currency for the cash leg, taken from the listing being traded for.
+     *
+     * <p>The target listing is the one thing in a swap that always has a currency — the
+     * offered side may be free text, and the proposer may have no listings at all. Falling
+     * back to the platform default only when the listing somehow has none.
+     */
+    private String cashCurrencyFor(Listing target) {
+        String currency = target.getCurrency();
+        return currency == null || currency.isBlank() ? "PLN" : currency;
     }
 
     private SwapOfferDto.Side sideFromListing(UUID listingId) {

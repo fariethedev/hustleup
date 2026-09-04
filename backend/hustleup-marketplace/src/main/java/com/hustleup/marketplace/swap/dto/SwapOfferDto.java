@@ -35,6 +35,23 @@ public class SwapOfferDto {
     /** What the proposer is giving. Has a null {@code listingId} for free-text offers. */
     private Side gives;
 
+    // ── Cash on top ───────────────────────────────────────────────────────────
+
+    /** Money added on top of the items, or null for a straight trade. Always positive. */
+    private java.math.BigDecimal cashAmount;
+
+    /**
+     * "PROPOSER_PAYS" or "OWNER_PAYS" — which side hands over {@link #cashAmount}.
+     *
+     * <p>Sent as the enum name rather than resolved into "you"/"them" server-side: the same
+     * offer is read by both parties, so whose money it is depends on who is looking. The
+     * client knows the viewer and can say "you add 800 zł" or "they add 800 zł" correctly;
+     * a pre-baked string would be right for one reader and backwards for the other.
+     */
+    private String cashDirection;
+
+    private String cashCurrency;
+
     private String message;
     private LocalDateTime createdAt;
     private LocalDateTime respondedAt;

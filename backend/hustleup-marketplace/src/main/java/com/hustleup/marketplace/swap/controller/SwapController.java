@@ -13,6 +13,7 @@ import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.marketplace.swap.dto.SwapOfferDto;
 import com.hustleup.marketplace.swap.service.SwapService;
+import com.hustleup.marketplace.swap.model.CashDirection;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -20,6 +21,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,8 +42,14 @@ public class SwapController {
     /**
      * Proposes a swap.
      *
-     * <p>Body: {@code { targetListingId, offeredListingId? , offeredText?, message? }} —
-     * exactly one of {@code offeredListingId} / {@code offeredText} is required.
+     * <p>Body: {@code { targetListingId, offeredListingId? , offeredText?, cashAmount?,
+     * cashDirection?, message? }} — exactly one of {@code offeredListingId} /
+     * {@code offeredText} is required.
+     *
+     * <p>{@code cashAmount} is money on top of the items and {@code cashDirection} is
+     * "PROPOSER_PAYS" or "OWNER_PAYS". Both are optional, but an amount without a direction
+     * is rejected rather than guessed — assuming who pays would be a coin flip on the one
+     * detail the two of them will actually argue about.
      */
     @PostMapping
     public ResponseEntity<SwapOfferDto> create(@RequestBody Map<String, Object> body) {
@@ -55,7 +63,28 @@ public class SwapController {
         String offeredText = body.get("offeredText") != null ? body.get("offeredText").toString() : null;
         String message = body.get("message") != null ? body.get("message").toString() : null;
 
-        return ResponseEntity.ok(swapService.createOffer(targetListingId, offeredListingId, offeredText, message, me));
+        // Parsed from the raw body rather than bound to a typed request object, matching how
+        // the rest of this endpoint reads. A malformed number is a readable 400, not a 500.
+        BigDecimal cashAmount = null;
+        if (body.get("cashAmount") != null && !body.get("cashAmount").toString().isBlank()) {
+            try {
+                cashAmount = new BigDecimal(body.get("cashAmount").toString().trim());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("cashAmount must be a number");
+            }
+        }
+
+        CashDirection cashDirection = null;
+        if (body.get("cashDirection") != null && !body.get("cashDirection").toString().isBlank()) {
+            try {
+                cashDirection = CashDirection.valueOf(body.get("cashDirection").toString().trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("cashDirection must be PROPOSER_PAYS or OWNER_PAYS");
+            }
+        }
+
+        return ResponseEntity.ok(swapService.createOffer(targetListingId, offeredListingId, offeredText,
+                cashAmount, cashDirection, message, me));
     }
 
     /** Offers waiting on me. */

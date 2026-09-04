@@ -20,7 +20,9 @@ import { uploadUrl } from '../config';
 // before — it had no mobile entry point at all).
 const MORE_LINKS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', auth: true },
-  { to: '/swaps', icon: Repeat, label: 'Swaps' },
+  // The route stays /swaps — it is linked from listings, the feed and the mobile app, and
+  // renaming a URL to match a label breaks every one of those for nothing.
+  { to: '/swaps', icon: Repeat, label: 'Swap & Top' },
   { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
   { to: '/jobs', icon: Briefcase, label: 'Jobs & Gigs' },
   { to: '/news', icon: Newspaper, label: 'Campus News' },

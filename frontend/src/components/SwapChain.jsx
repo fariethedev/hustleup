@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Repeat, ArrowRight, Package } from 'lucide-react';
+import { Repeat, ArrowRight, Package, Coins } from 'lucide-react';
 import { swapsApi } from '../api/client';
 import { uploadUrl } from '../config';
+import { hasCash, cashLabel } from '../utils/swap';
 
 /**
  * The public swap chain: recent accepted trades, rendered as a horizontal neon chain.
@@ -76,6 +77,16 @@ export default function SwapChain({ limit = 8 }) {
               <ArrowRight className="w-3 h-3 text-gray-500 shrink-0" />
               <Thumb side={s.wants} />
             </div>
+
+            {/* Cash, when the trade needed some. Named neutrally here rather than as
+                "you"/"them": the chain is public and read by strangers to both parties, so
+                there is no viewer whose side it could be phrased from. */}
+            {hasCash(s) && (
+              <div className="mt-2 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[#CDFF00]">
+                <Coins className="w-3 h-3 shrink-0" />
+                <span className="truncate">+ {cashLabel(s)} on top</span>
+              </div>
+            )}
           </motion.div>
         ))}
       </div>
