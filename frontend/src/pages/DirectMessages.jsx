@@ -12,7 +12,7 @@ import OfferMessageCard from '../components/OfferMessageCard';
 import {
   MessageSquareOff, User, BadgeCheck, ArrowLeft,
   Paperclip, Smile, MoreVertical, Search, Send,
-  Check, CheckCheck, Tag, X, Sticker as StickerIcon, RefreshCw, Flame, ShoppingBag, Heart, Sparkles
+  Check, CheckCheck, Tag, X, Sticker as StickerIcon, RefreshCw, Flame, ShoppingBag, Heart, Sparkles, HandCoins
 } from 'lucide-react';
 
 /* Curated emoji + sticker sets for the composer pickers (no external deps). */
@@ -820,6 +820,10 @@ export default function DirectMessages() {
                     // it gets rose where every other row gets lime. Ranked above `unread`
                     // because a match you haven't replied to is still, first, a match.
                     const bond = !!p.isBondMatch;
+                    // A thread where a price is being agreed. Kept distinct from `unread`,
+                    // which is also lime but deliberately far fainter: unread is a state that
+                    // clears the moment you open the chat, a negotiation is what the thread is.
+                    const negotiating = !!p.negotiating && !bond;
                     // No `layout` prop here on purpose: a layout animation and the
                     // whileHover x-offset drive the same transform and visibly fight
                     // when the pointer rests on a row mid-reflow.
@@ -848,9 +852,11 @@ export default function DirectMessages() {
                               : 'bg-[#FF00FF]/10 border-[#FF00FF]/30'
                             : bond
                               ? 'bg-[#FF4E8E]/[0.06] border-[#FF4E8E]/25 hover:bg-[#FF4E8E]/[0.11]'
-                              : unread
-                                ? 'bg-[#CDFF00]/[0.055] border-[#CDFF00]/20 hover:bg-[#CDFF00]/[0.09]'
-                                : 'border-transparent hover:bg-white/[0.05]'
+                              : negotiating
+                                ? 'bg-[#CDFF00]/[0.09] border-[#CDFF00]/45 hover:bg-[#CDFF00]/[0.14]'
+                                : unread
+                                  ? 'bg-[#CDFF00]/[0.055] border-[#CDFF00]/20 hover:bg-[#CDFF00]/[0.09]'
+                                  : 'border-transparent hover:bg-white/[0.05]'
                         }`}
                       >
                         {bond && <HeartField count={5} className="rounded-2xl" />}
@@ -908,6 +914,15 @@ export default function DirectMessages() {
                                 {displayName}
                               </span>
                               {p.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
+                              {/* Named as well as coloured: the lime row is the fast signal,
+                                  but colour alone is not a signal for everyone, and this chip
+                                  also separates "a deal is happening here" from the fainter
+                                  lime the row already uses for unread. */}
+                              {negotiating && (
+                                <span className="shrink-0 flex items-center gap-1 px-1.5 py-[1px] rounded bg-[#CDFF00] text-black text-[9px] font-black uppercase tracking-[0.08em]">
+                                  <HandCoins className="w-2.5 h-2.5" /> Deal
+                                </span>
+                              )}
                               {bond && (
                                 <motion.span
                                   animate={p.isNewMatch && !reduceMotion ? { scale: [1, 1.25, 1] } : {}}
@@ -935,10 +950,14 @@ export default function DirectMessages() {
                             <p className={`text-xs truncate flex items-center gap-1 min-w-0 ${unread ? 'text-white font-semibold' : 'text-gray-400'}`}>
                               {p.lastMessage
                                 ? <>
-                                    {/* Double-tick only on a read row: on an unread one
-                                        it would contradict the badge sitting next to it. */}
-                                    {!unread && String(p.lastMessage).length > 0 && (
-                                      <CheckCheck className="w-3.5 h-3.5 shrink-0 text-gray-600" />
+                                    {/* Only on rows whose last message is yours. It previously
+                                        appeared on any row you had read, which put a "seen" tick
+                                        against messages the other person had sent to you. */}
+                                    {p.lastMessageMine && (
+                                      <CheckCheck
+                                        className={`w-3.5 h-3.5 shrink-0 ${p.lastMessageRead ? 'text-[#00FFFF]' : 'text-gray-600'}`}
+                                        aria-label={p.lastMessageRead ? 'Read' : 'Sent'}
+                                      />
                                     )}
                                     <span className="truncate">{p.lastMessage}</span>
                                   </>
@@ -1279,10 +1298,23 @@ export default function DirectMessages() {
                         const { msg, startsRun } = row;
                         const isMe = msg.senderId === user?.id;
                         const pending = sendingIds.has(msg.id);
+                        // Three states, and the colour is the whole point of them.
+                        //
+                        // This used to go straight from "sending" to a cyan double-tick the
+                        // instant the request came back, so every message you had ever sent
+                        // claimed to have been read. The tick was really reporting "the server
+                        // accepted this", which is not a thing anyone wants to know.
+                        //
+                        // readAt is stamped only when the RECEIVER opens the conversation
+                        // (DirectMessageController.getConversation), so a non-null value is the
+                        // one honest signal that the other person has actually looked. Grey
+                        // double-tick means delivered and unread; cyan means read.
                         const ticks = isMe && (
                           pending
-                            ? <Check className="w-3.5 h-3.5 text-gray-500" />
-                            : <CheckCheck className="w-3.5 h-3.5 text-[#00FFFF]" />
+                            ? <span title="Sending" aria-label="Sending"><Check className="w-3.5 h-3.5 text-gray-500" /></span>
+                            : msg.readAt
+                              ? <span title={`Read ${formatClock(msg.readAt)}`} aria-label="Read"><CheckCheck className="w-3.5 h-3.5 text-[#00FFFF]" /></span>
+                              : <span title="Sent" aria-label="Sent"><CheckCheck className="w-3.5 h-3.5 text-gray-500" /></span>
                         );
                         // Bubbles enter from their own side of the thread.
                         const bubbleIn = reduceMotion

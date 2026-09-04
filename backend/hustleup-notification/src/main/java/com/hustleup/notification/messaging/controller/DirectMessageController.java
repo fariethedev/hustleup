@@ -299,6 +299,8 @@ public class DirectMessageController {
                     // out into their own "new matches" row instead of burying them in a list
                     // sorted by a message that doesn't exist.
                     partner.put("isNewMatch", matched != null && last == null);
+                    // Lights the row lime: money is being agreed in this thread.
+                    partner.put("negotiating", dmRepo.hasNegotiation(currentUserId, pid));
 
                     if (last != null) {
                         // Human-friendly preview: photos, stickers, and shared listings
@@ -315,10 +317,22 @@ public class DirectMessageController {
                             previewText = "📤 Shared a post";
                         } else if ("STORY".equals(last.getMessageType())) {
                             previewText = "✨ Shared a story";
+                        } else if ("OFFER".equals(last.getMessageType())) {
+                            // An offer card carries its price live from the booking, so there is
+                            // no amount snapshotted here to preview. Name the thing instead of
+                            // falling through to content, which is usually an empty caption.
+                            previewText = last.getContent() != null && !last.getContent().isBlank()
+                                    ? "🤝 " + last.getContent() : "🤝 Price offer";
                         } else {
                             previewText = last.getContent();
                         }
                         partner.put("lastMessage", previewText);
+                        // Who sent it, and whether it has been read. The sidebar tick used to be
+                        // drawn from the CALLER's unread state, which says nothing about whether
+                        // the other person has seen anything -- it showed a "read" tick on rows
+                        // where the last message was one they had sent to you.
+                        partner.put("lastMessageMine", currentUserId.equals(last.getSenderId()));
+                        partner.put("lastMessageRead", last.getReadAt() != null);
                         // Convert LocalDateTime to ISO-8601 string so JSON serialisation
                         // is consistent regardless of the Jackson date format config.
                         partner.put("lastMessageAt",

@@ -189,4 +189,27 @@ public interface DirectMessageRepository extends JpaRepository<DirectMessage, St
     @Query("UPDATE DirectMessage m SET m.readAt = :readAt " +
            "WHERE m.senderId = :senderId AND m.receiverId = :receiverId AND m.readAt IS NULL")
     int markConversationRead(String senderId, String receiverId, java.time.LocalDateTime readAt);
+
+    /**
+     * Whether a price negotiation has ever been opened between these two people.
+     *
+     * <p>Drives the lime treatment on the conversation list: a thread where money is being
+     * agreed should be findable at a glance among ordinary chat.
+     *
+     * <p>Asks "has an OFFER ever been sent" rather than "is the last message an OFFER",
+     * because a negotiation is a thread, not a message. The two of you go on talking after
+     * the card is posted -- countering, asking about postage -- and the offer card stays
+     * live above that conversation the whole time. Keying off the newest message would
+     * light the row up and then drop it again on the next "ok sounds good", which is
+     * exactly when you most want to find the thread.
+     *
+     * @param user1 either participant (order does not matter)
+     * @param user2 the other participant
+     * @return true when at least one OFFER message exists in either direction
+     */
+    @Query("SELECT COUNT(m) > 0 FROM DirectMessage m " +
+           "WHERE m.messageType = 'OFFER' " +
+           "  AND ((m.senderId = :user1 AND m.receiverId = :user2) " +
+           "    OR (m.senderId = :user2 AND m.receiverId = :user1))")
+    boolean hasNegotiation(String user1, String user2);
 }
