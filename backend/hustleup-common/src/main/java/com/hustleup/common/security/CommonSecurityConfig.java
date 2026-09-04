@@ -250,6 +250,23 @@ public class CommonSecurityConfig {
                 // readable. StoryController also enforces author-only on top of this.
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/stories/*/views").authenticated()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/feed/**", "/api/v1/stories/**").permitAll()
+                // "Which communities am I in" is answered from the caller's own membership,
+                // so it is private and must precede the public rule below — matchers are
+                // evaluated in order and the first match wins.
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/communities/mine").authenticated()
+                // Communities are public to READ, on the same reasoning as jobs and news: a
+                // group nobody can see until they sign up cannot attract the members that
+                // make it worth joining, and browsing is how a visitor finds a reason to
+                // register at all.
+                //
+                // This whole tree was missing from this config, so every request fell through
+                // to .anyRequest().authenticated() and an anonymous GET was answered with a
+                // bare 403. The browse call in CommunityPanel swallows its error and renders
+                // an empty list, so the page looked like it simply had no communities in it.
+                // Creating and joining are writes and still fall through to authenticated
+                // below; CommunityController checks membership and ownership on top of that.
+                .requestMatchers(org.springframework.http.HttpMethod.GET,
+                        "/api/v1/communities", "/api/v1/communities/**").permitAll()
                 // Leaderboards and the public swap chain are social proof — they only do their
                 // job if someone who has not signed up yet can see them. Note this is the
                 // narrow path "/api/v1/swaps/chain" and NOT "/api/v1/swaps/**": a user's own
