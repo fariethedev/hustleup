@@ -20,6 +20,12 @@ import { uploadUrl } from '../config';
 // before — it had no mobile entry point at all).
 const MORE_LINKS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', auth: true },
+  // Bond is a top-level tab on desktop but lives in here on a phone. The bottom bar holds
+  // a handful of targets, and Home / Explore / Feed / Messages are the ones people move
+  // between constantly — spending a permanent slot on Bond widened the pill for a place you
+  // go deliberately rather than bounce through. mobileOnly keeps it out of the desktop More
+  // menu, where it would duplicate the tab already in the main nav.
+  { to: '/dating', icon: Heart, label: 'Bond', auth: true, mobileOnly: true },
   // The route stays /swaps — it is linked from listings, the feed and the mobile app, and
   // renaming a URL to match a label breaks every one of those for nothing.
   { to: '/swaps', icon: Repeat, label: 'Swap & Top' },
@@ -213,15 +219,15 @@ export default function Navbar() {
 
   const visibleItems = navItems.filter(item => item.always || (item.auth && isAuthenticated));
 
-  // Bottom tab items (mobile). Bond is here rather than behind "More" because it is a
-  // primary destination on desktop — it was in neither this list nor MORE_LINKS, which made
-  // it reachable on a phone only by typing the URL.
+  // Bottom tab items (mobile): the four destinations used constantly, plus the More button
+  // rendered after them. Bond moved into More — it is a place you go deliberately, not
+  // something you bounce between, and freeing the slot keeps the pill narrow enough to sit
+  // centred on a small phone.
   const bottomTabs = [
     { to: '/',        icon: Home,          label: 'Home',     always: true },
     { to: '/explore', icon: Compass,       label: 'Explore',  auth: true },
     { to: '/feed',    icon: Layers,        label: 'Feed',     auth: true },
-    { to: '/dating',  icon: Heart,         label: 'Bond',     auth: true, accent: true },
-    { to: '/dm',      icon: Send,          label: 'DMs',      auth: true, badge: dmUnread },
+    { to: '/dm',      icon: Send,          label: 'Messages', auth: true, badge: dmUnread },
   ];
   const visibleTabs = bottomTabs.filter(item => item.always || (item.auth && isAuthenticated));
 
@@ -295,7 +301,10 @@ export default function Navbar() {
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
                       <div className="absolute right-0 top-full mt-2 w-48 py-1.5 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl z-50 backdrop-blur-3xl">
-                        {MORE_LINKS.map(({ to, icon: Icon, label }) => (
+                        {/* mobileOnly entries are excluded: they exist to reach something the
+                            phone's bottom bar has no room for, and desktop already has it as
+                            a top-level tab. */}
+                        {MORE_LINKS.filter((l) => !l.mobileOnly).map(({ to, icon: Icon, label }) => (
                           <Link
                             key={to}
                             to={to}
@@ -527,17 +536,10 @@ export default function Navbar() {
                   <Icon className="w-4 h-4" /> {label}
                 </Link>
               ))}
-              {/* Profile, alongside Dashboard, so both account destinations are in one
-                  predictable place rather than only behind the avatar at the bar's edge. */}
-              {isAuthenticated && (
-                <Link
-                  to={`/profile/${user?.id}`}
-                  onClick={() => setMoreOpen(false)}
-                  className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-gray-300 hover:text-[#CDFF00] hover:bg-white/5 transition-colors font-bold"
-                >
-                  <User className="w-4 h-4" /> My profile
-                </Link>
-              )}
+              {/* No profile link here. It was duplicating the one in the avatar menu at the
+                  top of the screen, which is where people look for their own account and
+                  which also holds Sign Out — so this menu stays about places to go, not
+                  account admin. */}
             </div>
           </>
         )}
