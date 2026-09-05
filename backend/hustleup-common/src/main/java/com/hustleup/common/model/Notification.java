@@ -33,6 +33,9 @@ import java.util.UUID;
  */
 @Entity                          // Declares this class as a JPA-managed persistent entity
 @Table(name = "notifications")   // Maps to the "notifications" table in the database
+// Every notification is also emailed to its recipient. Hung off persistence rather than
+// added at each of the fourteen call sites, so the fifteenth is covered too.
+@jakarta.persistence.EntityListeners(com.hustleup.common.notification.NotificationEntityListener.class)
 @Getter @Setter                  // Lombok: generates getters and setters for all fields
 @NoArgsConstructor               // Lombok: zero-arg constructor required by JPA
 @AllArgsConstructor              // Lombok: all-fields constructor used internally by @Builder

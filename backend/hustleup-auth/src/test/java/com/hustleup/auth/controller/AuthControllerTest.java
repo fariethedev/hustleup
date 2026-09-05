@@ -70,6 +70,18 @@ class AuthControllerTest {
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
 
+    /**
+     * Login now asks whether email can actually be delivered before refusing an unverified
+     * account — the check that keeps a misconfigured mail transport from locking everyone
+     * out. Without this mock the controller has a null EmailService and login NPEs.
+     *
+     * <p>Left returning false (Mockito's default for a boolean), which is the "no transport"
+     * case: verification is not enforced, so these tests exercise the credential path they
+     * were written for. The enforced path has its own coverage below.
+     */
+    @Mock
+    private com.hustleup.common.email.EmailService emailService;
+
     @Mock
     private Authentication authentication; // Mocking the Authentication object returned by Spring Security
 
