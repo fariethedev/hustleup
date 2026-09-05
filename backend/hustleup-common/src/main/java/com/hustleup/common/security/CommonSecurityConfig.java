@@ -198,6 +198,27 @@ public class CommonSecurityConfig {
             .csrf(csrf -> csrf.disable())
             // Do not create or use server-side HTTP sessions — every request must carry its own JWT
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            // 401 for "who are you", 403 for "not you".
+            //
+            // Spring's default answers an unauthenticated request with 403, so a missing token,
+            // an expired one and a genuine permission refusal were indistinguishable to the
+            // client. The frontend had to guess, and guessed that any 403 might be an expired
+            // token — so it tried to refresh, and logged the user out when that failed. The
+            // effect was that a buyer opening the dashboard, which calls seller-only endpoints
+            // that correctly refuse them, could be thrown back to the login screen.
+            //
+            // Separating them lets the client refresh on 401 and simply report a 403.
+            .exceptionHandling(ex -> ex
+                    .authenticationEntryPoint((request, response, authException) -> {
+                        response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"Authentication required\"}");
+                    })
+                    .accessDeniedHandler((request, response, deniedException) -> {
+                        response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"You do not have access to this\"}");
+                    }))
             .authorizeHttpRequests(auth -> auth
                 // Uploaded static files are always public (images, etc.)
                 .requestMatchers("/uploads/**").permitAll()

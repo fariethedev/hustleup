@@ -39,7 +39,7 @@ const asMessage = (value) => {
   return null;
 };
 
-// Handle 401/403 — attempt token refresh, then logout
+// Handle 401 — attempt token refresh, then logout. 403 is passed through.
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -59,9 +59,17 @@ api.interceptors.response.use(
       console.error('API Error:', msg);
     }
 
-    // On 401 or 403: try refreshing the access token once (only if user was authenticated)
+    // On 401 only. 401 means "we do not know who you are", which a fresh access token can
+    // fix; 403 means "we know, and you may not", which it cannot.
+    //
+    // This used to refresh on both, because the API answered every unauthenticated request
+    // with 403 and the two were indistinguishable from here. The cost was real: the dashboard
+    // calls seller-only endpoints, so a buyer opening it collected legitimate 403s, each of
+    // which forced a token refresh — and a refresh that failed logged them out and bounced
+    // them to the login screen. The API now returns 401 for authentication and 403 for
+    // authorisation, so this can tell them apart.
     const hasStoredToken = !!localStorage.getItem('hustleup_token') || !!localStorage.getItem('hustleup_refresh');
-    if ((status === 401 || status === 403) && !original._retry && hasStoredToken) {
+    if (status === 401 && !original._retry && hasStoredToken) {
       original._retry = true;
       const refreshToken = localStorage.getItem('hustleup_refresh');
       if (refreshToken) {
