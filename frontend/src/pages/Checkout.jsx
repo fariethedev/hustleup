@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { ArrowLeft, ArrowRight, ShieldCheck, ShoppingBag, Lock, User, Mail, Phone, CreditCard, Clock } from 'lucide-react';
-import { selectCartItems, selectCartTotal, selectCartShipping, clearCart } from '../store/cartSlice';
+import { selectCartItems, removeFromCart } from '../store/cartSlice';
 import { bookingsApi } from '../api/client';
 import { formatPrice } from '../utils/constants';
 import SmartImage from '../components/SmartImage';
@@ -31,18 +31,31 @@ export default function Checkout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const items = useSelector(selectCartItems);
-  const subtotal = useSelector(selectCartTotal);
+
+  // Storefront products carry a synthetic "shop:<shopId>:<productId>" id — they are not
+  // marketplace listings, and the bookings endpoint cannot charge for them. They used to be
+  // filtered out of the payment silently while still counting toward the total on this page,
+  // so a buyer was quoted one figure, charged a smaller one, and had the basket emptied of
+  // items nobody had ordered or taken money for. They are separated here instead, so the
+  // summary only ever promises what the next screen actually charges.
+  const isStorefrontItem = (item) => String(item.listingId).startsWith('shop:');
+  const bookableItems = items.filter((i) => !isStorefrontItem(i));
+  const shopItems = items.filter(isStorefrontItem);
+
+  // Same arithmetic as the cart selectors, over the payable lines only: price (or the
+  // negotiated one) per unit, and postage once per line rather than per unit.
+  const subtotal = bookableItems.reduce((acc, i) => acc + (i.negotiatedPrice ?? i.price) * i.quantity, 0);
   // Postage is a separate line rather than folded into the subtotal, and is added once per
   // item in the basket rather than per unit — the same arithmetic the server does when it
   // builds the Stripe session, so this page cannot promise a total the charge contradicts.
-  const shipping = useSelector(selectCartShipping);
+  const shipping = bookableItems.reduce((acc, i) => acc + (Number(i.shippingPrice) || 0), 0);
   const total = subtotal + shipping;
 
   const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const currency = items[0]?.currency || 'PLN';
+  const currency = bookableItems[0]?.currency || items[0]?.currency || 'PLN';
 
   if (items.length === 0) {
     return (
@@ -63,12 +76,8 @@ export default function Checkout() {
     setLoading(true);
     setError(null);
     try {
-      // Shop items (from the curated storefronts) aren't backed by a real marketplace
-      // listing row, so there's nothing to book or charge for them. Only real listings
-      // go to Stripe. This lets one cart mix items from multiple shops and sellers.
-      const bookableItems = items.filter((item) => !String(item.listingId).startsWith('shop:'));
       if (bookableItems.length === 0) {
-        throw new Error('Nothing in your basket can be purchased yet.');
+        throw new Error('Storefront items are bought from their shop page — open the shop to check out.');
       }
 
       // One request creates a booking per line and returns a SINGLE Stripe Checkout URL
@@ -80,10 +89,12 @@ export default function Checkout() {
         }))
       );
 
-      // The bookings now exist, so the cart has done its job — clearing it here stops a
-      // back-button press from ordering the same basket twice. If the buyer abandons
-      // Stripe, the orders are still payable from their dashboard.
-      dispatch(clearCart());
+      // The bookings now exist, so those lines have done their job — dropping them here
+      // stops a back-button press from ordering them twice. If the buyer abandons Stripe,
+      // the orders are still payable from their dashboard. Anything not ordered stays in
+      // the basket: clearing the lot used to throw away storefront items that had never
+      // been sent anywhere, so they vanished without ever being bought.
+      bookableItems.forEach((item) => dispatch(removeFromCart(item.listingId)));
 
       if (data.url) {
         // Hand off to Stripe's hosted page. Stripe returns the buyer to
@@ -95,7 +106,7 @@ export default function Checkout() {
       // Nothing was instantly purchasable — every item needs its seller to accept first,
       // so there is no payment to make yet. Say so instead of implying a completed sale.
       navigate('/checkout/confirmation', {
-        state: { customer, items, total, currency, awaitingApproval: data.awaitingApproval || [] },
+        state: { customer, items: bookableItems, total, currency, awaitingApproval: data.awaitingApproval || [] },
       });
     } catch (e) {
       setError(e.response?.data?.error || e.response?.data?.message || e.message
@@ -161,6 +172,22 @@ export default function Checkout() {
             </div>
           )}
 
+          {/* Said before the button, not after the charge: these lines cannot be paid for
+              here, and staying silent about them is what made them disappear unbought. */}
+          {shopItems.length > 0 && (
+            <div className="mb-4 p-3 rounded-xl border border-[#CDFF00]/30 bg-[#CDFF00]/[0.07] text-[11px] leading-relaxed">
+              <span className="font-black uppercase tracking-widest text-[#CDFF00]">
+                {shopItems.length} storefront {shopItems.length === 1 ? 'item' : 'items'} not included
+              </span>
+              <p className="text-gray-400 mt-1">
+                {shopItems.map((i) => i.title).join(', ')} — {shopItems.length === 1 ? 'this is' : 'these are'} sold
+                through {shopItems.length === 1 ? 'its' : 'their'} shop page and {shopItems.length === 1 ? 'is' : 'are'} paid
+                for there. {shopItems.length === 1 ? 'It stays' : 'They stay'} in your basket; the total below covers
+                only what this checkout charges.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.85fr] gap-4">
             {/* ── Left: the only thing this page actually collects ── */}
             <div className="space-y-4">
@@ -223,7 +250,7 @@ export default function Checkout() {
 
               <div className="space-y-2 mb-4 max-h-[220px] overflow-y-auto scrollbar-hide pr-0.5">
                 <AnimatePresence>
-                  {items.map((item) => (
+                  {bookableItems.map((item) => (
                     <motion.div
                       key={item.listingId}
                       layout
