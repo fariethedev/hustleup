@@ -42,6 +42,71 @@ function Avatar({ name, avatarUrl, size = 'w-9 h-9', textSize = 'text-sm' }) {
   );
 }
 
+/**
+ * One comment, used for both a top-level comment and a reply.
+ *
+ * Declared at module level rather than inside Feed: a component defined during render is a
+ * new type every time, so React would tear down and rebuild every comment row whenever
+ * anything else on the page changed — losing focus and restarting animations.
+ *
+ * A reply renders slightly smaller and without its own reply button; replies attach to the
+ * top-level parent, so offering "reply" on a reply would imply a depth that does not exist.
+ */
+function CommentRow({ comment, isReply = false, isAuthenticated, onToggleLike, onReply }) {
+  const liked = !!comment.likedByCurrentUser;
+  const count = comment.likesCount || 0;
+  return (
+    <div className="flex gap-3 items-start">
+      <Link to={`/profile/${comment.authorId}`} className="shrink-0">
+        <Avatar
+          name={comment.authorName}
+          avatarUrl={comment.authorAvatarUrl ? uploadUrl(comment.authorAvatarUrl) : null}
+          size={isReply ? 'w-7 h-7' : 'w-9 h-9'}
+          textSize={isReply ? 'text-[10px]' : 'text-xs'}
+        />
+      </Link>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <Link to={`/profile/${comment.authorId}`} className={`font-bold text-white hover:underline ${isReply ? 'text-xs' : 'text-sm'}`}>
+            {comment.authorName}
+          </Link>
+          <span className="text-xs text-gray-500">{timeAgo(comment.createdAt)}</span>
+        </div>
+        <p className={`text-gray-300 leading-relaxed break-words ${isReply ? 'text-[13px]' : 'text-sm'}`}>
+          {comment.content}
+        </p>
+
+        <div className="flex items-center gap-4 mt-1.5">
+          <button
+            type="button"
+            onClick={() => onToggleLike(comment)}
+            disabled={!isAuthenticated}
+            aria-pressed={liked}
+            aria-label={liked ? 'Unlike comment' : 'Like comment'}
+            className={`flex items-center gap-1 text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-default ${
+              liked ? 'text-red-500' : 'text-gray-500 hover:text-white'
+            }`}
+          >
+            <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-red-500' : ''}`} />
+            {/* Hidden at zero rather than showing "0", which reads as a judgement on the
+                comment instead of an absence of votes. */}
+            {count > 0 && <span>{count}</span>}
+          </button>
+          {!isReply && isAuthenticated && (
+            <button
+              type="button"
+              onClick={() => onReply(comment)}
+              className="text-[11px] font-bold text-gray-500 hover:text-[#CDFF00] transition-colors"
+            >
+              Reply
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // A short-lived heart burst shown on double-tap, à la Instagram.
 function HeartBurst({ show }) {
   return (
@@ -547,6 +612,9 @@ export default function Feed() {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentInput, setCommentInput] = useState('');
   const [commenting, setCommenting] = useState(false);
+  // The comment being replied to, or null for a new top-level comment. Holds the whole
+  // object rather than an id so the composer can name who is being answered.
+  const [replyTo, setReplyTo] = useState(null);
 
   // Likers Modal State ("who liked this")
   const [likersPost, setLikersPost] = useState(null);
@@ -968,6 +1036,9 @@ export default function Feed() {
   const openComments = async (post) => {
     setSelectedPost(post);
     setComments([]);
+    // A reply target left over from the last post would silently attach this comment to
+    // someone else's thread.
+    setReplyTo(null);
     setCommentsLoading(true);
     try {
       const res = await feedApi.getComments(post.id);
@@ -983,15 +1054,72 @@ export default function Feed() {
     if (!commentInput.trim() || !selectedPost) return;
     setCommenting(true);
     try {
-      const res = await feedApi.addComment(selectedPost.id, commentInput.trim());
-      setComments([...comments, res.data]);
-      const preview = { authorName: res.data.authorName, content: res.data.content };
+      const res = await feedApi.addComment(selectedPost.id, commentInput.trim(), replyTo?.id);
+      const created = { ...res.data, replies: res.data.replies || [] };
+
+      if (replyTo) {
+        // Slot it under its parent rather than appending to the end, so the reply appears
+        // where the conversation is instead of at the bottom of the thread.
+        setComments((list) => list.map((c) =>
+          c.id === replyTo.id ? { ...c, replies: [...(c.replies || []), created] } : c));
+      } else {
+        setComments((list) => [...list, created]);
+      }
+
+      // The preview line under a post is the newest comment, reply or not.
+      const preview = { authorName: created.authorName, content: created.content };
       patchPost(selectedPost.id, (p) => ({ ...p, commentsCount: (p.commentsCount || 0) + 1, topComment: preview }));
       setCommentInput('');
+      setReplyTo(null);
     } catch (err) {
-      alert('Failed to post comment');
+      dispatchToast(err.response?.data?.error || 'Failed to post comment', 'error');
     } finally {
       setCommenting(false);
+    }
+  };
+
+  /**
+   * Likes or unlikes a comment, flipping the UI first and reverting if the server disagrees.
+   *
+   * Optimistic because a heart that waits for a round trip feels broken; safe because the
+   * endpoints are idempotent, so a double-tap cannot double-count server-side.
+   */
+  const toggleCommentLike = async (comment) => {
+    if (!isAuthenticated || !selectedPost) return;
+    const liked = !!comment.likedByCurrentUser;
+
+    // Applies to a comment wherever it sits — top level, or inside a parent's replies.
+    const apply = (fn) => setComments((list) => list.map((c) => (
+      c.id === comment.id
+        ? fn(c)
+        : { ...c, replies: (c.replies || []).map((r) => (r.id === comment.id ? fn(r) : r)) }
+    )));
+
+    const optimistic = (c) => ({
+      ...c,
+      likedByCurrentUser: !liked,
+      likesCount: Math.max(0, (c.likesCount || 0) + (liked ? -1 : 1)),
+    });
+    apply(optimistic);
+
+    try {
+      const res = liked
+        ? await feedApi.unlikeComment(selectedPost.id, comment.id)
+        : await feedApi.likeComment(selectedPost.id, comment.id);
+      // Adopt the server's count — it is authoritative, and two devices liking at once
+      // would otherwise leave this one showing a number that never settles.
+      apply((c) => ({
+        ...c,
+        likedByCurrentUser: res.data.likedByCurrentUser,
+        likesCount: res.data.likesCount,
+      }));
+    } catch {
+      apply((c) => ({
+        ...c,
+        likedByCurrentUser: liked,
+        likesCount: Math.max(0, (c.likesCount || 0) + (liked ? 1 : -1)),
+      }));
+      dispatchToast('Could not update that like', 'error');
     }
   };
 
@@ -1439,17 +1567,32 @@ export default function Feed() {
                     </div>
                   ) : (
                     comments.map((c, idx) => (
-                      <motion.div key={c.id || idx} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} className="flex gap-3 items-start">
-                        <Link to={`/profile/${c.authorId}`} className="shrink-0">
-                          <Avatar name={c.authorName} size="w-9 h-9" textSize="text-xs" />
-                        </Link>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Link to={`/profile/${c.authorId}`} className="text-sm font-bold text-white hover:underline">{c.authorName}</Link>
-                            <span className="text-xs text-gray-500">{timeAgo(c.createdAt)}</span>
+                      <motion.div key={c.id || idx} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}>
+                        <CommentRow
+                          comment={c}
+                          isAuthenticated={isAuthenticated}
+                          onToggleLike={toggleCommentLike}
+                          onReply={setReplyTo}
+                        />
+                        {/* Replies sit indented under their parent, with a rule down the left
+                            so the thread reads as one conversation rather than a run of
+                            unrelated comments. One level only — see CommentDto. */}
+                        {(c.replies?.length > 0) && (
+                          <div className="mt-3 ml-5 pl-4 border-l border-white/10 space-y-3">
+                            {c.replies.map((r) => (
+                              <CommentRow
+                                key={r.id}
+                                comment={r}
+                                isReply
+                                isAuthenticated={isAuthenticated}
+                                onToggleLike={toggleCommentLike}
+                                // Replying to a reply targets the top-level parent, matching
+                                // how the server re-parents it anyway.
+                                onReply={() => setReplyTo(c)}
+                              />
+                            ))}
                           </div>
-                          <p className="text-sm text-gray-300 leading-relaxed break-words">{c.content}</p>
-                        </div>
+                        )}
                       </motion.div>
                     ))
                   )}
@@ -1457,13 +1600,34 @@ export default function Feed() {
 
                 {isAuthenticated ? (
                   <div className="p-4 border-t border-white/10 shrink-0">
+                    {/* Without this a reply is indistinguishable from a new comment until
+                        after it posts and lands somewhere unexpected. */}
+                    {replyTo && (
+                      <div className="flex items-center justify-between gap-2 mb-2 px-3 py-1.5 rounded-lg bg-[#CDFF00]/10 border border-[#CDFF00]/25">
+                        <span className="text-[11px] text-[#CDFF00] font-bold truncate">
+                          Replying to {replyTo.authorName}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setReplyTo(null)}
+                          aria-label="Cancel reply"
+                          className="shrink-0 text-[#CDFF00]/70 hover:text-white transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                     <div className="relative">
                       <input
                         type="text"
-                        placeholder="Add a comment…"
+                        placeholder={replyTo ? `Reply to ${replyTo.authorName}…` : 'Add a comment…'}
                         value={commentInput}
                         onChange={(e) => setCommentInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && submitComment()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') submitComment();
+                          // Escape backs out of a reply without clearing what has been typed.
+                          if (e.key === 'Escape' && replyTo) setReplyTo(null);
+                        }}
                         className="w-full bg-white/5 border border-white/10 rounded-full pl-4 pr-12 py-3 text-sm text-white placeholder-gray-500 outline-none focus:border-[#CDFF00] transition-all"
                       />
                       <button

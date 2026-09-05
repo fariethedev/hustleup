@@ -376,8 +376,17 @@ export const feedApi = {
   // communityId posts into a community instead of the open feed; the server refuses it
   // unless you have joined that community.
   createPost: (formData) => api.post('/feed', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  /**
+   * A post's comments, threaded one level: each top-level comment carries a `replies`
+   * array. Also returns likesCount and likedByCurrentUser per comment, so the client does
+   * not need a request per row to draw a filled heart.
+   */
   getComments: (postId) => api.get(`/feed/${postId}/comments`),
-  addComment: (postId, content) => api.post(`/feed/${postId}/comments`, { content }),
+  /** `parentId` makes it a reply; omit it for a top-level comment. */
+  addComment: (postId, content, parentId) =>
+    api.post(`/feed/${postId}/comments`, parentId ? { content, parentId } : { content }),
+  likeComment: (postId, commentId) => api.post(`/feed/${postId}/comments/${commentId}/likes`),
+  unlikeComment: (postId, commentId) => api.delete(`/feed/${postId}/comments/${commentId}/likes`),
   likePost: (postId) => api.post(`/feed/${postId}/likes`),
   unlikePost: (postId) => api.delete(`/feed/${postId}/likes`),
   getLikers: (postId) => api.get(`/feed/${postId}/likes`),
