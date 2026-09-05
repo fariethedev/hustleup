@@ -29,11 +29,14 @@ package com.hustleup.social.controller;
 
 import com.hustleup.social.dto.PostDto;
 import com.hustleup.social.model.Comment;
+import com.hustleup.social.model.CommentLike;
+import com.hustleup.social.dto.CommentDto;
 import com.hustleup.social.model.Post;
 import com.hustleup.social.model.PostLike;
 import com.hustleup.social.model.SavedPost;
 import com.hustleup.social.model.Follow;
 import com.hustleup.social.repository.CommentRepository;
+import com.hustleup.social.repository.CommentLikeRepository;
 import com.hustleup.social.repository.PostLikeRepository;
 import com.hustleup.social.repository.SavedPostRepository;
 import com.hustleup.social.repository.PostRepository;
@@ -106,6 +109,9 @@ public class FeedController {
     /** JPA repository for Comment entities; supports per-post comment threads. */
     private final CommentRepository commentRepository;
 
+    /** Likes on comments — same shape and batching as postLikeRepository. */
+    private final CommentLikeRepository commentLikeRepository;
+
     /**
      * Kafka event publisher.  Fires-and-forgets events to the "feed-events" topic.
      * Failures are silently swallowed, so a Kafka outage never breaks the feed.
@@ -150,6 +156,7 @@ public class FeedController {
             FileStorageService storageService,
             UserRepository userRepository,
             CommentRepository commentRepository,
+            CommentLikeRepository commentLikeRepository,
             FeedEventPublisher feedEventPublisher,
             FollowRepository followRepository,
             NotificationRepository notificationRepository,
@@ -163,6 +170,7 @@ public class FeedController {
         this.storageService = storageService;
         this.userRepository = userRepository;
         this.commentRepository = commentRepository;
+        this.commentLikeRepository = commentLikeRepository;
         this.feedEventPublisher = feedEventPublisher;
         this.followRepository = followRepository;
         this.notificationRepository = notificationRepository;
@@ -627,6 +635,12 @@ public class FeedController {
                     .body(Map.of("error", "You can only delete your own posts"));
         }
 
+        // Comment likes first: they hang off the comments, so clearing them after the
+        // comments are gone would leave rows keyed to ids that no longer exist.
+        List<String> commentIds = commentRepository.findByPostIdOrderByCreatedAtAsc(postId)
+                .stream().map(Comment::getId).toList();
+        if (!commentIds.isEmpty()) commentLikeRepository.deleteByIdCommentIdIn(commentIds);
+
         commentRepository.deleteByPostId(postId);
         postLikeRepository.deleteByIdPostId(postId);
         savedPostRepository.deleteByIdPostId(postId);
@@ -801,7 +815,112 @@ public class FeedController {
     @GetMapping("/{postId}/comments")
     public ResponseEntity<?> getComments(@PathVariable String postId) {
         // Chronological ordering (oldest first) makes sense for threaded discussions.
-        return ResponseEntity.ok(commentRepository.findByPostIdOrderByCreatedAtAsc(postId));
+        List<Comment> all = commentRepository.findByPostIdOrderByCreatedAtAsc(postId);
+        if (all.isEmpty()) return ResponseEntity.ok(List.of());
+
+        List<String> ids = all.stream().map(Comment::getId).toList();
+
+        // One query for the viewer's likes across the whole thread, not one per comment.
+        Set<String> likedIds = getCurrentUser()
+                .map(u -> commentLikeRepository.findByIdUserIdAndIdCommentIdIn(u.getId().toString(), ids)
+                        .stream()
+                        .map(cl -> cl.getId().getCommentId())
+                        .collect(Collectors.toSet()))
+                .orElseGet(HashSet::new);
+
+        // Same batching for avatars — the comment row stores a name snapshot but no picture.
+        List<UUID> authorUuids = all.stream()
+                .map(Comment::getAuthorId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .map(id -> { try { return UUID.fromString(id); } catch (Exception e) { return null; } })
+                .filter(Objects::nonNull)
+                .toList();
+        Map<String, String> avatars = userRepository.findAllById(authorUuids).stream()
+                .filter(u -> u.getAvatarUrl() != null && !u.getAvatarUrl().isBlank())
+                .collect(Collectors.toMap(u -> u.getId().toString(), User::getAvatarUrl));
+
+        // Assemble two levels. A reply whose parent is missing — deleted, or belonging to a
+        // different post — is promoted to top level rather than dropped: losing someone's
+        // comment entirely is worse than showing it slightly out of place.
+        Map<String, CommentDto> byId = new LinkedHashMap<>();
+        for (Comment c : all) {
+            byId.put(c.getId(), CommentDto.from(c, likedIds.contains(c.getId()), avatars.get(c.getAuthorId())));
+        }
+
+        List<CommentDto> roots = new ArrayList<>();
+        for (Comment c : all) {
+            CommentDto dto = byId.get(c.getId());
+            String parentId = c.getParentId();
+            CommentDto parent = (parentId == null || parentId.isBlank()) ? null : byId.get(parentId);
+            if (parent == null) {
+                roots.add(dto);
+            } else if (parent.getParentId() != null && !parent.getParentId().isBlank()) {
+                // A reply to a reply: attach to the top-level ancestor rather than nesting
+                // deeper, so the thread never becomes a staircase on a narrow screen.
+                CommentDto grandparent = byId.get(parent.getParentId());
+                (grandparent != null ? grandparent : parent).getReplies().add(dto);
+            } else {
+                parent.getReplies().add(dto);
+            }
+        }
+
+        return ResponseEntity.ok(roots);
+    }
+
+    /**
+     * Likes a comment.
+     *
+     * <p><b>POST /api/v1/feed/{postId}/comments/{commentId}/likes</b>
+     *
+     * <p>Idempotent: liking something already liked returns the current state rather than an
+     * error, so a double-tap on a slow connection cannot double-count.
+     */
+    @PostMapping("/{postId}/comments/{commentId}/likes")
+    public ResponseEntity<?> likeComment(@PathVariable String postId, @PathVariable String commentId) {
+        Optional<User> current = getCurrentUser();
+        if (current.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        Optional<Comment> found = commentRepository.findById(commentId);
+        if (found.isEmpty()) return ResponseEntity.notFound().build();
+        Comment comment = found.get();
+        // Guards against liking a comment via some other post's URL, which would otherwise
+        // let the count be driven from a path that has nothing to do with it.
+        if (!comment.getPostId().equals(postId)) return ResponseEntity.notFound().build();
+
+        var id = new CommentLike.CommentLikeId(commentId, current.get().getId().toString());
+        if (!commentLikeRepository.existsById(id)) {
+            commentLikeRepository.save(new CommentLike(id));
+            comment.setLikesCount(comment.getLikesCount() + 1);
+            commentRepository.save(comment);
+        }
+        return ResponseEntity.ok(Map.of("likesCount", comment.getLikesCount(), "likedByCurrentUser", true));
+    }
+
+    /**
+     * Removes your like from a comment. Idempotent in the same way as liking.
+     *
+     * <p><b>DELETE /api/v1/feed/{postId}/comments/{commentId}/likes</b>
+     */
+    @DeleteMapping("/{postId}/comments/{commentId}/likes")
+    public ResponseEntity<?> unlikeComment(@PathVariable String postId, @PathVariable String commentId) {
+        Optional<User> current = getCurrentUser();
+        if (current.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        Optional<Comment> found = commentRepository.findById(commentId);
+        if (found.isEmpty()) return ResponseEntity.notFound().build();
+        Comment comment = found.get();
+        if (!comment.getPostId().equals(postId)) return ResponseEntity.notFound().build();
+
+        var id = new CommentLike.CommentLikeId(commentId, current.get().getId().toString());
+        if (commentLikeRepository.existsById(id)) {
+            commentLikeRepository.deleteById(id);
+            // Clamped: a counter that has drifted below zero should not be driven further
+            // negative by an unlike that is otherwise legitimate.
+            comment.setLikesCount(Math.max(0, comment.getLikesCount() - 1));
+            commentRepository.save(comment);
+        }
+        return ResponseEntity.ok(Map.of("likesCount", comment.getLikesCount(), "likedByCurrentUser", false));
     }
 
     /**

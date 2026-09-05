@@ -93,6 +93,16 @@ public class Comment {
      * {@link com.hustleup.social.repository.CommentRepository#findByPostIdOrderByCreatedAtAsc}.
      */
     @CreationTimestamp
+    /**
+     * Denormalised like count, same trade-off as {@code Post.likesCount}: slightly more work
+     * on write in exchange for not running a COUNT(*) per comment on every thread load.
+     *
+     * <p>Defaults to 0 so the common path never has to null-check, and is guarded with
+     * {@code Math.max(0, ...)} on decrement so a double-unlike cannot drive it negative.
+     */
+    @Column(name = "likes_count")
+    private Integer likesCount = 0;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -127,6 +137,10 @@ public class Comment {
     public void setContent(String content) { this.content = content; }
 
     /** Returns the creation timestamp (set by Hibernate on insert). */
+    /** Null-safe: legacy rows predate the column, and callers should not each guard it. */
+    public Integer getLikesCount() { return likesCount == null ? 0 : likesCount; }
+    public void setLikesCount(Integer likesCount) { this.likesCount = likesCount; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     /** Allows override of the creation timestamp (e.g. in test fixtures). */
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

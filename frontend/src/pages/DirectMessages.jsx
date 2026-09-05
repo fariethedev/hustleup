@@ -114,7 +114,7 @@ function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
           </span>
         </div>
 
-        <div className="relative flex gap-3 overflow-x-auto scrollbar-hide">
+        <div className="relative flex gap-3 overflow-x-auto overscroll-x-contain scrollbar-hide">
           {matches.map((m) => (
             <motion.button
               key={m.id}

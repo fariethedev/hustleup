@@ -68,6 +68,7 @@ import java.util.UUID;
     // Jobs & Gigs. These lists are explicit rather than package-root scans, so a
     // new feature package stays invisible to Spring until it is named here.
     "com.hustleup.marketplace.job.repository",
+    "com.hustleup.marketplace.feedback.repository",
     "com.hustleup.common.repository"
 })
 // Tell Hibernate which packages contain @Entity classes so it can map them to
@@ -82,6 +83,7 @@ import java.util.UUID;
     "com.hustleup.marketplace.swap.model",
     "com.hustleup.marketplace.shop.model",
     "com.hustleup.marketplace.job.model",
+    "com.hustleup.marketplace.feedback.model",
     "com.hustleup.common.model"
 })
 // Explicit component scan so that @Service, @RestController, @Repository beans

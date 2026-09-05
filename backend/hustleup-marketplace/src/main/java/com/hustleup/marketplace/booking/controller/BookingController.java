@@ -170,16 +170,8 @@ public class BookingController {
      * @return 200 OK with the updated {@link BookingDto} in COMPLETED state
      */
     @PatchMapping("/{id}/complete") // handles PATCH /api/v1/bookings/uuid/complete
-    public ResponseEntity<BookingDto> complete(
-            @PathVariable UUID id,
-            // Body carries the completer's review of the counterparty: {"rating":5,"comment":"..."}.
-            // Required — see BookingService#complete for why the gate sits on the actor.
-            @RequestBody(required = false) Map<String, Object> body) {
-        Map<String, Object> review = body == null ? Map.of() : body;
-        Object rawRating = review.get("rating");
-        Integer rating = rawRating instanceof Number ? ((Number) rawRating).intValue() : null;
-        String comment = review.get("comment") instanceof String ? (String) review.get("comment") : null;
-        return ResponseEntity.ok(bookingService.complete(id, rating, comment));
+    public ResponseEntity<BookingDto> complete(@PathVariable UUID id) {
+        return ResponseEntity.ok(bookingService.complete(id));
     }
 
     /**

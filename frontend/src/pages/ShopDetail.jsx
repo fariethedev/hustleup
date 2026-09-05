@@ -625,7 +625,7 @@ export default function ShopDetail() {
         {otherShops.length > 0 && (
           <div className="mt-14 mb-4">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-5">Shops you may also like</h4>
-            <div className="flex gap-4 sm:gap-6 overflow-x-auto scrollbar-hide pb-1">
+            <div className="flex gap-4 sm:gap-6 overflow-x-auto overscroll-x-contain scrollbar-hide pb-1">
               {otherShops.map((s) => (
                 <Link key={s.id} to={`/shop/${s.slug || s.id}`} className="group flex flex-col items-center w-[92px] shrink-0 text-center">
                   <div

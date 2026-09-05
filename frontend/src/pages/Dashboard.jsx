@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated, selectIsSeller } from '../store/authSlice';
-import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, dispatchToast } from '../api/client';
+import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, feedbackApi, dispatchToast } from '../api/client';
 import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constants';
 import {
   Settings2, Plus, Inbox, ClipboardList, Check, X, MessageSquare, ListTodo, PackageSearch,
@@ -13,6 +13,7 @@ import {
 import HeroBrief from '../components/HeroBrief';
 import ShopManager from '../components/ShopManager';
 import ReviewModal from '../components/ReviewModal';
+import PlatformFeedbackModal from '../components/PlatformFeedbackModal';
 import OrderTracker from '../components/OrderTracker';
 import PublishingPanel from '../components/PublishingPanel';
 import TrackingUpdateModal from '../components/TrackingUpdateModal';
@@ -49,6 +50,8 @@ export default function Dashboard() {
   // Booking whose review dialog is open — either the seller completing it, or a buyer
   // clearing a review they still owe.
   const [reviewing, setReviewing] = useState(null);
+  // The booking a seller has just completed, while we ask them how the platform is doing.
+  const [feedbackFor, setFeedbackFor] = useState(null);
   const [shopOrders, setShopOrders] = useState([]);   // storefront purchases the user made
   const [shopSales, setShopSales] = useState([]);     // storefront orders placed with their shop
   // The order whose delivery-update dialog is open: { order, title, kind: 'booking' | 'shop' }.
@@ -184,9 +187,15 @@ export default function Dashboard() {
   };
 
   const salesBookings = bookings.filter((b) => b.role === 'seller' && b.status === 'COMPLETED');
-  // Completed transactions this user still owes a review on. A seller's review is taken
-  // during completion, so in practice these are the buyer's side of the deal.
-  const awaitingReview = bookings.filter((b) => b.status === 'COMPLETED' && b.reviewedByMe === false);
+  // Completed transactions this user still owes a review on -- as the BUYER only.
+  //
+  // Sellers are no longer nagged to rate buyers. That rating went almost nowhere: what a
+  // shop card, the leaderboard and a storefront average all read is the buyer's review of
+  // the seller. Prompting for the other direction filled the seller's dashboard with a
+  // chore that produced nothing anyone looks at. Sellers get asked about the platform when
+  // a sale completes instead.
+  const awaitingReview = bookings.filter(
+    (b) => b.status === 'COMPLETED' && b.reviewedByMe === false && b.role !== 'seller');
   const totalRevenue = salesBookings.reduce((sum, b) => sum + (b.agreedPrice || 0), 0);
 
   // Storefront orders still owing somebody something. Counts work outstanding rather than
@@ -305,7 +314,7 @@ export default function Dashboard() {
               two don't mix with overflow-x-auto — a centred row that overflows clips its own
               start with no way to scroll back to it). `sm:` and up is the original layout,
               unchanged. */}
-          <div className="flex items-center justify-start sm:flex-wrap sm:justify-center gap-x-3 gap-y-2.5 mb-5 pb-4 border-b border-white/5 overflow-x-auto sm:overflow-visible scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex items-center justify-start sm:flex-wrap sm:justify-center gap-x-3 gap-y-2.5 mb-5 pb-4 border-b border-white/5 overflow-x-auto overscroll-x-contain sm:overflow-visible scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
             {tabGroups.filter((g) => g.tabs.length > 0).map((group, gi) => (
               <div key={group.key} className="flex items-center gap-2 shrink-0">
                 {gi > 0 && <div className="w-px h-5 bg-white/10 mr-1 shrink-0" />}
@@ -516,7 +525,23 @@ export default function Dashboard() {
                             )}
 
                             {booking.status === 'BOOKED' && !isBuyer && (
-                              <button onClick={() => setReviewing({ booking, mode: 'complete' })} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
+                              <button
+                                onClick={async () => {
+                                  // Complete first, ask second. The sale and the payout must
+                                  // not wait on an opinion: if the feedback request fails or
+                                  // is dismissed, the order is already done.
+                                  try {
+                                    await bookingsApi.complete(booking.id);
+                                    loadData();
+                                    setFeedbackFor(booking);
+                                  } catch (e) {
+                                    dispatchToast(
+                                      e?.response?.data?.error || 'Could not complete that order.',
+                                      'error');
+                                  }
+                                }}
+                                className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1"
+                              >
                                 <Check className="w-3 h-3" /> Complete
                               </button>
                             )}
@@ -860,24 +885,34 @@ export default function Dashboard() {
         </motion.div>
       </div>
 
+      {/* Only ever the buyer rating the seller now -- completion no longer opens this. */}
       {reviewing && (
         <ReviewModal
-          title={reviewing.mode === 'complete' ? 'Complete booking' : 'Rate this transaction'}
-          subjectName={reviewing.booking.role === 'seller' ? reviewing.booking.buyerName : reviewing.booking.sellerName}
+          title="Rate this transaction"
+          subjectName={reviewing.booking.sellerName}
           context={reviewing.booking.listingTitle}
-          note={reviewing.mode === 'complete'
-            ? 'Marking this complete releases payment to the seller. Your rating is saved with it.'
-            : undefined}
-          submitLabel={reviewing.mode === 'complete' ? 'Complete & submit' : 'Submit review'}
+          submitLabel="Submit review"
           onClose={() => setReviewing(null)}
           onSubmit={async ({ rating, comment }) => {
-            if (reviewing.mode === 'complete') {
-              await bookingsApi.complete(reviewing.booking.id, { rating, comment });
-            } else {
-              await reviewsApi.create({ bookingId: reviewing.booking.id, rating, comment });
-            }
+            await reviewsApi.create({ bookingId: reviewing.booking.id, rating, comment });
             setReviewing(null);
             loadData();
+          }}
+        />
+      )}
+
+      {feedbackFor && (
+        <PlatformFeedbackModal
+          onClose={() => setFeedbackFor(null)}
+          onSubmit={async ({ rating, improvement }) => {
+            await feedbackApi.submit({
+              rating,
+              improvement,
+              bookingId: feedbackFor.id,
+              authorRole: 'SELLER',
+            });
+            setFeedbackFor(null);
+            dispatchToast('Thanks — that goes straight to the team.', 'success');
           }}
         />
       )}

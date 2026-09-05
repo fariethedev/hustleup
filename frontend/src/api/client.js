@@ -187,9 +187,10 @@ export const bookingsApi = {
     api.patch(`/bookings/${id}/counter`, { counterPrice }),
   accept: (id) => api.patch(`/bookings/${id}/accept`),
   cancel: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }),
-  // Completing a booking carries the completer's review of the other party — the server
-  // rejects the call without a 1-5 rating. See BookingService#complete.
-  complete: (id, review) => api.patch(`/bookings/${id}/complete`, review),
+  // Completing takes no body. It used to require the seller's review of the buyer, which
+  // held their own payout behind an opinion they had no reason to hold; they are asked for
+  // platform feedback afterwards instead, which gates nothing. See BookingService#complete.
+  complete: (id) => api.patch(`/bookings/${id}/complete`),
   my: () => api.get('/bookings/my'),
   // Verifies a Stripe checkout session on the buyer's return and applies the same update
   // the webhook would. The webhook stays the authority; this exists because the buyer's
@@ -321,6 +322,19 @@ export const directMessagesApi = {
 export const reviewsApi = {
   create: (data) => api.post('/reviews', data),
   getForUser: (userId) => api.get(`/reviews/user/${userId}`),
+};
+
+/**
+ * How the platform itself is doing, in the words of the people selling on it.
+ *
+ * Not a review: a review is public, attributed to a person and moves somebody's rating.
+ * This is private to admins and moves nothing, which is what makes it worth reading.
+ */
+export const feedbackApi = {
+  /** @param {{rating: number, improvement?: string, bookingId?: string, authorRole?: string}} data */
+  submit: (data) => api.post('/feedback', data),
+  /** Admin only. */
+  all: () => api.get('/feedback'),
 };
 
 // Notifications

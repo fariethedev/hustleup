@@ -728,22 +728,24 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingDto complete(UUID bookingId, Integer rating, String comment) {
+    public BookingDto complete(UUID bookingId) {
         User user = getCurrentUser();
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        // Completing a transaction now carries a review of the counterparty. Ratings used to
-        // be an optional afterthought nobody performed, which left shop pages with nothing to
-        // show; making it part of the completing action is what actually produces them.
+        // Completing no longer demands anything from the seller.
         //
-        // Note what is gated and what is NOT: the person who must supply the review is the
-        // same person performing the action. Blocking completion on the OTHER party's review
-        // would let a silent buyer hold a seller's payout hostage indefinitely, since
-        // completion is what releases the Stripe transfer below.
-        if (rating == null || rating < 1 || rating > 5) {
-            throw new IllegalArgumentException("A rating between 1 and 5 is required to complete a booking");
-        }
+        // It used to require them to rate the buyer, on the reasoning that a rating nobody is
+        // forced to give is a rating nobody gives. That produced the wrong rating: the stars
+        // on a shop card, the leaderboard and the storefront average all come from the
+        // BUYER's review of the SELLER, which the buyer leaves separately. What the gate
+        // actually collected was a seller's opinion of a buyer, which is surfaced almost
+        // nowhere -- and it collected it by holding the seller's own payout behind an opinion
+        // they had no particular reason to hold, on the one action that releases their money.
+        //
+        // The seller is still asked something at this moment, because finishing a sale is a
+        // good moment to ask: how HustleSpace is working for them, and what to fix. That goes
+        // to PlatformFeedback, is private to admins, and gates nothing.
 
         // Only the seller can declare the work done
         if (!booking.getSellerId().equals(user.getId())) {
@@ -763,21 +765,6 @@ public class BookingService {
             delivery.setFulfilmentStatus(delivery.methodOrDefault().finalStep());
             delivery.setDeliveredAt(LocalDateTime.now());
             delivery.setUpdatedAt(LocalDateTime.now());
-        }
-
-        // The completer reviews the other party. @Transactional on this method means a
-        // failure here rolls the completion back too — you never get a completed booking
-        // whose required review silently went missing.
-        UUID reviewedId = booking.getSellerId().equals(user.getId())
-                ? booking.getBuyerId() : booking.getSellerId();
-        if (!reviewRepository.existsByBookingIdAndReviewerId(bookingId, user.getId())) {
-            reviewRepository.save(Review.builder()
-                    .bookingId(bookingId)
-                    .reviewerId(user.getId())
-                    .reviewedId(reviewedId)
-                    .rating(rating)
-                    .comment(comment == null || comment.isBlank() ? null : comment.trim())
-                    .build());
         }
 
         // Pay the seller out now that the work is confirmed done — but only if the buyer

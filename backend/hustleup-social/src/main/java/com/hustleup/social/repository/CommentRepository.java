@@ -62,4 +62,10 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
      */
     @Transactional
     void deleteByPostId(String postId);
+
+    /**
+     * Every reply under a comment. Used to refuse deleting nothing silently and to clean up
+     * a thread when its parent goes.
+     */
+    List<Comment> findByParentIdOrderByCreatedAtAsc(String parentId);
 }

@@ -219,6 +219,11 @@ public class CommonSecurityConfig {
                 // survives a future route change that widens this matcher. Declared first
                 // so no permitAll rule below can ever shadow it.
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                // Platform feedback: sellers write it, only admins read it. It is candid
+                // precisely because it is private -- a seller saying "payouts are slow"
+                // would not say it if it were going to sit on their shop page. POST falls
+                // through to .anyRequest().authenticated() below.
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/feedback", "/api/v1/feedback/**").hasRole("ADMIN")
                 // Auth endpoints (login, register, token refresh) must be publicly accessible
                 .requestMatchers("/api/v1/auth/**", "/api/v1/public/**").permitAll()
                 // Authenticated-only user endpoints must be matched BEFORE the public
