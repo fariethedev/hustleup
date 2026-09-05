@@ -103,6 +103,20 @@ public class Comment {
     @Column(name = "likes_count")
     private Integer likesCount = 0;
 
+    /**
+     * When the comment was posted.
+     *
+     * <p>{@code @CreationTimestamp} was missing here while the import for it sat unused at
+     * the top of the file, so every comment and reply was inserted with a null timestamp.
+     * That is what threads are ordered by — {@code findByPostIdOrderByCreatedAtAsc} — so
+     * with every row null the order was arbitrary, and a new reply landed wherever the
+     * database happened to return it rather than at the end of its thread.
+     *
+     * <p>Rows written before this was fixed keep their null and sort first under MySQL,
+     * which is where they belong: they genuinely predate everything written after it. No
+     * backfill, because inventing a plausible timestamp is still inventing one.
+     */
+    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

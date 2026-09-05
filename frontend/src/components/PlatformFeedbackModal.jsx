@@ -89,7 +89,7 @@ export default function PlatformFeedbackModal({ onSubmit, onClose }) {
         </div>
 
         <div className="mt-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500 mb-2">
+          <p className="text-[10px] font-black tracking-[0.15em] text-gray-500 mb-2">
             How is selling here working for you?
           </p>
           <div className="flex items-center gap-1.5" onMouseLeave={() => setHover(0)}>
@@ -117,7 +117,7 @@ export default function PlatformFeedbackModal({ onSubmit, onClose }) {
         </div>
 
         <div className="mt-5">
-          <label htmlFor="improvement" className="block text-[10px] font-black uppercase tracking-[0.15em] text-gray-500 mb-2">
+          <label htmlFor="improvement" className="block text-[10px] font-black tracking-[0.15em] text-gray-500 mb-2">
             What should we improve?
           </label>
           <textarea
@@ -140,7 +140,7 @@ export default function PlatformFeedbackModal({ onSubmit, onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-[10px] font-black uppercase tracking-widest hover:text-white hover:border-white/25 transition-colors"
+            className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-[10px] font-black tracking-widest hover:text-white hover:border-white/25 transition-colors"
           >
             Not now
           </button>
@@ -148,7 +148,7 @@ export default function PlatformFeedbackModal({ onSubmit, onClose }) {
             type="button"
             onClick={submit}
             disabled={busy}
-            className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 hover:brightness-110 active:scale-95 transition-all"
+            className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 hover:brightness-110 active:scale-95 transition-all"
           >
             {busy ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending…</> : 'Send feedback'}
           </button>

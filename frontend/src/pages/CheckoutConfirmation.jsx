@@ -66,7 +66,7 @@ export default function CheckoutConfirmation() {
         </motion.div>
 
         <div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tight mb-3">
+          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-3">
             {confirming === 'working' ? 'Confirming payment…' : 'Order placed'}
           </h1>
           <p className="text-gray-400 font-medium">
@@ -123,7 +123,7 @@ export default function CheckoutConfirmation() {
 
             {items.length > 0 && (
               <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-                <span className="text-white font-black uppercase tracking-widest text-sm">Total</span>
+                <span className="text-white font-black tracking-widest text-sm">Total</span>
                 <span className="text-[#CDFF00] text-xl font-black">{formatPrice(total, currency)}</span>
               </div>
             )}
@@ -141,19 +141,19 @@ export default function CheckoutConfirmation() {
               people to "Keep shopping" without ever saying where to watch the order. */}
           <Link
             to="/dashboard"
-            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-widest hover:bg-[#d9ff33] transition-colors"
+            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:bg-[#d9ff33] transition-colors"
           >
             <ClipboardList className="w-4 h-4" /> Track order
           </Link>
           <Link
             to="/dm"
-            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white font-black text-[11px] uppercase tracking-widest hover:bg-white/10 transition-colors"
+            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white font-black text-[11px] tracking-widest hover:bg-white/10 transition-colors"
           >
             <MessageSquare className="w-4 h-4" /> Message seller
           </Link>
           <Link
             to="/explore"
-            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white font-black text-[11px] uppercase tracking-widest hover:bg-white/10 transition-colors"
+            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white font-black text-[11px] tracking-widest hover:bg-white/10 transition-colors"
           >
             Keep shopping <ArrowRight className="w-4 h-4" />
           </Link>

@@ -278,7 +278,7 @@ export default function StoryBar() {
               transition={{ type: 'spring', stiffness: 320, damping: 26 }}
               className="fixed z-[201] left-1/2 -translate-x-1/2 bottom-6 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 w-[min(22rem,calc(100vw-2rem))] rounded-3xl border border-white/10 bg-[#0A0A0A] p-2 shadow-[0_28px_80px_-24px_rgba(0,0,0,0.95)]"
             >
-              <p className="px-4 pt-3 pb-2 text-[10px] font-black uppercase tracking-[0.24em] text-gray-500">
+              <p className="px-4 pt-3 pb-2 text-[10px] font-black tracking-[0.24em] text-gray-500">
                 Your story
               </p>
               <button
@@ -320,7 +320,7 @@ export default function StoryBar() {
               <button
                 type="button"
                 onClick={() => setOwnStoryChoiceOpen(false)}
-                className="w-full mt-1 px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
+                className="w-full mt-1 px-4 py-3 rounded-2xl text-[11px] font-black tracking-widest text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
               >
                 Cancel
               </button>

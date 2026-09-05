@@ -145,7 +145,7 @@ function Section({
             <Icon className="w-4 h-4 text-[#CDFF00]" />
           </span>
           <div className="min-w-0">
-            <h3 className="text-sm font-black text-white uppercase tracking-tight flex items-center gap-1.5">
+            <h3 className="text-sm font-black text-white tracking-tight flex items-center gap-1.5">
               {title}
               {canPost && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00]" title="Verified publisher" />}
             </h3>
@@ -157,7 +157,7 @@ function Section({
           <button
             type="button"
             onClick={onCompose}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#E0FF4D] transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#E0FF4D] transition-colors shrink-0"
           >
             <Plus className="w-3 h-3" /> {composeLabel}
           </button>
@@ -166,7 +166,7 @@ function Section({
              would say "no" without saying how to get to "yes". */
           <Link
             to={applyTo}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:border-white/30 transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-[10px] font-black tracking-widest hover:border-white/30 transition-colors shrink-0"
           >
             <ShieldCheck className="w-3 h-3" /> {applyLabel}
           </Link>
@@ -192,7 +192,7 @@ function PublishedRow({ title, meta, to, icon: Icon = Eye }) {
     >
       <span className="min-w-0">
         <span className="block text-xs font-bold text-white truncate">{title}</span>
-        <span className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 truncate">
+        <span className="block text-[10px] font-bold tracking-widest text-gray-500 truncate">
           {meta.filter(Boolean).join(' · ')}
         </span>
       </span>

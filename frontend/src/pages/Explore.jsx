@@ -134,11 +134,11 @@ export default function Explore() {
   const emptyState = (icon, message) => (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
       {icon}
-      <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">No results</h2>
+      <h2 className="text-xl font-black text-white tracking-tight mb-2">No results</h2>
       <p className="text-sm text-gray-400 mb-6">{message}</p>
       <button
         onClick={clearFilters}
-        className="px-6 py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
+        className="px-6 py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
       >
         Clear filters
       </button>
@@ -174,7 +174,7 @@ export default function Explore() {
                     <button
                       key={t.key}
                       onClick={() => { setTab(t.key); setListingType(''); }}
-                      className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors shrink-0 ${
+                      className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black tracking-widest whitespace-nowrap transition-colors shrink-0 ${
                         isActive ? 'text-black' : 'text-gray-400'
                       }`}
                     >
@@ -300,7 +300,7 @@ export default function Explore() {
                       <div className="flex gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide pb-0.5">
                         <button
                           onClick={() => setListingType('')}
-                          className={`shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                          className={`shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest ${
                             !listingType ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400'
                           }`}
                         >
@@ -310,7 +310,7 @@ export default function Explore() {
                           <button
                             key={t.value}
                             onClick={() => setListingType(listingType === t.value ? '' : t.value)}
-                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest ${
                               listingType === t.value ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400'
                             }`}
                           >
@@ -321,13 +321,13 @@ export default function Explore() {
                     )}
 
                     <div className="flex items-center justify-between pt-0.5">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                      <span className="text-[10px] font-bold tracking-widest text-gray-500">
                         {isLoading ? 'Loading…' : `${resultCount} result${resultCount !== 1 ? 's' : ''}`}
                       </span>
                       {hasFilters && (
                         <button
                           onClick={clearFilters}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-gray-300"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300"
                         >
                           <X className="w-3 h-3" /> Clear
                         </button>
@@ -402,7 +402,7 @@ export default function Explore() {
                   <button
                     key={t.key}
                     onClick={() => { setTab(t.key); setListingType(''); }}
-                    className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors ${
+                    className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest whitespace-nowrap transition-colors ${
                       isActive ? 'text-black' : 'text-gray-400 hover:text-white'
                     }`}
                   >
@@ -425,13 +425,13 @@ export default function Explore() {
             </nav>
 
             <div className="flex items-center gap-2 shrink-0">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 hidden sm:block">
+              <span className="text-[10px] font-bold tracking-widest text-gray-500 hidden sm:block">
                 {isLoading ? 'Loading…' : `${resultCount} result${resultCount !== 1 ? 's' : ''}`}
               </span>
               {hasFilters && (
                 <button
                   onClick={clearFilters}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/25 transition-colors"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/25 transition-colors"
                 >
                   <X className="w-3 h-3" /> Clear
                 </button>
@@ -444,7 +444,7 @@ export default function Explore() {
             <div className="flex flex-wrap gap-2 mt-3">
               <button
                 onClick={() => setListingType('')}
-                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                className={`px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest transition-all active:scale-95 ${
                   !listingType ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
                 }`}
               >
@@ -454,7 +454,7 @@ export default function Explore() {
                 <button
                   key={t.value}
                   onClick={() => setListingType(listingType === t.value ? '' : t.value)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest transition-all active:scale-95 ${
                     listingType === t.value ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
                   }`}
                 >

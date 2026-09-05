@@ -22,7 +22,7 @@ export default function ExploreNav() {
   return (
     <div className="sticky top-14 md:top-16 z-[90] bg-black/85 backdrop-blur-md border-b border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center gap-2 sm:gap-3">
-        <span className="hidden sm:flex items-center gap-1.5 text-sm font-black text-white uppercase tracking-tighter shrink-0">
+        <span className="hidden sm:flex items-center gap-1.5 text-sm font-black text-white tracking-tighter shrink-0">
           <Compass className="w-4 h-4 text-[#FF00FF]" /> Explore
         </span>
         <div className="hidden sm:block w-px h-5 bg-white/10 shrink-0" />
@@ -35,7 +35,7 @@ export default function ExploreNav() {
               <Link
                 key={tab.to}
                 to={tab.to}
-                className={`relative flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors ${
+                className={`relative flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-[10px] font-black tracking-widest whitespace-nowrap transition-colors ${
                   active ? 'text-black' : 'text-gray-400 hover:text-white'
                 }`}
               >

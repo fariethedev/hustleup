@@ -110,7 +110,7 @@ const Toast = ({ toast, onRemove }) => {
 
       {/* min-w-0 + break-words: a long server message used to force the toast wider than the
           screen instead of wrapping inside it. */}
-      <p className="flex-1 min-w-0 text-[13px] sm:text-sm font-black uppercase tracking-tight leading-tight break-words">
+      <p className="flex-1 min-w-0 text-[13px] sm:text-sm font-black tracking-tight leading-tight break-words">
         {toast.message}
       </p>
 

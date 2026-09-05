@@ -160,9 +160,9 @@ export default function ShopDetail() {
       <div className="min-h-[70vh] flex items-center justify-center px-4">
         <div className="text-center">
           <Package className="w-16 h-16 mx-auto text-gray-300 mb-6 opacity-20" />
-          <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Shop not found</h2>
+          <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Shop not found</h2>
           <p className="text-gray-400 mb-6 font-medium">This storefront doesn't exist, or its owner has taken it down.</p>
-          <Link to="/explore/shops" className="px-8 py-3.5 rounded-2xl bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:scale-105 transition-all">
+          <Link to="/explore/shops" className="px-8 py-3.5 rounded-2xl bg-[#CDFF00] text-black font-black tracking-widest hover:scale-105 transition-all">
             Browse shops
           </Link>
         </div>
@@ -223,7 +223,7 @@ export default function ShopDetail() {
           <Link
             to="/explore/shops"
             aria-label="All shops"
-            className="flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-5 rounded-2xl bg-black/70 backdrop-blur-md border border-white/15 text-white font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all active:scale-95 shrink-0"
+            className="flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-5 rounded-2xl bg-black/70 backdrop-blur-md border border-white/15 text-white font-black text-[10px] tracking-widest hover:scale-105 transition-all active:scale-95 shrink-0"
           >
             <ArrowLeft className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">All shops</span>
           </Link>
@@ -234,7 +234,7 @@ export default function ShopDetail() {
               <Link
                 to="/dashboard"
                 aria-label="Edit shop"
-                className="flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-4 rounded-2xl bg-[#CDFF00] text-black font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform active:scale-95"
+                className="flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-4 rounded-2xl bg-[#CDFF00] text-black font-black text-[10px] tracking-widest hover:scale-105 transition-transform active:scale-95"
               >
                 <Pencil className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="hidden sm:inline">Edit shop</span>
               </Link>
@@ -274,7 +274,7 @@ export default function ShopDetail() {
               <motion.span
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="px-3 py-1 sm:px-4 sm:py-1.5 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-black/70 backdrop-blur-md border border-white/20"
+                className="px-3 py-1 sm:px-4 sm:py-1.5 rounded-2xl text-[9px] sm:text-[10px] font-black tracking-widest bg-black/70 backdrop-blur-md border border-white/20"
                 style={{ color: shop.accentColor || '#CDFF00' }}
               >
                 {shop.category}
@@ -294,7 +294,7 @@ export default function ShopDetail() {
                animate={{ opacity: 1 }}
                transition={{ delay: 0.3 }}
                // gap-6 between three wrapping items cost two extra rows on a phone.
-               className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:gap-6 text-gray-300 text-[10px] sm:text-xs font-bold uppercase tracking-widest"
+               className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:gap-6 text-gray-300 text-[10px] sm:text-xs font-bold tracking-widest"
             >
               <span className="flex items-center gap-1.5 sm:gap-2">
                 <div className="w-fit px-2 py-1 bg-[#CDFF00] text-black rounded-lg flex items-center gap-1">
@@ -335,7 +335,7 @@ export default function ShopDetail() {
             )}
             {shop.description && (
               <div className="mb-8">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">About this shop</h4>
+                <h4 className="text-[10px] font-black tracking-widest text-gray-500 mb-2">About this shop</h4>
                 <p className="text-sm text-gray-300 leading-relaxed max-w-3xl whitespace-pre-line">
                   {shop.description}
                 </p>
@@ -343,7 +343,7 @@ export default function ShopDetail() {
             )}
 
             {/* Breadcrumb Navigation */}
-            <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-500 mb-6">
+            <div className="flex items-center gap-3 text-[10px] font-black tracking-widest text-gray-500 mb-6">
               <Link to="/explore/shops" className="hover:text-[#CDFF00] transition-colors">Shops</Link>
               <ChevronRight className="w-3 h-3" />
               <span className="text-[#CDFF00]">{shop.name}</span>
@@ -356,7 +356,7 @@ export default function ShopDetail() {
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
-                    className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-2xl text-[10px] font-black tracking-widest transition-all ${
                       activeCategory === cat
                         ? 'bg-[#CDFF00] text-black shadow-[0_0_20px_rgba(205,255,0,0.3)]'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -401,18 +401,18 @@ export default function ShopDetail() {
                   <div className="p-3 sm:p-5 flex flex-col flex-1 min-w-0">
                     {product.category && (
                       <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[#CDFF00] opacity-40 truncate">{product.category}</span>
+                        <span className="text-[9px] sm:text-[10px] font-black tracking-widest text-[#CDFF00] opacity-40 truncate">{product.category}</span>
                         <div className="h-px bg-white/10 flex-1" />
                       </div>
                     )}
-                    <h3 className="text-sm sm:text-lg font-black text-white mb-2 sm:mb-3 leading-tight group-hover:text-[#CDFF00] transition-colors line-clamp-2 uppercase tracking-tighter">
+                    <h3 className="text-sm sm:text-lg font-black text-white mb-2 sm:mb-3 leading-tight group-hover:text-[#CDFF00] transition-colors line-clamp-2 tracking-tighter">
                       {product.name}
                     </h3>
                     <div className="flex items-center justify-between gap-2 mt-auto min-w-0">
                       <div className="flex flex-col min-w-0">
                         {/* The label is the first thing to go at two-up: it is a caption on a
                             number that already looks like a price. */}
-                        <span className="hidden sm:block text-[9px] font-black uppercase tracking-widest text-gray-500 mb-0.5">Price Point</span>
+                        <span className="hidden sm:block text-[9px] font-black tracking-widest text-gray-500 mb-0.5">Price Point</span>
                         <span className="text-base sm:text-2xl font-black text-white tracking-tighter truncate">
                           {formatPrice(product.price, product.currency)}
                         </span>
@@ -420,7 +420,7 @@ export default function ShopDetail() {
                             comparing two shops is comparing what it costs to get the thing,
                             not what it costs before delivery is added. */}
                         {product.shippingMethod && product.shippingMethod !== 'NONE' && (
-                          <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 mt-0.5 truncate">
+                          <span className="text-[9px] font-black tracking-widest text-gray-500 mt-0.5 truncate">
                             {Number(product.shippingPrice) > 0
                               ? `+ ${formatPrice(product.shippingPrice, product.currency)} delivery`
                               : 'Free delivery'}
@@ -452,20 +452,20 @@ export default function ShopDetail() {
             {filteredProducts.length === 0 && (
               <div className="text-center px-4 py-14 sm:py-24 rounded-3xl sm:rounded-[48px] border-dashed border-2 border-white/5">
                 <Package className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-500 mb-5 sm:mb-6 opacity-30" />
-                <h3 className="text-lg sm:text-xl font-black text-white mb-2 uppercase tracking-tighter">
+                <h3 className="text-lg sm:text-xl font-black text-white mb-2 tracking-tighter">
                   {products.length === 0 ? 'Nothing on the shelf yet' : 'Nothing in this category'}
                 </h3>
                 {isOwner && products.length === 0 ? (
                   <Link
                     to="/dashboard"
-                    className="inline-block mt-2 px-6 py-2.5 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#d9ff33] transition-colors"
+                    className="inline-block mt-2 px-6 py-2.5 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] transition-colors"
                   >
                     Add your first product
                   </Link>
                 ) : products.length > 0 && (
                   <button
                     onClick={() => setActiveCategory('All')}
-                    className="text-xs font-black uppercase tracking-widest text-[#CDFF00] hover:text-white transition-colors"
+                    className="text-xs font-black tracking-widest text-[#CDFF00] hover:text-white transition-colors"
                   >
                     Show all products
                   </button>
@@ -480,14 +480,14 @@ export default function ShopDetail() {
           <aside className="order-1 lg:order-2 lg:sticky lg:top-32 flex flex-col gap-5 lg:gap-8 w-full min-w-0">
              {isOwner && (
                <div className="p-5 rounded-3xl sm:rounded-[32px] bg-[#CDFF00]/5 border border-[#CDFF00]/30">
-                  <h5 className="text-[10px] font-black uppercase tracking-widest text-[#CDFF00] mb-1.5">This is your shop</h5>
+                  <h5 className="text-[10px] font-black tracking-widest text-[#CDFF00] mb-1.5">This is your shop</h5>
                   <p className="text-xs text-gray-400 mb-4 leading-relaxed">
                     Everything on this page — the banner, colour, copy, city and every product —
                     is yours to change.
                   </p>
                   <Link
                     to="/dashboard"
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#d9ff33] transition-colors"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] transition-colors"
                   >
                     <Pencil className="w-3.5 h-3.5" /> Edit shop
                   </Link>
@@ -496,7 +496,7 @@ export default function ShopDetail() {
 
              {isBookable && (
                <div className="p-5 sm:p-6 rounded-3xl sm:rounded-[32px] bg-white/[0.03] border border-white/10">
-                  <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1 flex items-center gap-2">
+                  <h5 className="text-[10px] font-black tracking-widest text-gray-500 mb-1 flex items-center gap-2">
                     <CalendarClock className="w-3.5 h-3.5 text-[#CDFF00]" /> Book an appointment
                   </h5>
                   <p className="text-xs text-gray-400 mb-4">Pick a date and time that works for you.</p>
@@ -506,7 +506,7 @@ export default function ShopDetail() {
                       <button
                         key={day.key}
                         onClick={() => { setSelectedDay(i); setSelectedTime(null); }}
-                        className={`px-2 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all ${
+                        className={`px-2 py-2 rounded-xl text-[10px] font-bold tracking-wide transition-all ${
                           selectedDay === i ? 'bg-[#CDFF00] text-black' : 'bg-white/5 text-gray-400 hover:bg-white/10'
                         }`}
                       >
@@ -543,7 +543,7 @@ export default function ShopDetail() {
                     className="absolute top-0 right-0 w-32 h-32 blur-3xl opacity-20"
                     style={{ background: shop.accentColor || '#CDFF00' }}
                   />
-                  <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-4">Run by</h5>
+                  <h5 className="text-[10px] font-black tracking-widest text-gray-500 mb-4">Run by</h5>
                   <Link to={`/profile/${shop.ownerId}`} className="flex items-center gap-3 mb-5 group">
                     <div className="w-11 h-11 rounded-full overflow-hidden bg-black border border-white/10 shrink-0">
                       <SmartImage src={shop.ownerAvatarUrl} alt={shop.ownerName} className="w-full h-full object-cover" />
@@ -552,7 +552,7 @@ export default function ShopDetail() {
                       <p className="text-sm font-bold text-white truncate group-hover:text-[#CDFF00] transition-colors">
                         {shop.ownerName || 'Seller'}
                       </p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                      <p className="text-[10px] font-black tracking-widest text-gray-500">
                         {displayCity(shop.city)}
                       </p>
                     </div>
@@ -560,7 +560,7 @@ export default function ShopDetail() {
                   {/* DMs go to the owner's account, which is who actually answers. */}
                   <Link
                     to={`/dm/${shop.ownerId}`}
-                    className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-center text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-colors"
+                    className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-center text-[10px] font-black tracking-widest text-white hover:bg-white/10 transition-colors"
                   >
                     Message owner
                   </Link>
@@ -574,7 +574,7 @@ export default function ShopDetail() {
           <div className="mt-10 sm:mt-16">
             <div className="flex items-center gap-2 mb-5">
               <ClipboardList className="w-4 h-4 text-[#00FFFF]" />
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+              <h4 className="text-[10px] font-black tracking-widest text-gray-500">
                 Also from {shop.ownerName || 'this seller'}
               </h4>
             </div>
@@ -589,7 +589,7 @@ export default function ShopDetail() {
         {/* Products you may also like */}
         {suggestedProducts.length > 0 && (
           <div className="mt-10 sm:mt-16">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-5">Products you may also like</h4>
+            <h4 className="text-[10px] font-black tracking-widest text-gray-500 mb-5">Products you may also like</h4>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5">
               {suggestedProducts.map((product) => (
                 <Link
@@ -611,7 +611,7 @@ export default function ShopDetail() {
                     />
                   </div>
                   <div className="p-3.5 flex flex-col flex-1">
-                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest truncate mb-1">{product.shopName}</span>
+                    <span className="text-[9px] font-bold text-gray-500 tracking-widest truncate mb-1">{product.shopName}</span>
                     <h5 className="text-xs font-bold text-white line-clamp-2 mb-2 group-hover:text-[#CDFF00] transition-colors">{product.name}</h5>
                     <span className="mt-auto text-sm font-black text-white">{formatPrice(product.price, product.currency)}</span>
                   </div>
@@ -624,7 +624,7 @@ export default function ShopDetail() {
         {/* Shops you may also like */}
         {otherShops.length > 0 && (
           <div className="mt-14 mb-4">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-5">Shops you may also like</h4>
+            <h4 className="text-[10px] font-black tracking-widest text-gray-500 mb-5">Shops you may also like</h4>
             <div className="flex gap-4 sm:gap-6 overflow-x-auto overscroll-x-contain scrollbar-hide pb-1">
               {otherShops.map((s) => (
                 <Link key={s.id} to={`/shop/${s.slug || s.id}`} className="group flex flex-col items-center w-[92px] shrink-0 text-center">

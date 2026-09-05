@@ -177,7 +177,7 @@ export default function Onboarding() {
     <div className="max-w-2xl mx-auto px-4 py-10 sm:py-14">
       {/* ── Header + progress ─────────────────────────────────────────────── */}
       <div className="mb-8">
-        <span className="text-[10px] font-black uppercase tracking-[0.35em] text-[#CDFF00] mb-2 block">
+        <span className="text-[10px] font-black tracking-[0.35em] text-[#CDFF00] mb-2 block">
           Welcome, seller
         </span>
         <h1 className="text-2xl sm:text-3xl font-black text-white mb-1.5">Set up your shop</h1>
@@ -274,7 +274,7 @@ export default function Onboarding() {
             )}
           </AnimatePresence>
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-          <span className="absolute top-2.5 left-3 text-[9px] font-black uppercase tracking-[0.2em] text-white/60">
+          <span className="absolute top-2.5 left-3 text-[9px] font-black tracking-[0.2em] text-white/60">
             Preview
           </span>
         </div>
@@ -315,7 +315,7 @@ export default function Onboarding() {
               {step === 0 && (
                 <>
                   <motion.div variants={item}>
-                    <label htmlFor="shop-name" className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">
+                    <label htmlFor="shop-name" className="block text-[11px] font-bold text-gray-400 tracking-widest mb-2.5">
                       Shop name
                     </label>
                     <input
@@ -338,7 +338,7 @@ export default function Onboarding() {
                   </motion.div>
 
                   <motion.div variants={item}>
-                    <label htmlFor="shop-city" className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">
+                    <label htmlFor="shop-city" className="block text-[11px] font-bold text-gray-400 tracking-widest mb-2.5">
                       City
                     </label>
                     <select
@@ -359,7 +359,7 @@ export default function Onboarding() {
 
               {step === 1 && (
                 <motion.div variants={item}>
-                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">
+                  <label className="block text-[11px] font-bold text-gray-400 tracking-widest mb-2.5">
                     Shop banner
                   </label>
                   <motion.div
@@ -372,7 +372,7 @@ export default function Onboarding() {
                       <>
                         <img src={bannerPreview} className="w-full h-full object-cover" alt="Banner preview" />
                         <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
-                          <span className="text-xs font-bold uppercase tracking-widest text-white">Replace</span>
+                          <span className="text-xs font-bold tracking-widest text-white">Replace</span>
                         </div>
                       </>
                     ) : (
@@ -382,7 +382,7 @@ export default function Onboarding() {
                         className="flex flex-col items-center gap-2 text-gray-600 group-hover:text-[#CDFF00] transition-colors"
                       >
                         <Camera className="w-7 h-7" />
-                        <span className="text-xs font-bold uppercase tracking-widest">Upload a banner</span>
+                        <span className="text-xs font-bold tracking-widest">Upload a banner</span>
                         <span className="text-[10px] text-gray-600 normal-case tracking-normal font-medium">
                           Wide images look best — around 1200×400
                         </span>
@@ -415,7 +415,7 @@ export default function Onboarding() {
 
               {step === 2 && (
                 <motion.div variants={item}>
-                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">
+                  <label className="block text-[11px] font-bold text-gray-400 tracking-widest mb-2.5">
                     What kind of shop is this?
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">

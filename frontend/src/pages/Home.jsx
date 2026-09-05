@@ -492,7 +492,7 @@ export default function Home() {
                         <h4 className="text-sm font-bold text-white truncate mb-1">{listing.title}</h4>
                         <div className="flex items-center justify-between">
                           <span className="text-[#CDFF00] font-bold text-sm">{formatPrice(listing.price, listing.currency)}</span>
-                          <span className="text-gray-400 text-[10px] font-semibold uppercase tracking-wide">{listing.listingType}</span>
+                          <span className="text-gray-400 text-[10px] font-semibold tracking-wide">{listing.listingType}</span>
                         </div>
                       </div>
                     </div>

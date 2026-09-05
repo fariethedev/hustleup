@@ -86,7 +86,7 @@ function MatchCelebrationModal({ currentUser, matchedProfile, superLike, onClose
           )}
         </motion.div>
 
-        <h1 className="text-4xl font-heading font-black text-white uppercase tracking-tight mb-2">
+        <h1 className="text-4xl font-heading font-black text-white tracking-tight mb-2">
           It's a match!
         </h1>
         <p className="text-gray-400 text-sm mb-9">
@@ -246,7 +246,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
             <img src={imagePreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.id}`} className="w-full h-full object-cover" alt="" />
             <button onClick={() => fileRef.current?.click()} className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
               <Camera className="w-5 h-5 text-[#CDFF00] mb-1" />
-              <span className="text-[9px] font-bold uppercase text-[#CDFF00]">Upload</span>
+              <span className="text-[9px] font-bold text-[#CDFF00]">Upload</span>
             </button>
           </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
@@ -254,7 +254,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
 
         <div className="space-y-5">
           <div>
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Bio</label>
+            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">Bio</label>
             <textarea
               value={bio}
               onChange={e => setBio(e.target.value)}
@@ -265,17 +265,17 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Age</label>
+              <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">Age</label>
               <input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="e.g. 25" className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors" />
             </div>
             <div>
-              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">City</label>
+              <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">City</label>
               <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Warszawa" className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors" />
             </div>
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Looking for</label>
+            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">Looking for</label>
             <div className="flex flex-wrap gap-2">
               {LOOKING_FOR_OPTIONS.map((o) => (
                 <Chip key={o} label={o} selected={lookingFor === o} onClick={() => setLookingFor(o)} />
@@ -285,7 +285,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
 
           <div>
             <div className="flex items-baseline justify-between mb-2">
-              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Interests</label>
+              <label className="text-[11px] font-bold text-gray-400 tracking-widest">Interests</label>
               <span className="text-[10px] text-gray-500">{interests.length}/{MAX_INTERESTS}</span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -305,7 +305,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Identity</label>
+            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">Identity</label>
             <div className="flex flex-wrap gap-2">
               <Chip label="Prefer not to say" selected={gender === ''} onClick={() => setGender('')} />
               {GENDER_OPTIONS.map((o) => (
@@ -315,7 +315,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Show me</label>
+            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">Show me</label>
             <div className="flex flex-wrap gap-2">
               {SHOW_ME_OPTIONS.map((o) => (
                 <Chip key={o} label={o} selected={showMe === o} onClick={() => setShowMe(o)} />
@@ -402,7 +402,7 @@ function PremiumPaywall({ onUpgrade, upgrading, plans }) {
                   <span className="flex items-center gap-2">
                     {p.label}
                     {isBest && (
-                      <span className="text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded bg-black/20">
+                      <span className="text-[9px] font-extrabold tracking-wide px-1.5 py-0.5 rounded bg-black/20">
                         Best value
                       </span>
                     )}
@@ -773,7 +773,7 @@ export default function Dating() {
           </span>
         </button>
 
-        <h1 className="flex items-center gap-2 text-lg sm:text-xl font-heading font-black text-white tracking-tight uppercase">
+        <h1 className="flex items-center gap-2 text-lg sm:text-xl font-heading font-black text-white tracking-tight">
           <Heart className="w-4 h-4 text-[#CDFF00] fill-[#CDFF00]" />
           Bond
         </h1>

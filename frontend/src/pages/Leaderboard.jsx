@@ -78,7 +78,7 @@ export default function Leaderboard() {
             <Trophy className="w-5 h-5 text-black" strokeWidth={3} />
           </div>
           <div>
-            <h1 className="text-xl font-black uppercase tracking-tight leading-none">Leaderboard</h1>
+            <h1 className="text-xl font-black tracking-tight leading-none">Leaderboard</h1>
             <p className="text-[11px] text-gray-500 font-bold mt-1">Who's actually hustling.</p>
           </div>
         </div>
@@ -90,8 +90,8 @@ export default function Leaderboard() {
             className="mb-5 p-4 rounded-2xl bg-white/[0.04] border border-white/10"
           >
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Your hustle score</p>
-              <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-gradient-to-r ${TIER_COLORS[myScore.tier] || TIER_COLORS.Rookie} text-black`}>
+              <p className="text-[10px] font-black tracking-[0.2em] text-gray-500">Your hustle score</p>
+              <span className={`px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest bg-gradient-to-r ${TIER_COLORS[myScore.tier] || TIER_COLORS.Rookie} text-black`}>
                 {myScore.tier}
               </span>
             </div>
@@ -113,15 +113,15 @@ export default function Leaderboard() {
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
                 <p className="text-sm font-black text-white">{myScore.salesCount}</p>
-                <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Sales</p>
+                <p className="text-[9px] text-gray-500 font-bold tracking-wide">Sales</p>
               </div>
               <div>
                 <p className="text-sm font-black text-white">{formatPrice(myScore.earnings, myScore.currency)}</p>
-                <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Earned</p>
+                <p className="text-[9px] text-gray-500 font-bold tracking-wide">Earned</p>
               </div>
               <div>
                 <p className="text-sm font-black text-white">{myScore.acceptedSwaps}</p>
-                <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wide">Swaps</p>
+                <p className="text-[9px] text-gray-500 font-bold tracking-wide">Swaps</p>
               </div>
             </div>
 
@@ -139,7 +139,7 @@ export default function Leaderboard() {
             <button
               key={key}
               onClick={() => setMetric(key)}
-              className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all ${
+              className={`flex-1 py-2 rounded-lg text-[10px] font-black tracking-widest flex items-center justify-center gap-1.5 transition-all ${
                 metric === key ? 'bg-[#CDFF00] text-black' : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -154,7 +154,7 @@ export default function Leaderboard() {
             <button
               key={key}
               onClick={() => setWindow(key)}
-              className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${
+              className={`px-3 py-1.5 rounded-full text-[9px] font-black tracking-widest border transition-all ${
                 window_ === key
                   ? 'bg-white/10 border-white/25 text-white'
                   : 'border-white/10 text-gray-500 hover:text-white'
@@ -202,7 +202,7 @@ export default function Leaderboard() {
                       {e.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00FFFF] shrink-0" />}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">{e.tier}</span>
+                      <span className="text-[9px] font-black tracking-widest text-gray-500">{e.tier}</span>
                       {e.acceptedSwaps > 0 && (
                         <span className="flex items-center gap-0.5 text-[9px] font-bold text-gray-600">
                           <Repeat className="w-2.5 h-2.5" /> {e.acceptedSwaps}

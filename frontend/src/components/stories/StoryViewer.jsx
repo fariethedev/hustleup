@@ -286,8 +286,8 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                   {currentUser.avatarUrl ? <img src={uploadUrl(currentUser.avatarUrl)} alt="" className="w-full h-full object-cover" /> : <User className="w-5 h-5 text-black" />}
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-white uppercase tracking-tight leading-none mb-0.5">{currentUser.fullName}</span>
-                  <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none">@{formatAge(currentStory.createdAt)}</span>
+                  <span className="text-[10px] font-black text-white tracking-tight leading-none mb-0.5">{currentUser.fullName}</span>
+                  <span className="text-[8px] font-bold text-gray-400 tracking-widest leading-none">@{formatAge(currentStory.createdAt)}</span>
                 </div>
               </div>
 
@@ -410,7 +410,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                 className="relative w-full max-w-md bg-[#0a0a0a] border-t border-white/10 rounded-t-3xl shadow-2xl flex flex-col max-h-[65%]"
               >
                 <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
-                  <h3 className="text-sm font-black text-white uppercase tracking-tight flex items-center gap-2">
+                  <h3 className="text-sm font-black text-white tracking-tight flex items-center gap-2">
                     <Eye className="w-4 h-4 text-[#CDFF00]" />
                     Viewers
                     {viewers.length > 0 && (
@@ -445,7 +445,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-black border border-white/10 flex items-center justify-center shrink-0">
                           {v.avatarUrl
                             ? <img src={uploadUrl(v.avatarUrl)} alt="" className="w-full h-full object-cover" />
-                            : <span className="text-[#CDFF00] font-black uppercase text-sm">{(v.name || 'U')[0]}</span>}
+                            : <span className="text-[#CDFF00] font-black text-sm">{(v.name || 'U')[0]}</span>}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">

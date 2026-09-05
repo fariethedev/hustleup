@@ -7,6 +7,7 @@ import {
   FileText, LayoutDashboard, Wrench
 } from 'lucide-react';
 import { adminApi, publishersApi, dispatchToast } from '../api/client';
+import { labelize } from '../utils/constants';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { uploadUrl } from '../config';
@@ -64,7 +65,7 @@ export default function Admin() {
     <div className="min-h-screen text-white max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
       <div className="flex items-center gap-3 mb-1">
         <ShieldCheck className="w-7 h-7 text-[#CDFF00]" />
-        <h1 className="text-2xl font-black uppercase tracking-tight">Admin console</h1>
+        <h1 className="text-2xl font-black tracking-tight">Admin console</h1>
       </div>
       <p className="text-sm text-gray-500 mb-7">Review verifications, track orders, and fix accounts.</p>
 
@@ -73,7 +74,7 @@ export default function Admin() {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black tracking-widest border transition-all ${
               tab === t.id
                 ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                 : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
@@ -140,17 +141,17 @@ function DashboardTab({ onJump }) {
           >
             <c.icon className={`w-5 h-5 mb-2 ${c.hot ? 'text-amber-400' : 'text-[#CDFF00]'}`} />
             <div className="text-2xl font-black text-white leading-none">{c.value}</div>
-            <div className="text-[9px] font-bold uppercase tracking-widest text-gray-500 mt-1.5">{c.label}</div>
+            <div className="text-[9px] font-bold tracking-widest text-gray-500 mt-1.5">{c.label}</div>
           </button>
         ))}
       </div>
 
       {market.ordersByStatus && (
         <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">Orders by status</h3>
+          <h3 className="text-[10px] font-black tracking-widest text-gray-500 mb-3">Orders by status</h3>
           <div className="flex flex-wrap gap-2">
             {Object.entries(market.ordersByStatus).map(([k, v]) => (
-              <span key={k} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+              <span key={k} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold tracking-widest text-gray-400">
                 {k} <span className="text-white ml-1">{v}</span>
               </span>
             ))}
@@ -203,7 +204,7 @@ function PublishersTab() {
           <button
             key={s}
             onClick={() => setStatus(s)}
-            className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+            className={`px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
               status === s ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
             }`}
           >
@@ -228,10 +229,10 @@ function PublishersTab() {
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <h3 className="text-sm font-black text-white">{p.companyName}</h3>
-                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${STATUS_TONE[p.status]}`}>
-                    {p.status}
+                  <span className={`text-[9px] font-black tracking-widest px-2 py-0.5 rounded-md border ${STATUS_TONE[p.status]}`}>
+                    {labelize(p.status)}
                   </span>
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                  <span className="text-[9px] font-bold tracking-widest text-gray-500">
                     {p.type === 'NEWS_OUTLET' ? 'News outlet' : 'Hiring company'}
                   </span>
                 </div>
@@ -243,7 +244,7 @@ function PublishersTab() {
 
                 {p.description && <p className="text-xs text-gray-500 leading-relaxed my-2">{p.description}</p>}
 
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold uppercase tracking-widest text-gray-600">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold tracking-widest text-gray-600">
                   {p.registrationNumber && <span>Reg: {p.registrationNumber}</span>}
                   {p.website && (
                     <a href={p.website} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-[#CDFF00] flex items-center gap-1">
@@ -269,11 +270,11 @@ function PublishersTab() {
                       className="flex-1 min-w-[200px] bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 outline-none focus:border-[#CDFF00]/60"
                     />
                     <button onClick={() => decide(p.id, 'REJECTED', note)} disabled={busy === p.id}
-                            className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-[10px] font-black uppercase tracking-widest">
+                            className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-[10px] font-black tracking-widest">
                       Confirm reject
                     </button>
                     <button onClick={() => { setNoteFor(null); setNote(''); }}
-                            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-400 text-[10px] font-black uppercase tracking-widest">
+                            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-400 text-[10px] font-black tracking-widest">
                       Cancel
                     </button>
                   </div>
@@ -281,19 +282,19 @@ function PublishersTab() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     {p.status !== 'APPROVED' && (
                       <button onClick={() => decide(p.id, 'APPROVED')} disabled={busy === p.id}
-                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-50">
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black tracking-widest disabled:opacity-50">
                         {busy === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Approve
                       </button>
                     )}
                     {p.status !== 'REJECTED' && (
                       <button onClick={() => setNoteFor(p.id)}
-                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-[10px] font-black uppercase tracking-widest">
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-[10px] font-black tracking-widest">
                         <XCircle className="w-3.5 h-3.5" /> Reject
                       </button>
                     )}
                     {p.status === 'APPROVED' && (
                       <button onClick={() => decide(p.id, 'SUSPENDED', 'Suspended by an administrator')} disabled={busy === p.id}
-                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-[10px] font-black uppercase tracking-widest">
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-[10px] font-black tracking-widest">
                         <ShieldAlert className="w-3.5 h-3.5" /> Suspend
                       </button>
                     )}
@@ -372,16 +373,16 @@ function OrdersTab() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-white/10 border border-white/10 text-gray-300">
-                  {o.status}
+                <span className="text-[9px] font-black tracking-widest px-2 py-0.5 rounded-md bg-white/10 border border-white/10 text-gray-300">
+                  {labelize(o.status)}
                 </span>
                 {o.paymentStatus && (
-                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${
+                  <span className={`text-[9px] font-black tracking-widest px-2 py-0.5 rounded-md border ${
                     o.paymentStatus === 'PAID'
                       ? 'text-[#CDFF00] bg-[#CDFF00]/10 border-[#CDFF00]/20'
                       : 'text-gray-400 bg-white/5 border-white/10'
                   }`}>
-                    {o.paymentStatus}
+                    {labelize(o.paymentStatus)}
                   </span>
                 )}
                 <span className="text-[10px] font-mono text-gray-600">{String(o.id).slice(0, 8)}</span>
@@ -400,7 +401,7 @@ function OrdersTab() {
                 setEditing(o);
                 setDraft({ status: o.status || '', paymentStatus: o.paymentStatus || '', note: '' });
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:border-[#CDFF00]/40 text-[10px] font-black uppercase tracking-widest shrink-0"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:border-[#CDFF00]/40 text-[10px] font-black tracking-widest shrink-0"
             >
               <Wrench className="w-3.5 h-3.5" /> Fix
             </button>
@@ -420,7 +421,7 @@ function OrdersTab() {
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-5 space-y-4"
             >
-              <h3 className="text-base font-black uppercase tracking-tight">Override order</h3>
+              <h3 className="text-base font-black tracking-tight">Override order</h3>
               <div className="p-3 rounded-xl bg-amber-400/10 border border-amber-400/20 flex gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                 <p className="text-[11px] text-amber-200/90 leading-relaxed">
@@ -429,7 +430,7 @@ function OrdersTab() {
               </div>
 
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5 block">Booking status</label>
+                <label className="text-[10px] font-black tracking-widest text-gray-500 mb-1.5 block">Booking status</label>
                 <select value={draft.status} onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value }))}
                         className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none">
                   {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -437,14 +438,14 @@ function OrdersTab() {
               </div>
 
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5 block">Payment status</label>
+                <label className="text-[10px] font-black tracking-widest text-gray-500 mb-1.5 block">Payment status</label>
                 <input value={draft.paymentStatus} onChange={(e) => setDraft((d) => ({ ...d, paymentStatus: e.target.value }))}
                        placeholder="PAID / UNPAID / REFUNDED"
                        className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 outline-none" />
               </div>
 
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5 block">Support note</label>
+                <label className="text-[10px] font-black tracking-widest text-gray-500 mb-1.5 block">Support note</label>
                 <input value={draft.note} onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
                        placeholder="Why you changed this"
                        className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 outline-none" />
@@ -452,11 +453,11 @@ function OrdersTab() {
 
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setEditing(null)}
-                        className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-[10px] font-black uppercase tracking-widest">
+                        className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-[10px] font-black tracking-widest">
                   Cancel
                 </button>
                 <button onClick={save} disabled={busy}
-                        className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-50 flex items-center justify-center gap-2">
+                        className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest disabled:opacity-50 flex items-center justify-center gap-2">
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save override'}
                 </button>
               </div>
@@ -517,7 +518,7 @@ function UsersTab() {
           <div className="w-10 h-10 rounded-full bg-black border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
             {u.avatarUrl
               ? <img src={uploadUrl(u.avatarUrl)} alt="" className="w-full h-full object-cover" />
-              : <span className="text-[#CDFF00] font-black uppercase text-sm">{(u.fullName || 'U')[0]}</span>}
+              : <span className="text-[#CDFF00] font-black text-sm">{(u.fullName || 'U')[0]}</span>}
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-black text-white truncate flex items-center gap-1.5">
@@ -530,18 +531,18 @@ function UsersTab() {
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-white/5 border border-white/10 text-gray-400">
-              {u.role}
+            <span className="text-[9px] font-black tracking-widest px-2 py-1 rounded-md bg-white/5 border border-white/10 text-gray-400">
+              {labelize(u.role)}
             </span>
             <button onClick={() => patch(u.id, { idVerified: !u.idVerified })} disabled={busy === u.id}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:border-[#CDFF00]/40 text-[10px] font-black uppercase tracking-widest disabled:opacity-50">
+                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:border-[#CDFF00]/40 text-[10px] font-black tracking-widest disabled:opacity-50">
               {u.idVerified ? 'Un-verify ID' : 'Verify ID'}
             </button>
             <select
-              value={u.role}
+              value={labelize(u.role)}
               onChange={(e) => patch(u.id, { role: e.target.value })}
               disabled={busy === u.id}
-              className="bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-[10px] font-black uppercase tracking-widest text-gray-300 outline-none disabled:opacity-50"
+              className="bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-[10px] font-black tracking-widest text-gray-300 outline-none disabled:opacity-50"
             >
               {['BUYER', 'SELLER', 'ADMIN'].map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
@@ -576,10 +577,10 @@ function JobsTab() {
             <p className="text-sm font-black text-white truncate">{j.title}</p>
             <p className="text-xs text-gray-500 truncate">{j.companyName}</p>
           </div>
-          <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+          <div className="flex items-center gap-3 text-[10px] font-bold tracking-widest text-gray-500">
             <span>{j.applicationsCount} applied</span>
             <span>{j.viewsCount} views</span>
-            <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-gray-400">{j.status}</span>
+            <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-gray-400">{labelize(j.status)}</span>
           </div>
         </div>
       ))}
@@ -606,8 +607,8 @@ function Empty({ icon: Icon, title, hint }) {
         <Icon className="w-5 h-5 text-gray-600" />
       </div>
       <div>
-        <h3 className="text-sm font-black uppercase tracking-tight">{title}</h3>
-        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">{hint}</p>
+        <h3 className="text-sm font-black tracking-tight">{title}</h3>
+        <p className="text-[10px] text-gray-500 font-bold tracking-widest mt-1">{hint}</p>
       </div>
     </div>
   );

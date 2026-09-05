@@ -110,7 +110,7 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author, onLike, onS
       <div className="relative w-full h-full bg-black flex items-center justify-center">
         <div className="text-center">
           <Play className="w-12 h-12 text-white/20 mx-auto mb-2" />
-          <p className="text-white/40 text-xs font-black uppercase tracking-widest">Feed unavailable</p>
+          <p className="text-white/40 text-xs font-black tracking-widest">Feed unavailable</p>
         </div>
       </div>
     );
@@ -155,8 +155,8 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author, onLike, onS
                   {author?.avatar ? <img src={author.avatar} alt="" className="w-full h-full object-cover" /> : <User className="w-4 h-4 text-black" />}
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-white uppercase tracking-tight leading-none mb-0.5">{author?.name || 'Hustler'}</span>
-                  <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none">@hustleup</span>
+                  <span className="text-[10px] font-black text-white tracking-tight leading-none mb-0.5">{author?.name || 'Hustler'}</span>
+                  <span className="text-[8px] font-bold text-gray-400 tracking-widest leading-none">@hustleup</span>
                 </div>
               </div>
 
@@ -189,8 +189,8 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive, author, onLike, onS
             <div className="absolute bottom-6 left-6 right-6 flex flex-col items-center pointer-events-auto">
               {/* Timestamps */}
               <div className="w-full flex justify-between mb-3 px-1">
-                <span className="text-[10px] font-black text-white/70 uppercase tracking-widest">{fmt(currentTime)}</span>
-                <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">-{fmt(remaining)}</span>
+                <span className="text-[10px] font-black text-white/70 tracking-widest">{fmt(currentTime)}</span>
+                <span className="text-[10px] font-black text-white/50 tracking-widest">-{fmt(remaining)}</span>
               </div>
 
               {/* Progress Seeker */}

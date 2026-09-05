@@ -31,7 +31,7 @@ export default function Footer() {
             <span className="w-8 h-8 rounded-lg bg-[#D3FF37] flex items-center justify-center text-black font-heading font-black text-base">H</span>
             <span className="text-base font-heading font-black text-white tracking-tighter">HustleSpace.</span>
           </span>
-          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500">
+          <span className="flex items-center gap-1.5 text-[10px] font-black tracking-widest text-gray-500">
             {open ? 'Hide' : 'More'}
             <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
           </span>
@@ -61,7 +61,7 @@ export default function Footer() {
 
           {/* Nav Columns */}
           <div>
-            <h4 className="text-white font-black text-sm mb-8 uppercase tracking-[0.2em]">Explore</h4>
+            <h4 className="text-white font-black text-sm mb-8 tracking-[0.2em]">Explore</h4>
             <ul className="space-y-4 text-gray-500 font-bold">
               {LISTING_TYPES.map((type) => (
                 <li key={type.value}>
@@ -74,7 +74,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-white font-black text-sm mb-8 uppercase tracking-[0.2em]">Platform</h4>
+            <h4 className="text-white font-black text-sm mb-8 tracking-[0.2em]">Platform</h4>
             <ul className="space-y-4 text-gray-500 font-bold">
               <li><Link to="/jobs" className="hover:text-white transition-colors">Jobs &amp; Gigs</Link></li>
               <li><Link to="/feed" className="hover:text-white transition-colors">Community Feed</Link></li>
@@ -84,7 +84,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-white font-black text-sm mb-8 uppercase tracking-[0.2em]">Company</h4>
+            <h4 className="text-white font-black text-sm mb-8 tracking-[0.2em]">Company</h4>
             <ul className="space-y-4 text-gray-500 font-bold">
               <li><Link to="/#about" className="hover:text-white transition-colors">About Us</Link></li>
               <li><Link to="/" className="hover:text-white transition-colors">Help Center</Link></li>

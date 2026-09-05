@@ -85,20 +85,20 @@ export default function ShopNegotiation() {
               <div className="flex items-center justify-between gap-2 mb-2">
                 {product.category && (
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-black"
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black tracking-[0.2em] text-black"
                     style={{ background: shop.accentColor || '#CDFF00' }}
                   >
                     <ShoppingBag className="w-3 h-3" /> {product.category}
                   </span>
                 )}
-                <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-gray-500">{shop.name}</span>
+                <span className="ml-auto text-[9px] font-black tracking-widest text-gray-500">{shop.name}</span>
               </div>
               <h1 className="text-lg sm:text-xl font-heading font-extrabold text-white leading-tight">{product.name}</h1>
               <p className="text-xs text-gray-400 leading-relaxed mt-1">
                 Buy at the listed price, or send the seller your own offer before checkout.
               </p>
               <div className="mt-3 flex items-center justify-between rounded-xl border border-white/10 bg-[#121212] px-4 py-2.5">
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Listed price</span>
+                <span className="text-[9px] font-black tracking-[0.2em] text-gray-500">Listed price</span>
                 <span className="text-xl font-black text-[#CDFF00]">{formatPrice(product.price, product.currency)}</span>
               </div>
             </div>
@@ -112,14 +112,14 @@ export default function ShopNegotiation() {
               </div>
               <div>
                 <h2 className="text-base font-heading font-extrabold text-white leading-tight">Negotiate Order</h2>
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-gray-500">Prepare your checkout terms</p>
+                <p className="text-[9px] font-bold tracking-[0.2em] text-gray-500">Prepare your checkout terms</p>
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1.5">Quantity</label>
+                  <label className="block text-[9px] font-black tracking-[0.2em] text-gray-500 mb-1.5">Quantity</label>
                   <input
                     type="number"
                     min="1"
@@ -129,7 +129,7 @@ export default function ShopNegotiation() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1.5">Offer per item</label>
+                  <label className="block text-[9px] font-black tracking-[0.2em] text-gray-500 mb-1.5">Offer per item</label>
                   <input
                     type="number"
                     min="0"
@@ -143,7 +143,7 @@ export default function ShopNegotiation() {
               </div>
 
               <div>
-                <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-gray-500 mb-1.5">Notes for seller</label>
+                <label className="block text-[9px] font-black tracking-[0.2em] text-gray-500 mb-1.5">Notes for seller</label>
                 <textarea
                   rows={2}
                   value={notes}
@@ -154,7 +154,7 @@ export default function ShopNegotiation() {
               </div>
 
               <div className="rounded-xl border border-white/10 bg-black/50 px-4 py-3">
-                <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black uppercase tracking-[0.2em] mb-2">
+                <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black tracking-[0.2em] mb-2">
                   <MessageSquareText className="w-3.5 h-3.5" /> Summary
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-400">
@@ -172,7 +172,7 @@ export default function ShopNegotiation() {
               <button
                 type="button"
                 onClick={continueToCheckout}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#CDFF00] px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-black hover:bg-[#dcff58] active:scale-[0.99] transition-all"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#CDFF00] px-5 py-3 text-xs font-black tracking-[0.2em] text-black hover:bg-[#dcff58] active:scale-[0.99] transition-all"
               >
                 Continue To Checkout <ArrowRight className="w-4 h-4" />
               </button>

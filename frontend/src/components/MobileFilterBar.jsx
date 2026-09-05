@@ -37,7 +37,7 @@ export default function MobileFilterBar({
     <div className="sm:hidden mb-4">
       <div className="flex items-center gap-2">
         {/* The label carries the state a collapsed panel would otherwise hide. */}
-        <span className="flex-1 min-w-0 text-[10px] font-black uppercase tracking-widest text-gray-500 truncate">
+        <span className="flex-1 min-w-0 text-[10px] font-black tracking-widest text-gray-500 truncate">
           {query ? `“${query}”` : resultLabel}
         </span>
 
@@ -117,13 +117,13 @@ export default function MobileFilterBar({
               {children}
               {(resultLabel || onClear) && (
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                  <span className="text-[10px] font-bold tracking-widest text-gray-500">
                     {resultLabel}
                   </span>
                   {onClear && activeFilters > 0 && (
                     <button
                       onClick={onClear}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-gray-300"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300"
                     >
                       <X className="w-3 h-3" /> Clear
                     </button>

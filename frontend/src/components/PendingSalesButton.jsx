@@ -95,7 +95,7 @@ export default function PendingSalesButton({ compact = false }) {
               className="w-full sm:max-w-lg bg-[#0a0a0a] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[85vh]"
             >
               <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
-                <h2 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2.5">
+                <h2 className="text-base font-black text-white tracking-tight flex items-center gap-2.5">
                   <Clock className="w-4 h-4 text-amber-400" />
                   Pending sales
                   <span className="px-2 py-0.5 rounded-full bg-amber-400 text-black text-[10px] font-black tabular-nums">
@@ -126,7 +126,7 @@ export default function PendingSalesButton({ compact = false }) {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-black text-white truncate">{s.listingTitle || 'Listing'}</p>
                       <p className="text-xs text-gray-500 truncate">{s.buyerName || 'A buyer'}</p>
-                      <span className={`inline-block mt-1 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${statusTone(s.status)}`}>
+                      <span className={`inline-block mt-1 text-[9px] font-black tracking-widest px-2 py-0.5 rounded-md border ${statusTone(s.status)}`}>
                         {statusLabel(s.status)}
                       </span>
                     </div>
@@ -144,7 +144,7 @@ export default function PendingSalesButton({ compact = false }) {
                 <Link
                   to="/dashboard"
                   onClick={() => setOpen(false)}
-                  className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-widest hover:brightness-110 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:brightness-110 transition-all flex items-center justify-center gap-2"
                 >
                   Manage in dashboard <ChevronRight className="w-4 h-4" />
                 </Link>

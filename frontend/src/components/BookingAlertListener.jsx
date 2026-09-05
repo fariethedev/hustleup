@@ -175,7 +175,7 @@ export default function BookingAlertListener() {
                 <Handshake className="w-5 h-5 text-[#CDFF00]" />
               </div>
               <div className="flex-1 min-w-0 pt-0.5">
-                <p className="text-[10px] font-bold text-[#CDFF00] uppercase tracking-widest mb-1">
+                <p className="text-[10px] font-bold text-[#CDFF00] tracking-widest mb-1">
                   {isRequest ? 'New booking request' : 'Counter-offer'}
                 </p>
                 <h3 className="text-white font-bold text-sm leading-snug">{alert.title}</h3>
@@ -190,7 +190,7 @@ export default function BookingAlertListener() {
             {counterMode ? (
               <div className="space-y-3">
                 <div>
-                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">
+                  <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">
                     Your counter price
                   </label>
                   <input

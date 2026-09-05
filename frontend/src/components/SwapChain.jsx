@@ -35,7 +35,7 @@ export default function SwapChain({ limit = 8 }) {
         <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#FF00FF] to-[#00FFFF] flex items-center justify-center">
           <Repeat className="w-3 h-3 text-black" strokeWidth={3} />
         </div>
-        <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-white">Swap chain</h2>
+        <h2 className="text-[11px] font-black tracking-[0.2em] text-white">Swap chain</h2>
         <span className="text-[10px] text-gray-600 font-bold">{links.length} recent trade{links.length === 1 ? '' : 's'}</span>
       </div>
 
@@ -82,7 +82,7 @@ export default function SwapChain({ limit = 8 }) {
                 "you"/"them": the chain is public and read by strangers to both parties, so
                 there is no viewer whose side it could be phrased from. */}
             {hasCash(s) && (
-              <div className="mt-2 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[#CDFF00]">
+              <div className="mt-2 flex items-center gap-1.5 text-[9px] font-black tracking-widest text-[#CDFF00]">
                 <Coins className="w-3 h-3 shrink-0" />
                 <span className="truncate">+ {cashLabel(s)} on top</span>
               </div>

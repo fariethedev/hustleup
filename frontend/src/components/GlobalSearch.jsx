@@ -126,7 +126,7 @@ export default function GlobalSearch({ open, onClose }) {
             <div className="flex-1 overflow-y-auto">
               {!q ? (
                 <div className="py-14 text-center">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                  <p className="text-xs font-bold text-gray-500 tracking-widest">
                     Type to search everything on HustleSpace
                   </p>
                   <p className="text-[10px] text-gray-600 mt-2">Listings · Shops · People</p>
@@ -134,13 +134,13 @@ export default function GlobalSearch({ open, onClose }) {
               ) : total === 0 ? (
                 <div className="py-14 text-center">
                   <SearchX className="w-10 h-10 mx-auto text-gray-700 mb-3" />
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">No results for "{query}"</p>
+                  <p className="text-xs font-bold text-gray-500 tracking-widest">No results for "{query}"</p>
                 </div>
               ) : (
                 <div className="py-2">
                   {results.listings.length > 0 && (
                     <section>
-                      <h3 className="px-5 pt-3 pb-1.5 text-[10px] font-black uppercase tracking-[0.25em] text-[#00FFFF]">Listings</h3>
+                      <h3 className="px-5 pt-3 pb-1.5 text-[10px] font-black tracking-[0.25em] text-[#00FFFF]">Listings</h3>
                       {results.listings.map((l) => (
                         <button key={l.id} onClick={() => go(`/listing/${l.id}`)}
                           className="w-full px-5 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
@@ -161,7 +161,7 @@ export default function GlobalSearch({ open, onClose }) {
 
                   {results.shops.length > 0 && (
                     <section>
-                      <h3 className="px-5 pt-3 pb-1.5 text-[10px] font-black uppercase tracking-[0.25em] text-[#FF00FF]">Shops</h3>
+                      <h3 className="px-5 pt-3 pb-1.5 text-[10px] font-black tracking-[0.25em] text-[#FF00FF]">Shops</h3>
                       {results.shops.map((s) => (
                         <button key={s.id} onClick={() => go(`/shop/${s.slug || s.id}`)}
                           className="w-full px-5 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
@@ -180,7 +180,7 @@ export default function GlobalSearch({ open, onClose }) {
 
                   {results.people.length > 0 && (
                     <section>
-                      <h3 className="px-5 pt-3 pb-1.5 text-[10px] font-black uppercase tracking-[0.25em] text-[#CDFF00]">People</h3>
+                      <h3 className="px-5 pt-3 pb-1.5 text-[10px] font-black tracking-[0.25em] text-[#CDFF00]">People</h3>
                       {results.people.map((u) => (
                         <button key={u.id} onClick={() => go(`/profile/${u.id}`)}
                           className="w-full px-5 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
@@ -205,8 +205,8 @@ export default function GlobalSearch({ open, onClose }) {
 
             {/* Footer hint */}
             <div className="px-5 py-2.5 border-t border-white/10 flex items-center justify-between shrink-0 bg-black/40">
-              <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">Enter opens top result</span>
-              <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">Esc to close</span>
+              <span className="text-[10px] text-gray-600 font-bold tracking-widest">Enter opens top result</span>
+              <span className="text-[10px] text-gray-600 font-bold tracking-widest">Esc to close</span>
             </div>
           </motion.div>
         </div>

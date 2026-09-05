@@ -164,7 +164,7 @@ export default function Navbar() {
   const notifPanelBody = (
     <>
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-        <p className="text-xs text-white font-black uppercase tracking-widest">Notifications</p>
+        <p className="text-xs text-white font-black tracking-widest">Notifications</p>
         {notifications.some((n) => !n.read) && (
           <button onClick={markAllRead} className="flex items-center gap-1 text-[10px] font-bold text-[#CDFF00] hover:underline">
             <CheckCheck className="w-3 h-3" /> Mark all read
@@ -250,7 +250,7 @@ export default function Navbar() {
               <div className="hidden sm:flex w-8 h-8 bg-[#CDFF00] rounded-lg items-center justify-center font-black text-black text-sm group-hover:scale-105 transition-transform shadow-[0_0_15px_#CDFF00]/15">
                 H
               </div>
-              <span className="text-lg font-black text-white tracking-tighter uppercase whitespace-nowrap">
+              <span className="text-lg font-black text-white tracking-tighter whitespace-nowrap">
                 Hustle<span className="text-[#CDFF00]">Space</span>
               </span>
             </Link>
@@ -271,7 +271,7 @@ export default function Navbar() {
                         }`}
                     >
                       <Icon className={`w-4 h-4 flex-shrink-0 ${accent && !active ? 'text-[#00FFFF]' : ''}`} />
-                      <span className="text-[11px] font-black uppercase tracking-wide whitespace-nowrap">{label}</span>
+                      <span className="text-[11px] font-black tracking-wide whitespace-nowrap">{label}</span>
                       {badge > 0 && (
                         <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-0.5 text-[8px] font-black text-black bg-[#00FFFF] rounded-full ring-2 ring-black">
                           {badge > 9 ? '9+' : badge}
@@ -370,7 +370,7 @@ export default function Navbar() {
                     id="nav-user-menu"
                     className="flex items-center gap-1.5 p-1 rounded-lg hover:bg-white/5 transition-colors border border-transparent hover:border-white/10"
                   >
-                    <div className="w-7 h-7 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-[10px] uppercase shadow-sm overflow-hidden">
+                    <div className="w-7 h-7 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-[10px] shadow-sm overflow-hidden">
                       {user?.avatarUrl
                         ? <img src={uploadUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
                         : displayName(user)[0]?.toUpperCase() || 'U'}
@@ -378,7 +378,7 @@ export default function Navbar() {
                   </button>
                   <div className="absolute right-0 top-full mt-1.5 w-48 py-2 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-1 group-hover:translate-y-0 backdrop-blur-3xl">
                     <div className="px-3 py-1.5 border-b border-white/5 mb-1.5">
-                      <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Signed in as</p>
+                      <p className="text-[8px] text-gray-500 font-bold tracking-widest">Signed in as</p>
                       <p className="text-xs text-[#CDFF00] font-black truncate">{displayName(user)}</p>
                       {/* Real name under the handle. Rendered only when it is not already
                           what is shown above — for an account with no username,
@@ -397,8 +397,8 @@ export default function Navbar() {
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5">
-                  <Link to="/login" className="px-3 py-1.5 text-[10px] font-black text-gray-400 hover:text-white uppercase tracking-widest">Login</Link>
-                  <Link to="/register" className="px-4 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black hover:bg-[#b8e600] active:scale-95 transition-all shadow-md shadow-[#CDFF00]/10 uppercase tracking-widest">Join</Link>
+                  <Link to="/login" className="px-3 py-1.5 text-[10px] font-black text-gray-400 hover:text-white tracking-widest">Login</Link>
+                  <Link to="/register" className="px-4 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black hover:bg-[#b8e600] active:scale-95 transition-all shadow-md shadow-[#CDFF00]/10 tracking-widest">Join</Link>
                 </div>
               )}
             </div>
@@ -463,7 +463,7 @@ export default function Navbar() {
                     onClick={() => setAccountOpen((v) => !v)}
                     aria-label="Account menu"
                     aria-expanded={accountOpen}
-                    className="w-7 h-7 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-[10px] uppercase overflow-hidden border border-white/10"
+                    className="w-7 h-7 rounded-full bg-[#CDFF00] flex items-center justify-center text-black font-black text-[10px] overflow-hidden border border-white/10"
                   >
                     {user?.avatarUrl
                       ? <img src={uploadUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
@@ -480,7 +480,7 @@ export default function Navbar() {
                         className="absolute right-0 top-full mt-2 w-52 py-2 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl z-[300] backdrop-blur-3xl"
                       >
                         <div className="px-3 py-1.5 border-b border-white/5 mb-1.5">
-                          <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Signed in as</p>
+                          <p className="text-[8px] text-gray-500 font-bold tracking-widest">Signed in as</p>
                           <p className="text-xs text-[#CDFF00] font-black truncate">{displayName(user)}</p>
                           {user?.username && user?.fullName && (
                             <p className="text-[10px] text-gray-400 font-semibold truncate">{user.fullName}</p>
@@ -507,7 +507,7 @@ export default function Navbar() {
                   </AnimatePresence>
                 </div>
               ) : (
-                <Link to="/login" className="px-3 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest">
+                <Link to="/login" className="px-3 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black tracking-widest">
                   Sign In
                 </Link>
               )}

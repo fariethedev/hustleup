@@ -71,8 +71,8 @@ export default function TicketDetail() {
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <TicketIcon className="w-16 h-16 mx-auto text-gray-700" />
-          <h2 className="text-2xl font-black text-white uppercase tracking-tight">{error || 'Not found'}</h2>
-          <Link to="/tickets" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm uppercase tracking-widest inline-block">
+          <h2 className="text-2xl font-black text-white tracking-tight">{error || 'Not found'}</h2>
+          <Link to="/tickets" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm tracking-widest inline-block">
             My tickets
           </Link>
         </div>
@@ -91,7 +91,7 @@ export default function TicketDetail() {
         <div className="flex items-center justify-between mb-4">
           <Link
             to="/tickets"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black uppercase tracking-widest hover:text-[#CDFF00] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest hover:text-[#CDFF00] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Tickets
           </Link>
@@ -120,7 +120,7 @@ export default function TicketDetail() {
             )}
 
             {!usable && (
-              <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-gray-500">
+              <p className="mt-3 text-[10px] font-black tracking-widest text-gray-500">
                 {ticket.status === 'CHECKED_IN'
                   ? `Admitted${ticket.checkedInAt ? ` · ${new Date(ticket.checkedInAt).toLocaleString()}` : ''}`
                   : 'This ticket was cancelled or refunded'}
@@ -128,12 +128,12 @@ export default function TicketDetail() {
             )}
 
             <div className="mt-4">
-              <p className="text-[8px] font-black uppercase tracking-[0.3em] text-gray-600 mb-1">Ticket code</p>
+              <p className="text-[8px] font-black tracking-[0.3em] text-gray-600 mb-1">Ticket code</p>
               {/* Wide letter-spacing and a mono face so an organiser can read this out or key
                   it in without confusing similar-looking characters. */}
               <p className="font-mono text-lg font-black text-white tracking-[0.2em]">{ticket.ticketCode}</p>
               {ticket.ticketsInBooking > 1 && (
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 mt-1">
+                <p className="text-[9px] font-black tracking-widest text-gray-500 mt-1">
                   Ticket {ticket.ticketNumber} of {ticket.ticketsInBooking}
                 </p>
               )}
@@ -159,11 +159,11 @@ export default function TicketDetail() {
               <div className="min-w-0">
                 <Link
                   to={`/listing/${ticket.listingId}`}
-                  className="text-base font-black text-white uppercase tracking-tight leading-tight hover:text-[#CDFF00] transition-colors block"
+                  className="text-base font-black text-white tracking-tight leading-tight hover:text-[#CDFF00] transition-colors block"
                 >
                   {ticket.eventTitle}
                 </Link>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mt-1">
+                <p className="text-[10px] font-black tracking-widest text-gray-500 mt-1">
                   Hosted by {ticket.organiserName}
                 </p>
               </div>
@@ -201,7 +201,7 @@ export default function TicketDetail() {
               <button
                 onClick={handleSelfCheckIn}
                 disabled={checkingIn}
-                className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-[0.2em] hover:scale-[1.01] active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] hover:scale-[1.01] active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {checkingIn
                   ? <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -229,7 +229,7 @@ export default function TicketDetail() {
             {isOrganiser && (
               <Link
                 to={`/events/${ticket.listingId}/door`}
-                className="w-full py-3 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#CDFF00]/10 transition-all"
+                className="w-full py-3 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#CDFF00]/10 transition-all"
               >
                 <ScanLine className="w-4 h-4" /> Open door scanner
               </Link>
@@ -252,7 +252,7 @@ function DetailRow({ icon: Icon, label, value }) {
         <Icon className="w-3.5 h-3.5 text-[#CDFF00]" />
       </div>
       <div className="min-w-0">
-        <dt className="text-[8px] font-black uppercase tracking-[0.2em] text-gray-600">{label}</dt>
+        <dt className="text-[8px] font-black tracking-[0.2em] text-gray-600">{label}</dt>
         <dd className="text-sm font-bold text-white truncate">{value}</dd>
       </div>
     </div>

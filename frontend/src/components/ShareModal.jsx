@@ -189,7 +189,7 @@ export default function ShareModal({ type, item, onClose }) {
                   <div className="w-10 h-10 rounded-full overflow-hidden bg-black border border-white/10 flex items-center justify-center shrink-0">
                     {person.avatarUrl
                       ? <img src={uploadUrl(person.avatarUrl)} alt="" className="w-full h-full object-cover" />
-                      : <span className="text-[#CDFF00] font-black uppercase text-sm">{(name || 'U')[0]}</span>}
+                      : <span className="text-[#CDFF00] font-black text-sm">{(name || 'U')[0]}</span>}
                   </div>
                   <span className="flex-1 min-w-0 text-sm font-semibold text-white truncate">{name}</span>
                   <button

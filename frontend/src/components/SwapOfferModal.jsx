@@ -102,7 +102,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
               <Repeat className="w-4 h-4 text-black" strokeWidth={3} />
             </div>
             <div>
-              <h2 className="text-sm font-black text-white uppercase tracking-tight leading-none">Propose a swap</h2>
+              <h2 className="text-sm font-black text-white tracking-tight leading-none">Propose a swap</h2>
               <p className="text-[10px] text-gray-500 font-bold mt-1">Trade, and top up if it needs it.</p>
             </div>
           </div>
@@ -114,7 +114,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
         <div className="p-5 space-y-5">
           {/* What you want */}
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">You want</p>
+            <p className="text-[10px] font-black tracking-[0.2em] text-gray-500 mb-2">You want</p>
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.04] border border-white/10">
               <div className="w-14 h-14 rounded-xl overflow-hidden bg-white/5 shrink-0">
                 {listing.mediaUrls?.[0]
@@ -130,12 +130,12 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
 
           {/* Mode toggle */}
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">You give</p>
+            <p className="text-[10px] font-black tracking-[0.2em] text-gray-500 mb-2">You give</p>
             <div className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/10 mb-3">
               <button
                 onClick={() => setMode('listing')}
                 disabled={myListings.length === 0}
-                className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                className={`flex-1 py-2 rounded-lg text-[10px] font-black tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
                   mode === 'listing' ? 'bg-[#CDFF00] text-black' : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -143,7 +143,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
               </button>
               <button
                 onClick={() => setMode('text')}
-                className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                className={`flex-1 py-2 rounded-lg text-[10px] font-black tracking-widest transition-all ${
                   mode === 'text' ? 'bg-[#CDFF00] text-black' : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -200,7 +200,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
           {/* Cash top-up. Sits between the two items because that is where it belongs in the
               sentence: my thing, plus this much, for your thing. */}
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">
+            <p className="text-[10px] font-black tracking-[0.2em] text-gray-500 mb-2">
               Cash on top <span className="text-gray-700">(optional)</span>
             </p>
 
@@ -216,7 +216,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
                     key={d.key}
                     type="button"
                     onClick={() => setCashDirection(d.key)}
-                    className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${
+                    className={`flex-1 py-2 rounded-lg text-[10px] font-black tracking-widest transition-all flex items-center justify-center gap-1.5 ${
                       active ? 'bg-[#CDFF00] text-black' : 'text-gray-400 hover:text-white'
                     }`}
                   >
@@ -238,7 +238,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
                 placeholder="0"
                 className="w-full bg-white/5 border border-white/10 focus:border-[#CDFF00]/50 rounded-xl pl-11 pr-16 py-3 text-sm text-white placeholder-gray-600 outline-none transition-colors"
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase tracking-widest text-gray-500 pointer-events-none">
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black tracking-widest text-gray-500 pointer-events-none">
                 {listing.currency || 'PLN'}
               </span>
             </div>
@@ -257,7 +257,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
 
           {/* Optional note */}
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">Note <span className="text-gray-700">(optional)</span></p>
+            <p className="text-[10px] font-black tracking-[0.2em] text-gray-500 mb-2">Note <span className="text-gray-700">(optional)</span></p>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -270,7 +270,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
           <button
             onClick={submit}
             disabled={!canSubmit}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF00FF] to-[#00FFFF] text-black font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all"
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF00FF] to-[#00FFFF] text-black font-black text-xs tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Repeat className="w-4 h-4" strokeWidth={3} />}
             Send swap offer

@@ -60,13 +60,13 @@ export default function Tickets() {
             <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4 border border-white/5">
               <Ticket className="w-6 h-6 text-white/20" />
             </div>
-            <h3 className="text-lg font-black text-white uppercase tracking-[0.1em] mb-2">No tickets yet</h3>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px] max-w-xs mx-auto leading-relaxed mb-5">
+            <h3 className="text-lg font-black text-white tracking-[0.1em] mb-2">No tickets yet</h3>
+            <p className="text-gray-500 font-bold tracking-widest text-[10px] max-w-xs mx-auto leading-relaxed mb-5">
               Book an event and your digital ticket lands here instantly.
             </p>
             <Link
               to="/explore?type=EVENT"
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#CDFF00] text-black font-black uppercase tracking-widest text-[9px] hover:scale-105 transition-all"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#CDFF00] text-black font-black tracking-widest text-[9px] hover:scale-105 transition-all"
             >
               Find an event <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -75,7 +75,7 @@ export default function Tickets() {
           <div className="space-y-8">
             {upcoming.length > 0 && (
               <section>
-                <h2 className="text-[10px] font-black uppercase tracking-[0.25em] text-[#CDFF00] mb-3 opacity-60">
+                <h2 className="text-[10px] font-black tracking-[0.25em] text-[#CDFF00] mb-3 opacity-60">
                   Upcoming · {upcoming.length}
                 </h2>
                 <div className="space-y-3">
@@ -86,7 +86,7 @@ export default function Tickets() {
 
             {past.length > 0 && (
               <section>
-                <h2 className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-600 mb-3">
+                <h2 className="text-[10px] font-black tracking-[0.25em] text-gray-600 mb-3">
                   Past & used · {past.length}
                 </h2>
                 <div className="space-y-3">
@@ -132,10 +132,10 @@ function TicketRow({ ticket, index, muted = false }) {
         <div className="flex-1 min-w-0 p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="text-sm font-black text-white uppercase tracking-tight truncate group-hover:text-[#CDFF00] transition-colors">
+              <h3 className="text-sm font-black text-white tracking-tight truncate group-hover:text-[#CDFF00] transition-colors">
                 {ticket.eventTitle}
               </h3>
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-600 mt-0.5">
+              <p className="text-[10px] font-black tracking-widest text-gray-600 mt-0.5">
                 {ticket.ticketCode}
                 {ticket.ticketsInBooking > 1 && ` · ${ticket.ticketNumber} of ${ticket.ticketsInBooking}`}
               </p>
@@ -143,7 +143,7 @@ function TicketRow({ ticket, index, muted = false }) {
             <TicketStatusChip status={ticket.status} />
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[9px] font-black uppercase tracking-[0.1em] text-gray-500">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[9px] font-black tracking-[0.1em] text-gray-500">
             <span className="flex items-center gap-1">
               <CalendarClock className="w-3 h-3 text-[#CDFF00]" />
               {startsAt
@@ -175,7 +175,7 @@ export function TicketStatusChip({ status }) {
   const { label, className, Icon } = map[status] || map.VALID;
 
   return (
-    <span className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${className}`}>
+    <span className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[8px] font-black tracking-widest ${className}`}>
       <Icon className="w-2.5 h-2.5" /> {label}
     </span>
   );

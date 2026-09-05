@@ -227,11 +227,11 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
         >
           <X className="w-4 h-4" />
         </button>
-        <p className="text-xs font-black text-white uppercase tracking-widest">Adjust photo</p>
+        <p className="text-xs font-black text-white tracking-widest">Adjust photo</p>
         <button
           onClick={apply}
           disabled={busy || !imgEl}
-          className="h-9 px-4 rounded-full bg-[#CDFF00] text-black text-[11px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-40 active:scale-95 transition-all"
+          className="h-9 px-4 rounded-full bg-[#CDFF00] text-black text-[11px] font-black tracking-widest flex items-center gap-1.5 disabled:opacity-40 active:scale-95 transition-all"
         >
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Done
         </button>
@@ -301,7 +301,7 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
               <button
                 key={r.label}
                 onClick={() => setAspect(r.value)}
-                className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
+                className={`px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest border transition-all ${
                   aspect === r.value
                     ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                     : 'border-white/15 text-gray-400 hover:text-white hover:border-white/35'

@@ -71,10 +71,10 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
       >
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0">
-            <h3 className="text-sm font-black text-white uppercase tracking-tight truncate">
+            <h3 className="text-sm font-black text-white tracking-tight truncate">
               Update delivery
             </h3>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1 truncate">
+            <p className="text-[10px] font-bold text-gray-500 tracking-widest mt-1 truncate">
               {title}
             </p>
           </div>
@@ -83,14 +83,14 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
           </button>
         </div>
 
-        <div className="flex items-center gap-1.5 mb-4 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-[10px] font-black uppercase tracking-widest text-gray-400">
+        <div className="flex items-center gap-1.5 mb-4 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-[10px] font-black tracking-widest text-gray-400">
           {meta?.icon ? <meta.icon className="w-3.5 h-3.5 text-[#CDFF00]" /> : <Truck className="w-3.5 h-3.5 text-[#CDFF00]" />}
           Sending by {meta?.label || 'an unspecified method'}
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+            <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-2">
               Where is it now?
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -99,7 +99,7 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
                   key={step}
                   type="button"
                   onClick={() => setStatus(step)}
-                  className={`px-3 py-2.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                  className={`px-3 py-2.5 rounded-xl border text-[10px] font-black tracking-widest transition-all ${
                     status === step
                       ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                       : 'bg-black/50 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
@@ -113,7 +113,7 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
               <button
                 type="button"
                 onClick={() => setStatus('CANCELLED')}
-                className={`col-span-2 px-3 py-2.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${
+                className={`col-span-2 px-3 py-2.5 rounded-xl border text-[10px] font-black tracking-widest transition-all flex items-center justify-center gap-1.5 ${
                   status === 'CANCELLED'
                     ? 'bg-red-500/20 text-red-300 border-red-500/60'
                     : 'bg-black/50 border-white/10 text-gray-500 hover:border-red-500/40 hover:text-red-400'
@@ -157,7 +157,7 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
           )}
 
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+            <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
               Expected by
             </label>
             <input
@@ -169,7 +169,7 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
           </div>
 
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+            <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
               Message to the buyer
             </label>
             <textarea
@@ -185,14 +185,14 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
         <div className="flex gap-2.5 mt-5">
           <button
             onClick={onClose}
-            className="flex-1 py-3 rounded-xl border border-white/10 text-white font-black uppercase tracking-widest text-[10px] hover:bg-white/5 transition-colors"
+            className="flex-1 py-3 rounded-xl border border-white/10 text-white font-black tracking-widest text-[10px] hover:bg-white/5 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={save}
             disabled={saving || !status}
-            className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest text-[10px] hover:bg-[#E0FF4D] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black tracking-widest text-[10px] hover:bg-[#E0FF4D] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
             {saving ? 'Saving' : 'Save & notify'}
@@ -206,7 +206,7 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
 function Field({ label, value, onChange, placeholder }) {
   return (
     <div>
-      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+      <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
         {label}
       </label>
       <input

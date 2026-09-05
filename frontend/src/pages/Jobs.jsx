@@ -86,7 +86,7 @@ export default function Jobs() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-20">
         {/* Publisher call-to-action: either compose, or find out how to be allowed to. */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+          <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500">
             <ShieldCheck className="w-4 h-4 text-[#CDFF00]" />
             Verified employers only
           </div>
@@ -94,14 +94,14 @@ export default function Jobs() {
             <motion.button
               whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={() => setComposerOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest"
             >
               <Plus className="w-4 h-4" /> Post a job
             </motion.button>
           ) : (
             <Link
               to="/publisher/apply?type=HIRING_COMPANY"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-[#CDFF00]/40 text-[10px] font-black uppercase tracking-widest text-gray-300 transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-[#CDFF00]/40 text-[10px] font-black tracking-widest text-gray-300 transition-colors"
             >
               <BadgeCheck className="w-4 h-4 text-[#CDFF00]" /> Hiring? Get verified
             </Link>
@@ -120,7 +120,7 @@ export default function Jobs() {
           <div className="flex gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide pb-0.5">
             <button
               onClick={() => setActiveCategory('all')}
-              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
                 activeCategory === 'all'
                   ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                   : 'bg-white/5 border-white/10 text-gray-400'
@@ -132,7 +132,7 @@ export default function Jobs() {
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(activeCategory === cat.id ? 'all' : cat.id)}
-                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
                   activeCategory === cat.id
                     ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                     : 'bg-white/5 border-white/10 text-gray-400'
@@ -155,7 +155,7 @@ export default function Jobs() {
             className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"
           />
           {searchQuery && (
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest shrink-0">
+            <span className="text-[10px] font-bold text-gray-500 tracking-widest shrink-0">
               {jobs.length} found
             </span>
           )}
@@ -165,7 +165,7 @@ export default function Jobs() {
         <div className="hidden sm:flex flex-wrap items-center justify-center gap-2 mb-8">
           <button
             onClick={() => setActiveCategory('all')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
               activeCategory === 'all'
                 ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                 : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
@@ -177,7 +177,7 @@ export default function Jobs() {
             <button
               key={cat.id}
               onClick={() => setActiveCategory(activeCategory === cat.id ? 'all' : cat.id)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
                 activeCategory === cat.id
                   ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                   : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
@@ -234,15 +234,15 @@ export default function Jobs() {
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1.5">
                             {catInfo && (
-                              <span className="text-[9px] font-black text-[#CDFF00] bg-[#CDFF00]/10 px-2.5 py-1 rounded-md uppercase tracking-widest border border-[#CDFF00]/20">
+                              <span className="text-[9px] font-black text-[#CDFF00] bg-[#CDFF00]/10 px-2.5 py-1 rounded-md tracking-widest border border-[#CDFF00]/20">
                                 {catInfo.name}
                               </span>
                             )}
-                            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">
+                            <span className="text-[9px] font-bold text-gray-500 tracking-widest">
                               {String(job.jobType || '').replace('_', ' ')}
                             </span>
                             {job.remote && (
-                              <span className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                              <span className="flex items-center gap-1 text-[9px] font-bold text-gray-400 tracking-widest">
                                 <Globe className="w-3 h-3" /> Remote
                               </span>
                             )}
@@ -281,17 +281,17 @@ export default function Jobs() {
 
                           <div className="flex flex-wrap items-center gap-1.5">
                             {job.tags?.map((tag) => (
-                              <span key={tag} className="text-[9px] font-bold text-gray-500 bg-white/5 border border-white/5 px-2 py-1 rounded-md uppercase tracking-widest">
+                              <span key={tag} className="text-[9px] font-bold text-gray-500 bg-white/5 border border-white/5 px-2 py-1 rounded-md tracking-widest">
                                 {tag}
                               </span>
                             ))}
                             {job.applicationsCount > 0 && (
-                              <span className="flex items-center gap-1 text-[9px] font-bold text-gray-600 uppercase tracking-widest ml-1">
+                              <span className="flex items-center gap-1 text-[9px] font-bold text-gray-600 tracking-widest ml-1">
                                 <Users className="w-3 h-3" /> {job.applicationsCount} applied
                               </span>
                             )}
                             {job.mediaUrls?.length > 0 && (
-                              <span className="flex items-center gap-1 text-[9px] font-bold text-gray-600 uppercase tracking-widest">
+                              <span className="flex items-center gap-1 text-[9px] font-bold text-gray-600 tracking-widest">
                                 <ImageIcon className="w-3 h-3" /> {job.mediaUrls.length}
                               </span>
                             )}
@@ -307,7 +307,7 @@ export default function Jobs() {
                               href={job.sourceUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 bg-[#CDFF00] text-black hover:scale-105 active:scale-95"
+                              className="px-5 py-2.5 rounded-xl font-black text-[10px] tracking-widest transition-all flex items-center gap-1.5 bg-[#CDFF00] text-black hover:scale-105 active:scale-95"
                             >
                               Apply on {job.sourceName} <ExternalLink className="w-3.5 h-3.5" />
                             </a>
@@ -315,7 +315,7 @@ export default function Jobs() {
                             <button
                               onClick={() => setApplyTo(job)}
                               disabled={applied || job.ownedByCurrentUser}
-                              className={`px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                              className={`px-5 py-2.5 rounded-xl font-black text-[10px] tracking-widest transition-all flex items-center gap-1.5 ${
                                 applied || job.ownedByCurrentUser
                                   ? 'bg-white/5 border border-white/10 text-gray-500'
                                   : 'bg-[#CDFF00] text-black hover:scale-105 active:scale-95'
@@ -339,8 +339,8 @@ export default function Jobs() {
                     <Search className="w-6 h-6 text-gray-600" />
                   </div>
                   <div>
-                    <h3 className="text-base font-black uppercase tracking-tight">No openings yet</h3>
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1.5">
+                    <h3 className="text-base font-black tracking-tight">No openings yet</h3>
+                    <p className="text-[10px] text-gray-500 font-bold tracking-widest mt-1.5">
                       {searchQuery || activeCategory !== 'all'
                         ? 'Try a different search or category'
                         : 'Verified companies post here first'}

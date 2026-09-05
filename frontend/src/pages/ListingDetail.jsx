@@ -262,7 +262,7 @@ export default function ListingDetail() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin mx-auto" />
-          <p className="text-gray-500 font-bold text-sm uppercase tracking-widest">Loading listing…</p>
+          <p className="text-gray-500 font-bold text-sm tracking-widest">Loading listing…</p>
         </div>
       </div>
     );
@@ -273,8 +273,8 @@ export default function ListingDetail() {
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <Package className="w-16 h-16 mx-auto text-gray-700" />
-          <h2 className="text-2xl font-black text-white uppercase tracking-tight">{error || 'Not found'}</h2>
-          <Link to="/explore" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm uppercase tracking-widest inline-block">
+          <h2 className="text-2xl font-black text-white tracking-tight">{error || 'Not found'}</h2>
+          <Link to="/explore" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm tracking-widest inline-block">
             Back to Explore
           </Link>
         </div>
@@ -299,14 +299,14 @@ export default function ListingDetail() {
         <div className="flex items-center justify-between mb-4">
           <Link
             to="/explore"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black uppercase tracking-widest hover:text-[#CDFF00] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest hover:text-[#CDFF00] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Explore
           </Link>
           <div className="flex gap-2">
             <button
               onClick={toggleSave}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black uppercase tracking-widest transition-all hover:bg-white/5 active:scale-95 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest transition-all hover:bg-white/5 active:scale-95 ${
                 saved ? 'text-[#FF00FF]' : 'text-[#CDFF00]'
               }`}
             >
@@ -314,7 +314,7 @@ export default function ListingDetail() {
             </button>
             <button
               onClick={() => setShareOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black uppercase tracking-widest text-white hover:bg-white/5 active:scale-95 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest text-white hover:bg-white/5 active:scale-95 transition-all"
             >
               <Share2 className="w-3.5 h-3.5" /> Share
             </button>
@@ -338,7 +338,7 @@ export default function ListingDetail() {
               <motion.h1
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-xl sm:text-2xl font-black text-white mb-2 uppercase tracking-tighter leading-tight"
+                className="text-xl sm:text-2xl font-black text-white mb-2 tracking-tighter leading-tight"
               >
                 {listing.title}
               </motion.h1>
@@ -349,12 +349,12 @@ export default function ListingDetail() {
                   </div>
                 )}
                 {listing.locationCity && (
-                  <div className="flex items-center gap-1.5 text-gray-500 text-[9px] font-black uppercase tracking-widest">
+                  <div className="flex items-center gap-1.5 text-gray-500 text-[9px] font-black tracking-widest">
                     <MapPin className="w-3 h-3 text-[#CDFF00]" /> {listing.locationCity}
                   </div>
                 )}
                 {listing.sellerVerified && (
-                  <div className="flex items-center gap-1.5 text-[#A855F7] text-[9px] font-black uppercase tracking-widest">
+                  <div className="flex items-center gap-1.5 text-[#A855F7] text-[9px] font-black tracking-widest">
                     <ShieldCheck className="w-3 h-3" /> Trusted Merchant
                   </div>
                 )}
@@ -365,7 +365,7 @@ export default function ListingDetail() {
               {isEventType && (eventStart || listing.eventVenue) && (
                 <div className="flex flex-wrap items-center gap-3 mt-2.5">
                   {eventStart && (
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#CDFF00]/10 border border-[#CDFF00]/25 text-[#CDFF00] text-[10px] font-black uppercase tracking-widest">
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#CDFF00]/10 border border-[#CDFF00]/25 text-[#CDFF00] text-[10px] font-black tracking-widest">
                       <CalendarClock className="w-3 h-3" />
                       {eventStart.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
                       {' · '}
@@ -390,7 +390,7 @@ export default function ListingDetail() {
                     {formatPrice(listing.price, listing.currency)}
                   </span>
                   {listing.negotiable && (
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-white/5 border border-white/10 text-[#CDFF00] rounded-md">
+                    <span className="text-[9px] font-black tracking-widest px-2 py-0.5 bg-white/5 border border-white/10 text-[#CDFF00] rounded-md">
                       Negotiable
                     </span>
                   )}
@@ -406,7 +406,7 @@ export default function ListingDetail() {
                   const postage = Number(listing.shippingPrice) || 0;
                   const Icon = method.icon;
                   return (
-                    <div className="flex items-center gap-2 mb-3 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    <div className="flex items-center gap-2 mb-3 text-[10px] font-black tracking-widest text-gray-400">
                       <Icon className="w-3.5 h-3.5 text-[#CDFF00]" />
                       <span>{method.label}</span>
                       <span className={postage > 0 ? 'text-white' : 'text-[#CDFF00]'}>
@@ -431,7 +431,7 @@ export default function ListingDetail() {
                               active ? 'bg-[#CDFF00] border-[#CDFF00] text-black' : 'bg-white/5 border-white/10 text-white hover:border-white/25'
                             }`}
                           >
-                            <span className="block text-[10px] font-black uppercase tracking-widest">{start.toLocaleDateString()}</span>
+                            <span className="block text-[10px] font-black tracking-widest">{start.toLocaleDateString()}</span>
                             <span className="block text-xs font-bold">
                               {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–{end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
@@ -442,7 +442,7 @@ export default function ListingDetail() {
                     <button
                       onClick={handleBookSlot}
                       disabled={!selectedSlotId || slotBooking}
-                      className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
+                      className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
                     >
                       {slotBooking ? (
                         <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -458,7 +458,7 @@ export default function ListingDetail() {
                   // Already holding tickets for this event: lead with the way in, not another
                   // sale. Buying more is still possible from the block underneath.
                   <div className="mb-3 p-3 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[#CDFF00] flex items-center gap-1.5">
+                    <p className="text-[10px] font-black tracking-widest text-[#CDFF00] flex items-center gap-1.5">
                       <Check className="w-3.5 h-3.5" /> You're going
                     </p>
                     <p className="text-xs text-gray-300">
@@ -467,7 +467,7 @@ export default function ListingDetail() {
                     </p>
                     <Link
                       to={`/tickets/${liveTickets[0].id}`}
-                      className="w-full py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#d9ff33] transition-colors"
+                      className="w-full py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#d9ff33] transition-colors"
                     >
                       <Ticket className="w-3.5 h-3.5" /> Open my ticket
                     </Link>
@@ -477,7 +477,7 @@ export default function ListingDetail() {
                 {!isSeller && isEventType && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                      <span className="text-[10px] font-black tracking-widest text-gray-500">
                         {liveTickets.length > 0 ? 'Buy more' : 'Tickets'}
                       </span>
                       <div className="flex items-center gap-3">
@@ -493,7 +493,7 @@ export default function ListingDetail() {
                     <button
                       onClick={handleBuyTickets}
                       disabled={ticketLoading}
-                      className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       {ticketLoading ? (
                         <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -510,7 +510,7 @@ export default function ListingDetail() {
                     {/* Add to Cart */}
                     <button
                       onClick={handleAddToCart}
-                      className={`w-full py-2.5 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-95 ${
+                      className={`w-full py-2.5 rounded-xl font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-95 ${
                         inCart || addedToCart
                           ? 'bg-green-500/20 border border-green-500/40 text-green-400'
                           : 'bg-white/10 border border-white/20 text-white hover:bg-white/15'
@@ -526,7 +526,7 @@ export default function ListingDetail() {
                     {/* Buy Now */}
                     <button
                       onClick={handleBuyNow}
-                      className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 group"
+                      className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 group"
                     >
                       <ShoppingCart className="w-4 h-4 group-hover:rotate-12 transition-transform" /> Buy Now
                     </button>
@@ -535,7 +535,7 @@ export default function ListingDetail() {
                     {listing.negotiable && (
                       <button
                         onClick={handleNegotiate}
-                        className="w-full py-2.5 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#CDFF00]/10 transition-all"
+                        className="w-full py-2.5 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#CDFF00]/10 transition-all"
                       >
                         <HandCoins className="w-4 h-4" />
                         Negotiate via DM
@@ -546,7 +546,7 @@ export default function ListingDetail() {
                     {listing.swapEnabled && (
                       <button
                         onClick={() => (currentUser ? setSwapOpen(true) : navigate('/login'))}
-                        className="w-full py-2.5 rounded-xl border border-[#FF00FF]/40 text-white font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF00FF]/10 to-[#00FFFF]/10 hover:from-[#FF00FF]/20 hover:to-[#00FFFF]/20 transition-all"
+                        className="w-full py-2.5 rounded-xl border border-[#FF00FF]/40 text-white font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF00FF]/10 to-[#00FFFF]/10 hover:from-[#FF00FF]/20 hover:to-[#00FFFF]/20 transition-all"
                       >
                         <Repeat className="w-4 h-4" /> Offer a swap
                       </button>
@@ -559,14 +559,14 @@ export default function ListingDetail() {
                   // buying a ticket, it's working the door.
                   <Link
                     to={`/events/${listing.id}/door`}
-                    className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-95 transition-transform"
+                    className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-95 transition-transform"
                   >
                     <ScanLine className="w-4 h-4" /> Door & guest list
                   </Link>
                 )}
 
                 {isSeller && !isEventType && (
-                  <div className="text-center py-2 text-gray-500 text-xs font-bold uppercase tracking-widest">
+                  <div className="text-center py-2 text-gray-500 text-xs font-bold tracking-widest">
                     This is your listing
                   </div>
                 )}
@@ -575,7 +575,7 @@ export default function ListingDetail() {
 
             {/* Description */}
             <div>
-              <h4 className="text-[9px] font-black uppercase tracking-widest text-[#CDFF00] mb-1.5 opacity-40">About</h4>
+              <h4 className="text-[9px] font-black tracking-widest text-[#CDFF00] mb-1.5 opacity-40">About</h4>
               <p className="text-sm text-gray-300 leading-relaxed font-medium opacity-90">
                 {listing.description}
               </p>
@@ -584,7 +584,7 @@ export default function ListingDetail() {
             {/* Event Updates */}
             {isEventType && (
               <div>
-                <h4 className="text-[9px] font-black uppercase tracking-widest text-[#CDFF00] mb-2.5 opacity-40">Event Updates</h4>
+                <h4 className="text-[9px] font-black tracking-widest text-[#CDFF00] mb-2.5 opacity-40">Event Updates</h4>
 
                 {isSeller && (
                   <div className="mb-3 p-3 rounded-2xl border border-white/10 bg-white/[0.03]">
@@ -606,7 +606,7 @@ export default function ListingDetail() {
                       <button
                         onClick={handlePostUpdate}
                         disabled={postingUpdate || (!updateText.trim() && !updateImage)}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#d9ff33] transition-all disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] transition-all disabled:opacity-50"
                       >
                         <Send className="w-3 h-3" /> Post
                       </button>
@@ -652,13 +652,13 @@ export default function ListingDetail() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h5 className="text-sm font-black text-white uppercase tracking-tight group-hover:text-[#CDFF00] transition-colors truncate">
+                    <h5 className="text-sm font-black text-white tracking-tight group-hover:text-[#CDFF00] transition-colors truncate">
                       {listing.sellerName || seller?.fullName || 'Seller'}
                     </h5>
                     {listing.sellerVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">
+                    <span className="text-[9px] font-black tracking-widest text-gray-500">
                       {listing.reviewCount > 0 ? `${listing.reviewCount} reviews` : 'Seller on HustleSpace'}
                     </span>
                     <DistanceBadge lat={seller?.latitude} lng={seller?.longitude} />

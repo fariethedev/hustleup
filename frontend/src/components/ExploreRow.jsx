@@ -74,10 +74,10 @@ export default function ExploreRow({
         {/* ── Shelf header: stacked and centred, with the way out beneath the title ── */}
         <div className="flex flex-col items-center text-center gap-3 mb-5">
           <div className="min-w-0">
-            <span className="text-[9px] font-black uppercase tracking-[0.3em] block mb-1" style={{ color: accentColor }}>
+            <span className="text-[9px] font-black tracking-[0.3em] block mb-1" style={{ color: accentColor }}>
               {subtitle}
             </span>
-            <h2 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tighter flex items-center justify-center gap-2">
+            <h2 className="text-lg sm:text-2xl font-black text-white tracking-tighter flex items-center justify-center gap-2">
               <Icon className="w-5 h-5 shrink-0" style={{ color: accentColor }} />
               <span className="truncate">{title}</span>
             </h2>
@@ -86,7 +86,7 @@ export default function ExploreRow({
           {viewAllTo && (
             <Link
               to={viewAllTo}
-              className="group shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest text-white transition-all hover:text-black active:scale-95"
+              className="group shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-[10px] font-black tracking-widest text-white transition-all hover:text-black active:scale-95"
               style={{ borderColor: `${accentColor}66` }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = accentColor; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
@@ -100,7 +100,7 @@ export default function ExploreRow({
 
         {isEmpty && !loading ? (
           <div className="text-center py-10 rounded-2xl bg-white/[0.02] border border-white/5 border-dashed">
-            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">{emptyText}</p>
+            <p className="text-gray-500 text-xs font-bold tracking-widest">{emptyText}</p>
           </div>
         ) : (
           <div className="relative">

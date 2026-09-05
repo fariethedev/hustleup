@@ -154,7 +154,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                 {listing.sellerName || 'Creator'}
               </span>
               {listing.sellerVerified && <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
-              <span className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-gray-500 uppercase tracking-wider shrink-0">
+              <span className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-gray-500 tracking-wider shrink-0">
                 <MapPin className="w-3 h-3 text-[#CDFF00]" />
                 <span className="max-w-[64px] truncate">{displayCity(listing.locationCity)}</span>
               </span>
@@ -169,12 +169,12 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
             {onDelete ? (
               <button
                 onClick={(e) => { e.preventDefault(); onDelete(listing.id); }}
-                className="w-full py-1.5 rounded-lg flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-widest bg-red-500/10 border border-red-500/40 text-red-400 hover:bg-red-500/20 transition-colors"
+                className="w-full py-1.5 rounded-lg flex items-center justify-center gap-1.5 text-[9px] font-black tracking-widest bg-red-500/10 border border-red-500/40 text-red-400 hover:bg-red-500/20 transition-colors"
               >
                 <Trash2 className="w-3 h-3" /> Delete
               </button>
             ) : (
-              <div className="w-full py-1.5 rounded-lg text-center text-[9px] font-black uppercase tracking-widest text-gray-600 bg-white/[0.03] border border-white/5">
+              <div className="w-full py-1.5 rounded-lg text-center text-[9px] font-black tracking-widest text-gray-600 bg-white/[0.03] border border-white/5">
                 Your listing
               </div>
             )}

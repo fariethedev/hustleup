@@ -1031,7 +1031,13 @@ public class FeedController {
             comment.setParentId(parentId);
         }
 
-        return ResponseEntity.ok(commentRepository.save(comment));
+        Comment saved = commentRepository.save(comment);
+
+        // A CommentDto, not the raw entity. The thread is rendered from DTOs, so returning
+        // an entity here meant the comment you had just written was the one row missing an
+        // avatar, a like count and a replies array — it rendered differently from every other
+        // comment until the next reload put it right.
+        return ResponseEntity.ok(CommentDto.from(saved, false, currentUser.getAvatarUrl()));
     }
 
     /**

@@ -278,7 +278,7 @@ export default function Dashboard() {
           {isSeller && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
               <button onClick={() => setTab('sales')} className="text-left rounded-2xl border border-[#CDFF00]/25 bg-[#CDFF00]/[0.06] p-3.5 hover:bg-[#CDFF00]/10 transition-colors">
-                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#CDFF00]/70">Revenue</p>
+                <p className="text-[9px] font-black tracking-[0.18em] text-[#CDFF00]/70">Revenue</p>
                 <p className="text-lg font-black text-[#CDFF00] mt-0.5 truncate">{formatPrice(totalRevenue, 'PLN')}</p>
               </button>
               <button onClick={() => setTab('bookings')} className={`text-left rounded-2xl border p-3.5 transition-colors ${
@@ -286,11 +286,11 @@ export default function Dashboard() {
                   ? 'border-amber-400/40 bg-amber-400/10 hover:bg-amber-400/15'
                   : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
               }`}>
-                <p className={`text-[9px] font-black uppercase tracking-[0.18em] ${pendingRequests.length > 0 ? 'text-amber-300/80' : 'text-gray-500'}`}>Needs reply</p>
+                <p className={`text-[9px] font-black tracking-[0.18em] ${pendingRequests.length > 0 ? 'text-amber-300/80' : 'text-gray-500'}`}>Needs reply</p>
                 <p className={`text-lg font-black mt-0.5 ${pendingRequests.length > 0 ? 'text-amber-300' : 'text-white'}`}>{pendingRequests.length}</p>
               </button>
               <button onClick={() => setTab('bookings')} className="text-left rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors">
-                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-gray-500">In progress</p>
+                <p className="text-[9px] font-black tracking-[0.18em] text-gray-500">In progress</p>
                 <p className="text-lg font-black text-white mt-0.5">{inProgress.length}</p>
               </button>
               <button onClick={() => setTab('payouts')} className={`text-left rounded-2xl border p-3.5 transition-colors ${
@@ -298,7 +298,7 @@ export default function Dashboard() {
                   ? 'border-emerald-400/30 bg-emerald-400/[0.07] hover:bg-emerald-400/10'
                   : 'border-red-400/40 bg-red-400/10 hover:bg-red-400/15'
               }`}>
-                <p className={`text-[9px] font-black uppercase tracking-[0.18em] ${payoutStatus?.payoutsEnabled ? 'text-emerald-300/80' : 'text-red-300/80'}`}>Payouts</p>
+                <p className={`text-[9px] font-black tracking-[0.18em] ${payoutStatus?.payoutsEnabled ? 'text-emerald-300/80' : 'text-red-300/80'}`}>Payouts</p>
                 <p className={`text-sm font-black mt-1 ${payoutStatus?.payoutsEnabled ? 'text-emerald-300' : 'text-red-300'}`}>
                   {payoutStatus?.payoutsEnabled ? 'Active' : payoutStatus?.connected ? 'Finish setup' : 'Not set up'}
                 </p>
@@ -320,7 +320,7 @@ export default function Dashboard() {
                 {gi > 0 && <div className="w-px h-5 bg-white/10 mr-1 shrink-0" />}
                 {/* Only worth labelling once there is more than one group to tell apart. */}
                 {tabGroups.filter((g) => g.tabs.length > 0).length > 1 && (
-                  <span className="hidden sm:inline text-[8px] font-black uppercase tracking-[0.18em] text-gray-600 mr-0.5">
+                  <span className="hidden sm:inline text-[8px] font-black tracking-[0.18em] text-gray-600 mr-0.5">
                     {group.label}
                   </span>
                 )}
@@ -331,7 +331,7 @@ export default function Dashboard() {
                     <button
                       key={t.id}
                       onClick={() => setTab(t.id)}
-                      className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all border ${
+                      className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 px-4 py-2 rounded-lg text-[9px] font-black tracking-[0.2em] transition-all border ${
                         isActive
                           ? 'bg-[#CDFF00] text-black border-[#CDFF00] shadow-[0_0_20px_rgba(205,255,0,0.15)]'
                           : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/20'
@@ -353,11 +353,11 @@ export default function Dashboard() {
             ))}
             <div className="w-px h-5 bg-white/10 mx-1.5 shrink-0" />
             {isSeller && (
-              <Link to="/create" className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase tracking-widest text-[9px] hover:bg-[#E0FF4D] transition-all">
+              <Link to="/create" className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#CDFF00] text-black font-black tracking-widest text-[9px] hover:bg-[#E0FF4D] transition-all">
                 <Plus className="w-3.5 h-3.5" /> Post New
               </Link>
             )}
-            <Link to={`/profile/${user?.id}`} className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg glass border border-white/10 text-white font-bold uppercase tracking-widest text-[9px] hover:bg-white/5 transition-all">
+            <Link to={`/profile/${user?.id}`} className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg glass border border-white/10 text-white font-bold tracking-widest text-[9px] hover:bg-white/5 transition-all">
               <Settings2 className="w-3.5 h-3.5" /> Settings
             </Link>
           </div>
@@ -385,7 +385,7 @@ export default function Dashboard() {
                       <p className="text-xs text-gray-500 truncate">{b.listingTitle}</p>
                     </div>
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[#CDFF00] group-hover:translate-x-0.5 transition-transform shrink-0">
+                  <span className="text-[9px] font-black tracking-widest text-[#CDFF00] group-hover:translate-x-0.5 transition-transform shrink-0">
                     Rate →
                   </span>
                 </button>
@@ -407,7 +407,7 @@ export default function Dashboard() {
                   <p className="text-xs text-gray-500">Name, banner, colour, city and products — all editable by you</p>
                 </div>
               </div>
-              <span className="text-[9px] font-black uppercase tracking-widest text-[#CDFF00] group-hover:translate-x-0.5 transition-transform shrink-0">Manage →</span>
+              <span className="text-[9px] font-black tracking-widest text-[#CDFF00] group-hover:translate-x-0.5 transition-transform shrink-0">Manage →</span>
             </button>
           )}
 
@@ -437,19 +437,19 @@ export default function Dashboard() {
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1.5">
-                              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-[0.15em] ${status.color}`}>
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-black tracking-[0.15em] ${status.color}`}>
                                 {status.label}
                               </span>
-                              <span className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">
+                              <span className="text-[9px] font-bold text-gray-600 tracking-widest">
                                 {new Date(booking.createdAt).toLocaleDateString()}
                               </span>
                             </div>
 
-                            <Link to={`/listing/${booking.listingId}`} className="text-sm font-black text-white hover:text-[#CDFF00] transition-colors uppercase tracking-tight block truncate">
+                            <Link to={`/listing/${booking.listingId}`} className="text-sm font-black text-white hover:text-[#CDFF00] transition-colors tracking-tight block truncate">
                               {booking.listingTitle || 'Project Title'}
                             </Link>
 
-                            <div className="flex flex-wrap items-center gap-3 mt-1 text-[9px] font-black uppercase tracking-[0.1em] text-gray-500">
+                            <div className="flex flex-wrap items-center gap-3 mt-1 text-[9px] font-black tracking-[0.1em] text-gray-500">
                               <span className="flex items-center gap-1">
                                 <span className="text-gray-700">{isBuyer ? 'Seller:' : 'Buyer:'}</span>
                                 <span className="text-gray-400">{isBuyer ? booking.sellerName : booking.buyerName}</span>
@@ -477,18 +477,18 @@ export default function Dashboard() {
                               phone-width card a non-wrapping row spilled past the edge with no
                               way to reach the hidden ones. */}
                           <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-                            <Link to={`/dm/${isBuyer ? booking.sellerId : booking.buyerId}`} className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black uppercase text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5">
+                            <Link to={`/dm/${isBuyer ? booking.sellerId : booking.buyerId}`} className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5">
                               <MessageSquare className="w-3 h-3" /> Wire
                             </Link>
 
                             {booking.status === 'INQUIRED' && !isBuyer && (
                               <>
-                                <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
+                                <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
                                   <Check className="w-3 h-3" /> Approve
                                 </button>
                                 <button
                                   onClick={() => { setCounteringId(counteringId === booking.id ? null : booking.id); setCounterValue(''); }}
-                                  className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black uppercase text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1"
+                                  className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1"
                                 >
                                   <Pencil className="w-3 h-3" /> Counter
                                 </button>
@@ -497,7 +497,7 @@ export default function Dashboard() {
 
                             {/* Buyer accepting the seller's counter-offer */}
                             {booking.status === 'NEGOTIATING' && isBuyer && (
-                              <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
+                              <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
                                 <Check className="w-3 h-3" /> Accept {formatPrice(booking.counterPrice, booking.currency)}
                               </button>
                             )}
@@ -506,7 +506,7 @@ export default function Dashboard() {
                               <button
                                 onClick={() => handlePayNow(booking.id)}
                                 disabled={payingBookingId === booking.id}
-                                className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1 disabled:opacity-60"
+                                className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1 disabled:opacity-60"
                               >
                                 <CreditCard className="w-3 h-3" /> {payingBookingId === booking.id ? 'Redirecting…' : 'Pay Now'}
                               </button>
@@ -518,7 +518,7 @@ export default function Dashboard() {
                             {!isBuyer && ['PAID', 'TRANSFERRED'].includes(booking.paymentStatus) && (
                               <button
                                 onClick={() => setTracking({ order: booking, kind: 'booking', title: booking.listingTitle })}
-                                className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black uppercase text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5"
+                                className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5"
                               >
                                 <Truck className="w-3 h-3" /> Delivery
                               </button>
@@ -540,7 +540,7 @@ export default function Dashboard() {
                                       'error');
                                   }
                                 }}
-                                className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1"
+                                className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1"
                               >
                                 <Check className="w-3 h-3" /> Complete
                               </button>
@@ -554,7 +554,7 @@ export default function Dashboard() {
                               return (
                                 <button
                                   onClick={() => { if (confirm(isPendingRequest ? 'Decline this request?' : 'Cancel this booking?')) handleBookingAction(booking.id, 'cancel'); }}
-                                  className="px-3.5 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 font-black uppercase text-[9px] tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-1"
+                                  className="px-3.5 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 font-black text-[9px] tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-1"
                                 >
                                   <Ban className="w-3 h-3" /> {isPendingRequest ? 'Decline' : 'Cancel'}
                                 </button>
@@ -582,7 +582,7 @@ export default function Dashboard() {
                             <button
                               onClick={() => submitCounter(booking.id)}
                               disabled={counterBusy || !counterValue}
-                              className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all disabled:opacity-40"
+                              className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all disabled:opacity-40"
                             >
                               {counterBusy ? '…' : 'Send'}
                             </button>
@@ -609,7 +609,7 @@ export default function Dashboard() {
                 <div className="space-y-6">
                   {shopOrders.length > 0 && (
                     <div>
-                      <h3 className="text-[9px] font-black uppercase tracking-[0.24em] text-gray-500 mb-2.5">
+                      <h3 className="text-[9px] font-black tracking-[0.24em] text-gray-500 mb-2.5">
                         Your purchases
                       </h3>
                       <div className="space-y-2.5">
@@ -622,7 +622,7 @@ export default function Dashboard() {
 
                   {shopSales.length > 0 && (
                     <div>
-                      <h3 className="text-[9px] font-black uppercase tracking-[0.24em] text-gray-500 mb-2.5">
+                      <h3 className="text-[9px] font-black tracking-[0.24em] text-gray-500 mb-2.5">
                         Orders to fulfil
                       </h3>
                       <div className="space-y-2.5">
@@ -657,16 +657,16 @@ export default function Dashboard() {
                       className="glass rounded-2xl p-4 border border-white/5 hover:border-[#CDFF00]/30 transition-all flex items-center justify-between gap-3 group"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-black text-white uppercase tracking-tight truncate group-hover:text-[#CDFF00] transition-colors">
+                        <p className="text-sm font-black text-white tracking-tight truncate group-hover:text-[#CDFF00] transition-colors">
                           {t.eventTitle}
                         </p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-600 mt-0.5">
+                        <p className="text-[9px] font-black tracking-widest text-gray-600 mt-0.5">
                           {t.ticketCode}
                           {t.eventStartsAt && ` · ${new Date(t.eventStartsAt).toLocaleDateString()}`}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${
+                        <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black tracking-widest ${
                           t.status === 'CHECKED_IN' ? 'bg-emerald-500/15 text-emerald-400'
                             : t.status === 'CANCELLED' ? 'bg-red-500/15 text-red-400'
                             : 'bg-[#CDFF00]/15 text-[#CDFF00]'
@@ -679,7 +679,7 @@ export default function Dashboard() {
                   ))}
                   <Link
                     to="/tickets"
-                    className="block text-center text-[9px] font-black uppercase tracking-widest text-gray-500 hover:text-[#CDFF00] transition-colors pt-1"
+                    className="block text-center text-[9px] font-black tracking-widest text-gray-500 hover:text-[#CDFF00] transition-colors pt-1"
                   >
                     Open full ticket wallet →
                   </Link>
@@ -699,15 +699,15 @@ export default function Dashboard() {
                       className="glass rounded-2xl p-4 border border-white/5 hover:border-[#CDFF00]/30 transition-all flex items-center justify-between gap-3 group"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-black text-white uppercase tracking-tight truncate group-hover:text-[#CDFF00] transition-colors">
+                        <p className="text-sm font-black text-white tracking-tight truncate group-hover:text-[#CDFF00] transition-colors">
                           {l.title}
                         </p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-600 mt-0.5">
+                        <p className="text-[9px] font-black tracking-widest text-gray-600 mt-0.5">
                           {l.eventStartsAt ? new Date(l.eventStartsAt).toLocaleString() : 'Date TBC'}
                           {l.eventVenue && ` · ${l.eventVenue}`}
                         </p>
                       </div>
-                      <span className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[9px] font-black uppercase tracking-widest">
+                      <span className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[9px] font-black tracking-widest">
                         <ScanLine className="w-3 h-3" /> Open door
                       </span>
                     </Link>
@@ -746,8 +746,8 @@ export default function Dashboard() {
                             <TypeIcon className="w-5 h-5" />
                           </Link>
                           <Link to={`/listing/${listing.id}`} className="flex-1 min-w-0">
-                            <h3 className="text-sm font-black text-white group-hover:text-[#CDFF00] transition-colors truncate uppercase tracking-tight">{listing.title}</h3>
-                            <div className="flex items-center gap-2.5 mt-0.5 text-[9px] font-black uppercase tracking-widest text-gray-600">
+                            <h3 className="text-sm font-black text-white group-hover:text-[#CDFF00] transition-colors truncate tracking-tight">{listing.title}</h3>
+                            <div className="flex items-center gap-2.5 mt-0.5 text-[9px] font-black tracking-widest text-gray-600">
                               <span>{typeInfo.label}</span>
                               <span className="text-[#CDFF00]">{formatPrice(listing.price, listing.currency)}</span>
                             </div>
@@ -771,11 +771,11 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   <div className="glass rounded-2xl p-5 border border-[#CDFF00]/20 flex items-center justify-between">
                     <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-500">Total revenue</p>
+                      <p className="text-[9px] font-black tracking-widest text-gray-500">Total revenue</p>
                       <p className="text-2xl font-black text-[#CDFF00] mt-1">{formatPrice(totalRevenue, 'PLN')}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-500">Completed sales</p>
+                      <p className="text-[9px] font-black tracking-widest text-gray-500">Completed sales</p>
                       <p className="text-2xl font-black text-white mt-1">{salesBookings.length}</p>
                     </div>
                   </div>
@@ -790,7 +790,7 @@ export default function Dashboard() {
                             <Link to={`/listing/${b.listingId}`} className="text-sm font-black text-white hover:text-[#CDFF00] transition-colors truncate block">
                               {b.listingTitle || 'Listing'}
                             </Link>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 mt-0.5">
+                            <p className="text-[9px] font-black tracking-widest text-gray-500 mt-0.5">
                               {b.buyerName} · {new Date(b.createdAt).toLocaleDateString()}
                               {b.quantity > 1 && ` · ${b.quantity}x`}
                             </p>
@@ -848,7 +848,7 @@ export default function Dashboard() {
                   </div>
 
                   <div className="glass rounded-2xl p-4 border border-white/5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">How payouts work</p>
+                    <p className="text-[10px] font-black tracking-widest text-gray-500 mb-2">How payouts work</p>
                     <ul className="text-xs text-gray-400 space-y-1.5 leading-relaxed list-disc list-inside">
                       <li>Buyers pay when a booking is confirmed.</li>
                       <li>You get paid automatically once you mark the booking Complete.</li>
@@ -871,8 +871,8 @@ export default function Dashboard() {
                         className={`glass rounded-2xl px-4 py-3 cursor-pointer border transition-all ${!notif.read ? 'border-[#CDFF00]/50 bg-[#CDFF00]/5' : 'border-white/5 bg-black/40 hover:border-white/10'}`}
                       >
                         <div className="flex items-baseline justify-between gap-3">
-                          <h4 className={`text-xs tracking-[0.1em] uppercase truncate ${!notif.read ? 'text-[#CDFF00] font-black' : 'text-gray-400 font-bold'}`}>{notif.title}</h4>
-                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-700 shrink-0">{new Date(notif.createdAt).toLocaleDateString()}</span>
+                          <h4 className={`text-xs tracking-[0.1em] truncate ${!notif.read ? 'text-[#CDFF00] font-black' : 'text-gray-400 font-bold'}`}>{notif.title}</h4>
+                          <span className="text-[9px] font-black tracking-[0.2em] text-gray-700 shrink-0">{new Date(notif.createdAt).toLocaleDateString()}</span>
                         </div>
                         <p className={`text-sm mt-1 font-medium ${!notif.read ? 'text-white' : 'text-gray-500'}`}>{notif.message}</p>
                       </div>
@@ -968,7 +968,7 @@ function EditPriceModal({ listing, onClose, onSaved }) {
           <h3 className="text-sm font-bold text-white truncate pr-2">{listing.title}</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 shrink-0"><X className="w-4 h-4" /></button>
         </div>
-        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Price ({listing.currency})</label>
+        <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1.5 block">Price ({listing.currency})</label>
         <input
           type="number" value={price} onChange={(e) => setPrice(e.target.value)}
           className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] mb-3"
@@ -1027,7 +1027,7 @@ function AvailabilityTab({ listings, slots, onChange }) {
     <div className="space-y-5">
       {/* Add slot form */}
       <div className="glass rounded-2xl p-4 border border-white/5">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3">Open a new slot</h3>
+        <h3 className="text-[10px] font-black tracking-widest text-gray-500 mb-3">Open a new slot</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-2.5">
           <select
             value={listingId} onChange={(e) => setListingId(e.target.value)}
@@ -1066,7 +1066,7 @@ function AvailabilityTab({ listings, slots, onChange }) {
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${s.booked ? 'bg-[#CDFF00]/15 text-[#CDFF00]' : 'bg-white/5 text-gray-400'}`}>
+                <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest ${s.booked ? 'bg-[#CDFF00]/15 text-[#CDFF00]' : 'bg-white/5 text-gray-400'}`}>
                   {s.booked ? 'Booked' : 'Open'}
                 </span>
                 {!s.booked && (
@@ -1104,17 +1104,17 @@ function ShopOrderCard({ order, onTrack }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-[0.15em] ${paidState.color}`}>
+            <span className={`px-2 py-0.5 rounded text-[9px] font-black tracking-[0.15em] ${paidState.color}`}>
               {paidState.label}
             </span>
-            <span className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">
+            <span className="text-[9px] font-bold text-gray-600 tracking-widest">
               {new Date(order.createdAt).toLocaleDateString()}
             </span>
           </div>
 
-          <p className="text-sm font-black text-white uppercase tracking-tight truncate">{order.productName}</p>
+          <p className="text-sm font-black text-white tracking-tight truncate">{order.productName}</p>
 
-          <div className="flex flex-wrap items-center gap-3 mt-1 text-[9px] font-black uppercase tracking-[0.1em] text-gray-500">
+          <div className="flex flex-wrap items-center gap-3 mt-1 text-[9px] font-black tracking-[0.1em] text-gray-500">
             <span>Qty {order.quantity}</span>
             <span className="text-[#CDFF00]">{formatPrice(goods + shipping, order.currency)}</span>
             {/* Postage is named separately rather than folded into the total: it is what the
@@ -1130,7 +1130,7 @@ function ShopOrderCard({ order, onTrack }) {
         {onTrack && (
           <button
             onClick={onTrack}
-            className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black uppercase text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5 shrink-0"
+            className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5 shrink-0"
           >
             <Truck className="w-3 h-3" /> Delivery
           </button>
@@ -1157,10 +1157,10 @@ function EmptyState({ icon: Icon, title, desc, cta }) {
       <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3 border border-white/5">
         <Icon className="w-5 h-5 text-white/20" />
       </div>
-      <h3 className="text-base font-black text-white uppercase tracking-[0.1em] mb-1.5">{title}</h3>
-      <p className="text-gray-500 mb-4 font-bold uppercase tracking-widest text-[10px] max-w-xs mx-auto leading-relaxed">{desc}</p>
+      <h3 className="text-base font-black text-white tracking-[0.1em] mb-1.5">{title}</h3>
+      <p className="text-gray-500 mb-4 font-bold tracking-widest text-[10px] max-w-xs mx-auto leading-relaxed">{desc}</p>
       {cta && (
-        <Link to={cta.to} className="inline-flex px-6 py-2.5 rounded-lg bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:scale-105 transition-all text-[9px]">
+        <Link to={cta.to} className="inline-flex px-6 py-2.5 rounded-lg bg-[#CDFF00] text-black font-black tracking-widest hover:scale-105 transition-all text-[9px]">
           {cta.label}
         </Link>
       )}

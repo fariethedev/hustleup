@@ -118,13 +118,13 @@ export default function OfferMessageCard({ bookingId }) {
           <HandCoins className="w-3.5 h-3.5 text-black" />
         </div>
         <span className="text-xs font-black text-white truncate flex-1">{booking.listingTitle || 'Negotiation'}</span>
-        <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-[0.1em] shrink-0 ${status.color}`}>
+        <span className={`px-1.5 py-0.5 rounded text-[8px] font-black tracking-[0.1em] shrink-0 ${status.color}`}>
           {status.label}
         </span>
       </div>
 
       <div className="flex items-baseline gap-1.5 mb-2.5">
-        <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-gray-500">{priceLabel}</span>
+        <span className="text-[9px] font-bold tracking-[0.15em] text-gray-500">{priceLabel}</span>
         <span className="text-lg font-black" style={{ color: LIME }}>{formatPrice(price, booking.currency)}</span>
         {booking.status === 'NEGOTIATING' && booking.counterPrice && (
           <span className="text-[10px] text-gray-500">(was {formatPrice(booking.offeredPrice, booking.currency)})</span>
@@ -138,7 +138,7 @@ export default function OfferMessageCard({ bookingId }) {
               <button
                 disabled={busy}
                 onClick={() => act(() => bookingsApi.accept(bookingId), 'Offer accepted')}
-                className="px-2.5 py-1.5 rounded-lg font-black uppercase text-[9px] tracking-widest text-black hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg font-black text-[9px] tracking-widest text-black hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-1"
                 style={{ backgroundColor: LIME }}
               >
                 <Check className="w-3 h-3" /> Accept
@@ -146,7 +146,7 @@ export default function OfferMessageCard({ bookingId }) {
               <button
                 disabled={busy}
                 onClick={() => { setCountering((v) => !v); setCounterValue(''); }}
-                className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white font-black uppercase text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1"
+                className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1"
               >
                 <Pencil className="w-3 h-3" /> Counter
               </button>
@@ -157,7 +157,7 @@ export default function OfferMessageCard({ bookingId }) {
             <button
               disabled={busy}
               onClick={() => act(() => bookingsApi.accept(bookingId), 'Deal agreed')}
-              className="px-2.5 py-1.5 rounded-lg font-black uppercase text-[9px] tracking-widest text-black hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-1"
+              className="px-2.5 py-1.5 rounded-lg font-black text-[9px] tracking-widest text-black hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-1"
               style={{ backgroundColor: LIME }}
             >
               <Check className="w-3 h-3" /> Accept {formatPrice(booking.counterPrice, booking.currency)}
@@ -167,7 +167,7 @@ export default function OfferMessageCard({ bookingId }) {
           <button
             disabled={busy}
             onClick={() => { if (confirm(isPendingRequest ? 'Decline this offer?' : 'Cancel this negotiation?')) act(() => bookingsApi.cancel(bookingId, 'Declined in chat')); }}
-            className="px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 font-black uppercase text-[9px] tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-1"
+            className="px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 font-black text-[9px] tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-1"
           >
             <X className="w-3 h-3" /> {isPendingRequest ? 'Decline' : 'Cancel'}
           </button>
@@ -189,7 +189,7 @@ export default function OfferMessageCard({ bookingId }) {
           <button
             disabled={busy || !counterValue}
             onClick={submitCounter}
-            className="px-2.5 py-1.5 rounded-lg font-black uppercase text-[9px] tracking-widest text-black disabled:opacity-50 shrink-0"
+            className="px-2.5 py-1.5 rounded-lg font-black text-[9px] tracking-widest text-black disabled:opacity-50 shrink-0"
             style={{ backgroundColor: LIME }}
           >
             Send

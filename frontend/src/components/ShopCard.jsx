@@ -48,12 +48,12 @@ export default function ShopCard({ shop, index = 0 }) {
           {/* Top badges */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 pr-12">
             {shop.category && (
-              <span className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-black/75 backdrop-blur-md text-white border border-white/20">
+              <span className="px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest bg-black/75 backdrop-blur-md text-white border border-white/20">
                 {shop.category}
               </span>
             )}
             {shop.rating >= 4.8 && (
-              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-[#CDFF00] text-black">
+              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest bg-[#CDFF00] text-black">
                 <ShieldCheck className="w-3 h-3" /> Top rated
               </span>
             )}
@@ -76,7 +76,7 @@ export default function ShopCard({ shop, index = 0 }) {
         <div className="flex flex-col flex-1 p-4">
           {/* Stat strip — all three are platform-derived, so they're trustworthy in a way
               seller-written copy isn't. */}
-          <div className="flex items-center gap-3 mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <div className="flex items-center gap-3 mb-3 text-[10px] font-bold tracking-wider text-gray-400">
             <span className="flex items-center gap-1 text-white">
               <Star className="w-3.5 h-3.5 fill-[#CDFF00] text-[#CDFF00]" />
               {shop.rating > 0 ? shop.rating.toFixed(1) : 'New'}
@@ -101,7 +101,7 @@ export default function ShopCard({ shop, index = 0 }) {
 
           {/* Product preview strip + city, pinned to the bottom so cards align in a grid */}
           <div className="mt-auto flex items-center justify-between gap-3 pt-3 border-t border-white/5">
-            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 min-w-0">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-gray-400 min-w-0">
               <MapPin className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />
               <span className="truncate">{displayCity(shop.city)}</span>
             </span>
