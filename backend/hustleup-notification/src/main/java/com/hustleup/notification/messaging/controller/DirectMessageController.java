@@ -535,8 +535,8 @@ public class DirectMessageController {
             if (storyId == null || storyId.isBlank()) return ResponseEntity.badRequest().build();
             if (content == null) content = "";
         } else if (isOffer) {
-            // The card fetches live price/status by booking id — see the entity Javadoc
-            // on offerBookingId for why nothing else is snapshotted here.
+            // The card fetches live price/status by booking id — see the entity Javadoc on
+            // offerBookingId for why nothing else about the offer is snapshotted here.
             if (offerBookingId == null || offerBookingId.isBlank()) return ResponseEntity.badRequest().build();
             if (content == null) content = "";
         } else if (content == null || content.trim().isEmpty()) {

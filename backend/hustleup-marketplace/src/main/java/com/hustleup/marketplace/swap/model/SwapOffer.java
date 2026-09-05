@@ -142,6 +142,40 @@ public class SwapOffer {
     @Column(nullable = false)
     private SwapStatus status = SwapStatus.PENDING;
 
+    // ── Handover ──────────────────────────────────────────────────────────────
+    // Kept separate from {@link #status} for the same reason FulfilmentStatus is separate
+    // from BookingStatus: status answers a commercial question (was this trade agreed), and
+    // overloading it to also answer "has the item physically arrived" would give one field
+    // two owners. A swap has two parcels in flight at once, so each side confirms its own
+    // arrival independently — there is no single "delivered" moment to record.
+
+    /** When the proposer confirmed the target owner's item reached them. Null until then. */
+    @Column(name = "proposer_received_at")
+    private LocalDateTime proposerReceivedAt;
+
+    /**
+     * Photo/video the proposer uploaded as proof of what arrived.
+     *
+     * <p>Required by the service rather than nullable-by-convention: a confirmation with
+     * nothing behind it is one person's word, which is exactly what is disputed when a swap
+     * goes wrong. Stored as the raw key — presign via FileStorageService before serving.
+     */
+    @Column(name = "proposer_proof_url", length = 1024)
+    private String proposerProofUrl;
+
+    /** When the listing owner confirmed the proposer's item reached them. */
+    @Column(name = "owner_received_at")
+    private LocalDateTime ownerReceivedAt;
+
+    /** The listing owner's proof of what arrived. See {@link #proposerProofUrl}. */
+    @Column(name = "owner_proof_url", length = 1024)
+    private String ownerProofUrl;
+
+    /** True once both parcels have landed and been evidenced — the trade is finished. */
+    public boolean isHandoverComplete() {
+        return proposerReceivedAt != null && ownerReceivedAt != null;
+    }
+
     // ── Bookkeeping ───────────────────────────────────────────────────────────
 
     /**

@@ -219,7 +219,9 @@ public class BookingController {
      * A single booking by id — powers the live offer card embedded in a DM thread.
      *
      * <p><b>GET /api/v1/bookings/{id}</b> — auth required, and only the buyer or seller on
-     * this booking may read it (see {@link BookingService#getById}).
+     * this booking may read it (see {@link BookingService#getById}). Declared after the
+     * literal "/my" and "/pending-sales" mappings, though Spring matches those ahead of this
+     * template regardless of order.
      */
     @GetMapping("/{id}")
     public ResponseEntity<BookingDto> getById(@PathVariable UUID id) {

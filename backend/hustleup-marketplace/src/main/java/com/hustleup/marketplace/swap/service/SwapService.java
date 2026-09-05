@@ -29,6 +29,7 @@ import com.hustleup.marketplace.swap.repository.SwapOfferRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
@@ -208,6 +209,71 @@ public class SwapService {
         return toDto(swapOfferRepository.save(offer), actor.getId());
     }
 
+    /**
+     * One side confirming the other's item physically arrived, with evidence.
+     *
+     * <p>Either party may call this, for their own side only — a swap is two parcels, and
+     * neither person can speak for the one they sent. Which side the caller is decides which
+     * pair of columns is written; there is no way to confirm on someone else's behalf.
+     *
+     * <p>Only an {@code ACCEPTED} offer can be confirmed. Confirming a pending one would
+     * assert an arrival for a trade nobody has agreed to yet, and a declined or withdrawn one
+     * has no parcels in flight at all.
+     *
+     * <p>Proof is required rather than optional. A bare "yes it came" is one person's word,
+     * which is exactly what is in dispute when a swap goes wrong, and this is the only record
+     * either of them will have — the platform runs no payment leg here to fall back on.
+     *
+     * @param offerId the accepted swap being confirmed
+     * @param actor   the confirming party — must be the proposer or the target owner
+     * @param proof   photo or video of what arrived; required and non-empty
+     * @return the offer as the confirming party now sees it
+     */
+    @Transactional
+    public SwapOfferDto confirmReceipt(UUID offerId, User actor, MultipartFile proof) {
+        SwapOffer offer = swapOfferRepository.findById(offerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Swap offer not found"));
+
+        if (offer.getStatus() != SwapStatus.ACCEPTED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Only an accepted swap has anything to receive");
+        }
+
+        boolean isProposer = offer.getProposerId().equals(actor.getId());
+        boolean isOwner = offer.getTargetOwnerId().equals(actor.getId());
+        if (!isProposer && !isOwner) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Only the two people in this swap can confirm it arrived");
+        }
+
+        if (proof == null || proof.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Add a photo or video of what arrived");
+        }
+
+        // Not idempotent on purpose: re-confirming would overwrite the original timestamp and
+        // the original evidence, which is the one thing a later dispute needs kept as it was.
+        if (isProposer && offer.getProposerReceivedAt() != null
+                || isOwner && offer.getOwnerReceivedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "You have already confirmed this one arrived");
+        }
+
+        String storedUrl = fileStorageService.store(proof);
+        LocalDateTime now = LocalDateTime.now();
+        if (isProposer) {
+            offer.setProposerReceivedAt(now);
+            offer.setProposerProofUrl(storedUrl);
+        } else {
+            offer.setOwnerReceivedAt(now);
+            offer.setOwnerProofUrl(storedUrl);
+        }
+
+        SwapOffer saved = swapOfferRepository.save(offer);
+        log.info("Swap receipt confirmed: {} by {} (complete={})", offerId, actor.getId(), saved.isHandoverComplete());
+        return toDto(saved, actor.getId());
+    }
+
     // ── Queries ───────────────────────────────────────────────────────────────
 
     /** Offers waiting on me (as listing owner). */
@@ -278,6 +344,11 @@ public class SwapService {
                 .cashCurrency(offer.getCashCurrency())
                 .createdAt(offer.getCreatedAt())
                 .respondedAt(offer.getRespondedAt())
+                .proposerReceivedAt(offer.getProposerReceivedAt())
+                .ownerReceivedAt(offer.getOwnerReceivedAt())
+                .proposerProofUrl(refresh(offer.getProposerProofUrl()))
+                .ownerProofUrl(refresh(offer.getOwnerProofUrl()))
+                .handoverComplete(offer.isHandoverComplete())
                 .incoming(viewerId != null && viewerId.equals(offer.getTargetOwnerId()));
 
         userRepository.findById(offer.getProposerId()).ifPresent(u -> {

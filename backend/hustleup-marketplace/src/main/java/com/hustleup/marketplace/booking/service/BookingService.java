@@ -926,7 +926,7 @@ public class BookingService {
      * the two negotiating parties.
      *
      * @param bookingId UUID of the booking to fetch
-     * @return the booking DTO, role-tagged for the caller
+     * @return the booking DTO, role-tagged for the caller ("buyer" or "seller")
      * @throws RuntimeException if the booking doesn't exist or the caller is neither party
      */
     public BookingDto getById(UUID bookingId) {

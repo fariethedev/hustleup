@@ -14,12 +14,14 @@ import com.hustleup.common.repository.UserRepository;
 import com.hustleup.marketplace.swap.dto.SwapOfferDto;
 import com.hustleup.marketplace.swap.service.SwapService;
 import com.hustleup.marketplace.swap.model.CashDirection;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -125,6 +127,26 @@ public class SwapController {
     @PatchMapping("/{id}/withdraw")
     public ResponseEntity<SwapOfferDto> withdraw(@PathVariable UUID id) {
         return ResponseEntity.ok(swapService.withdraw(id, requireCurrentUser()));
+    }
+
+    /**
+     * Confirming the other person's item arrived, with a photo or video of it.
+     *
+     * <p><b>POST /api/v1/swaps/{id}/received</b> — multipart, field {@code proof}. Either
+     * party on an accepted swap, for their own side only.
+     *
+     * <p>Multipart rather than JSON because the evidence is the point: a swap has no payment
+     * leg behind it, so this upload is the only record of what actually turned up.
+     *
+     * <p>POST rather than PATCH, unlike the accept/decline/withdraw transitions above: this
+     * carries a file body rather than flipping a field, and it is not idempotent — a second
+     * call is rejected rather than replacing the first confirmation's evidence.
+     */
+    @PostMapping(value = "/{id}/received", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<SwapOfferDto> confirmReceipt(
+            @PathVariable UUID id,
+            @RequestParam MultipartFile proof) {
+        return ResponseEntity.ok(swapService.confirmReceipt(id, requireCurrentUser(), proof));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -528,6 +528,16 @@ export const swapsApi = {
   accept: (id) => api.patch(`/swaps/${id}/accept`),
   decline: (id) => api.patch(`/swaps/${id}/decline`),
   withdraw: (id) => api.patch(`/swaps/${id}/withdraw`),
+  // Either side of an accepted swap confirming the other's item turned up. The photo/video
+  // is required, not decoration: a swap has no payment leg behind it, so this upload is the
+  // only record of what actually arrived if the two of them later disagree.
+  confirmReceipt: (id, proof) => {
+    const formData = new FormData();
+    formData.append('proof', proof);
+    return api.post(`/swaps/${id}/received`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 // Hustle Score + leaderboards. Reads are public so social proof works for logged-out

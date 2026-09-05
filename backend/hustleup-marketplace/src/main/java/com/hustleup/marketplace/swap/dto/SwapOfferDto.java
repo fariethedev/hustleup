@@ -59,6 +59,24 @@ public class SwapOfferDto {
     /** True when the current viewer owns the targeted listing (i.e. can accept/decline). */
     private boolean incoming;
 
+    // ── Handover ──────────────────────────────────────────────────────────────
+    // Sent per-side rather than as "yours"/"theirs", for the same reason cashDirection is:
+    // one offer is read by both parties, so which timestamp belongs to the viewer depends on
+    // who is looking, and `incoming` already tells the client which side that is.
+
+    /** When the proposer confirmed the owner's item arrived, or null. */
+    private LocalDateTime proposerReceivedAt;
+    /** When the owner confirmed the proposer's item arrived, or null. */
+    private LocalDateTime ownerReceivedAt;
+
+    /** Proof the proposer uploaded of what arrived. Presigned and safe to render. */
+    private String proposerProofUrl;
+    /** Proof the owner uploaded of what arrived. Presigned and safe to render. */
+    private String ownerProofUrl;
+
+    /** True once both sides have confirmed — the trade is physically done, not just agreed. */
+    private boolean handoverComplete;
+
     /**
      * One half of a trade — either a real listing or, for text offers, just a label.
      */

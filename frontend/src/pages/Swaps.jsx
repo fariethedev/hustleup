@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Repeat, ArrowRight, Check, X, Undo2, Package, Loader2, Inbox, Coins } from 'lucide-react';
+import { Repeat, ArrowRight, Check, X, Undo2, Package, PackageCheck, Camera, Loader2, Inbox, Coins } from 'lucide-react';
 import { swapsApi, dispatchToast } from '../api/client';
 import { formatPrice } from '../utils/constants';
 import { uploadUrl } from '../config';
@@ -61,6 +61,108 @@ function SideCard({ side, label }) {
             ? <p className="text-[10px] text-[#CDFF00] font-black">{formatPrice(side.price, side.currency)}</p>
             : <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Skill / favour</p>}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The handover, after a swap is agreed.
+ *
+ * A swap puts two parcels in flight at once, so there is no single "delivered" moment to
+ * show — each side confirms the item it received, and the trade is only done when both
+ * have. That is why this reads as two rows rather than one status: the viewer's own
+ * confirmation, which is an action, and the other person's, which is news.
+ *
+ * The photo is required by the server, so the button opens the file picker directly rather
+ * than offering a confirm that would then be refused for having no evidence attached.
+ */
+function HandoverPanel({ offer, viewerIsProposer, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const inputId = `swap-proof-${offer.id}`;
+
+  const mine = viewerIsProposer
+    ? { at: offer.proposerReceivedAt, proof: offer.proposerProofUrl }
+    : { at: offer.ownerReceivedAt, proof: offer.ownerProofUrl };
+  const theirs = viewerIsProposer
+    ? { at: offer.ownerReceivedAt, proof: offer.ownerProofUrl }
+    : { at: offer.proposerReceivedAt, proof: offer.proposerProofUrl };
+
+  const upload = async (file) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      await swapsApi.confirmReceipt(offer.id, file);
+      dispatchToast('Receipt confirmed', 'success');
+      await onDone();
+    } catch (e) {
+      dispatchToast(e.response?.data?.message || 'Could not confirm that', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3">
+      <div className="flex items-center gap-1.5 mb-2.5">
+        <PackageCheck className="w-3.5 h-3.5 text-[#CDFF00]" />
+        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">
+          {offer.handoverComplete ? 'Trade complete' : 'Handover'}
+        </span>
+      </div>
+
+      {/* Your side — an action until it's done, then the receipt itself. */}
+      {mine.at ? (
+        <div className="flex items-center gap-2 text-[11px] font-bold text-green-400">
+          <Check className="w-3.5 h-3.5 shrink-0" />
+          <span>You confirmed it arrived</span>
+          {mine.proof && (
+            <a href={uploadUrl(mine.proof)} target="_blank" rel="noreferrer" className="ml-auto text-gray-400 hover:text-white underline">
+              Your proof
+            </a>
+          )}
+        </div>
+      ) : (
+        <>
+          <input
+            id={inputId}
+            type="file"
+            accept="image/*,video/*"
+            className="hidden"
+            onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ''; }}
+          />
+          <label
+            htmlFor={inputId}
+            className={`w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all ${busy ? 'opacity-50 pointer-events-none' : ''}`}
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+            {busy ? 'Uploading…' : 'Confirm received + add proof'}
+          </label>
+          <p className="mt-1.5 text-[10px] text-gray-500 leading-relaxed">
+            A photo or video of what turned up. It is the only record either of you has if
+            this goes wrong later.
+          </p>
+        </>
+      )}
+
+      {/* Their side — never an action, only ever news. */}
+      <div className="mt-2.5 pt-2.5 border-t border-white/5 flex items-center gap-2 text-[11px]">
+        {theirs.at ? (
+          <>
+            <Check className="w-3.5 h-3.5 text-green-400 shrink-0" />
+            <span className="text-gray-300 font-bold">They confirmed theirs arrived</span>
+            {theirs.proof && (
+              <a href={uploadUrl(theirs.proof)} target="_blank" rel="noreferrer" className="ml-auto text-gray-400 hover:text-white underline">
+                Their proof
+              </a>
+            )}
+          </>
+        ) : (
+          <>
+            <Loader2 className="w-3.5 h-3.5 text-gray-600 shrink-0" />
+            <span className="text-gray-500">Waiting on them to confirm</span>
+          </>
+        )}
       </div>
     </div>
   );
@@ -199,6 +301,12 @@ export default function Swaps() {
                   <p className="mt-3 text-xs text-gray-400 leading-relaxed bg-white/[0.03] rounded-xl px-3 py-2 border border-white/5">
                     “{s.message}”
                   </p>
+                )}
+
+                {/* Agreed, so the items are now in the post. This is where the trade is
+                    actually closed out — accepting was only the paperwork. */}
+                {s.status === 'ACCEPTED' && (
+                  <HandoverPanel offer={s} viewerIsProposer={tab !== 'incoming'} onDone={load} />
                 )}
 
                 {/* Actions — only meaningful while the offer is still open */}
