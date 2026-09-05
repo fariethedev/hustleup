@@ -39,7 +39,7 @@ export default function SwapChain({ limit = 8 }) {
         <span className="text-[10px] text-gray-600 font-bold">{links.length} recent trade{links.length === 1 ? '' : 's'}</span>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4 pb-1">
+      <div className="flex gap-3 overflow-x-auto overscroll-x-contain scrollbar-hide px-4 pb-1">
         {links.map((s, i) => (
           <motion.div
             key={s.id}

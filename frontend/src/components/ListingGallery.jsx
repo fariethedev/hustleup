@@ -97,7 +97,7 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
           role="region"
           aria-roledescription="carousel"
           aria-label={`${title} media, ${media.length} items`}
-          className="flex h-full w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide outline-none focus-visible:ring-2 focus-visible:ring-[#CDFF00]/60"
+          className="flex h-full w-full overflow-x-auto overscroll-x-contain overflow-y-hidden snap-x snap-mandatory scrollbar-hide outline-none focus-visible:ring-2 focus-visible:ring-[#CDFF00]/60"
           // `touch-action: pan-x` keeps vertical page scrolling working over the carousel —
           // without it a slightly-diagonal swipe can trap the gesture and lock the page.
           style={{ touchAction: 'pan-x', scrollbarWidth: 'none' }}
@@ -219,7 +219,7 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
 
       {/* Thumbnail strip */}
       {hasMultiple && (
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-2 scrollbar-hide">
           {media.map((url, i) => {
             const isVideo = isVideoUrl(url);
             return (

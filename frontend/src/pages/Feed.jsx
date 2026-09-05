@@ -1043,7 +1043,7 @@ export default function Feed() {
             people I chose are saying, what the groups I joined are saying, and what I kept.
             Scrolls horizontally rather than wrapping — four pills do not fit a phone. */}
         {isAuthenticated && (
-          <div className="mb-5 -mx-4 px-4 overflow-x-auto scrollbar-hide">
+          <div className="mb-5 -mx-4 px-4 overflow-x-auto overscroll-x-contain scrollbar-hide">
             <div className="flex items-center gap-1 p-1 rounded-full bg-white/5 border border-white/10 w-fit mx-auto">
               {[
                 { id: 'foryou', label: 'For you', icon: Sparkles },
@@ -1086,7 +1086,7 @@ export default function Feed() {
                     write rather than after, because "which feed did that go to?" is not a
                     question anyone should have to answer by hunting for their own post. */}
                 {myCommunities.length > 0 && (
-                  <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-0.5">
+                  <div className="flex items-center gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-hide -mx-1 px-1 pb-0.5">
                     <button
                       type="button"
                       onClick={() => setPostTarget(null)}
@@ -1127,7 +1127,7 @@ export default function Feed() {
                 />
 
                 {mediaFiles.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-2 scrollbar-hide">
                     {mediaFiles.map((file, idx) => (
                       <div key={idx} className="relative shrink-0">
                         {file.type.startsWith('video/') ? (

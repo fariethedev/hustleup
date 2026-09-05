@@ -167,7 +167,7 @@ export default function Explore() {
           {/* ── Mobile: one compact row. Tabs scroll; search and filters live behind icons ── */}
           <div className="sm:hidden">
             <div className="flex items-center gap-2">
-              <nav className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1 min-w-0">
+              <nav className="flex items-center gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-hide flex-1 min-w-0">
                 {TABS.map((t) => {
                   const isActive = tab === t.key;
                   return (
@@ -297,7 +297,7 @@ export default function Explore() {
                     )}
 
                     {tab === 'listings' && (
-                      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+                      <div className="flex gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide pb-0.5">
                         <button
                           onClick={() => setListingType('')}
                           className={`shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
@@ -395,7 +395,7 @@ export default function Explore() {
 
           {/* Row 2: Tabs + result count */}
           <div className="flex items-center justify-between mt-3 gap-3">
-            <nav className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+            <nav className="flex items-center gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-hide">
               {TABS.map((t) => {
                 const isActive = tab === t.key;
                 return (

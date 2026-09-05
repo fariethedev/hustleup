@@ -120,7 +120,11 @@ export default function CardCarousel({
         role="region"
         aria-roledescription="carousel"
         aria-label={`${title} media, ${media.length} items`}
-        className="flex h-full w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide"
+        // overscroll-x-contain stops the swipe leaking upward. A nested scroller that runs
+        // out of content hands the rest of the gesture to its parent, so swiping this
+        // carousel past its last image scrolled the page instead — on Explore, where every
+        // card carries one of these, that is a list that lurches while you are looking at it.
+        className="flex h-full w-full overflow-x-auto overflow-y-hidden overscroll-x-contain snap-x snap-mandatory scrollbar-hide"
         style={{ touchAction: 'pan-x', scrollbarWidth: 'none' }}
         // Without this a mouse drag inside the <a> starts a native link drag — the ghost
         // image follows the cursor and the track never scrolls.

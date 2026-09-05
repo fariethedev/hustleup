@@ -135,7 +135,7 @@ export default function ExploreRow({
               // Centre the cards only when the shelf doesn't actually overflow. Applying
               // justify-center to a scrollable flex row clips the first card out of reach,
               // so it's gated on "can't scroll in either direction".
-              className={`flex gap-4 overflow-x-auto scrollbar-hide snap-x pb-3 px-1 ${
+              className={`flex gap-4 overflow-x-auto overscroll-x-contain scrollbar-hide snap-x pb-3 px-1 ${
                 edges.start && edges.end ? 'justify-center' : ''
               }`}
             >

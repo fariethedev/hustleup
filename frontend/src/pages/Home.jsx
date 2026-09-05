@@ -144,7 +144,7 @@ function FeatureCarousel() {
       <div
         ref={trackRef}
         onScroll={syncEdges}
-        className="flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2"
+        className="flex gap-6 overflow-x-auto overscroll-x-contain scrollbar-hide snap-x snap-mandatory pb-2"
       >
         {features.map((feature, i) => (
           <motion.div
@@ -192,7 +192,7 @@ function EventCarousel({ events }) {
       <div
         ref={trackRef}
         onScroll={syncEdges}
-        className="flex gap-3 sm:gap-5 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2"
+        className="flex gap-3 sm:gap-5 overflow-x-auto overscroll-x-contain scrollbar-hide snap-x snap-mandatory pb-2"
       >
         {events.map((event, i) => {
           const startsOn = formatEventDate(event.eventStartsAt);
@@ -380,7 +380,7 @@ export default function Home() {
             <h2 className="text-3xl font-heading font-black text-white tracking-tight">Popular shops right now</h2>
           </div>
 
-          <div className="flex gap-6 sm:gap-8 overflow-x-auto scrollbar-hide pb-2 px-2 snap-x justify-start sm:justify-center"
+          <div className="flex gap-6 sm:gap-8 overflow-x-auto overscroll-x-contain scrollbar-hide pb-2 px-2 snap-x justify-start sm:justify-center"
                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {shops.slice(0, 8).map((shop, i) => (
               <motion.div

@@ -104,7 +104,7 @@ export default function News() {
           resultLabel={`${articles.length} stor${articles.length === 1 ? 'y' : 'ies'}`}
           onClear={() => { setSearchQuery(''); setSection('all'); }}
         >
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+          <div className="flex gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide pb-0.5">
             <button
               onClick={() => setSection('all')}
               className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
@@ -172,7 +172,7 @@ export default function News() {
 
         {/* Grid */}
         {loading ? (
-          <div className="flex sm:grid overflow-x-auto sm:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 sm:gap-4 pb-1 sm:pb-0 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex sm:grid overflow-x-auto overscroll-x-contain sm:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 sm:gap-4 pb-1 sm:pb-0 sm:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="h-72 shrink-0 w-[calc((100%-0.75rem)/2)] sm:w-auto snap-start rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse" />
             ))}
@@ -190,7 +190,7 @@ export default function News() {
             </div>
           </div>
         ) : (
-          <div className="flex sm:grid overflow-x-auto sm:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 sm:gap-4 pb-1 sm:pb-0 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex sm:grid overflow-x-auto overscroll-x-contain sm:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 sm:gap-4 pb-1 sm:pb-0 sm:grid-cols-2 lg:grid-cols-3">
             <AnimatePresence mode="popLayout">
               {articles.map((a) => (
                 <motion.button

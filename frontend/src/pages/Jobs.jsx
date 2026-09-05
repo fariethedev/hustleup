@@ -117,7 +117,7 @@ export default function Jobs() {
           resultLabel={`${jobs.length} role${jobs.length === 1 ? '' : 's'}`}
           onClear={() => { setSearchQuery(''); setActiveCategory('all'); }}
         >
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+          <div className="flex gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide pb-0.5">
             <button
               onClick={() => setActiveCategory('all')}
               className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
@@ -213,7 +213,7 @@ export default function Jobs() {
                         scrollable so a company can show a workplace without the card growing
                         unbounded. */}
                     {job.mediaUrls?.length > 0 && (
-                      <div className="flex gap-2 overflow-x-auto scrollbar-hide p-3 pb-0">
+                      <div className="flex gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide p-3 pb-0">
                         {job.mediaUrls.map((url, i) => (
                           <div
                             key={i}

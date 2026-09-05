@@ -27,7 +27,7 @@ export default function ExploreNav() {
         </span>
         <div className="hidden sm:block w-px h-5 bg-white/10 shrink-0" />
 
-        <nav className="flex items-center justify-center gap-1.5 overflow-x-auto scrollbar-hide">
+        <nav className="flex items-center justify-center gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-hide">
           {TABS.map((tab) => {
             // Exact match on /explore so the overview tab doesn't stay lit on sub-pages.
             const active = tab.to === '/explore' ? pathname === '/explore' : pathname.startsWith(tab.to);

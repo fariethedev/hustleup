@@ -241,7 +241,7 @@ export default function StoryBar() {
         <div
           ref={scrollRef}
           onScroll={checkScroll}
-          className="w-full flex items-start gap-3 overflow-x-auto scroll-smooth px-3 py-3 scrollbar-hide"
+          className="w-full flex items-start gap-3 overflow-x-auto overscroll-x-contain scroll-smooth px-3 py-3 scrollbar-hide"
         >
           {peopleWithStories.map((person, index) => renderStoryCard(person, index))}
 
