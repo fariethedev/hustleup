@@ -39,6 +39,8 @@ import com.hustleup.marketplace.review.repository.ReviewRepository;
 import com.hustleup.marketplace.payments.model.SellerPayoutAccount;
 import com.hustleup.marketplace.payments.repository.SellerPayoutAccountRepository;
 import com.hustleup.marketplace.payments.service.StripeConnectService;
+import com.hustleup.marketplace.protection.model.ProtectionClaim.ClaimOrderType;
+import com.hustleup.marketplace.protection.service.ProtectionClaimService;
 import com.hustleup.marketplace.shipping.Fulfilment;
 import com.hustleup.marketplace.shipping.FulfilmentStatus;
 import com.hustleup.marketplace.shipping.FulfilmentUpdateRequest;
@@ -110,6 +112,8 @@ public class BookingService {
     private final NotificationRepository notificationRepository; // in-app alerts — powers the real-time negotiation popup
     private final ShipmentService shipmentService; // delivery-track updates and the alerts they generate
     private final ReviewRepository reviewRepository; // completing a booking records the completer's review in the same step
+    /** Consulted before every payout: an open buyer claim freezes the money where it is. */
+    private final ProtectionClaimService protectionClaimService;
 
     /**
      * Constructor injection: Spring automatically resolves and injects these beans.
@@ -124,7 +128,9 @@ public class BookingService {
                           StripeConnectService stripeConnectService,
                           EmailService emailService, ExpoPushService expoPushService,
                           TicketService ticketService, NotificationRepository notificationRepository,
-                          ReviewRepository reviewRepository, ShipmentService shipmentService) {
+                          ReviewRepository reviewRepository, ShipmentService shipmentService,
+                          ProtectionClaimService protectionClaimService) {
+        this.protectionClaimService = protectionClaimService;
         this.bookingRepository = bookingRepository;
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
@@ -864,6 +870,14 @@ public class BookingService {
      */
     private void releasePayout(Booking booking) {
         if (!"PAID".equals(booking.getPaymentStatus())) return;
+
+        // An open protection claim freezes the money where it is. Checked here rather than in
+        // findReleasable so it covers every route to a payout: the sweep, and a buyer who
+        // confirms receipt while their own claim is still being read.
+        if (protectionClaimService.isFrozen(ClaimOrderType.BOOKING, booking.getId())) {
+            log.info("Booking {} has an open claim — payout stays held", booking.getId());
+            return;
+        }
 
         payoutAccountRepository.findBySellerId(booking.getSellerId())
                 .filter(SellerPayoutAccount::isPayoutsEnabled)

@@ -226,6 +226,20 @@ export const bookingsApi = {
   updateFulfilment: (id, update) => api.patch(`/bookings/${id}/fulfilment`, update),
 };
 
+// Buyer protection. Raising a claim freezes the order's payout until an admin decides, so
+// money cannot reach the seller while a buyer is saying they never got what they paid for.
+export const claimsApi = {
+  // orderType: 'BOOKING' | 'SHOP_ORDER'
+  // reason: 'NOT_RECEIVED' | 'DAMAGED' | 'NOT_AS_DESCRIBED' | 'OTHER'
+  raise: (orderType, orderId, reason, detail = '') =>
+    api.post('/claims', { orderType, orderId, reason, detail }),
+  mine: () => api.get('/claims/mine'),
+  // Admin only.
+  open: () => api.get('/claims/open'),
+  all: () => api.get('/claims'),
+  resolve: (id, refund, note = '') => api.patch(`/claims/${id}`, { refund, note }),
+};
+
 // Digital event tickets. There is no create() here on purpose — tickets are issued by the
 // backend when an EVENT booking is confirmed (instant purchase, or an organiser approving a
 // request to join), so the only way to hold one is to actually have a booking.

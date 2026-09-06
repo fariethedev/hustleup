@@ -7,7 +7,7 @@ import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi
 import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constants';
 import {
   Settings2, Plus, Inbox, ClipboardList, Check, X, MessageSquare, ListTodo, PackageSearch,
-  BellRing, TrendingUp, CalendarClock, Pencil, Store, Trash2, Ban, Landmark, CreditCard, ShieldCheck,
+  BellRing, TrendingUp, CalendarClock, Pencil, Store, Trash2, Ban, Landmark, CreditCard, ShieldCheck, ShieldAlert,
   Ticket, ScanLine, ArrowRight, Star, Truck, Package, Megaphone
 } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
@@ -17,6 +17,7 @@ import PlatformFeedbackModal from '../components/PlatformFeedbackModal';
 import OrderTracker from '../components/OrderTracker';
 import PublishingPanel from '../components/PublishingPanel';
 import TrackingUpdateModal from '../components/TrackingUpdateModal';
+import ClaimModal from '../components/ClaimModal';
 import SmartImage from '../components/SmartImage';
 import { isComplete } from '../utils/shipping';
 
@@ -56,6 +57,9 @@ export default function Dashboard() {
   const [shopSales, setShopSales] = useState([]);     // storefront orders placed with their shop
   // The order whose delivery-update dialog is open: { order, title, kind: 'booking' | 'shop' }.
   const [tracking, setTracking] = useState(null);
+  // The order a buyer is reporting a problem with, or null. Holds the whole descriptor
+  // rather than an id, because the dialog names the order back to them.
+  const [claiming, setClaiming] = useState(null);
 
   const hasServiceListing = listings.some((l) => SERVICE_TYPES.includes(l.listingType));
   const hasEventListing = listings.some((l) => l.listingType === 'EVENT');
@@ -531,6 +535,21 @@ export default function Dashboard() {
                               </button>
                             )}
 
+                            {/* The other half of protection: saying it went wrong. Opening a
+                                claim freezes the payout, so the money cannot reach the seller
+                                while it is being looked at — which is what stops the hold
+                                period from becoming a deadline the buyer has to beat. */}
+                            {isBuyer
+                              && ['BOOKED', 'COMPLETED'].includes(booking.status)
+                              && ['PAID', 'TRANSFERRED'].includes(booking.paymentStatus) && (
+                              <button
+                                onClick={() => setClaiming({ orderType: 'BOOKING', orderId: booking.id, title: booking.listingTitle })}
+                                className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 font-black text-[9px] tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center gap-1.5"
+                              >
+                                <ShieldAlert className="w-3 h-3" /> Report a problem
+                              </button>
+                            )}
+
                             {/* Only once money has arrived: there is nothing to track on an
                                 order nobody has paid for, and offering the control anyway
                                 invites a seller to tell a buyer their unpaid parcel shipped. */}
@@ -943,6 +962,16 @@ export default function Dashboard() {
           onSubmit={submitTracking}
           onDone={applyTracked}
           onClose={() => setTracking(null)}
+        />
+      )}
+
+      {claiming && (
+        <ClaimModal
+          claim={claiming}
+          onClose={() => setClaiming(null)}
+          // Reload rather than patch one row: opening a claim freezes the payout, which the
+          // order's own status line reflects, so the whole board can read differently.
+          onRaised={loadData}
         />
       )}
 
