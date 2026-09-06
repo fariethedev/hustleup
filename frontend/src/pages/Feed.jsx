@@ -412,17 +412,12 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
 
       <div className="relative" onDoubleClick={doubleTapLike}>
         {hasMedia ? (
-          <PostMediaGallery
-            media={post.media}
-            // Anonymous posts pass no author through to the fullscreen viewer either — it
-            // renders its own overlay header from this object.
-            author={anon
-              ? { name: 'Anonymous', avatar: null, id: null }
-              : { name: post.authorName, avatar: post.authorAvatarUrl, id: post.authorId }}
-            onLike={() => onLike(post.id)}
-            onShare={() => onShare(post)}
-            liked={post.likedByCurrentUser}
-          />
+          // author/onLike/onShare used to be passed so the video overlay could draw its own
+          // author pill and like and share buttons. It no longer does: the post header above
+          // and the action row below already carry all three, and the overlay copy of like
+          // did not even run the heart animation. Liking a video is the same double-tap
+          // gesture as liking an image, handled by onDoubleClick on the wrapper.
+          <PostMediaGallery media={post.media} />
         ) : (
           <div className="relative w-full aspect-square bg-black">
             <img
