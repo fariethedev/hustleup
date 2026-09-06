@@ -133,8 +133,8 @@ class DatingControllerTest {
     }
 
     @Test
-    @DisplayName("Users without a male or female gender keep the existing unfiltered discovery list")
-    void getProfiles_UnspecifiedGenderKeepsDiscoveryListUnfiltered() {
+    @DisplayName("A candidate with no male/female gender is not dealt into the deck")
+    void getProfiles_CandidateWithoutMatchableGenderIsExcluded() {
         User currentUser = user("unknown@example.com", "Unknown User");
         User femaleUser = user("female@example.com", "Female User");
         User maleUser = user("male@example.com", "Male User");
@@ -155,7 +155,13 @@ class DatingControllerTest {
         List<DatingProfile> profiles = profilesOf(datingController.getProfiles());
 
         assertNotNull(profiles);
-        assertEquals(3, profiles.size());
+        // The two who stated one. noProfileUser is synthesised from their account with no
+        // gender at all, and used to be shown to everybody — which is precisely what stopped
+        // "Show me" meaning anything. Gender is required on a Bond profile now, so a profile
+        // without one drops out of the deck until its owner picks one rather than appearing
+        // where it was not asked for.
+        assertEquals(2, profiles.size());
+        assertTrue(profiles.stream().noneMatch(pr -> pr.getId().equals(noProfileUser.getId())));
     }
 
     @Test
@@ -225,7 +231,13 @@ class DatingControllerTest {
         // should move it to the front, not the order the users came back in.
         discoverable(plainUser, admirer);
         when(userRepository.findAll()).thenReturn(List.of(currentUser, plainUser, admirer));
-        when(datingProfileRepository.findAll()).thenReturn(List.of());
+        // Both candidates need a stated gender to be dealt at all, and the viewer needs one
+        // for the opposite-gender default to resolve — this test is about badge and order,
+        // so it gives them the genders that keep both in the deck.
+        when(datingProfileRepository.findAll()).thenReturn(List.of(
+                profile(currentUser.getId(), "Me", "Male"),
+                profile(plainUser.getId(), "Plain", "Female"),
+                profile(admirer.getId(), "Admirer", "Female")));
         when(datingSwipeRepository.findBySwiperId(currentUser.getId())).thenReturn(List.of());
         when(datingSwipeRepository.findByTargetIdAndActionIn(eq(currentUser.getId()), anyCollection()))
                 .thenReturn(List.of(swipe(admirer.getId(), currentUser.getId(), "SUPER_LIKE")));

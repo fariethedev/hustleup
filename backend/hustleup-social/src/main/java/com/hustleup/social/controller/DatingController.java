@@ -186,14 +186,26 @@ public class DatingController {
      * @param candidateGender the gender on the card being considered; may be null
      */
     private static boolean isDiscoverable(String showMe, String viewerGender, String candidateGender) {
+        // A candidate with no usable gender is not discoverable at all. Profiles saved before
+        // this was required still exist, and showing one to everybody is exactly the behaviour
+        // that made "Show me" meaningless — better an incomplete profile drops out of the deck
+        // until its owner picks one than that it appears where it was not asked for.
+        if (!isMatchableGender(candidateGender)) return false;
+
         if ("Men".equalsIgnoreCase(showMe))   return "Male".equalsIgnoreCase(candidateGender);
         if ("Women".equalsIgnoreCase(showMe)) return "Female".equalsIgnoreCase(candidateGender);
-        if (showMe != null && !showMe.isBlank()) return true; // "Everyone" — no filtering at all
+        if (showMe != null && !showMe.isBlank()) return true; // "Everyone" — an explicit choice
 
-        if (candidateGender == null || candidateGender.isBlank()) return true;
+        // No stated preference: the default is the opposite gender. Reachable only for
+        // profiles that predate the requirement, since showMe is always sent now.
         if ("Male".equalsIgnoreCase(viewerGender))   return "Female".equalsIgnoreCase(candidateGender);
         if ("Female".equalsIgnoreCase(viewerGender)) return "Male".equalsIgnoreCase(candidateGender);
-        return true; // viewer's gender is unset or non-binary — show them everyone
+        return true;
+    }
+
+    /** The two values the deck can match on. Anything else cannot be paired deterministically. */
+    private static boolean isMatchableGender(String gender) {
+        return "Male".equalsIgnoreCase(gender) || "Female".equalsIgnoreCase(gender);
     }
 
     // ── Endpoints ─────────────────────────────────────────────────────────────
@@ -353,6 +365,22 @@ public class DatingController {
         // Load existing profile or create a new one with the user's UUID as primary key.
         DatingProfile profile = datingRepo.findById(user.getId())
                 .orElse(DatingProfile.builder().id(user.getId()).build());
+
+        // Gender is required, and must be one of the two the deck can actually match on.
+        //
+        // It used to be optional, and discovery papered over the gap by guessing: a candidate
+        // who had not said was shown to everyone, and a viewer who had not said was shown
+        // everyone. So two people could be dealt to each other with nothing about the pairing
+        // being what either had asked for, and "Show me: Women" quietly failed to mean it.
+        //
+        // Checked on the incoming value when supplied, and on the stored one otherwise, so a
+        // partial update cannot leave an existing profile without one.
+        String effectiveGender = gender != null ? gender : profile.getGender();
+        if (!isMatchableGender(effectiveGender)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Choose Male or Female — Bond matches on it",
+                    "field", "gender"));
+        }
 
         // Always sync the display name from the main account (source of truth).
         profile.setFullName(user.getFullName());
