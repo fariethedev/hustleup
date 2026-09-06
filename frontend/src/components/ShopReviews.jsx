@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
-import { Star, MessageSquareQuote, Loader2, PenLine } from 'lucide-react';
+import { Star, MessageSquareQuote, Loader2, PenLine, ChevronDown } from 'lucide-react';
 import { reviewsApi, shopsApi } from '../api/client';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 
@@ -34,6 +34,10 @@ export default function ShopReviews({ shopId, ownerId, ownerName, rating = 0, re
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  // Whether the panel is open at all. Closed by default: this sits above the products, and
+  // a rating breakdown plus three reviews pushed the actual shelf most of a screen down —
+  // people come to a shop to see what is for sale, and read the reviews second.
+  const [open, setOpen] = useState(false);
 
   // Storefront orders from this shop that the viewer could still review.
   const [reviewable, setReviewable] = useState([]);
@@ -142,8 +146,35 @@ export default function ShopReviews({ shopId, ownerId, ownerName, rating = 0, re
   const average = rating || (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length);
 
   return (
-    <section className="mb-10">
-      <div className="rounded-3xl bg-white/[0.03] border border-white/10 p-5 sm:p-6">
+    <section className="mb-6">
+      {/* The whole panel behind one line. Everything below — the distribution bars, the
+          reviews, the compose form — is worth reading, but not worth a screen of scrolling
+          before you have seen a single product. */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/25 transition-colors text-left"
+      >
+        <span className="text-xl font-black text-[#CDFF00] leading-none shrink-0">{average.toFixed(1)}</span>
+        <Stars rating={average} />
+        <span className="text-[11px] font-bold text-gray-400 shrink-0">
+          {total} review{total === 1 ? '' : 's'}
+        </span>
+        {/* Someone who owes a review should not have to open a collapsed panel to discover
+            they can leave one — it is the only thing here that asks something of them. */}
+        {reviewable.length > 0 && (
+          <span className="ml-auto shrink-0 px-2 py-0.5 rounded-md bg-[#CDFF00]/15 text-[#CDFF00] text-[9px] font-black tracking-widest">
+            Review your order
+          </span>
+        )}
+        <ChevronDown
+          className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''} ${reviewable.length > 0 ? '' : 'ml-auto'}`}
+        />
+      </button>
+
+      {open && (
+      <div className="mt-3 rounded-3xl bg-white/[0.03] border border-white/10 p-5 sm:p-6">
         {/* Headline number + distribution */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-5 pb-5 border-b border-white/10">
           <div className="flex items-center gap-4 shrink-0">
@@ -277,6 +308,7 @@ export default function ShopReviews({ shopId, ownerId, ownerName, rating = 0, re
           </button>
         )}
       </div>
+      )}
     </section>
   );
 }

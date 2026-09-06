@@ -6,7 +6,7 @@ import { listingsApi, followsApi } from '../api/client';
 import { formatPrice, displayCity } from '../utils/constants';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
-import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, Heart, CalendarClock, ShoppingBag, Pencil, ClipboardList } from 'lucide-react';
+import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, Heart, CalendarClock, ShoppingBag, Pencil, ClipboardList, HandCoins } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import SmartImage from '../components/SmartImage';
 import ListingCard from '../components/ListingCard';
@@ -373,94 +373,99 @@ export default function ShopDetail() {
               </div>
             )}
 
-            {/* High-Impact Products Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6 xl:gap-8">
+            {/* Same grid as Explore — two-up on a phone, four across on a wide screen — so a
+                seller's shelf and the browse pages read as one catalogue rather than two
+                different products. */}
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
               {filteredProducts.map((product, i) => (
                 <motion.div
                   key={product.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05, duration: 0.5 }}
+                  transition={{ delay: Math.min(i * 0.04, 0.3), duration: 0.4 }}
+                  whileHover={{ y: -4 }}
                   className="h-full"
                 >
-                  {/* Not a Link wrapping the whole tile any more. It used to be, pointing at
-                      the negotiate page, which made "make me an offer" the only thing a
-                      product tile could do — the buy button underneath is the point of a shop,
-                      so it cannot be a nested control inside a link to somewhere else. */}
-                  <div className="group flex flex-col h-full rounded-2xl sm:rounded-[32px] overflow-hidden bg-black/60 border border-white/10 hover:border-[#CDFF00]/40 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
-                    {/* Product photo. Taller than the old 28/36 strip and squared off at 4:5:
-                        a storefront tile is mostly a photograph, and the old letterbox cropped
-                        the top and bottom off anything shot in portrait — which is most of
-                        what people photograph on a phone. */}
+                  {/* Deliberately the same card as ListingCard on Explore: same surface and
+                      hover, same 4:5 image with a scrim, same floating round action, same
+                      price-then-title body. A shop product and a marketplace listing are the
+                      same kind of thing to a shopper, and having them look like two different
+                      apps was the tell that they were built at different times. */}
+                  <div className="group relative flex flex-col h-full bg-[#0A0A0A] border border-white/10 hover:border-[#00FFFF]/60 rounded-2xl overflow-hidden transition-colors duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.4)] hover:shadow-[0_8px_24px_rgba(0,255,255,0.15)]">
                     <Link
                       to={`/shop/${shop.slug || shop.id}/product/${product.id}/checkout`}
-                      className="block aspect-[4/5] shrink-0 relative overflow-hidden bg-black/40 border-b border-white/5"
+                      className="flex flex-col h-full"
                     >
-                      <SmartImage
-                        src={uploadUrl(product.imageUrl)}
-                        alt={product.name}
-                        fallbackIcon={ShoppingBag}
-                        className="w-full h-full object-cover z-10 group-hover:scale-105 transition-transform duration-700 ease-out"
-                        loading="lazy"
-                      />
-                      {/* Shop-tinted wash so the grid still reads as one storefront */}
-                      <div
-                        className="absolute inset-0 z-20 opacity-20 group-hover:opacity-10 transition-opacity duration-700 pointer-events-none"
-                        style={{ background: `radial-gradient(circle at center, ${shop.accentColor || '#CDFF00'} 0%, transparent 70%)` }}
-                      />
-                      {/* Price sits on the photo rather than under the title. On a two-up grid
-                          the eye goes to the image first, and the one thing a shopper is
-                          scanning for is what it costs. */}
-                      <span className="absolute z-30 bottom-2 left-2 px-2 py-1 rounded-lg bg-black/75 backdrop-blur-sm text-xs sm:text-sm font-black text-white tracking-tight">
-                        {formatPrice(product.price, product.currency)}
-                      </span>
-                      {product.category && (
-                        <span className="absolute z-30 top-2 left-2 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[9px] font-black tracking-widest text-[#CDFF00] max-w-[80%] truncate">
-                          {product.category}
+                      <div className="relative aspect-[4/5] overflow-hidden bg-black shrink-0">
+                        <SmartImage
+                          src={uploadUrl(product.imageUrl)}
+                          alt={product.name}
+                          fallbackIcon={ShoppingBag}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                          loading="lazy"
+                        />
+                        {/* Keeps the buy button legible over a bright photo. */}
+                        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
+
+                        {/* Both controls sit on the image, in the same places the listing card
+                            puts its cart button and its negotiable badge. Buttons rather than
+                            links because they are inside one — an anchor nested in an anchor
+                            is invalid and behaves unpredictably — so each stops the tile's own
+                            navigation and routes itself, exactly as ListingCard's cart does. */}
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); buyNow(product); }}
+                          aria-label={`Buy ${product.name}`}
+                          className="absolute bottom-2 right-2 w-9 h-9 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all active:scale-90 bg-white/10 backdrop-blur-md border border-white/25 text-white hover:bg-[#CDFF00] hover:text-black hover:border-[#CDFF00]"
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault(); e.stopPropagation();
+                            navigate(`/shop/${shop.slug || shop.id}/product/${product.id}/negotiate`);
+                          }}
+                          title="Make an offer"
+                          aria-label={`Make an offer on ${product.name}`}
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#CDFF00] text-black flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.5)] hover:scale-110 transition-transform"
+                        >
+                          <HandCoins className="w-3.5 h-3.5" strokeWidth={2.5} />
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col flex-1 p-3">
+                        <span className="text-lg sm:text-xl font-black text-[#CDFF00] tracking-tight leading-none truncate">
+                          {formatPrice(product.price, product.currency)}
                         </span>
-                      )}
+
+                        <h3 className="mt-1.5 text-[13px] font-black text-white leading-snug line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
+                          {product.name}
+                        </h3>
+
+                        {product.description && (
+                          <p className="hidden sm:block text-xs text-gray-400 mt-1 line-clamp-2 leading-relaxed">
+                            {product.description}
+                          </p>
+                        )}
+
+                        {/* Bottom row matches the listing card's seller/place line: the shop
+                            stands in for the seller, and postage for the city, since what it
+                            costs to receive is this page's equivalent of how far away it is. */}
+                        <div className="mt-auto pt-2.5 flex items-center gap-1.5 min-w-0">
+                          <div className="shrink-0 w-5 h-5 rounded-full overflow-hidden bg-black border border-[#FF00FF]/60 flex items-center justify-center text-[8px] font-black text-[#FF00FF]">
+                            {(shop.name || 'S')[0]}
+                          </div>
+                          <span className="text-[10px] text-gray-300 font-bold truncate min-w-0">{shop.name}</span>
+                          {product.shippingMethod && product.shippingMethod !== 'NONE' && (
+                            <span className="ml-auto text-[9px] font-bold text-gray-500 tracking-wider shrink-0">
+                              {Number(product.shippingPrice) > 0
+                                ? `+${formatPrice(product.shippingPrice, product.currency)}`
+                                : 'Free'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </Link>
 
-                    <div className="p-2.5 sm:p-4 flex flex-col flex-1 min-w-0">
-                      <Link
-                        to={`/shop/${shop.slug || shop.id}/product/${product.id}/checkout`}
-                        className="text-[13px] sm:text-base font-black text-white leading-tight group-hover:text-[#CDFF00] transition-colors line-clamp-2 tracking-tight"
-                      >
-                        {product.name}
-                      </Link>
-
-                      {/* Postage named on the tile, not saved for checkout — a shopper
-                          comparing two shops is comparing what it costs to get the thing,
-                          not what it costs before delivery is added. */}
-                      {product.shippingMethod && product.shippingMethod !== 'NONE' && (
-                        <span className="mt-1 text-[9px] font-bold tracking-wide text-gray-500 truncate">
-                          {Number(product.shippingPrice) > 0
-                            ? `+ ${formatPrice(product.shippingPrice, product.currency)} delivery`
-                            : 'Free delivery'}
-                        </span>
-                      )}
-
-                      {/* Buy is the primary action and goes straight to this shop's own
-                          checkout. It used to be a cart button, which put a "shop:" line in
-                          the marketplace basket that the bookings checkout cannot charge for —
-                          so the only way to actually buy a storefront product was to find it
-                          through Explore instead. */}
-                      <div className="flex items-center gap-1.5 mt-2.5">
-                        <button
-                          onClick={() => buyNow(product)}
-                          className="flex-1 py-2 rounded-xl bg-[#CDFF00] text-black font-black text-[10px] tracking-widest flex items-center justify-center gap-1.5 hover:bg-[#d9ff33] active:scale-95 transition-all"
-                        >
-                          <ShoppingCart className="w-3.5 h-3.5" /> Buy
-                        </button>
-                        <Link
-                          to={`/shop/${shop.slug || shop.id}/product/${product.id}/negotiate`}
-                          className="px-2.5 py-2 rounded-xl border border-white/15 text-gray-300 font-black text-[10px] tracking-widest hover:bg-white/5 hover:text-white transition-all shrink-0"
-                          title="Make an offer"
-                        >
-                          Offer
-                        </Link>
-                      </div>
-                    </div>
                   </div>
                 </motion.div>
               ))}
