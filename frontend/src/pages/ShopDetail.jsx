@@ -1,13 +1,12 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useShop, useShops } from '../hooks/useShops';
 import { listingsApi, followsApi } from '../api/client';
-import { formatPrice, convertToPLN, displayCity } from '../utils/constants';
-import { addToCart, selectCartItems } from '../store/cartSlice';
+import { formatPrice, displayCity } from '../utils/constants';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
-import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, Heart, Check, CalendarClock, ShoppingBag, Pencil, ClipboardList } from 'lucide-react';
+import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, Heart, CalendarClock, ShoppingBag, Pencil, ClipboardList } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import SmartImage from '../components/SmartImage';
 import ListingCard from '../components/ListingCard';
@@ -41,9 +40,6 @@ export default function ShopDetail() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('All');
-  const dispatch = useDispatch();
-  const cartItems = useSelector(selectCartItems);
-  const [justAdded, setJustAdded] = useState(null);
   const [ownerListings, setOwnerListings] = useState([]);
   const { showToast } = useToast();
 
@@ -122,24 +118,33 @@ export default function ShopDetail() {
     }
   };
 
-  const addProductToCart = (e, product) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dispatch(addToCart({
-      listingId: `shop:${shop.id}:${product.id}`,
-      title: product.name,
-      price: convertToPLN(product.price, product.currency),
-      currency: 'PLN',
-      image: product.imageUrl,
-      sellerId: `shop:${shop.id}`,
-      sellerName: shop.name,
-      // Delivery travels with the line, in PLN like the price, so the cart total is the
-      // amount that actually gets charged rather than the goods total alone.
-      shippingMethod: product.shippingMethod,
-      shippingPrice: convertToPLN(product.shippingPrice || 0, product.currency),
-    }));
-    setJustAdded(product.id);
-    setTimeout(() => setJustAdded((cur) => (cur === product.id ? null : cur)), 1500);
+  /**
+   * Straight to this shop's own checkout, at the listed price.
+   *
+   * This replaces an add-to-cart that could not end in a purchase: it wrote a
+   * "shop:<shopId>:<productId>" line into the marketplace basket, and that basket is paid
+   * for through the bookings checkout, which has no listing row to charge against for a
+   * storefront product and drops those lines. Both routes off this page led there — the
+   * tile linked to /negotiate, which also finished by adding to the same basket — so the
+   * shop had no working buy button at all and the only way to actually pay for something
+   * was to find it through Explore.
+   *
+   * ShopCheckout reads quantity/offer/notes from this sessionStorage draft, which is how
+   * the negotiate page hands over a haggled price. Buying outright seeds the plain version
+   * of the same draft: one unit, no offer, no note.
+   */
+  const buyNow = (product) => {
+    try {
+      sessionStorage.setItem(
+        'hustleup_shop_checkout_draft',
+        JSON.stringify({ quantity: 1, notes: '' }),
+      );
+    } catch {
+      // A private-mode browser with storage blocked still gets a working checkout —
+      // ShopCheckout defaults to a quantity of one and the listed price when the draft
+      // is missing, which is exactly what this was writing.
+    }
+    navigate(`/shop/${shop.slug || shop.id}/product/${product.id}/checkout`);
   };
 
   if (loading) {
@@ -378,73 +383,85 @@ export default function ShopDetail() {
                   transition={{ delay: i * 0.05, duration: 0.5 }}
                   className="h-full"
                 >
-                  <Link
-                    to={`/shop/${shop.slug || shop.id}/product/${product.id}/negotiate`}
-                    className="group flex flex-col h-full rounded-2xl sm:rounded-[32px] overflow-hidden bg-black/60 border border-white/10 hover:border-[#CDFF00]/40 transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_60px_rgba(0,0,0,0.8)]"
-                  >
-                  {/* Product photo */}
-                  <div className="h-28 sm:h-36 shrink-0 relative overflow-hidden bg-black/40 border-b border-white/5">
-                    <SmartImage
-                      src={uploadUrl(product.imageUrl)}
-                      alt={product.name}
-                      fallbackIcon={ShoppingBag}
-                      className="w-full h-full object-cover z-10 group-hover:scale-110 transition-transform duration-700 ease-out"
-                      loading="lazy"
-                    />
-                    {/* Shop-tinted wash so the grid still reads as one storefront */}
-                    <div
-                      className="absolute inset-0 z-20 opacity-20 group-hover:opacity-10 transition-opacity duration-700 pointer-events-none"
-                      style={{ background: `radial-gradient(circle at center, ${shop.accentColor || '#CDFF00'} 0%, transparent 70%)` }}
-                    />
-                  </div>
-
-                  <div className="p-3 sm:p-5 flex flex-col flex-1 min-w-0">
-                    {product.category && (
-                      <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                        <span className="text-[9px] sm:text-[10px] font-black tracking-widest text-[#CDFF00] opacity-40 truncate">{product.category}</span>
-                        <div className="h-px bg-white/10 flex-1" />
-                      </div>
-                    )}
-                    <h3 className="text-sm sm:text-lg font-black text-white mb-2 sm:mb-3 leading-tight group-hover:text-[#CDFF00] transition-colors line-clamp-2 tracking-tighter">
-                      {product.name}
-                    </h3>
-                    <div className="flex items-center justify-between gap-2 mt-auto min-w-0">
-                      <div className="flex flex-col min-w-0">
-                        {/* The label is the first thing to go at two-up: it is a caption on a
-                            number that already looks like a price. */}
-                        <span className="hidden sm:block text-[9px] font-black tracking-widest text-gray-500 mb-0.5">Price Point</span>
-                        <span className="text-base sm:text-2xl font-black text-white tracking-tighter truncate">
-                          {formatPrice(product.price, product.currency)}
+                  {/* Not a Link wrapping the whole tile any more. It used to be, pointing at
+                      the negotiate page, which made "make me an offer" the only thing a
+                      product tile could do — the buy button underneath is the point of a shop,
+                      so it cannot be a nested control inside a link to somewhere else. */}
+                  <div className="group flex flex-col h-full rounded-2xl sm:rounded-[32px] overflow-hidden bg-black/60 border border-white/10 hover:border-[#CDFF00]/40 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+                    {/* Product photo. Taller than the old 28/36 strip and squared off at 4:5:
+                        a storefront tile is mostly a photograph, and the old letterbox cropped
+                        the top and bottom off anything shot in portrait — which is most of
+                        what people photograph on a phone. */}
+                    <Link
+                      to={`/shop/${shop.slug || shop.id}/product/${product.id}/checkout`}
+                      className="block aspect-[4/5] shrink-0 relative overflow-hidden bg-black/40 border-b border-white/5"
+                    >
+                      <SmartImage
+                        src={uploadUrl(product.imageUrl)}
+                        alt={product.name}
+                        fallbackIcon={ShoppingBag}
+                        className="w-full h-full object-cover z-10 group-hover:scale-105 transition-transform duration-700 ease-out"
+                        loading="lazy"
+                      />
+                      {/* Shop-tinted wash so the grid still reads as one storefront */}
+                      <div
+                        className="absolute inset-0 z-20 opacity-20 group-hover:opacity-10 transition-opacity duration-700 pointer-events-none"
+                        style={{ background: `radial-gradient(circle at center, ${shop.accentColor || '#CDFF00'} 0%, transparent 70%)` }}
+                      />
+                      {/* Price sits on the photo rather than under the title. On a two-up grid
+                          the eye goes to the image first, and the one thing a shopper is
+                          scanning for is what it costs. */}
+                      <span className="absolute z-30 bottom-2 left-2 px-2 py-1 rounded-lg bg-black/75 backdrop-blur-sm text-xs sm:text-sm font-black text-white tracking-tight">
+                        {formatPrice(product.price, product.currency)}
+                      </span>
+                      {product.category && (
+                        <span className="absolute z-30 top-2 left-2 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[9px] font-black tracking-widest text-[#CDFF00] max-w-[80%] truncate">
+                          {product.category}
                         </span>
-                        {/* Postage named on the tile, not saved for checkout — a shopper
-                            comparing two shops is comparing what it costs to get the thing,
-                            not what it costs before delivery is added. */}
-                        {product.shippingMethod && product.shippingMethod !== 'NONE' && (
-                          <span className="text-[9px] font-black tracking-widest text-gray-500 mt-0.5 truncate">
-                            {Number(product.shippingPrice) > 0
-                              ? `+ ${formatPrice(product.shippingPrice, product.currency)} delivery`
-                              : 'Free delivery'}
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        onClick={(e) => addProductToCart(e, product)}
-                        className={`w-9 h-9 sm:w-11 sm:h-11 shrink-0 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-[0_10px_20px_rgba(205,255,0,0.2)] ${
-                          justAdded === product.id || cartItems.some((i) => i.listingId === `shop:${shop.id}:${product.id}`)
-                            ? 'bg-white text-black'
-                            : 'bg-[#CDFF00] text-black'
-                        }`}
-                        title="Add to cart"
+                      )}
+                    </Link>
+
+                    <div className="p-2.5 sm:p-4 flex flex-col flex-1 min-w-0">
+                      <Link
+                        to={`/shop/${shop.slug || shop.id}/product/${product.id}/checkout`}
+                        className="text-[13px] sm:text-base font-black text-white leading-tight group-hover:text-[#CDFF00] transition-colors line-clamp-2 tracking-tight"
                       >
-                        {justAdded === product.id || cartItems.some((i) => i.listingId === `shop:${shop.id}:${product.id}`) ? (
-                          <Check className="w-4 h-4 sm:w-5 sm:h-5" />
-                        ) : (
-                          <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
-                        )}
-                      </button>
+                        {product.name}
+                      </Link>
+
+                      {/* Postage named on the tile, not saved for checkout — a shopper
+                          comparing two shops is comparing what it costs to get the thing,
+                          not what it costs before delivery is added. */}
+                      {product.shippingMethod && product.shippingMethod !== 'NONE' && (
+                        <span className="mt-1 text-[9px] font-bold tracking-wide text-gray-500 truncate">
+                          {Number(product.shippingPrice) > 0
+                            ? `+ ${formatPrice(product.shippingPrice, product.currency)} delivery`
+                            : 'Free delivery'}
+                        </span>
+                      )}
+
+                      {/* Buy is the primary action and goes straight to this shop's own
+                          checkout. It used to be a cart button, which put a "shop:" line in
+                          the marketplace basket that the bookings checkout cannot charge for —
+                          so the only way to actually buy a storefront product was to find it
+                          through Explore instead. */}
+                      <div className="flex items-center gap-1.5 mt-2.5">
+                        <button
+                          onClick={() => buyNow(product)}
+                          className="flex-1 py-2 rounded-xl bg-[#CDFF00] text-black font-black text-[10px] tracking-widest flex items-center justify-center gap-1.5 hover:bg-[#d9ff33] active:scale-95 transition-all"
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5" /> Buy
+                        </button>
+                        <Link
+                          to={`/shop/${shop.slug || shop.id}/product/${product.id}/negotiate`}
+                          className="px-2.5 py-2 rounded-xl border border-white/15 text-gray-300 font-black text-[10px] tracking-widest hover:bg-white/5 hover:text-white transition-all shrink-0"
+                          title="Make an offer"
+                        >
+                          Offer
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                  </Link>
                 </motion.div>
               ))}
             </div>

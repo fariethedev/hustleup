@@ -1,18 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useDispatch } from 'react-redux';
 import { ArrowLeft, ArrowRight, HandCoins, MessageSquareText, ShoppingBag } from 'lucide-react';
 import SmartImage from '../components/SmartImage';
-import { formatPrice, convertToPLN } from '../utils/constants';
+import { formatPrice } from '../utils/constants';
 import { useShopProduct, accentWash } from '../hooks/useShops';
-import { addToCart } from '../store/cartSlice';
 import { uploadUrl } from '../config';
 
 export default function ShopNegotiation() {
   const { id, productId } = useParams();
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const { shop, product, loading, notFound } = useShopProduct(id, productId);
   const [quantity, setQuantity] = useState(1);
   const [offer, setOffer] = useState('');
@@ -46,21 +43,25 @@ export default function ShopNegotiation() {
     );
   }
 
+  /**
+   * Hands the terms to this shop's checkout.
+   *
+   * This used to add a "shop:<shopId>:<productId>" line to the marketplace basket and send
+   * the buyer to /checkout, which pays through the bookings endpoint — that has no listing
+   * row to charge against for a storefront product, so the line was dropped and the order
+   * never happened. ShopCheckout has always read exactly this draft; nothing ever wrote it.
+   */
   const continueToCheckout = () => {
-    const unitPrice = offer ? Number(offer) : Number(product.price);
-    dispatch(addToCart({
-      listingId: `shop:${shop.id}:${product.id}`,
-      title: product.name,
-      price: convertToPLN(product.price, product.currency),
-      negotiatedPrice: offer ? convertToPLN(unitPrice, product.currency) : undefined,
-      currency: 'PLN',
-      image: product.imageUrl,
-      sellerId: `shop:${shop.id}`,
-      sellerName: shop.name,
-      quantity,
-      notes,
-    }));
-    navigate('/checkout');
+    try {
+      sessionStorage.setItem(
+        'hustleup_shop_checkout_draft',
+        JSON.stringify({ quantity, offer: offer || undefined, notes }),
+      );
+    } catch {
+      // Storage blocked: the checkout falls back to one unit at the listed price. Better a
+      // purchase without the haggled terms than a button that goes nowhere.
+    }
+    navigate(`/shop/${shop.slug || shop.id}/product/${product.id}/checkout`);
   };
 
   return (
