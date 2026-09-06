@@ -54,6 +54,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -877,6 +878,7 @@ public class FeedController {
      * error, so a double-tap on a slow connection cannot double-count.
      */
     @PostMapping("/{postId}/comments/{commentId}/likes")
+    @Transactional
     public ResponseEntity<?> likeComment(@PathVariable String postId, @PathVariable String commentId) {
         Optional<User> current = getCurrentUser();
         if (current.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -903,6 +905,7 @@ public class FeedController {
      * <p><b>DELETE /api/v1/feed/{postId}/comments/{commentId}/likes</b>
      */
     @DeleteMapping("/{postId}/comments/{commentId}/likes")
+    @Transactional
     public ResponseEntity<?> unlikeComment(@PathVariable String postId, @PathVariable String commentId) {
         Optional<User> current = getCurrentUser();
         if (current.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -1003,6 +1006,12 @@ public class FeedController {
      * @return 200 OK with the saved {@link Comment} entity
      */
     @PostMapping("/{postId}/comments")
+    // One transaction, so the count and the comment stand or fall together. Without this each
+    // save() committed on its own, and the count was written FIRST — so while comment inserts
+    // were failing, every rejected attempt still permanently added one to the post's total.
+    // That is how the counts drifted: they recorded attempts, not comments. V23 recomputes
+    // the ones already stored; this stops it happening again.
+    @Transactional
     public ResponseEntity<?> addComment(@PathVariable String postId, @RequestBody Map<String, String> payload) {
         String content = payload.get("content");
         if (content == null || content.isBlank()) {
@@ -1058,6 +1067,9 @@ public class FeedController {
     @PostMapping("/{postId}/likes")
     // Bust the cache on like so the updated like count shows next time the feed loads.
     @CacheEvict(value = "feed", allEntries = true)
+    // Same reasoning as addComment: the like row and the counter are two writes describing a
+    // single fact, so they belong in one transaction rather than committing independently.
+    @Transactional
     public ResponseEntity<?> likePost(@PathVariable String postId) {
         User currentUser = requireCurrentUser();
         Post post = postRepository.findById(postId).orElseThrow();
@@ -1096,6 +1108,7 @@ public class FeedController {
     @DeleteMapping("/{postId}/likes")
     // Bust the cache so the reduced like count is visible on the next feed load.
     @CacheEvict(value = "feed", allEntries = true)
+    @Transactional
     public ResponseEntity<?> unlikePost(@PathVariable String postId) {
         User currentUser = requireCurrentUser();
         Post post = postRepository.findById(postId).orElseThrow();
