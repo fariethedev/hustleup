@@ -9,7 +9,7 @@ import {
   BadgeCheck, X, Film, Star, Users, Store, Sparkles, Package, VenetianMask, Lock, Crown, Crop,
   MoreHorizontal, Pencil, Trash2, Repeat2, UsersRound,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { formatPrice } from '../utils/constants';
 import { useShops } from '../hooks/useShops';
 import PostMediaGallery from '../components/PostMediaGallery';
@@ -1044,6 +1044,21 @@ export default function Feed() {
       setCommentsLoading(false);
     }
   };
+
+
+  // Opening a post from elsewhere — the comment count on the profile modal sends the post id
+  // through router state. Without this the link landed on the feed and left you to scroll for
+  // the conversation you had just tapped.
+  const routeState = useLocation().state;
+  useEffect(() => {
+    const wanted = routeState?.openPostId;
+    if (!wanted || selectedPost) return;
+    const target = posts.find((p) => p.id === wanted);
+    if (target) openComments(target);
+    // Runs once the feed has loaded and found it; openComments is stable enough here and
+    // adding it to the deps would reopen the modal every time comments change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeState?.openPostId, posts]);
 
   const submitComment = async () => {
     if (!commentInput.trim() || !selectedPost) return;

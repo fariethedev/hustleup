@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector, useDispatch } from 'react-redux';
-import { selectUser, loadUserProfile } from '../store/authSlice';
+import { selectUser, selectIsAuthenticated, loadUserProfile } from '../store/authSlice';
 import { usersApi, reviewsApi, listingsApi, feedApi, followsApi } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import ReviewStars from '../components/ReviewStars';
@@ -21,6 +21,7 @@ export default function Profile() {
   const { id } = useParams();
   const dispatch = useDispatch();
   const currentUser = useSelector(selectUser);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
   const { showToast } = useToast();
   const [profile, setProfile] = useState(null);
   const [rel, setRel] = useState({ followers: 0, following: 0, isFollowing: false, blocked: false, blockedBy: false });
@@ -31,6 +32,49 @@ export default function Profile() {
   // own post from your profile did nothing at all.
   const [viewingPost, setViewingPost] = useState(null);
   const [likedPosts, setLikedPosts] = useState([]);
+
+  /**
+   * Likes or unlikes the post open in the modal.
+   *
+   * Optimistic, and mirrored into whichever list the post came from — the grid behind the
+   * modal shows the same counts, so updating only the modal would leave the two disagreeing
+   * the moment it closes.
+   */
+  const togglePostLike = async () => {
+    if (!isAuthenticated || !viewingPost) return;
+    const liked = !!viewingPost.likedByCurrentUser;
+    const next = (p) => ({
+      ...p,
+      likedByCurrentUser: !liked,
+      likesCount: Math.max(0, (p.likesCount || 0) + (liked ? -1 : 1)),
+    });
+
+    setViewingPost(next);
+    setLikedPosts((list) => list.map((p) => (p.id === viewingPost.id ? next(p) : p)));
+
+    try {
+      const res = liked
+        ? await feedApi.unlikePost(viewingPost.id)
+        : await feedApi.likePost(viewingPost.id);
+      // The server's count is authoritative; two devices liking at once would otherwise
+      // leave this one showing a number that never settles.
+      const settle = (p) => ({
+        ...p,
+        likedByCurrentUser: res.data?.likedByCurrentUser ?? !liked,
+        likesCount: res.data?.likesCount ?? p.likesCount,
+      });
+      setViewingPost((p) => (p ? settle(p) : p));
+      setLikedPosts((list) => list.map((p) => (p.id === viewingPost.id ? settle(p) : p)));
+    } catch {
+      const revert = (p) => ({
+        ...p,
+        likedByCurrentUser: liked,
+        likesCount: Math.max(0, (p.likesCount || 0) + (liked ? 1 : -1)),
+      });
+      setViewingPost((p) => (p ? revert(p) : p));
+      setLikedPosts((list) => list.map((p) => (p.id === viewingPost.id ? revert(p) : p)));
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('listings');
   const [followBusy, setFollowBusy] = useState(false);
@@ -523,15 +567,38 @@ export default function Profile() {
                 </p>
               )}
 
+              {/* These were both spans. A heart and a comment bubble with a count beside
+                  them are the controls everywhere else in the app, so on this screen they
+                  read as controls and did nothing when tapped. */}
               <div className="px-4 py-3 border-t border-white/10 flex items-center gap-5 text-sm font-bold text-gray-400">
-                <span className="flex items-center gap-1.5">
-                  <Heart className="w-4 h-4" /> {viewingPost.likesCount || 0}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <MessageCircle className="w-4 h-4" /> {viewingPost.commentsCount || 0}
-                </span>
+                <button
+                  onClick={togglePostLike}
+                  disabled={!isAuthenticated}
+                  aria-pressed={!!viewingPost.likedByCurrentUser}
+                  aria-label={viewingPost.likedByCurrentUser ? 'Unlike this post' : 'Like this post'}
+                  className={`flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    viewingPost.likedByCurrentUser ? 'text-[#FF00FF]' : 'hover:text-white'
+                  }`}
+                >
+                  <Heart className={`w-4 h-4 ${viewingPost.likedByCurrentUser ? 'fill-[#FF00FF]' : ''}`} />
+                  {viewingPost.likesCount || 0}
+                </button>
+
+                {/* Carries the post through, so the feed opens on this conversation rather
+                    than at the top with the post somewhere below. */}
                 <Link
                   to="/feed"
+                  state={{ openPostId: viewingPost.id }}
+                  onClick={() => setViewingPost(null)}
+                  aria-label="Open comments"
+                  className="flex items-center gap-1.5 hover:text-white transition-colors"
+                >
+                  <MessageCircle className="w-4 h-4" /> {viewingPost.commentsCount || 0}
+                </Link>
+
+                <Link
+                  to="/feed"
+                  state={{ openPostId: viewingPost.id }}
                   onClick={() => setViewingPost(null)}
                   className="ml-auto text-[10px] font-black tracking-widest text-[#CDFF00] hover:brightness-110"
                 >
