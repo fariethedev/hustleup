@@ -83,9 +83,36 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                 slides.length > 1 ? '' : 'group-hover:scale-105 transition-transform duration-500 ease-out'
               }`}
             />
-            {/* Drawn over the track, under the z-10 controls: it is what keeps the cart button
-                and the dots legible on a bright photo. */}
-            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
+            {/* Taller and darker than it was, because it now has to carry text rather than
+                just a button: the price and description sit on the photograph, and a bright
+                image underneath them is the normal case, not the exception. */}
+            <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black via-black/70 to-transparent pointer-events-none" />
+
+            {/* Price and description, over the image.
+                These used to sit below it, and between them they made every card two rows
+                taller than it needed to be — in a two-up grid that is most of a screen spent
+                on whitespace around text that reads perfectly well on the photo. The right
+                padding clears the cart button rather than wrapping underneath it. */}
+            <div className="absolute inset-x-0 bottom-0 p-3 pr-14 pointer-events-none">
+              <div className="flex items-baseline gap-2">
+                <span className="text-lg sm:text-xl font-black text-[#CDFF00] tracking-tight leading-none truncate drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                  {formatPrice(listing.price, listing.currency)}
+                </span>
+                {listing.avgRating > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10px] font-black text-white shrink-0 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                    <Star className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" />
+                    {Number(listing.avgRating).toFixed(1)}
+                  </span>
+                )}
+              </div>
+              {listing.description && (
+                // One line, at every width. Over a photograph a second line is where
+                // legibility goes, and the description is a hint here, not the copy.
+                <p className="mt-1 text-[11px] text-gray-200 line-clamp-1 leading-snug drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                  {listing.description}
+                </p>
+              )}
+            </div>
 
             {/* The one exceptional fact about a listing, as an icon. Dropping the "Nego"
                 text costs nothing a hover or a screen reader cannot recover, and the
@@ -118,33 +145,17 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
             )}
           </div>
 
-          {/* ── Body ── */}
+          {/* ── Body ──
+              Two lines now: what it is, and who is selling it. Price and description moved
+              onto the photograph above, which is what brought the card back to a sensible
+              height. */}
           <div className="flex flex-col flex-1 p-3">
-            <div className="flex items-baseline justify-between gap-1.5">
-              <span className="text-lg sm:text-xl font-black text-[#CDFF00] tracking-tight leading-none truncate">
-                {formatPrice(listing.price, listing.currency)}
-              </span>
-              {listing.avgRating > 0 && (
-                <span className="flex items-center gap-0.5 text-[10px] font-black text-white shrink-0">
-                  <Star className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" />
-                  {Number(listing.avgRating).toFixed(1)}
-                </span>
-              )}
-            </div>
-
-            <h3 className="mt-1.5 text-[13px] font-black text-white leading-snug line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
+            <h3 className="text-[13px] font-black text-white leading-snug line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
               {listing.title}
             </h3>
 
-            {/* Hidden at two-up, where it only ever showed clipped filler */}
-            {listing.description && (
-              <p className="hidden sm:block text-xs text-gray-400 mt-1 line-clamp-2 leading-relaxed">
-                {listing.description}
-              </p>
-            )}
-
             {/* Seller and place on one line, pinned to the bottom so cards align */}
-            <div className="mt-auto pt-2.5 flex items-center gap-1.5 min-w-0">
+            <div className="mt-auto pt-2 flex items-center gap-1.5 min-w-0">
               <div className="shrink-0 w-5 h-5 rounded-full overflow-hidden bg-black border border-[#FF00FF]/60 flex items-center justify-center text-[8px] font-black text-[#FF00FF]">
                 {listing.sellerAvatarUrl
                   ? <img src={listing.sellerAvatarUrl} alt="" className="w-full h-full object-cover" />

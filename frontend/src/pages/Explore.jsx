@@ -64,7 +64,9 @@ export default function Explore() {
   const [listingType, setListingType] = useState('');
   // Mobile only: the search field and the filter selects are collapsed behind icons so the
   // sticky header costs one row instead of four before you see a single result.
-  const [mobilePanel, setMobilePanel] = useState(null); // 'search' | 'filters' | null
+  // Only one collapsible panel remains — search moved out of this page entirely, since
+  // the navbar already carries it everywhere.
+  const [mobilePanel, setMobilePanel] = useState(null); // 'filters' | null
 
   /* ── Data fetching ── */
   useEffect(() => {
@@ -193,22 +195,12 @@ export default function Explore() {
                 })}
               </nav>
 
-              {/* Search toggle */}
-              <button
-                onClick={() => setMobilePanel((p) => (p === 'search' ? null : 'search'))}
-                aria-label="Search"
-                aria-expanded={mobilePanel === 'search'}
-                className={`relative shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center transition-colors ${
-                  mobilePanel === 'search' || query
-                    ? 'bg-[#00FFFF] text-black border-[#00FFFF]'
-                    : 'bg-white/5 border-white/10 text-gray-300'
-                }`}
-              >
-                <Search className="w-4 h-4" />
-              </button>
+              {/* No search button here. The navbar carries search across the whole app, and
+                  a second one on this page was a second habit to learn for the same job.
+                  Filters are the only control this header needs to own.
 
-              {/* Filter toggle — the dot marks active filters, so a collapsed panel never
-                  hides the fact that results are being narrowed. */}
+                  The dot marks active filters, so a collapsed panel never hides the fact
+                  that results are being narrowed. */}
               <button
                 onClick={() => setMobilePanel((p) => (p === 'filters' ? null : 'filters'))}
                 aria-label="Filters"
@@ -227,38 +219,6 @@ export default function Explore() {
             </div>
 
             <AnimatePresence initial={false}>
-              {mobilePanel === 'search' && (
-                <motion.div
-                  key="m-search"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="relative pt-2.5">
-                    <Search className="absolute left-4 top-1/2 mt-1 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <input
-                      type="search"
-                      autoFocus
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search listings, shops, creators…"
-                      className="w-full pl-11 pr-10 py-2.5 rounded-2xl bg-[#0A0A0A] border border-white/10 text-white text-sm outline-none focus:border-[#00FFFF] transition-colors"
-                    />
-                    {query && (
-                      <button
-                        onClick={() => setQuery('')}
-                        aria-label="Clear search"
-                        className="absolute right-3 top-1/2 mt-1 -translate-y-1/2 w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-gray-400"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-
               {mobilePanel === 'filters' && (
                 <motion.div
                   key="m-filters"
