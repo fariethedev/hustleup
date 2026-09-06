@@ -8,6 +8,7 @@ import { addToCart, selectCartItems } from '../store/cartSlice';
 import { useState } from 'react';
 import CardCarousel from './CardCarousel';
 import { coverImage, mediaList } from '../utils/media';
+import { uploadUrl } from '../config';
 
 /**
  * A marketplace listing, as shown in browse grids and the mobile two-up carousel.
@@ -86,13 +87,19 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
             {/* Taller and darker than it was, because it now has to carry text rather than
                 just a button: the price and description sit on the photograph, and a bright
                 image underneath them is the normal case, not the exception. */}
-            <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black via-black/70 to-transparent pointer-events-none" />
+            <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black via-black/85 to-transparent pointer-events-none" />
 
-            {/* Price and description, over the image.
-                These used to sit below it, and between them they made every card two rows
-                taller than it needed to be — in a two-up grid that is most of a screen spent
-                on whitespace around text that reads perfectly well on the photo. The right
-                padding clears the cart button rather than wrapping underneath it. */}
+            {/* Everything the card says, over the image.
+                Nothing sits below it any more. Half-overlaid was the worst arrangement: the
+                remaining text still grew with the title and the seller's name, so two cards
+                in the same row ended up different heights and the grid stopped lining up.
+                With the card being exactly its image, every card in the grid is identical by
+                construction rather than by luck.
+
+                Ordered by what someone scanning actually wants: what it costs, what it is,
+                then who and where. Right padding clears the cart button instead of wrapping
+                under it, and the whole block is pointer-events-none so the card stays a
+                single click target. */}
             <div className="absolute inset-x-0 bottom-0 p-3 pr-14 pointer-events-none">
               <div className="flex items-baseline gap-2">
                 <span className="text-lg sm:text-xl font-black text-[#CDFF00] tracking-tight leading-none truncate drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
@@ -105,13 +112,34 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                   </span>
                 )}
               </div>
+
+              <h3 className="mt-1 text-[13px] font-black text-white leading-snug line-clamp-1 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                {listing.title}
+              </h3>
+
+              {/* One line each, at every width. Over a photograph a second line is where
+                  legibility goes, and these are hints rather than the copy. */}
               {listing.description && (
-                // One line, at every width. Over a photograph a second line is where
-                // legibility goes, and the description is a hint here, not the copy.
-                <p className="mt-1 text-[11px] text-gray-200 line-clamp-1 leading-snug drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                <p className="mt-0.5 text-[11px] text-gray-300 line-clamp-1 leading-snug drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
                   {listing.description}
                 </p>
               )}
+
+              <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
+                <div className="shrink-0 w-4 h-4 rounded-full overflow-hidden bg-black border border-[#FF00FF]/60 flex items-center justify-center text-[7px] font-black text-[#FF00FF]">
+                  {listing.sellerAvatarUrl
+                    ? <img src={uploadUrl(listing.sellerAvatarUrl)} alt="" className="w-full h-full object-cover" />
+                    : (listing.sellerName || 'C')[0]}
+                </div>
+                <span className="text-[10px] text-gray-200 font-bold truncate min-w-0 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                  {listing.sellerName || 'Creator'}
+                </span>
+                {listing.sellerVerified && <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
+                <span className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-gray-300 tracking-wider shrink-0 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                  <MapPin className="w-3 h-3 text-[#CDFF00]" />
+                  <span className="max-w-[60px] truncate">{displayCity(listing.locationCity)}</span>
+                </span>
+              </div>
             </div>
 
             {/* The one exceptional fact about a listing, as an icon. Dropping the "Nego"
@@ -126,6 +154,26 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
               >
                 <HandCoins className="w-3.5 h-3.5" strokeWidth={2.5} />
               </span>
+            )}
+
+            {/* The owner's controls float too, for the same reason the cart does: a row
+                beneath the picture would make your own listings taller than everyone else's
+                and break the one thing this card is now built on — every card being exactly
+                its image. */}
+            {isOwn && (
+              onDelete ? (
+                <button
+                  onClick={(e) => { e.preventDefault(); onDelete(listing.id); }}
+                  aria-label={`Delete ${listing.title}`}
+                  className="absolute bottom-2 right-2 w-9 h-9 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.5)] bg-red-500/20 backdrop-blur-md border border-red-500/50 text-red-300 hover:bg-red-500 hover:text-white transition-all active:scale-90"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              ) : (
+                <span className="absolute bottom-2 right-2 px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest bg-black/70 backdrop-blur-md border border-white/15 text-gray-300">
+                  Yours
+                </span>
+              )
             )}
 
             {/* Cart floats on the image, saving the full-width row the old card spent on it —
@@ -145,52 +193,8 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
             )}
           </div>
 
-          {/* ── Body ──
-              Two lines now: what it is, and who is selling it. Price and description moved
-              onto the photograph above, which is what brought the card back to a sensible
-              height. */}
-          <div className="flex flex-col flex-1 p-3">
-            <h3 className="text-[13px] font-black text-white leading-snug line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
-              {listing.title}
-            </h3>
-
-            {/* Seller and place on one line, pinned to the bottom so cards align */}
-            <div className="mt-auto pt-2 flex items-center gap-1.5 min-w-0">
-              <div className="shrink-0 w-5 h-5 rounded-full overflow-hidden bg-black border border-[#FF00FF]/60 flex items-center justify-center text-[8px] font-black text-[#FF00FF]">
-                {listing.sellerAvatarUrl
-                  ? <img src={listing.sellerAvatarUrl} alt="" className="w-full h-full object-cover" />
-                  : (listing.sellerName || 'C')[0]}
-              </div>
-              <span className="text-[10px] text-gray-300 font-bold truncate min-w-0">
-                {listing.sellerName || 'Creator'}
-              </span>
-              {listing.sellerVerified && <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
-              <span className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-gray-500 tracking-wider shrink-0">
-                <MapPin className="w-3 h-3 text-[#CDFF00]" />
-                <span className="max-w-[64px] truncate">{displayCity(listing.locationCity)}</span>
-              </span>
-            </div>
-          </div>
         </Link>
 
-        {/* Owner-only footer. Buyers get the floating cart button instead, so this row exists
-            only for the person who posted the listing. */}
-        {isOwn && (
-          <div className="px-3 pb-3">
-            {onDelete ? (
-              <button
-                onClick={(e) => { e.preventDefault(); onDelete(listing.id); }}
-                className="w-full py-1.5 rounded-lg flex items-center justify-center gap-1.5 text-[9px] font-black tracking-widest bg-red-500/10 border border-red-500/40 text-red-400 hover:bg-red-500/20 transition-colors"
-              >
-                <Trash2 className="w-3 h-3" /> Delete
-              </button>
-            ) : (
-              <div className="w-full py-1.5 rounded-lg text-center text-[9px] font-black tracking-widest text-gray-600 bg-white/[0.03] border border-white/5">
-                Your listing
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </motion.div>
   );

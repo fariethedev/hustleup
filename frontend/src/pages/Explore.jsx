@@ -163,7 +163,10 @@ export default function Explore() {
     <div className="min-h-screen font-sans pb-20">
 
       {/* ── Sticky search & filter header ── */}
-      <div className="sticky top-14 md:top-16 z-[90] bg-black/80 backdrop-blur-xl border-b border-white/5">
+      {/* top-14 at every width, because the navbar is h-14 at every width. md:top-16
+          assumed a taller desktop header that does not exist, so the bar sat 8px below
+          the navbar and the grid scrolled through the gap between them. */}
+      <div className="sticky top-14 z-[90] bg-black/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 
           {/* ── Mobile: one compact row. Tabs scroll; search and filters live behind icons ── */}

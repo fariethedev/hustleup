@@ -20,7 +20,7 @@ export default function ExploreNav() {
   const { pathname } = useLocation();
 
   return (
-    <div className="sticky top-14 md:top-16 z-[90] bg-black/85 backdrop-blur-md border-b border-white/5">
+    <div className="sticky top-14 z-[90] bg-black/85 backdrop-blur-md border-b border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center gap-2 sm:gap-3">
         <span className="hidden sm:flex items-center gap-1.5 text-sm font-black text-white tracking-tighter shrink-0">
           <Compass className="w-4 h-4 text-[#FF00FF]" /> Explore
