@@ -158,10 +158,11 @@ export default function Dashboard() {
     try {
       if (action === 'accept') await bookingsApi.accept(id);
       else if (action === 'cancel') await bookingsApi.cancel(id, 'Cancelled by user');
+      else if (action === 'received') await bookingsApi.confirmReceipt(id);
       // 'complete' no longer routes through here — it opens the review dialog first.
       loadData();
     } catch (err) {
-      alert(err.response?.data?.message || 'Action failed');
+      dispatchToast(err.response?.data?.error || err.response?.data?.message || 'Action failed', 'error');
     }
   };
 
@@ -509,6 +510,24 @@ export default function Dashboard() {
                                 className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1 disabled:opacity-60"
                               >
                                 <CreditCard className="w-3 h-3" /> {payingBookingId === booking.id ? 'Redirecting…' : 'Pay Now'}
+                              </button>
+                            )}
+
+                            {/* The buyer's half of the deal, and the only thing that releases
+                                the seller's money. It was missing entirely: the seller both
+                                declared the job done and collected for it, so a buyer who
+                                never received anything had nothing to press and nothing to
+                                withhold. Shown until they confirm, whatever the seller has
+                                already marked — a seller ticking "complete" is their account
+                                of the sale, not the buyer's. */}
+                            {isBuyer
+                              && ['BOOKED', 'COMPLETED'].includes(booking.status)
+                              && !booking.fulfilment?.buyerConfirmedAt && (
+                              <button
+                                onClick={() => { if (confirm('Confirm you received this? It releases the seller\'s payment.')) handleBookingAction(booking.id, 'received'); }}
+                                className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1"
+                              >
+                                <ShieldCheck className="w-3 h-3" /> Confirm received
                               </button>
                             )}
 

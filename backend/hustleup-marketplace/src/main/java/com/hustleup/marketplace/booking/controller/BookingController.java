@@ -216,6 +216,20 @@ public class BookingController {
     }
 
     /**
+     * The buyer confirming they received what they paid for.
+     *
+     * <p><b>PATCH /api/v1/bookings/{id}/received</b> — the buyer on this booking.
+     *
+     * <p>This is what releases the seller's payout. Marking a booking complete no longer does
+     * so: that is the seller's own account of the sale, and money should not move on it.
+     * See {@link BookingService#confirmReceipt}.
+     */
+    @PatchMapping("/{id}/received")
+    public ResponseEntity<BookingDto> confirmReceipt(@PathVariable UUID id) {
+        return ResponseEntity.ok(bookingService.confirmReceipt(id));
+    }
+
+    /**
      * A single booking by id — powers the live offer card embedded in a DM thread.
      *
      * <p><b>GET /api/v1/bookings/{id}</b> — auth required, and only the buyer or seller on

@@ -194,6 +194,10 @@ export const bookingsApi = {
   counterOffer: (id, counterPrice) =>
     api.patch(`/bookings/${id}/counter`, { counterPrice }),
   accept: (id) => api.patch(`/bookings/${id}/accept`),
+  // The buyer confirming they got what they paid for. This is what releases the seller's
+  // money — marking a booking complete is the seller's own account of the sale and no
+  // longer moves anything on its own.
+  confirmReceipt: (id) => api.patch(`/bookings/${id}/received`),
   cancel: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }),
   // Completing takes no body. It used to require the seller's review of the buyer, which
   // held their own payout behind an opinion they had no reason to hold; they are asked for

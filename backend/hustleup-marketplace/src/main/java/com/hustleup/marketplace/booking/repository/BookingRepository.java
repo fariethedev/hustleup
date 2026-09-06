@@ -123,4 +123,27 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * order stuck UNPAID — this is what the webhook uses instead.
      */
     List<Booking> findAllByPaymentIntentId(String paymentIntentId);
+
+    /**
+     * Paid bookings whose money is now the seller's to take.
+     *
+     * <p>Mirrors {@code ShopOrderRepository.findReleasable}, because the protection is the
+     * same one: a booking is released either because the buyer said they got what they paid
+     * for, or because the hold period expired after the seller marked it delivered. Anything
+     * already {@code TRANSFERRED} or {@code REFUNDED} is excluded by the paymentStatus filter,
+     * which is what stops one charge being paid out twice.
+     *
+     * <p>The clock runs from delivery rather than from payment: a seller who has not delivered
+     * yet should not be accruing a claim on the buyer's money, and the buyer's window to object
+     * only means something once there is something to object to.
+     */
+    @Query("""
+            SELECT b FROM Booking b
+             WHERE b.paymentStatus = 'PAID'
+               AND b.status IN (com.hustleup.marketplace.booking.model.BookingStatus.BOOKED,
+                                com.hustleup.marketplace.booking.model.BookingStatus.COMPLETED)
+               AND (b.fulfilment.buyerConfirmedAt IS NOT NULL
+                    OR (b.fulfilment.deliveredAt IS NOT NULL AND b.fulfilment.deliveredAt < :cutoff))
+            """)
+    List<Booking> findReleasable(@Param("cutoff") LocalDateTime cutoff);
 }

@@ -52,8 +52,11 @@ import com.hustleup.common.model.User;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import com.stripe.exception.StripeException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,7 +73,17 @@ import java.util.stream.Collectors;
 // @Service marks this as a Spring component containing business logic.
 // Spring creates a single instance (singleton scope) and injects it wherever needed.
 @Service
+@Slf4j
 public class BookingService {
+
+    /**
+     * How long a delivered booking waits before releasing without the buyer saying anything.
+     *
+     * <p>Same setting storefront orders use, because it is the same judgement: how long a
+     * buyer gets to raise a problem, weighed against how long a seller waits to be paid.
+     */
+    @Value("${app.payouts.hold-days:7}")
+    private int holdDays;
 
     /**
      * Listing types bought outright rather than negotiated.
@@ -767,27 +780,17 @@ public class BookingService {
             delivery.setUpdatedAt(LocalDateTime.now());
         }
 
-        // Pay the seller out now that the work is confirmed done — but only if the buyer
-        // actually paid (older bookings, or ones created before this system existed, simply
-        // have no payment to transfer) and the seller has finished Stripe Connect onboarding.
-        // Both checks fail closed: if either is missing, completion still succeeds, it just
-        // doesn't trigger a transfer — a seller who hasn't connected payouts yet shouldn't be
-        // blocked from marking work done, they just won't be paid out until they do.
-        if ("PAID".equals(booking.getPaymentStatus())) {
-            payoutAccountRepository.findBySellerId(booking.getSellerId())
-                    .filter(SellerPayoutAccount::isPayoutsEnabled)
-                    .ifPresent(payoutAccount -> {
-                        try {
-                            String transferId = stripeConnectService.transferToSeller(booking, payoutAccount.getStripeAccountId());
-                            booking.setTransferId(transferId);
-                            booking.setPaymentStatus("TRANSFERRED");
-                        } catch (StripeException e) {
-                            // Leave paymentStatus as PAID so this is visible as still owed —
-                            // don't block marking the booking complete on a payout hiccup.
-                            System.err.println("Payout failed for booking " + booking.getId() + ": " + e.getMessage());
-                        }
-                    });
-        }
+        // Deliberately does NOT pay the seller here any more.
+        //
+        // It used to: the seller ticked "complete" and the transfer went out in the same call.
+        // That made the sale final on the say-so of the person being paid for it — a seller
+        // could mark a job done that was never done, take the money, and leave the buyer with
+        // no lever at all. Storefront orders were changed away from exactly this (see
+        // ShopOrderController#confirmReceipt); bookings kept it until now.
+        //
+        // The money is already sitting safely on the platform balance. It is released when the
+        // buyer confirms they got what they paid for, or when the hold period expires after
+        // delivery — see confirmReceipt and releaseDueBookings below.
 
         Booking saved = bookingRepository.save(booking);
 
@@ -797,13 +800,117 @@ public class BookingService {
                 "<p><b>" + listingTitle + "</b> is marked complete. Leave a review to help other buyers!</p>");
         notifyByPush(booking.getBuyerId(), "Booking completed",
                 listingTitle + " is marked complete. Leave a review to help other buyers!");
-        if ("TRANSFERRED".equals(saved.getPaymentStatus())) {
-            notifyByEmail(booking.getSellerId(), "Payout sent: " + listingTitle,
-                    "<p>You've been paid out for <b>" + listingTitle + "</b>.</p>");
-            notifyByPush(booking.getSellerId(), "Payout sent", "You've been paid out for " + listingTitle + ".");
-        }
 
         return enrichDto(saved, user.getId());
+    }
+
+    /**
+     * The buyer confirming they actually got what they paid for.
+     *
+     * <p>This is the thing that releases the seller's money, and until now bookings had no
+     * equivalent of it — the seller both declared the work done and collected for it in one
+     * call. Storefront orders already worked this way; this brings bookings in line.
+     *
+     * <p>Not gated on the seller having marked it delivered first. A seller who never updates
+     * their side is common, and refusing to let a buyer confirm something they are holding —
+     * because the other party did not fill in a form — is an obstacle with nothing behind it.
+     *
+     * @param bookingId the booking to confirm receipt of
+     * @return the booking, now completed and released
+     */
+    @Transactional
+    public BookingDto confirmReceipt(UUID bookingId) {
+        User user = getCurrentUser();
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (!booking.getBuyerId().equals(user.getId())) {
+            throw new RuntimeException("Only the buyer can confirm they received this");
+        }
+        // Nothing to confirm on an order nobody has paid for, and confirming a cancelled one
+        // would quietly resurrect it as a finished sale.
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new RuntimeException("This booking was cancelled");
+        }
+
+        Fulfilment delivery = booking.getFulfilment();
+        if (delivery != null && delivery.getBuyerConfirmedAt() == null) {
+            delivery.setBuyerConfirmedAt(LocalDateTime.now());
+            delivery.setUpdatedAt(LocalDateTime.now());
+            // The buyer saying they have it is the most authoritative delivery signal there is,
+            // so the tracker follows it rather than waiting on the seller to catch up.
+            FulfilmentStatus reached = delivery.getFulfilmentStatus();
+            if (reached != null && reached != FulfilmentStatus.CANCELLED && !reached.isComplete()) {
+                delivery.setFulfilmentStatus(delivery.methodOrDefault().finalStep());
+                delivery.setDeliveredAt(LocalDateTime.now());
+            }
+        }
+
+        booking.setStatus(BookingStatus.COMPLETED);
+        booking.setUpdatedAt(LocalDateTime.now());
+        releasePayout(booking);
+
+        return enrichDto(bookingRepository.save(booking), user.getId());
+    }
+
+    /**
+     * Moves the held money to the seller, if there is any to move.
+     *
+     * <p>Fails closed in three places, all of them deliberate: an unpaid booking has nothing
+     * to transfer, a seller who has not finished Stripe Connect onboarding has nowhere to
+     * receive it, and a Stripe failure leaves {@code paymentStatus} at PAID. That last one
+     * matters most — recording a transfer that did not happen would erase, from the platform's
+     * own books, money it still owes. Left PAID, the sweep picks it up again later.
+     */
+    private void releasePayout(Booking booking) {
+        if (!"PAID".equals(booking.getPaymentStatus())) return;
+
+        payoutAccountRepository.findBySellerId(booking.getSellerId())
+                .filter(SellerPayoutAccount::isPayoutsEnabled)
+                .ifPresent(payoutAccount -> {
+                    try {
+                        String transferId = stripeConnectService.transferToSeller(booking, payoutAccount.getStripeAccountId());
+                        booking.setTransferId(transferId);
+                        booking.setPaymentStatus("TRANSFERRED");
+
+                        String title = listingRepository.findById(booking.getListingId())
+                                .map(Listing::getTitle).orElse("your booking");
+                        notifyByEmail(booking.getSellerId(), "Payout sent: " + title,
+                                "<p>You've been paid out for <b>" + title + "</b>.</p>");
+                        notifyByPush(booking.getSellerId(), "Payout sent", "You've been paid out for " + title + ".");
+                    } catch (StripeException e) {
+                        log.error("Payout failed for booking {} — left held: {}", booking.getId(), e.getMessage());
+                    }
+                });
+    }
+
+    /**
+     * Releases bookings whose hold period has run out.
+     *
+     * <p>Buyers forget. A seller whose payout depended entirely on someone remembering to press
+     * a button would be financing the platform indefinitely through no fault of their own, so a
+     * delivered booking releases on its own after {@code app.payouts.hold-days} — the same
+     * window, from the same setting, that storefront orders use.
+     *
+     * <p>Hourly, and one query rather than a timer per booking: the hold is measured in days,
+     * so an hour of latency is immaterial, and thousands of scheduled tasks would not survive
+     * a restart.
+     */
+    @Scheduled(fixedDelayString = "${app.payouts.sweep-ms:3600000}")
+    public void releaseDueBookings() {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(holdDays);
+        List<Booking> due = bookingRepository.findReleasable(cutoff);
+        if (due.isEmpty()) return;
+
+        int released = 0;
+        for (Booking booking : due) {
+            releasePayout(booking);
+            if ("TRANSFERRED".equals(booking.getPaymentStatus())) {
+                bookingRepository.save(booking);
+                released++;
+            }
+        }
+        log.info("Booking payout sweep: {} of {} due booking(s) released", released, due.size());
     }
 
     /**
