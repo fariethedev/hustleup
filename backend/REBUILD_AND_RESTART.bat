@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d C:\Users\Admin\.gemini\antigravity\scratch\hustleup\backend
+cd /d "%~dp0"
 
 echo ========================================
 echo Building with Maven...
