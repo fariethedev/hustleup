@@ -85,15 +85,6 @@ public class Comment {
     private String parentId;
 
     /**
-     * Timestamp of creation, populated automatically by Hibernate.
-     *
-     * <p>The {@code updatable = false} constraint prevents accidental updates;
-     * once a row is created, this timestamp is permanent.
-     * The chronological ordering on this field is used by
-     * {@link com.hustleup.social.repository.CommentRepository#findByPostIdOrderByCreatedAtAsc}.
-     */
-    @CreationTimestamp
-    /**
      * Denormalised like count, same trade-off as {@code Post.likesCount}: slightly more work
      * on write in exchange for not running a COUNT(*) per comment on every thread load.
      *
