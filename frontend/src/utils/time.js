@@ -101,6 +101,33 @@ export function timeAgoLong(value) {
 }
 
 /**
+ * Full date and time — "6 Sept 2026, 14:32".
+ *
+ * <p>For places where the reader wants to know *when* something happened rather than how
+ * long ago. A relative age is the right call in a chat thread, where everything is minutes
+ * old and "14:32" tells you nothing you did not already know; it is the wrong call on a
+ * post, where "34w" is a number nobody can turn back into a date without arithmetic.
+ *
+ * <p>Locale-aware via {@code toLocaleString} rather than a hand-built string, so a reader in
+ * Poland gets day-first and one in the US gets month-first, both correctly — hardcoding
+ * either would be right for one audience and backwards for the other.
+ *
+ * @param {string|number|Date} value a server timestamp
+ * @returns {string} empty string when the value is missing or unparseable
+ */
+export function formatDateTime(value) {
+  const date = parseServerDate(value);
+  if (!date) return '';
+  return date.toLocaleString([], {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
  * Absolute clock time, for message rows and timestamps shown alongside a relative age.
  *
  * @param {string|number|Date} value

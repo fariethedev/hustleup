@@ -20,7 +20,7 @@ import SmartImage from '../components/SmartImage';
 import ImageCropper from '../components/ImageCropper';
 import CommunityPanel from '../components/CommunityPanel';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
-import { timeAgo } from '../utils/time';
+import { timeAgo, formatDateTime } from '../utils/time';
 import { uploadUrl } from '../config';
 
 const POST_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1920&q=80';
@@ -356,7 +356,10 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 text-sm">
               <AuthorName className="font-bold text-white" />
-              <span className="text-gray-500 shrink-0">· {timeAgo(post.createdAt)}</span>
+              {/* The date it was posted, not how long ago. "34w" is a number a reader has
+                  to do arithmetic on before it means anything; a date is the thing they
+                  were actually asking for. */}
+              <span className="text-gray-500 shrink-0">· {formatDateTime(post.createdAt)}</span>
               {editedMark}
               {ownerMenu}
             </div>
@@ -403,7 +406,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
         <div className="min-w-0">
           <AuthorName className="text-sm font-bold text-white block" />
           <span className="flex items-center gap-2 text-xs text-gray-500">
-            <span>{timeAgo(post.createdAt)} ago {post.editedAt ? '· edited' : ''}</span>
+            <span>{formatDateTime(post.createdAt)}{post.editedAt ? ' · edited' : ''}</span>
             {communityLabel}
           </span>
         </div>

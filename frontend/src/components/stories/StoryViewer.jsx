@@ -287,7 +287,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-white tracking-tight leading-none mb-0.5">{currentUser.fullName}</span>
-                  <span className="text-[8px] font-bold text-gray-400 tracking-widest leading-none">@{formatAge(currentStory.createdAt)}</span>
+                  <span className="text-[8px] font-bold text-gray-400 tracking-widest leading-none">{formatAge(currentStory.createdAt)}</span>
                 </div>
               </div>
 
