@@ -115,8 +115,21 @@ public class OrderPayoutService {
         if (account.isEmpty()) {
             // Not a failure: a seller who has not finished onboarding has nowhere to receive
             // this. Left HELD so a later sweep pays them the moment they do.
+            //
+            // Said out loud, though. This used to be a log line on the server, so the seller
+            // saw an order they had completed, no money, and no reason — which is exactly how
+            // "there are no payouts even though sellers are completing orders" looks from the
+            // inside. Sent once per order, because the hourly sweep revisits the same ones.
             log.info("Order {} is due but seller {} has no payouts-enabled account — holding",
                     order.getId(), order.getSellerId());
+            if (order.getPayoutBlockedNotifiedAt() == null) {
+                notify(order.getSellerId(), "Connect payouts to get paid",
+                        "Your sale of " + order.getProductName() + " is ready to pay out, but "
+                        + "your payout account isn't set up yet. Finish it in your dashboard and "
+                        + "we'll send the money automatically.");
+                order.setPayoutBlockedNotifiedAt(LocalDateTime.now());
+                orderRepository.save(order);
+            }
             return false;
         }
 
@@ -163,6 +176,7 @@ public class OrderPayoutService {
         }
         log.info("Payout sweep: {} of {} due order(s) released", released, due.size());
     }
+
 
     private void notify(java.util.UUID userId, String title, String message) {
         try {
