@@ -105,6 +105,31 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      */
     List<Booking> findByListingId(UUID listingId);
 
+
+    /**
+     * Seats on an event that are spoken for but not yet paid — a checkout in flight.
+     *
+     * <p><b>Why a hold exists at all.</b> Tickets are only minted once Stripe confirms the
+     * charge, so counting issued tickets alone would leave the seats between "pressed buy"
+     * and "payment cleared" invisible. Two people buying the last four seats at the same
+     * moment would both be told there was room, and one of them would find out at the door.
+     *
+     * <p><b>Why the hold expires.</b> Bounded to bookings created since {@code since}, so an
+     * abandoned checkout releases its seats instead of holding them against a sold-out event
+     * forever. That is the same bargain every ticketing site makes: a few minutes to finish
+     * paying, then the seats go back.
+     *
+     * @return seats currently held, or null when there are none (COALESCE is on the caller)
+     */
+    @Query("""
+            SELECT SUM(b.quantity) FROM Booking b
+             WHERE b.listingId = :listingId
+               AND b.status = com.hustleup.marketplace.booking.model.BookingStatus.BOOKED
+               AND b.paymentStatus NOT IN ('PAID', 'TRANSFERRED', 'REFUNDED')
+               AND b.createdAt >= :since
+            """)
+    Long sumHeldSeats(@Param("listingId") UUID listingId, @Param("since") LocalDateTime since);
+
     /**
      * Looks up the booking a Stripe PaymentIntent belongs to — used by the payout webhook
      * to mark a booking PAID once the buyer's Checkout Session completes.

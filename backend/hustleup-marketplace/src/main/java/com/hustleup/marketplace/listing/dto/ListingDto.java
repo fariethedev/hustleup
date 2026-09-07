@@ -75,6 +75,28 @@ public class ListingDto {
     private LocalDateTime eventStartsAt; // when the event starts — printed on every ticket
     private String eventVenue;           // venue name or address, more specific than locationCity
 
+    /** Seats the organiser set, or null for an uncapped event. */
+    private Integer eventCapacity;
+    /** When tickets may be bought. Null means "from posting until the event starts". */
+    private LocalDateTime salesOpenAt;
+    private LocalDateTime salesCloseAt;
+
+    /**
+     * The live state of the door — populated by ListingService.enrichDto for EVENT listings.
+     *
+     * <p>Computed rather than stored, because it depends on tickets sold and on the clock.
+     * {@code salesState} is one of ON_SALE / SOLD_OUT / NOT_ON_SALE / NOT_YET_ON_SALE /
+     * SALES_CLOSED / EVENT_PASSED, and {@code salesMessage} is the sentence to show when it
+     * is anything but ON_SALE — the client renders the reason rather than inventing one.
+     *
+     * <p>{@code ticketsRemaining} is null for an uncapped event, which is not the same as
+     * zero: one means "as many as you like", the other means "none".
+     */
+    private Integer ticketsSold;
+    private Integer ticketsRemaining;
+    private String salesState;
+    private String salesMessage;
+
     // --- Extra metadata ---
     private String meta;              // optional JSON blob for category-specific fields
     private List<String> mediaUrls;   // parsed image/video URLs (entity stores as CSV, DTO exposes as List)
@@ -138,6 +160,9 @@ public class ListingDto {
                 .shippingPrice(listing.getShippingPrice())
                 .eventStartsAt(listing.getEventStartsAt())
                 .eventVenue(listing.getEventVenue())
+                .eventCapacity(listing.getEventCapacity())
+                .salesOpenAt(listing.getSalesOpenAt())
+                .salesCloseAt(listing.getSalesCloseAt())
                 .meta(listing.getMeta())
                 // Parse the CSV string into a proper List<String>, applying the URL refresher to each
                 .mediaUrls(parseMediaUrls(listing.getMediaUrls(), urlRefresher))

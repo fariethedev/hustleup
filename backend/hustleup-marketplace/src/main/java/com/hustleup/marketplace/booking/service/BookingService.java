@@ -47,6 +47,7 @@ import com.hustleup.marketplace.shipping.FulfilmentUpdateRequest;
 import com.hustleup.marketplace.shipping.ShipmentService;
 import com.hustleup.marketplace.shipping.ShippingMethod;
 import com.hustleup.marketplace.ticket.service.TicketService;
+import com.hustleup.marketplace.ticket.service.EventAvailabilityService;
 import com.hustleup.common.email.EmailService;
 import com.hustleup.common.push.ExpoPushService;
 import com.hustleup.common.model.Notification;
@@ -111,6 +112,8 @@ public class BookingService {
     private final TicketService ticketService; // issues/voids digital tickets for EVENT bookings
     private final NotificationRepository notificationRepository; // in-app alerts — powers the real-time negotiation popup
     private final ShipmentService shipmentService; // delivery-track updates and the alerts they generate
+    /** The door: capacity and the sales window for EVENT listings. */
+    private final EventAvailabilityService eventAvailabilityService;
     private final ReviewRepository reviewRepository; // completing a booking records the completer's review in the same step
     /** Consulted before every payout: an open buyer claim freezes the money where it is. */
     private final ProtectionClaimService protectionClaimService;
@@ -129,6 +132,7 @@ public class BookingService {
                           EmailService emailService, ExpoPushService expoPushService,
                           TicketService ticketService, NotificationRepository notificationRepository,
                           ReviewRepository reviewRepository, ShipmentService shipmentService,
+                          EventAvailabilityService eventAvailabilityService,
                           ProtectionClaimService protectionClaimService) {
         this.protectionClaimService = protectionClaimService;
         this.bookingRepository = bookingRepository;
@@ -143,6 +147,7 @@ public class BookingService {
         this.reviewRepository = reviewRepository;
         this.notificationRepository = notificationRepository;
         this.shipmentService = shipmentService;
+        this.eventAvailabilityService = eventAvailabilityService;
     }
 
     /**
@@ -287,6 +292,16 @@ public class BookingService {
         // sent a "request to join" — that falls through to the standard INQUIRED flow below
         // so the event's organiser can explicitly accept or decline it.
         if (listing.getListingType() == ListingType.EVENT && !joinRequest) {
+            // The door, checked here rather than only in the UI. A capacity that lives in the
+            // client is one a second browser tab walks straight through, and overselling a
+            // room is not cosmetic — it is people turned away from a door they paid to enter.
+            // Seats held by checkouts still in flight count against it, so the last four seats
+            // cannot be sold twice over to two people paying at the same moment.
+            String refusal = eventAvailabilityService.refuse(listing, qty);
+            if (refusal != null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, refusal);
+            }
+
             Booking booking = Booking.builder()
                     .buyerId(buyer.getId())
                     .sellerId(listing.getSellerId())
@@ -561,6 +576,23 @@ public class BookingService {
         // Either the buyer or the seller can accept — both are valid actors here
         if (!booking.getBuyerId().equals(user.getId()) && !booking.getSellerId().equals(user.getId())) {
             throw new RuntimeException("Not authorized");
+        }
+
+        // The other door into an event: an organiser accepting a request to join. Without this
+        // check the capacity only guards the buy button, and an organiser working through a
+        // queue of requests could accept a hundred people into a fifty-person room one tap at
+        // a time — each acceptance individually reasonable, the sum of them not.
+        //
+        // Read fresh rather than trusting the count from when the request was made: requests
+        // sit in the queue for days, and the room fills up while they wait.
+        Listing eventListing = listingRepository.findById(booking.getListingId()).orElse(null);
+        if (eventListing != null && eventListing.getListingType() == ListingType.EVENT
+                && booking.getStatus() != BookingStatus.BOOKED) {
+            int seats = booking.getQuantity() != null && booking.getQuantity() > 0 ? booking.getQuantity() : 1;
+            String refusal = eventAvailabilityService.refuse(eventListing, seats);
+            if (refusal != null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, refusal);
+            }
         }
 
         try {

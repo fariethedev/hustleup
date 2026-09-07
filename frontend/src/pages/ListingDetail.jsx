@@ -292,6 +292,21 @@ export default function ListingDetail() {
   const liveTickets = myTickets.filter((t) => t.status !== 'CANCELLED');
   const eventStart = listing.eventStartsAt ? new Date(listing.eventStartsAt) : null;
 
+  // The door, as the server computed it. Read rather than recalculated here: the same numbers
+  // decide whether the purchase is allowed, and a "3 left" the browser worked out for itself
+  // is a "3 left" the checkout can contradict a second later.
+  //
+  // salesState is absent on listings served before this existed, and on non-events. Treating
+  // that as on-sale keeps those working exactly as they did — the server still refuses an
+  // oversell, so the fallback is permissive in the UI and strict where it counts.
+  const salesState = listing.salesState || 'ON_SALE';
+  const onSale = salesState === 'ON_SALE';
+  const ticketsLeft = listing.ticketsRemaining;          // null = uncapped
+  const lastFew = ticketsLeft != null && ticketsLeft > 0 && ticketsLeft <= 10;
+  // Never offer more than exist. The stepper used to climb without limit, so the only way to
+  // discover the event was nearly full was to be refused at checkout.
+  const maxQty = ticketsLeft != null ? Math.max(1, ticketsLeft) : 99;
+
   return (
     <div className="min-h-screen text-white pt-3 pb-10">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -476,32 +491,72 @@ export default function ListingDetail() {
 
                 {!isSeller && isEventType && (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between px-1">
-                      <span className="text-[10px] font-black tracking-widest text-gray-500">
-                        {liveTickets.length > 0 ? 'Buy more' : 'Tickets'}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => setTicketQty((q) => Math.max(1, q - 1))} className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors">
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="text-sm font-black text-white w-5 text-center">{ticketQty}</span>
-                        <button onClick={() => setTicketQty((q) => q + 1)} className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors">
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
+                    {/* Why you can't buy, when you can't. The server sends the sentence rather
+                        than a code the client has to invent copy for — "sold out", "sales
+                        closed" and "already happened" are three different things to do next,
+                        and a single generic refusal loses the only useful part. */}
+                    {!onSale ? (
+                      <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-center">
+                        <p className="text-[11px] font-black tracking-widest text-gray-300">
+                          {salesState === 'SOLD_OUT' ? 'Sold out'
+                            : salesState === 'SALES_CLOSED' ? 'Sales closed'
+                            : salesState === 'NOT_YET_ON_SALE' ? 'Not on sale yet'
+                            : salesState === 'EVENT_PASSED' ? 'Event has passed'
+                            : 'Unavailable'}
+                        </p>
+                        {listing.salesMessage && (
+                          <p className="mt-1 text-[11px] text-gray-500 leading-relaxed">{listing.salesMessage}</p>
+                        )}
                       </div>
-                    </div>
-                    <button
-                      onClick={handleBuyTickets}
-                      disabled={ticketLoading}
-                      className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {ticketLoading ? (
-                        <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                      ) : (
-                        <Ticket className="w-4 h-4" />
-                      )}
-                      Buy {ticketQty > 1 ? `${ticketQty} Tickets` : 'Ticket'} — {formatPrice(listing.price * ticketQty, listing.currency)}
-                    </button>
+                    ) : (
+                      <>
+                        {/* Only shown for a capped event. An uncapped one has no number to
+                            report, and inventing "plenty left" would be a claim about a door
+                            limit the organiser never set. */}
+                        {ticketsLeft != null && (
+                          <p className={`text-[10px] font-black tracking-widest text-center ${
+                            lastFew ? 'text-[#CDFF00]' : 'text-gray-500'
+                          }`}>
+                            {ticketsLeft === 1 ? '1 ticket left' : `${ticketsLeft} tickets left`}
+                          </p>
+                        )}
+
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-[10px] font-black tracking-widest text-gray-500">
+                            {liveTickets.length > 0 ? 'Buy more' : 'Tickets'}
+                          </span>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => setTicketQty((q) => Math.max(1, q - 1))}
+                              className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="text-sm font-black text-white w-5 text-center">{ticketQty}</span>
+                            <button
+                              onClick={() => setTicketQty((q) => Math.min(maxQty, q + 1))}
+                              disabled={ticketQty >= maxQty}
+                              className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={handleBuyTickets}
+                          disabled={ticketLoading}
+                          className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          {ticketLoading ? (
+                            <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                          ) : (
+                            <Ticket className="w-4 h-4" />
+                          )}
+                          Buy {ticketQty > 1 ? `${ticketQty} Tickets` : 'Ticket'} — {formatPrice(listing.price * ticketQty, listing.currency)}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
 
