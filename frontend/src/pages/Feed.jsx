@@ -608,6 +608,8 @@ export default function Feed() {
   const [selectedPost, setSelectedPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
+  // Why the thread could not be read, or null. Distinct from an empty thread — see openComments.
+  const [commentsError, setCommentsError] = useState(null);
   const [commentInput, setCommentInput] = useState('');
   const [commenting, setCommenting] = useState(false);
   // The comment being replied to, or null for a new top-level comment. Holds the whole
@@ -1037,12 +1039,18 @@ export default function Feed() {
     // A reply target left over from the last post would silently attach this comment to
     // someone else's thread.
     setReplyTo(null);
+    setCommentsError(null);
     setCommentsLoading(true);
     try {
       const res = await feedApi.getComments(post.id);
       setComments(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
+      // A failed fetch used to land in the console and nowhere else, so the drawer fell
+      // through to "No comments yet — be the first." on a post whose own count said eight.
+      // Unreadable and un-retryable were indistinguishable from empty, which is the worst
+      // of the three to show.
       console.error('Failed to load comments:', err);
+      setCommentsError(err.response?.data?.error || 'Could not load the comments here.');
     } finally {
       setCommentsLoading(false);
     }
@@ -1572,6 +1580,19 @@ export default function Feed() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  ) : commentsError ? (
+                    /* Says the thread could not be read, rather than that it is empty, and
+                       offers the retry that a transient failure needs. */
+                    <div className="py-20 text-center flex flex-col items-center gap-3">
+                      <MessageCircle className="w-10 h-10 text-gray-700" />
+                      <p className="text-sm text-gray-400">{commentsError}</p>
+                      <button
+                        onClick={() => selectedPost && openComments(selectedPost)}
+                        className="px-4 py-2 rounded-xl bg-white/5 border border-white/15 text-[10px] font-black tracking-widest text-gray-300 hover:text-white hover:border-white/30 transition-colors"
+                      >
+                        Try again
+                      </button>
                     </div>
                   ) : comments.length === 0 ? (
                     <div className="py-20 text-center flex flex-col items-center gap-3">

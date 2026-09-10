@@ -72,7 +72,17 @@ export default function ShareModal({ type, item, onClose }) {
       setSentIds((prev) => new Set(prev).add(person.id));
       showToast(`Sent to ${person.name || person.fullName}`, 'success');
     } catch (e) {
-      showToast('Could not send — try again', 'error');
+      // The server's reason, when it gave one. "Could not send — try again" was shown for
+      // every failure alike: signed out, a post that no longer exists, the messaging service
+      // being down. Retrying fixes exactly one of those, and the message recommended it for
+      // all three.
+      const reason = e.response?.data?.error || e.response?.data?.message;
+      showToast(
+        reason || (e.response?.status === 401
+          ? 'Sign in to share this.'
+          : 'Could not send — try again'),
+        'error',
+      );
     } finally {
       setBusyId(null);
     }
