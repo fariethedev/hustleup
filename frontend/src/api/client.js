@@ -487,6 +487,8 @@ export const followsApi = {
   relationship: (userId) => api.get(`/follows/${userId}/relationship`),
   // { followers, following } for ANY user — used to show follower counts on creator cards.
   counts: (userId) => api.get(`/follows/${userId}/counts`),
+  /** Everyone you have blocked — the Privacy tab in Settings. */
+  blocked: () => api.get('/follows/blocked'),
   block: (userId) => api.post(`/follows/${userId}/block`),
   unblock: (userId) => api.delete(`/follows/${userId}/block`),
   report: (userId, reason) => api.post(`/follows/${userId}/report`, { reason }),

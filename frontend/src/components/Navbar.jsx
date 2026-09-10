@@ -10,6 +10,7 @@ import { timeAgo } from '../utils/time';
 import { displayName } from '../utils/displayName';
 import PendingSalesButton from './PendingSalesButton';
 import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, Bell, CheckCheck, MoreHorizontal, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
+import { Settings as SettingsIcon } from 'lucide-react';
 import { uploadUrl } from '../config';
 
 // Secondary links that don't get their own pill/tab (to avoid crowding the main
@@ -20,6 +21,7 @@ import { uploadUrl } from '../config';
 // before — it had no mobile entry point at all).
 const MORE_LINKS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', auth: true },
+  { to: '/settings', icon: SettingsIcon, label: 'Settings', auth: true },
   // Bond is a top-level tab on desktop but lives in here on a phone. The bottom bar holds
   // a handful of targets, and Home / Explore / Feed / Messages are the ones people move
   // between constantly — spending a permanent slot on Bond widened the pill for a place you

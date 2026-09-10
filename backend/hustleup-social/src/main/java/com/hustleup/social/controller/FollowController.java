@@ -260,6 +260,39 @@ public class FollowController {
      * @param userId the UUID string of the user whose counts to retrieve
      * @return 200 OK with {@code {"followers": N, "following": M}}
      */
+    /**
+     * The people the caller has blocked.
+     *
+     * <p><b>GET /api/v1/follows/blocked</b> — auth required.
+     *
+     * <p>Declared above {@code /{userId}/…} for readability; Spring matches the literal
+     * segment ahead of the template regardless, so "blocked" is never taken for a user id.
+     *
+     * <p>Returns the same shape as the follower lists — id, name, avatar — so the settings
+     * screen can render it with the row component it already has.
+     */
+    @GetMapping("/blocked")
+    public ResponseEntity<?> blockedUsers() {
+        UUID me;
+        try {
+            me = currentUserId();
+        } catch (Exception e) {
+            return ResponseEntity.status(401).build();
+        }
+
+        List<UUID> blockedIds = userBlockRepository.findByBlockerIdOrderByCreatedAtDesc(me)
+                .stream()
+                .map(UserBlock::getBlockedId)
+                .toList();
+        if (blockedIds.isEmpty()) return ResponseEntity.ok(List.of());
+
+        // One lookup for the whole list rather than one per row, and the same userToMap the
+        // follower lists use — isFollowing is false throughout, since blocking severs it.
+        return ResponseEntity.ok(userRepository.findAllById(blockedIds).stream()
+                .map(u -> userToMap(u, false))
+                .toList());
+    }
+
     @GetMapping("/{userId}/counts")
     public ResponseEntity<?> counts(@PathVariable String userId) {
         UUID uid = UUID.fromString(userId);

@@ -182,3 +182,113 @@
     overscroll-behavior: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT THEME
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Applied by ThemeContext as data-theme="light" on <html>.
+
+   WHY AN OVERRIDE LAYER RATHER THAN SEMANTIC TOKENS EVERYWHERE
+   The app was built dark-only: 81 component files hardcode `text-white`,
+   `bg-black/40`, `border-white/10` and friends. Converting each to a semantic
+   token is the textbook answer and a very large mechanical edit across almost
+   every screen — the kind of change that is impossible to review and easy to
+   get subtly wrong in a hundred places at once.
+
+   This layer instead re-points the handful of utilities that carry the palette,
+   under the light selector only. Dark is untouched: with no attribute, or with
+   data-theme="dark", not one rule here applies and the app renders exactly as
+   it did before.
+
+   WHAT THIS DOES NOT COVER
+   Bespoke hex values written inline — bg-[#0A0A0A], border-[#CDFF00]/25 and so
+   on — are not reachable from here and stay as they are. On light they read as
+   deliberate dark accents rather than as breakage, but a component that is
+   built entirely from them will still look dark. Those are worth converting to
+   tokens over time; this gets the app usable in light without a rewrite.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme="light"] body {
+    /* Same dotted backdrop, dialled down — at full strength on white it reads as
+       a printing fault rather than texture. */
+    background-color: #F7F7F5;
+    background-image:
+      radial-gradient(circle at 10px 10px, rgba(125, 57, 235, 0.07) 2px, transparent 0),
+      radial-gradient(circle at 30px 30px, rgba(0, 160, 190, 0.06) 2px, transparent 0);
+    color: #0E0E10;
+  }
+
+  /* ── Text ───────────────────────────────────────────────────────────────
+     Near-black rather than pure black: #000 on #F7F7F5 is harsher than any
+     printed page and is the single fastest way to make a light theme tiring. */
+  [data-theme="light"] .text-white { color: #0E0E10; }
+
+  /* The grey ramp inverts. Dark mode counts up from near-black for dimmer text;
+     light has to count down from near-white, so the same class has to land on
+     the opposite end of the scale to keep meaning "quieter than body text". */
+  [data-theme="light"] .text-gray-100 { color: #18181B; }
+  [data-theme="light"] .text-gray-200 { color: #27272A; }
+  [data-theme="light"] .text-gray-300 { color: #3F3F46; }
+  [data-theme="light"] .text-gray-400 { color: #52525B; }
+  [data-theme="light"] .text-gray-500 { color: #6B6B74; }
+  [data-theme="light"] .text-gray-600 { color: #8A8A93; }
+  [data-theme="light"] .text-gray-700 { color: #A1A1AA; }
+
+  /* ── Surfaces ───────────────────────────────────────────────────────────
+     Cards are white on a faintly grey page, which is what gives them an edge
+     without needing a heavier border. */
+  [data-theme="light"] .bg-black,
+  [data-theme="light"] .bg-\[\#050505\],
+  [data-theme="light"] .bg-\[\#0A0A0A\],
+  [data-theme="light"] .bg-\[\#0a0a0a\],
+  [data-theme="light"] .bg-\[\#111111\],
+  [data-theme="light"] .bg-\[\#141414\],
+  [data-theme="light"] .bg-\[\#0E0E0E\] { background-color: #FFFFFF; }
+
+  [data-theme="light"] .bg-black\/40,
+  [data-theme="light"] .bg-black\/50,
+  [data-theme="light"] .bg-black\/60 { background-color: rgba(255, 255, 255, 0.72); }
+
+  /* White-alpha fills are how every raised surface in the app is drawn. On light
+     they have to become dark-alpha or they vanish into the page entirely. */
+  [data-theme="light"] .bg-white\/5   { background-color: rgba(14, 14, 16, 0.045); }
+  [data-theme="light"] .bg-white\/10  { background-color: rgba(14, 14, 16, 0.07); }
+  [data-theme="light"] .bg-white\/15  { background-color: rgba(14, 14, 16, 0.1); }
+  [data-theme="light"] .bg-white\/\[0\.02\],
+  [data-theme="light"] .bg-white\/\[0\.03\],
+  [data-theme="light"] .bg-white\/\[0\.04\],
+  [data-theme="light"] .bg-white\/\[0\.06\] { background-color: rgba(14, 14, 16, 0.04); }
+
+  /* ── Borders ────────────────────────────────────────────────────────────
+     Slightly stronger than the dark equivalents. A 10% white line on near-black
+     is clearly visible; a 10% black line on near-white is not. */
+  [data-theme="light"] .border-white\/5   { border-color: rgba(14, 14, 16, 0.08); }
+  [data-theme="light"] .border-white\/10  { border-color: rgba(14, 14, 16, 0.11); }
+  [data-theme="light"] .border-white\/15,
+  [data-theme="light"] .border-white\/20  { border-color: rgba(14, 14, 16, 0.16); }
+
+  /* ── Glass ──────────────────────────────────────────────────────────────
+     The blur stays; only what it is blurring over changes. */
+  [data-theme="light"] .glass,
+  [data-theme="light"] .glass-strong {
+    background-color: rgba(255, 255, 255, 0.75);
+    border-color: rgba(14, 14, 16, 0.1);
+  }
+
+  /* ── Brand ──────────────────────────────────────────────────────────────
+     The lime stays exactly as it is — it is the brand, and it carries black
+     text on both themes. But lime *text* on white is close to unreadable, so
+     anywhere the lime is used as a foreground it darkens to a shade that holds
+     the same hue at a legible contrast. */
+  [data-theme="light"] .text-\[\#CDFF00\] { color: #5F7A00; }
+  [data-theme="light"] .text-\[\#00FFFF\] { color: #0E7C8A; }
+  [data-theme="light"] .text-\[\#FF00FF\] { color: #A3009E; }
+
+  /* Placeholders need to be quieter than body text but still readable. */
+  [data-theme="light"] .placeholder-gray-500::placeholder,
+  [data-theme="light"] .placeholder-gray-600::placeholder { color: #9A9AA2; }
