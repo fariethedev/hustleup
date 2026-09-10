@@ -1040,7 +1040,13 @@ public class FeedController {
             comment.setParentId(parentId);
         }
 
-        Comment saved = commentRepository.save(comment);
+        // saveAndFlush, not save: the id is assigned here rather than generated, so Spring Data
+        // treats the entity as detached and merges it, and the INSERT is deferred to the end of
+        // the transaction. @CreationTimestamp fills createdAt during that INSERT — so with a
+        // plain save() this method returned the one comment on the page with no timestamp, and
+        // "time ago" had nothing to render until a reload fetched it back. Flushing here runs
+        // the insert while we can still read the value it generated.
+        Comment saved = commentRepository.saveAndFlush(comment);
 
         // A CommentDto, not the raw entity. The thread is rendered from DTOs, so returning
         // an entity here meant the comment you had just written was the one row missing an
