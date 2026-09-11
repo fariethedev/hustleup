@@ -86,7 +86,7 @@ function MatchCelebrationModal({ currentUser, matchedProfile, superLike, onClose
           )}
         </motion.div>
 
-        <h1 className="text-4xl font-heading font-black text-white uppercase tracking-tight mb-2">
+        <h1 className="text-4xl font-heading font-black text-white tracking-tight mb-2">
           It's a match!
         </h1>
         <p className="text-gray-400 text-sm mb-9">
@@ -148,7 +148,10 @@ const INTEREST_OPTIONS = [
 const MAX_INTERESTS = 5;
 
 const LOOKING_FOR_OPTIONS = ['Networking', 'Collaboration', 'Partnership', 'Mentorship', 'Friends', 'Dating'];
-const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Other'];
+// The deck pairs people by gender, so these are the two values it can act on. A profile
+// without one used to be shown to everybody, which is how "Show me: Women" ended up not
+// meaning it.
+const GENDER_OPTIONS = ['Male', 'Female'];
 const SHOW_ME_OPTIONS = ['Everyone', 'Men', 'Women'];
 
 /** A pill in a single- or multi-select row — the setup form's only input primitive. */
@@ -202,7 +205,15 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
     );
   };
 
+  // Required by the server too, which refuses the save — this is so the button explains
+  // itself before the round trip rather than after it.
+  const genderMissing = !gender;
+
   const handleSave = async () => {
+    if (genderMissing) {
+      dispatchToast('Choose Male or Female — Bond matches on it', 'error');
+      return;
+    }
     setSaving(true);
     try {
       const fd = new FormData();
@@ -210,7 +221,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
       if (age) fd.append('age', String(age));
       if (location) fd.append('location', location);
       if (lookingFor) fd.append('lookingFor', lookingFor);
-      if (gender) fd.append('gender', gender);
+      fd.append('gender', gender);
       if (showMe) fd.append('showMe', showMe);
       // Always sent, including when empty — that is how a user clears every interest.
       fd.append('interests', interests.join(','));
@@ -220,7 +231,9 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
       onSaved();
       onClose();
     } catch (e) {
-      dispatchToast('Failed to save profile', 'error');
+      // The server says which field it rejected and why; repeating "Failed to save profile"
+      // over the top of that leaves someone re-pressing a button with nothing to go on.
+      dispatchToast(e.response?.data?.error || 'Failed to save profile', 'error');
     } finally {
       setSaving(false);
     }
@@ -246,7 +259,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
             <img src={imagePreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.id}`} className="w-full h-full object-cover" alt="" />
             <button onClick={() => fileRef.current?.click()} className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
               <Camera className="w-5 h-5 text-[#CDFF00] mb-1" />
-              <span className="text-[9px] font-bold uppercase text-[#CDFF00]">Upload</span>
+              <span className="text-[9px] font-bold text-[#CDFF00]">Upload</span>
             </button>
           </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
@@ -254,7 +267,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
 
         <div className="space-y-5">
           <div>
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Bio</label>
+            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">Bio</label>
             <textarea
               value={bio}
               onChange={e => setBio(e.target.value)}
@@ -265,17 +278,17 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Age</label>
+              <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">Age</label>
               <input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="e.g. 25" className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors" />
             </div>
             <div>
-              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">City</label>
+              <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">City</label>
               <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Warszawa" className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors" />
             </div>
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Looking for</label>
+            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">Looking for</label>
             <div className="flex flex-wrap gap-2">
               {LOOKING_FOR_OPTIONS.map((o) => (
                 <Chip key={o} label={o} selected={lookingFor === o} onClick={() => setLookingFor(o)} />
@@ -285,7 +298,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
 
           <div>
             <div className="flex items-baseline justify-between mb-2">
-              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Interests</label>
+              <label className="text-[11px] font-bold text-gray-400 tracking-widest">Interests</label>
               <span className="text-[10px] text-gray-500">{interests.length}/{MAX_INTERESTS}</span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -305,17 +318,25 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Identity</label>
+            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">
+              I am <span className="text-[#FF4E8E]">*</span>
+            </label>
             <div className="flex flex-wrap gap-2">
-              <Chip label="Prefer not to say" selected={gender === ''} onClick={() => setGender('')} />
               {GENDER_OPTIONS.map((o) => (
                 <Chip key={o} label={o} selected={gender === o} onClick={() => setGender(o)} />
               ))}
             </div>
+            {/* Says why rather than just refusing. A required field on a dating profile reads
+                as nosy unless it is clear what it is for. */}
+            <p className={`mt-2 text-[11px] leading-relaxed ${genderMissing ? 'text-[#FF4E8E]' : 'text-gray-500'}`}>
+              {genderMissing
+                ? 'Pick one to continue — Bond builds your deck from it.'
+                : 'Bond matches on this, and pairs it with your "Show me" preference below.'}
+            </p>
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Show me</label>
+            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">Show me</label>
             <div className="flex flex-wrap gap-2">
               {SHOW_ME_OPTIONS.map((o) => (
                 <Chip key={o} label={o} selected={showMe === o} onClick={() => setShowMe(o)} />
@@ -326,8 +347,8 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
 
         <button
           onClick={handleSave}
-          disabled={saving}
-          className="w-full mt-7 py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50"
+          disabled={saving || genderMissing}
+          className="w-full mt-7 py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
         >
           {saving ? 'Saving…' : 'Save profile'}
         </button>
@@ -402,7 +423,7 @@ function PremiumPaywall({ onUpgrade, upgrading, plans }) {
                   <span className="flex items-center gap-2">
                     {p.label}
                     {isBest && (
-                      <span className="text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded bg-black/20">
+                      <span className="text-[9px] font-extrabold tracking-wide px-1.5 py-0.5 rounded bg-black/20">
                         Best value
                       </span>
                     )}
@@ -773,7 +794,7 @@ export default function Dating() {
           </span>
         </button>
 
-        <h1 className="flex items-center gap-2 text-lg sm:text-xl font-heading font-black text-white tracking-tight uppercase">
+        <h1 className="flex items-center gap-2 text-lg sm:text-xl font-heading font-black text-white tracking-tight">
           <Heart className="w-4 h-4 text-[#CDFF00] fill-[#CDFF00]" />
           Bond
         </h1>

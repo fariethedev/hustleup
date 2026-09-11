@@ -2,7 +2,7 @@
 REM Build script to check for compilation errors
 REM This will compile the entire project but skip tests
 
-cd /d C:\Users\Admin\.gemini\antigravity\scratch\hustleup\backend
+cd /d "%~dp0"
 
 echo.
 echo ========================================

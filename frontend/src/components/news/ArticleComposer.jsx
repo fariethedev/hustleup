@@ -90,7 +90,7 @@ export default function ArticleComposer({ sections = [], onClose, onPublished })
   };
 
   const field = 'w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#CDFF00]/60 transition-colors';
-  const label = 'text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5 block';
+  const label = 'text-[10px] font-black tracking-widest text-gray-500 mb-1.5 block';
 
   return createPortal(
     <motion.div
@@ -105,7 +105,7 @@ export default function ArticleComposer({ sections = [], onClose, onPublished })
         className="w-full sm:max-w-2xl bg-[#0a0a0a] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[88vh]"
       >
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
-          <h2 className="text-base font-black text-white uppercase tracking-tight">Write an article</h2>
+          <h2 className="text-base font-black text-white tracking-tight">Write an article</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
             <X className="w-5 h-5" />
           </button>
@@ -122,14 +122,14 @@ export default function ArticleComposer({ sections = [], onClose, onPublished })
               {coverPreview ? (
                 <>
                   <img src={coverPreview} alt="" className="w-full h-full object-cover" />
-                  <span className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-[#CDFF00] transition-opacity">
+                  <span className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-black tracking-widest text-[#CDFF00] transition-opacity">
                     Change cover
                   </span>
                 </>
               ) : (
                 <span className="flex flex-col items-center gap-1.5 text-gray-500 group-hover:text-[#CDFF00] transition-colors">
                   <ImageIcon className="w-5 h-5" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Add a cover</span>
+                  <span className="text-[10px] font-bold tracking-widest">Add a cover</span>
                 </span>
               )}
             </button>
@@ -189,7 +189,7 @@ export default function ArticleComposer({ sections = [], onClose, onPublished })
                 <button onClick={() => mediaRef.current?.click()}
                         className="w-24 h-20 rounded-xl border-2 border-dashed border-white/15 hover:border-[#CDFF00]/50 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-[#CDFF00] transition-colors">
                   <ImageIcon className="w-4 h-4" />
-                  <span className="text-[9px] font-bold uppercase tracking-widest">Add</span>
+                  <span className="text-[9px] font-bold tracking-widest">Add</span>
                 </button>
               )}
             </div>
@@ -206,11 +206,11 @@ export default function ArticleComposer({ sections = [], onClose, onPublished })
 
         <div className="px-5 py-4 border-t border-white/10 shrink-0 flex gap-2">
           <button onClick={() => submit('DRAFT')} disabled={submitting}
-                  className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-black text-[11px] uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-50 flex items-center gap-2">
+                  className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-black text-[11px] tracking-widest hover:bg-white/10 transition-all disabled:opacity-50 flex items-center gap-2">
             <FileText className="w-4 h-4" /> Draft
           </button>
           <button onClick={() => submit('PUBLISHED')} disabled={submitting}
-                  className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                  className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
             {submitting
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Publishing…</>
               : <><Send className="w-4 h-4" /> Publish</>}

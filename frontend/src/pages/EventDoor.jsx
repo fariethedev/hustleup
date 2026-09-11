@@ -177,9 +177,9 @@ export default function EventDoor() {
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-sm">
           <AlertTriangle className="w-14 h-14 mx-auto text-gray-700" />
-          <h2 className="text-xl font-black text-white uppercase tracking-tight">{denied}</h2>
+          <h2 className="text-xl font-black text-white tracking-tight">{denied}</h2>
           <p className="text-xs text-gray-500">Only the organiser who posted an event can work its door.</p>
-          <Link to="/dashboard" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm uppercase tracking-widest inline-block">
+          <Link to="/dashboard" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm tracking-widest inline-block">
             Back to dashboard
           </Link>
         </div>
@@ -201,20 +201,20 @@ export default function EventDoor() {
         <div className="flex items-center justify-between mb-4">
           <Link
             to={`/listing/${listingId}`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black uppercase tracking-widest hover:text-[#CDFF00] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest hover:text-[#CDFF00] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Event
           </Link>
           <button
             onClick={loadDoor}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest text-gray-400 hover:text-white transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
         </div>
 
         {listing && (
-          <h2 className="text-lg font-black text-white uppercase tracking-tight mb-4 truncate">{listing.title}</h2>
+          <h2 className="text-lg font-black text-white tracking-tight mb-4 truncate">{listing.title}</h2>
         )}
 
         {/* Head count */}
@@ -226,7 +226,7 @@ export default function EventDoor() {
 
         {/* Scanner */}
         <div className="glass rounded-2xl p-4 border border-white/5 mb-5">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-3 flex items-center gap-1.5">
+          <h3 className="text-[10px] font-black tracking-widest text-gray-500 mb-3 flex items-center gap-1.5">
             <ScanLine className="w-3.5 h-3.5 text-[#CDFF00]" /> Admit a guest
           </h3>
 
@@ -257,14 +257,14 @@ export default function EventDoor() {
             <button
               onClick={() => { submitCode(manualCode); setManualCode(''); }}
               disabled={scanning || !manualCode.trim()}
-              className="px-5 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-[0.2em] hover:scale-[1.01] active:scale-95 transition-transform disabled:opacity-40 disabled:hover:scale-100 flex items-center justify-center gap-2"
+              className="px-5 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] hover:scale-[1.01] active:scale-95 transition-transform disabled:opacity-40 disabled:hover:scale-100 flex items-center justify-center gap-2"
             >
               <DoorOpen className="w-4 h-4" /> Admit
             </button>
             {cameraSupported && (
               <button
                 onClick={() => { setCameraError(''); setCameraOn((on) => !on); }}
-                className={`px-5 py-3 rounded-xl border font-black text-[11px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
+                className={`px-5 py-3 rounded-xl border font-black text-[11px] tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
                   cameraOn
                     ? 'border-red-500/40 text-red-400 hover:bg-red-500/10'
                     : 'border-[#CDFF00]/40 text-[#CDFF00] hover:bg-[#CDFF00]/10'
@@ -300,7 +300,7 @@ export default function EventDoor() {
                   ? <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
                   : <XCircle className="w-6 h-6 text-red-400 shrink-0" />}
                 <div className="min-w-0">
-                  <p className={`text-sm font-black uppercase tracking-tight ${lastResult.admitted ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <p className={`text-sm font-black tracking-tight ${lastResult.admitted ? 'text-emerald-400' : 'text-red-400'}`}>
                     {lastResult.ticket?.ownerName || lastResult.reason}
                   </p>
                   <p className="text-[10px] font-bold text-gray-400">
@@ -316,7 +316,7 @@ export default function EventDoor() {
         {/* Guest list */}
         <div className="glass rounded-2xl p-4 border border-white/5">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-1.5">
+            <h3 className="text-[10px] font-black tracking-widest text-gray-500 flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-[#CDFF00]" /> Guest list
             </h3>
             <div className="relative">
@@ -347,7 +347,7 @@ export default function EventDoor() {
                       {t.ticketsInBooking > 1 && ` · ${t.ticketNumber}/${t.ticketsInBooking}`}
                     </p>
                   </div>
-                  <span className={`shrink-0 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${
+                  <span className={`shrink-0 px-2.5 py-1 rounded-lg text-[8px] font-black tracking-widest ${
                     t.status === 'CHECKED_IN' ? 'bg-emerald-500/15 text-emerald-400'
                       : t.status === 'CANCELLED' ? 'bg-red-500/15 text-red-400'
                       : 'bg-white/5 text-gray-400'
@@ -370,7 +370,7 @@ function Stat({ label, value, accent = false }) {
   return (
     <div className={`rounded-2xl p-3 text-center border ${accent ? 'bg-[#CDFF00]/10 border-[#CDFF00]/30' : 'bg-white/[0.03] border-white/5'}`}>
       <p className={`text-2xl font-black leading-none ${accent ? 'text-[#CDFF00]' : 'text-white'}`}>{value}</p>
-      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-gray-500 mt-1.5">{label}</p>
+      <p className="text-[8px] font-black tracking-[0.2em] text-gray-500 mt-1.5">{label}</p>
     </div>
   );
 }

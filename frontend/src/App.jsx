@@ -19,6 +19,7 @@ import VerifyCode from './pages/VerifyCode';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Dashboard from './pages/Dashboard';
+import Settings from './pages/Settings';
 import Onboarding from './pages/Onboarding';
 import Messages from './pages/Messages';
 import Profile from './pages/Profile';
@@ -44,6 +45,7 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancelled from './pages/PaymentCancelled';
 import { selectIsAuthenticated } from './store/authSlice';
 import { ToastProvider } from './context/ToastContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import CrispChat from './components/CrispChat';
 import BookingAlertListener from './components/BookingAlertListener';
@@ -58,6 +60,7 @@ export default function App() {
 
   return (
     <>
+    <ThemeProvider>
     <ToastProvider>
       <ScrollToTop />
       <CrispChat />
@@ -106,6 +109,7 @@ export default function App() {
             <Route path="/tickets/:id" element={<TicketDetail />} />
             <Route path="/events/:listingId/door" element={<EventDoor />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:bookingId" element={<Messages />} />
@@ -130,6 +134,7 @@ export default function App() {
       </main>
       {!noFooter && <Footer />}
     </ToastProvider>
+    </ThemeProvider>
     </>
   );
 }

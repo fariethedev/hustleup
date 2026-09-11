@@ -10,6 +10,7 @@ import com.hustleup.marketplace.listing.model.ListingType;
 import com.hustleup.marketplace.listing.repository.ListingRepository;
 import com.hustleup.marketplace.review.repository.ReviewRepository;
 import com.hustleup.marketplace.shipping.ShippingMethod;
+import com.hustleup.marketplace.ticket.service.EventAvailabilityService;
 import com.hustleup.common.storage.FileStorageService;
 import com.hustleup.common.model.User;
 import com.hustleup.common.model.Notification;
@@ -45,11 +46,14 @@ public class ListingService {
     private final JdbcTemplate jdbcTemplate;
     private final AlgoliaIndexService algoliaIndexService;
     private final ListingMediaLibrary mediaLibrary;
+    /** Capacity and sales window for EVENT listings — see enrichDto. */
+    private final EventAvailabilityService eventAvailabilityService;
 
     public ListingService(ListingRepository listingRepository, UserRepository userRepository,
                           ReviewRepository reviewRepository, FileStorageService fileStorageService,
                           NotificationRepository notificationRepository, JdbcTemplate jdbcTemplate,
-                          AlgoliaIndexService algoliaIndexService, ListingMediaLibrary mediaLibrary) {
+                          AlgoliaIndexService algoliaIndexService, ListingMediaLibrary mediaLibrary,
+                          EventAvailabilityService eventAvailabilityService) {
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
         this.reviewRepository = reviewRepository;
@@ -58,6 +62,7 @@ public class ListingService {
         this.jdbcTemplate = jdbcTemplate;
         this.algoliaIndexService = algoliaIndexService;
         this.mediaLibrary = mediaLibrary;
+        this.eventAvailabilityService = eventAvailabilityService;
     }
 
     public List<ListingDto> getAll(String q, ListingType type, String city, BigDecimal maxPrice, Boolean negotiable) {
@@ -117,6 +122,7 @@ public class ListingService {
                               String currency, boolean negotiable, String city, boolean agentFee,
                               boolean swapEnabled, String shippingMethod, BigDecimal shippingPrice,
                               String eventStartsAt, String eventVenue,
+                              String eventCapacity, String salesOpenAt, String salesCloseAt,
                               String meta, List<MultipartFile> images) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
@@ -162,6 +168,11 @@ public class ListingService {
                 // blank strings every other category's create form sends.
                 .eventStartsAt(type == ListingType.EVENT ? parseEventStart(eventStartsAt) : null)
                 .eventVenue(type == ListingType.EVENT ? blankToNull(eventVenue) : null)
+                // The door. Null capacity means uncapped, which is what an organiser who
+                // leaves the field empty means — not zero, which would sell nothing.
+                .eventCapacity(type == ListingType.EVENT ? parseCapacity(eventCapacity) : null)
+                .salesOpenAt(type == ListingType.EVENT ? parseEventStart(salesOpenAt) : null)
+                .salesCloseAt(type == ListingType.EVENT ? parseEventStart(salesCloseAt) : null)
                 .meta(meta)
                 .mediaUrls(mediaUrlsCsv)
                 .build();
@@ -205,6 +216,25 @@ public class ListingService {
         return SHIPPABLE_TYPES.contains(type) ? ShippingMethod.PICKUP : ShippingMethod.NONE;
     }
 
+    /**
+     * Parses a capacity field.
+     *
+     * <p>Blank means uncapped and returns null — an organiser who left the box empty has not
+     * said "nobody may come". A negative number is nonsense and is treated the same way,
+     * rather than being stored and quietly making the event unbuyable forever. Zero is kept:
+     * it is a real and different statement, and EventAvailabilityService reports it as
+     * NOT_ON_SALE rather than as a sell-out.
+     */
+    private Integer parseCapacity(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            int value = Integer.parseInt(raw.trim());
+            return value < 0 ? null : value;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     /** Treats a blank form field as absent, so empty strings don't reach the database. */
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
@@ -238,7 +268,8 @@ public class ListingService {
 
     public ListingDto update(UUID id, String title, String description, BigDecimal price,
                               boolean negotiable, String city, String meta, String status,
-                              Boolean swapEnabled, String shippingMethod, BigDecimal shippingPrice) {
+                              Boolean swapEnabled, String shippingMethod, BigDecimal shippingPrice,
+                              String eventCapacity, String salesOpenAt, String salesCloseAt) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -265,6 +296,11 @@ public class ListingService {
         if (shippingPrice != null && shippingPrice.compareTo(BigDecimal.ZERO) >= 0) {
             listing.setShippingPrice(shippingPrice);
         }
+        // Only written when the caller actually sent the key. An organiser editing the price
+        // from the dashboard sends neither, and must not have their capacity wiped for it.
+        if (eventCapacity != null) listing.setEventCapacity(parseCapacity(eventCapacity));
+        if (salesOpenAt != null) listing.setSalesOpenAt(parseEventStart(salesOpenAt));
+        if (salesCloseAt != null) listing.setSalesCloseAt(parseEventStart(salesCloseAt));
 
         Listing saved = listingRepository.save(listing);
         algoliaIndexService.indexListing(saved);
@@ -310,6 +346,25 @@ public class ListingService {
         } catch (Exception e) {
             dto.setAvgRating(0.0);
             dto.setReviewCount(0);
+        }
+
+        // The door, for events. Computed here rather than on the client so the listing page,
+        // the card and the checkout are all reading the same number — a "3 left" that the
+        // browser worked out for itself is a "3 left" the purchase path can contradict.
+        //
+        // Best-effort like the block above: a counting failure should cost this listing its
+        // seat count, not its whole page.
+        if (listing.getListingType() == ListingType.EVENT) {
+            try {
+                var door = eventAvailabilityService.read(listing);
+                dto.setTicketsSold(door.sold());
+                dto.setTicketsRemaining(door.remaining());
+                dto.setSalesState(door.state().name());
+                dto.setSalesMessage(door.reason());
+            } catch (Exception ignored) {
+                // Leaves the fields null, which the client reads as "unknown" and falls back
+                // to simply offering the buy button — the server still refuses an oversell.
+            }
         }
         return dto;
     }

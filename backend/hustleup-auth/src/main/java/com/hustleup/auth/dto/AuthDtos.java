@@ -68,13 +68,21 @@ public class AuthDtos {
         @Email(message = "Invalid email format")
         private String email; // the user's email — doubles as their login username
 
-        // Requires at least 8 characters with a mix of uppercase, lowercase, and a digit —
-        // a meaningfully stronger bar than a bare length check, without demanding a special
-        // character (which mostly just pushes people toward "Password1!" patterns).
+        // Ten characters with upper, lower, a digit and a symbol.
+        //
+        // Raised from eight-without-symbols. The old note here argued that requiring a
+        // symbol "mostly just pushes people toward Password1!" — true, and an argument for
+        // also rejecting the predictable results rather than for leaving a character class
+        // out. The client rejects exactly those strings by name (utils/password.js); this is
+        // the floor beneath it.
+        //
+        // Kept in step by hand with AuthController.PASSWORD_POLICY and the client's rule
+        // list: one policy in three places, which is two too many, but the annotation and
+        // the imperative check each need it where they are.
         @NotBlank(message = "Password is required")
         @Pattern(
-                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$",
-                message = "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number"
+                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{10,}$",
+                message = "Password must be at least 10 characters and include an uppercase letter, a lowercase letter, a number and a symbol"
         )
         private String password; // plain-text password from the client; will be BCrypt-hashed before storage
 

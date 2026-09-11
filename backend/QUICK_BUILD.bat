@@ -1,4 +1,4 @@
 @echo off
-cd /d C:\Users\Admin\.gemini\antigravity\scratch\hustleup\backend
+cd /d "%~dp0"
 mvn clean install -DskipTests
 pause

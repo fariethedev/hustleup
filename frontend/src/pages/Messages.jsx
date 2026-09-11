@@ -97,7 +97,7 @@ export default function Messages() {
         <aside className={`w-full lg:w-[400px] shrink-0 flex flex-col glass rounded-3xl sm:rounded-[3rem] border border-white/5 bg-black/40 backdrop-blur-2xl overflow-hidden transition-all duration-500 ${activeBooking ? 'hidden lg:flex' : 'flex'}`}>
           <div className="p-5 sm:p-10 border-b border-white/5 space-y-4">
              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tighter">INBOUND</h2>
+                <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tighter">INBOUND</h2>
                 <div className="p-3 bg-[#CDFF00]/10 border border-[#CDFF00]/20 rounded-2xl shrink-0">
                    <Signal className="w-5 h-5 text-[#CDFF00] animate-pulse" />
                 </div>
@@ -109,7 +109,7 @@ export default function Messages() {
                 <input 
                   type="text" 
                   placeholder="Filter identifiers..." 
-                  className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-xs font-black uppercase tracking-widest text-[#CDFF00] placeholder-gray-600 outline-none focus:border-[#CDFF00]/50 transition-all"
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-xs font-black tracking-widest text-[#CDFF00] placeholder-gray-600 outline-none focus:border-[#CDFF00]/50 transition-all"
                 />
              </div>
           </div>
@@ -122,7 +122,7 @@ export default function Messages() {
             ) : bookings.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center px-10">
                  <Shield className="w-12 h-12 text-gray-700 mb-6" />
-                 <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.4em]">Zero Active Protocols</p>
+                 <p className="text-[10px] font-black text-gray-600 tracking-[0.4em]">Zero Active Protocols</p>
               </div>
             ) : (
               bookings.map((b) => {
@@ -146,12 +146,12 @@ export default function Messages() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                           <span className={`text-sm font-black uppercase tracking-widest truncate ${active ? 'text-black' : 'text-white'}`}>
+                           <span className={`text-sm font-black tracking-widest truncate ${active ? 'text-black' : 'text-white'}`}>
                               {pName}
                            </span>
-                           <span className={`text-[9px] font-black uppercase tracking-widest shrink-0 ${active ? 'text-black/40' : 'text-gray-500'}`}>09:42</span>
+                           <span className={`text-[9px] font-black tracking-widest shrink-0 ${active ? 'text-black/40' : 'text-gray-500'}`}>09:42</span>
                         </div>
-                        <p className={`text-[11px] font-black uppercase tracking-tighter truncate opacity-60 ${active ? 'text-black' : 'text-[#CDFF00]'}`}>
+                        <p className={`text-[11px] font-black tracking-tighter truncate opacity-60 ${active ? 'text-black' : 'text-[#CDFF00]'}`}>
                            {b.listingTitle || 'PROTOCOL_ACTIVE'}
                         </p>
                       </div>
@@ -183,8 +183,8 @@ export default function Messages() {
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-[#22C55E] border-2 sm:border-4 border-black" />
                    </Link>
                    <Link to={`/profile/${peerId}`} className="group cursor-pointer min-w-0 flex-1">
-                      <h3 className="text-base sm:text-2xl font-black text-white uppercase tracking-tighter group-hover:text-[#CDFF00] transition-colors truncate">{peerName || 'Direct Signal'}</h3>
-                      <div className="flex items-center gap-2 sm:gap-3 mt-1 text-[9px] sm:text-[10px] font-black text-[#CDFF00] uppercase tracking-[0.15em] sm:tracking-[0.3em] truncate">
+                      <h3 className="text-base sm:text-2xl font-black text-white tracking-tighter group-hover:text-[#CDFF00] transition-colors truncate">{peerName || 'Direct Signal'}</h3>
+                      <div className="flex items-center gap-2 sm:gap-3 mt-1 text-[9px] sm:text-[10px] font-black text-[#CDFF00] tracking-[0.15em] sm:tracking-[0.3em] truncate">
                          <SignalsIcon className="w-3 h-3 shrink-0" /> <span className="truncate">Encrypted Channel Active</span>
                       </div>
                    </Link>
@@ -202,7 +202,7 @@ export default function Messages() {
                 {messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-30">
                      <Zap className="w-20 h-20 text-[#CDFF00]" />
-                     <p className="text-xs font-black uppercase tracking-[0.5em]">Initiate Handshake</p>
+                     <p className="text-xs font-black tracking-[0.5em]">Initiate Handshake</p>
                   </div>
                 ) : (
                   messages.map((msg, i) => {
@@ -218,7 +218,7 @@ export default function Messages() {
                                <p className="text-sm font-black leading-relaxed">{msg.content}</p>
                             </div>
                             <div className={`flex items-center gap-3 px-2 ${isMe ? 'flex-row-reverse' : ''}`}>
-                               <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest">
+                               <span className="text-[9px] font-black text-gray-600 tracking-widest">
                                   {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                </span>
                                {isMe && <Zap className="w-2.5 h-2.5 text-[#CDFF00] opacity-50" />}
@@ -239,7 +239,7 @@ export default function Messages() {
                        value={newMsg}
                        onChange={(e) => setNewMsg(e.target.value)}
                        placeholder="Inject protocol sequence..."
-                       className="w-full bg-black border-2 border-white/10 rounded-2xl sm:rounded-[2rem] px-4 py-3 sm:px-8 sm:py-5 text-white placeholder-gray-700 outline-none focus:border-[#CDFF00] transition-all font-black text-xs uppercase tracking-widest resize-none min-h-[48px] sm:min-h-[72px] max-h-[200px] scrollbar-hide"
+                       className="w-full bg-black border-2 border-white/10 rounded-2xl sm:rounded-[2rem] px-4 py-3 sm:px-8 sm:py-5 text-white placeholder-gray-700 outline-none focus:border-[#CDFF00] transition-all font-black text-xs tracking-widest resize-none min-h-[48px] sm:min-h-[72px] max-h-[200px] scrollbar-hide"
                        onKeyDown={(e) => {
                          if (e.key === 'Enter' && !e.shiftKey) {
                            e.preventDefault();
@@ -268,8 +268,8 @@ export default function Messages() {
                   <MessageSquareOff className="w-12 h-12 text-gray-700 relative z-10" />
                </div>
                <div className="space-y-4">
-                  <h3 className="text-4xl font-black text-white uppercase tracking-tighter">Standby Mode</h3>
-                  <p className="text-[10px] font-black text-[#CDFF00] uppercase tracking-[0.5em]">Select an active signal to engage</p>
+                  <h3 className="text-4xl font-black text-white tracking-tighter">Standby Mode</h3>
+                  <p className="text-[10px] font-black text-[#CDFF00] tracking-[0.5em]">Select an active signal to engage</p>
                </div>
             </div>
           )}

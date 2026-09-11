@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector, useDispatch } from 'react-redux';
-import { selectUser, loadUserProfile } from '../store/authSlice';
+import { selectUser, selectIsAuthenticated, loadUserProfile } from '../store/authSlice';
 import { usersApi, reviewsApi, listingsApi, feedApi, followsApi } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import ReviewStars from '../components/ReviewStars';
@@ -21,6 +21,7 @@ export default function Profile() {
   const { id } = useParams();
   const dispatch = useDispatch();
   const currentUser = useSelector(selectUser);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
   const { showToast } = useToast();
   const [profile, setProfile] = useState(null);
   const [rel, setRel] = useState({ followers: 0, following: 0, isFollowing: false, blocked: false, blockedBy: false });
@@ -31,6 +32,49 @@ export default function Profile() {
   // own post from your profile did nothing at all.
   const [viewingPost, setViewingPost] = useState(null);
   const [likedPosts, setLikedPosts] = useState([]);
+
+  /**
+   * Likes or unlikes the post open in the modal.
+   *
+   * Optimistic, and mirrored into whichever list the post came from — the grid behind the
+   * modal shows the same counts, so updating only the modal would leave the two disagreeing
+   * the moment it closes.
+   */
+  const togglePostLike = async () => {
+    if (!isAuthenticated || !viewingPost) return;
+    const liked = !!viewingPost.likedByCurrentUser;
+    const next = (p) => ({
+      ...p,
+      likedByCurrentUser: !liked,
+      likesCount: Math.max(0, (p.likesCount || 0) + (liked ? -1 : 1)),
+    });
+
+    setViewingPost(next);
+    setLikedPosts((list) => list.map((p) => (p.id === viewingPost.id ? next(p) : p)));
+
+    try {
+      const res = liked
+        ? await feedApi.unlikePost(viewingPost.id)
+        : await feedApi.likePost(viewingPost.id);
+      // The server's count is authoritative; two devices liking at once would otherwise
+      // leave this one showing a number that never settles.
+      const settle = (p) => ({
+        ...p,
+        likedByCurrentUser: res.data?.likedByCurrentUser ?? !liked,
+        likesCount: res.data?.likesCount ?? p.likesCount,
+      });
+      setViewingPost((p) => (p ? settle(p) : p));
+      setLikedPosts((list) => list.map((p) => (p.id === viewingPost.id ? settle(p) : p)));
+    } catch {
+      const revert = (p) => ({
+        ...p,
+        likedByCurrentUser: liked,
+        likesCount: Math.max(0, (p.likesCount || 0) + (liked ? 1 : -1)),
+      });
+      setViewingPost((p) => (p ? revert(p) : p));
+      setLikedPosts((list) => list.map((p) => (p.id === viewingPost.id ? revert(p) : p)));
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('listings');
   const [followBusy, setFollowBusy] = useState(false);
@@ -214,89 +258,98 @@ export default function Profile() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 pt-4 pb-16">
-      {/* Slim banner, only when the user set one */}
-      {profile.shopBannerUrl && (
-        <div className="h-28 sm:h-36 rounded-2xl overflow-hidden mb-4 relative">
-          <img src={profile.shopBannerUrl} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        </div>
-      )}
+      {/* ── BANNER ──────────────────────────────────────────────────────────
+          Always rendered, with a brand wash standing in when the user has not set
+          one. It exists to give the avatar something to sit against: previously a
+          profile with no banner opened on a bare circle floating on black, and the
+          avatar had no relationship to anything above it. The wash is decoration,
+          not invented content — nothing here claims the user uploaded an image.
 
-      {/* ── HEADER (Instagram layout: avatar left, info right) ── */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex gap-5 sm:gap-10 items-start">
-        {/* Avatar */}
-        <div className="relative shrink-0">
-          <div className="w-20 h-20 sm:w-36 sm:h-36 rounded-full overflow-hidden bg-black border-2 border-white/10 flex items-center justify-center">
-            {profile.avatarUrl
-              ? <img src={uploadUrl(profile.avatarUrl)} className="w-full h-full object-cover" />
-              : <span className="text-[#CDFF00] font-black text-3xl sm:text-5xl uppercase">{displayName(profile)[0]}</span>}
-          </div>
-          {profile.idVerified && (
-            <div className="absolute bottom-0 right-0 sm:bottom-1 sm:right-1 w-7 h-7 rounded-full bg-[#CDFF00] text-black flex items-center justify-center border-[3px] border-[#050505]">
-              <BadgeCheck className="w-4 h-4" />
+          uploadUrl() around the banner as well as the avatar. It was missing here,
+          so a server-relative "/uploads/…" banner resolved against the frontend's
+          own origin and silently failed to load in production. */}
+      <div className="relative h-32 sm:h-48 rounded-3xl overflow-hidden">
+        {profile.shopBannerUrl ? (
+          <img src={uploadUrl(profile.shopBannerUrl)} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#CDFF00]/15 via-[#FF00FF]/10 to-[#00FFFF]/15" />
+        )}
+        {/* Fades the banner into the page so the avatar sits on darkness whatever the
+            image behind it happens to be — a light photo would otherwise swallow the ring. */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent" />
+      </div>
+
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        {/* ── AVATAR ───────────────────────────────────────────────────────
+            Overlapping the banner's lower edge and ringed in the brand gradient,
+            which is the one element on this page that should be unmissable. It was
+            a 36-unit circle with a 2px white/10 border, sitting in a row beside the
+            name and the buttons — the least prominent thing in its own header.
+            Larger, lifted out of the flow, and given a glow so it reads as the
+            subject of the page rather than an icon next to it. */}
+        <div className="relative -mt-14 sm:-mt-20 px-1">
+          <div className="relative inline-block">
+            <div className="rounded-full p-[3px] bg-gradient-to-tr from-[#CDFF00] via-[#FF00FF] to-[#00FFFF] shadow-[0_0_36px_-4px_rgba(205,255,0,0.55)]">
+              <div className="w-28 h-28 sm:w-44 sm:h-44 rounded-full overflow-hidden bg-[#0A0A0A] ring-[4px] ring-[#050505] flex items-center justify-center">
+                {profile.avatarUrl
+                  ? <img src={uploadUrl(profile.avatarUrl)} alt={displayName(profile)} className="w-full h-full object-cover" />
+                  : <span className="text-[#CDFF00] font-black text-4xl sm:text-6xl">{displayName(profile)[0]}</span>}
+              </div>
             </div>
-          )}
+            {profile.idVerified && (
+              <div className="absolute bottom-1.5 right-1.5 sm:bottom-3 sm:right-3 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#CDFF00] text-black flex items-center justify-center ring-[4px] ring-[#050505]">
+                <BadgeCheck className="w-4.5 h-4.5 sm:w-5.5 sm:h-5.5" />
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Info column */}
-        <div className="flex-1 min-w-0">
-          {/* Row 1: name + actions.
-              On mobile the name gets its own line and the buttons form an even full-width
-              row beneath it. Previously everything shared one flex-wrap line, so a long
-              name pushed the buttons onto a second row at ragged widths — and because the
-              h1 had `truncate` without `min-w-0`, it refused to shrink and squeezed the
-              actions off the edge on narrow screens. */}
-          {/* Handle leads, real name sits under it — the pattern people already read on
-              every other social profile. Showing only one meant a handle like `mkzstudio`
-              never told you who it was, while the fallback showed a legal name with no
-              handle to mention or link. Both, with the handle dominant.
-              The real name renders only when it adds something: for an account with no
-              username, displayName() has already fallen back to it, and repeating it
-              underneath would just print the same string twice. */}
-          <div className="min-w-0 sm:hidden">
-            <h1 className="text-xl font-bold text-white truncate min-w-0">
+        {/* ── NAME + ACTIONS ───────────────────────────────────────────────
+            One row that reflows rather than two breakpoint-specific copies. The name
+            and the bio were each rendered twice before — once inside a `sm:hidden`
+            block and again in a `hidden sm:block` one — which is two places to edit
+            for every change and two chances for them to drift apart. */}
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="min-w-0">
+            {/* Handle leads, real name underneath — the pattern people already read on
+                every other social profile. The real name renders only when it adds
+                something: for an account with no username, displayName() has already
+                fallen back to it, and repeating it would print the same string twice. */}
+            <h1 className="text-2xl sm:text-3xl font-black text-white truncate leading-tight">
               {displayName(profile)}
             </h1>
             {profile?.username && profile?.fullName && (
-              <p className="text-sm text-gray-400 truncate">{profile.fullName}</p>
+              <p className="text-sm text-gray-400 truncate mt-0.5">{profile.fullName}</p>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-3 sm:mt-0 [&>a]:flex-1 [&>button]:flex-1 sm:[&>a]:flex-none sm:[&>button]:flex-none">
-            <div className="hidden sm:block min-w-0 flex-none">
-              <h1 className="text-xl sm:text-2xl font-bold text-white truncate min-w-0">
-                {displayName(profile)}
-              </h1>
-              {profile?.username && profile?.fullName && (
-                <p className="text-sm text-gray-400 truncate -mt-0.5">{profile.fullName}</p>
-              )}
-            </div>
 
+          <div className="flex items-center gap-2 shrink-0 [&>a]:flex-1 [&>button]:flex-1 sm:[&>a]:flex-none sm:[&>button]:flex-none">
             {isOwn ? (
               <>
-                {/* Icon-only: the label added nothing an icon plus a tooltip doesn't already
-                    say, and on mobile these were stretching full-width via the row's flex-1
-                    rule — !flex-none opts them out of that so they stay compact squares. */}
+                {/* Icon-only: the label added nothing an icon plus a tooltip doesn't
+                    already say. !flex-none opts them out of the row's mobile stretch so
+                    they stay compact squares instead of two half-width slabs. */}
                 <Link
                   to="/create"
                   title="Add listing"
                   aria-label="Add listing"
-                  className="!flex-none w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#CDFF00] hover:bg-[#d9ff33] text-black transition-colors flex items-center justify-center shrink-0"
+                  className="!flex-none w-10 h-10 rounded-xl bg-[#CDFF00] hover:bg-[#d9ff33] text-black transition-colors flex items-center justify-center shrink-0"
                 >
-                  <Plus className="w-4.5 h-4.5" />
+                  <Plus className="w-5 h-5" />
                 </Link>
                 <button
                   onClick={() => setIsModalOpen(true)}
                   title="Edit profile"
                   aria-label="Edit profile"
-                  className="!flex-none w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-white/10 hover:bg-white/15 text-white transition-colors flex items-center justify-center shrink-0"
+                  className="!flex-none w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 text-white transition-colors flex items-center justify-center shrink-0"
                 >
-                  <Settings className="w-4.5 h-4.5" />
+                  <Settings className="w-5 h-5" />
                 </button>
               </>
             ) : rel.blocked ? (
               <button
                 onClick={toggleBlock}
-                className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
               >
                 <ShieldOff className="w-4 h-4" /> Unblock
               </button>
@@ -305,7 +358,7 @@ export default function Profile() {
                 <button
                   onClick={toggleFollow}
                   disabled={followBusy || !currentUser}
-                  className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-60 whitespace-nowrap ${
+                  className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-60 whitespace-nowrap ${
                     rel.isFollowing
                       ? 'bg-white/10 hover:bg-white/15 text-white'
                       : 'bg-[#CDFF00] hover:bg-[#d9ff33] text-black'
@@ -315,7 +368,7 @@ export default function Profile() {
                 </button>
                 <Link
                   to={`/dm/${profile.id}`}
-                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+                  className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                   <MessageCircle className="w-4 h-4" /> Message
                 </Link>
@@ -323,10 +376,11 @@ export default function Profile() {
             )}
 
             {!isOwn && (
-              <div className="relative flex-none">
+              <div className="relative !flex-none">
                 <button
                   onClick={() => setMenuOpen((v) => !v)}
-                  className="p-2 rounded-lg hover:bg-white/10 text-white transition-colors"
+                  aria-label="More options"
+                  className="w-10 h-10 rounded-xl hover:bg-white/10 text-white transition-colors flex items-center justify-center"
                 >
                   <MoreHorizontal className="w-5 h-5" />
                 </button>
@@ -352,37 +406,33 @@ export default function Profile() {
               </div>
             )}
           </div>
+        </div>
 
-          {/* Row 2: stats.
-              Followers and following are the numbers people actually come here to read, so
-              they are pulled out as chips in the brand colour instead of sitting in the same
-              grey run-on line as everything else. */}
-          <div className="flex flex-wrap items-center gap-2 mt-3 text-sm">
-            <span className="inline-flex items-baseline gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
-              <b className="text-white font-bold">{listings.length}</b>
-              <span className="text-gray-400 text-xs font-medium">listings</span>
-            </span>
-            <span className="inline-flex items-baseline gap-1.5 px-3 py-1.5 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/30">
-              <b className="text-[#CDFF00] font-extrabold">{rel.followers}</b>
-              <span className="text-[#CDFF00]/70 text-xs font-semibold">followers</span>
-            </span>
-            <span className="inline-flex items-baseline gap-1.5 px-3 py-1.5 rounded-xl bg-[#00FFFF]/10 border border-[#00FFFF]/30">
-              <b className="text-[#00FFFF] font-extrabold">{rel.following}</b>
-              <span className="text-[#00FFFF]/70 text-xs font-semibold">following</span>
-            </span>
-          </div>
+        {/* ── STATS ────────────────────────────────────────────────────────
+            Followers and following only. The listings count was removed: it sat in
+            the same row wearing the same chip, but it is not a measure of the person
+            the way the other two are — and the Listings tab directly below already
+            carries the number, so the header was stating it twice.
 
-          {/* Row 3: role + bio + meta (hidden on very small screens, shown below) */}
-          <div className="hidden sm:block mt-3">
-            <ProfileBio profile={profile} />
-          </div>
+            Both chips now share one treatment. They were previously lime and cyan
+            respectively, which made two equivalent facts look like different kinds
+            of thing and left the row with three competing colours. */}
+        <div className="flex items-center gap-2 mt-4">
+          <span className="inline-flex items-baseline gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10">
+            <b className="text-white font-extrabold">{rel.followers}</b>
+            <span className="text-gray-400 text-xs font-semibold">followers</span>
+          </span>
+          <span className="inline-flex items-baseline gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10">
+            <b className="text-white font-extrabold">{rel.following}</b>
+            <span className="text-gray-400 text-xs font-semibold">following</span>
+          </span>
+        </div>
+
+        {/* Role, location, bio and links — rendered once, at every width. */}
+        <div className="mt-4">
+          <ProfileBio profile={profile} />
         </div>
       </motion.div>
-
-      {/* Bio on mobile (full width under avatar) */}
-      <div className="sm:hidden mt-3">
-        <ProfileBio profile={profile} />
-      </div>
 
       {rel.blockedBy && (
         <div className="mt-4 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-gray-400">
@@ -396,7 +446,7 @@ export default function Profile() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 pt-3 pb-2.5 -mt-px border-t text-xs font-bold uppercase tracking-widest transition-colors ${
+            className={`flex items-center gap-2 pt-3 pb-2.5 -mt-px border-t text-xs font-bold tracking-widest transition-colors ${
               tab === t.key ? 'border-[#CDFF00] text-white' : 'border-transparent text-gray-500 hover:text-gray-300'
             }`}
           >
@@ -432,7 +482,7 @@ export default function Profile() {
               {reviews.map((r) => (
                 <div key={r.id} className="rounded-2xl p-5 border border-white/10 bg-white/[0.02]">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-black border border-[#CDFF00]/30 flex items-center justify-center text-[#CDFF00] font-black uppercase text-sm">
+                    <div className="w-10 h-10 rounded-full bg-black border border-[#CDFF00]/30 flex items-center justify-center text-[#CDFF00] font-black text-sm">
                       {r.reviewerName?.[0]}
                     </div>
                     <div>
@@ -450,7 +500,7 @@ export default function Profile() {
         {tab === 'likes' && isOwn && (
           likedPosts.length > 0 ? (
             <>
-              <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-3">
+              <p className="text-xs text-gray-500 font-bold tracking-widest mb-3">
                 Posts you've liked · {likedPosts.length}
               </p>
               <div className="grid grid-cols-3 gap-1 sm:gap-2">
@@ -517,17 +567,40 @@ export default function Profile() {
                 </p>
               )}
 
+              {/* These were both spans. A heart and a comment bubble with a count beside
+                  them are the controls everywhere else in the app, so on this screen they
+                  read as controls and did nothing when tapped. */}
               <div className="px-4 py-3 border-t border-white/10 flex items-center gap-5 text-sm font-bold text-gray-400">
-                <span className="flex items-center gap-1.5">
-                  <Heart className="w-4 h-4" /> {viewingPost.likesCount || 0}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <MessageCircle className="w-4 h-4" /> {viewingPost.commentsCount || 0}
-                </span>
+                <button
+                  onClick={togglePostLike}
+                  disabled={!isAuthenticated}
+                  aria-pressed={!!viewingPost.likedByCurrentUser}
+                  aria-label={viewingPost.likedByCurrentUser ? 'Unlike this post' : 'Like this post'}
+                  className={`flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    viewingPost.likedByCurrentUser ? 'text-[#FF00FF]' : 'hover:text-white'
+                  }`}
+                >
+                  <Heart className={`w-4 h-4 ${viewingPost.likedByCurrentUser ? 'fill-[#FF00FF]' : ''}`} />
+                  {viewingPost.likesCount || 0}
+                </button>
+
+                {/* Carries the post through, so the feed opens on this conversation rather
+                    than at the top with the post somewhere below. */}
                 <Link
                   to="/feed"
+                  state={{ openPostId: viewingPost.id }}
                   onClick={() => setViewingPost(null)}
-                  className="ml-auto text-[10px] font-black uppercase tracking-widest text-[#CDFF00] hover:brightness-110"
+                  aria-label="Open comments"
+                  className="flex items-center gap-1.5 hover:text-white transition-colors"
+                >
+                  <MessageCircle className="w-4 h-4" /> {viewingPost.commentsCount || 0}
+                </Link>
+
+                <Link
+                  to="/feed"
+                  state={{ openPostId: viewingPost.id }}
+                  onClick={() => setViewingPost(null)}
+                  className="ml-auto text-[10px] font-black tracking-widest text-[#CDFF00] hover:brightness-110"
                 >
                   Open in feed
                 </Link>
@@ -592,7 +665,7 @@ export default function Profile() {
               <div className="flex-1 overflow-y-auto p-6 space-y-7">
                 {/* Photos */}
                 <section>
-                  <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Photos</h3>
+                  <h3 className="text-[11px] font-bold text-gray-400 tracking-widest mb-3">Photos</h3>
                   <div className="flex items-center gap-5">
                     <div
                       onClick={() => document.getElementById('avatar-input').click()}
@@ -617,7 +690,7 @@ export default function Profile() {
 
                 {/* Identity */}
                 <section className="space-y-3">
-                  <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">About you</h3>
+                  <h3 className="text-[11px] font-bold text-gray-400 tracking-widest">About you</h3>
                   <input
                     type="text" value={editData.fullName}
                     onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
@@ -635,7 +708,7 @@ export default function Profile() {
 
                 {/* Contact & location */}
                 <section className="space-y-3">
-                  <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Location & contact</h3>
+                  <h3 className="text-[11px] font-bold text-gray-400 tracking-widest">Location & contact</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input type="text" value={editData.city} onChange={(e) => setEditData({ ...editData, city: e.target.value })}
                       placeholder="City" className="bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00]" />
@@ -678,7 +751,7 @@ function ProfileBio({ profile }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-2">
-        <span className="px-2 py-0.5 rounded-md bg-[#CDFF00]/15 text-[#CDFF00] text-[10px] font-bold uppercase tracking-widest">{profile.role}</span>
+        <span className="px-2 py-0.5 rounded-md bg-[#CDFF00]/15 text-[#CDFF00] text-[10px] font-bold tracking-widest">{profile.role}</span>
         {profile.city && (
           <span className="flex items-center gap-1 text-xs text-gray-500">
             <MapPin className="w-3 h-3 text-[#CDFF00]" /> {profile.city}

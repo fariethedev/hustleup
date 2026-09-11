@@ -64,7 +64,9 @@ export default function Explore() {
   const [listingType, setListingType] = useState('');
   // Mobile only: the search field and the filter selects are collapsed behind icons so the
   // sticky header costs one row instead of four before you see a single result.
-  const [mobilePanel, setMobilePanel] = useState(null); // 'search' | 'filters' | null
+  // Only one collapsible panel remains — search moved out of this page entirely, since
+  // the navbar already carries it everywhere.
+  const [mobilePanel, setMobilePanel] = useState(null); // 'filters' | null
 
   /* ── Data fetching ── */
   useEffect(() => {
@@ -134,11 +136,11 @@ export default function Explore() {
   const emptyState = (icon, message) => (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
       {icon}
-      <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">No results</h2>
+      <h2 className="text-xl font-black text-white tracking-tight mb-2">No results</h2>
       <p className="text-sm text-gray-400 mb-6">{message}</p>
       <button
         onClick={clearFilters}
-        className="px-6 py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
+        className="px-6 py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
       >
         Clear filters
       </button>
@@ -161,7 +163,10 @@ export default function Explore() {
     <div className="min-h-screen font-sans pb-20">
 
       {/* ── Sticky search & filter header ── */}
-      <div className="sticky top-14 md:top-16 z-[90] bg-black/80 backdrop-blur-xl border-b border-white/5">
+      {/* top-14 at every width, because the navbar is h-14 at every width. md:top-16
+          assumed a taller desktop header that does not exist, so the bar sat 8px below
+          the navbar and the grid scrolled through the gap between them. */}
+      <div className="sticky top-14 z-[90] bg-black/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 
           {/* ── Mobile: one compact row. Tabs scroll; search and filters live behind icons ── */}
@@ -174,7 +179,7 @@ export default function Explore() {
                     <button
                       key={t.key}
                       onClick={() => { setTab(t.key); setListingType(''); }}
-                      className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors shrink-0 ${
+                      className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black tracking-widest whitespace-nowrap transition-colors shrink-0 ${
                         isActive ? 'text-black' : 'text-gray-400'
                       }`}
                     >
@@ -193,22 +198,12 @@ export default function Explore() {
                 })}
               </nav>
 
-              {/* Search toggle */}
-              <button
-                onClick={() => setMobilePanel((p) => (p === 'search' ? null : 'search'))}
-                aria-label="Search"
-                aria-expanded={mobilePanel === 'search'}
-                className={`relative shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center transition-colors ${
-                  mobilePanel === 'search' || query
-                    ? 'bg-[#00FFFF] text-black border-[#00FFFF]'
-                    : 'bg-white/5 border-white/10 text-gray-300'
-                }`}
-              >
-                <Search className="w-4 h-4" />
-              </button>
+              {/* No search button here. The navbar carries search across the whole app, and
+                  a second one on this page was a second habit to learn for the same job.
+                  Filters are the only control this header needs to own.
 
-              {/* Filter toggle — the dot marks active filters, so a collapsed panel never
-                  hides the fact that results are being narrowed. */}
+                  The dot marks active filters, so a collapsed panel never hides the fact
+                  that results are being narrowed. */}
               <button
                 onClick={() => setMobilePanel((p) => (p === 'filters' ? null : 'filters'))}
                 aria-label="Filters"
@@ -227,38 +222,6 @@ export default function Explore() {
             </div>
 
             <AnimatePresence initial={false}>
-              {mobilePanel === 'search' && (
-                <motion.div
-                  key="m-search"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="relative pt-2.5">
-                    <Search className="absolute left-4 top-1/2 mt-1 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <input
-                      type="search"
-                      autoFocus
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search listings, shops, creators…"
-                      className="w-full pl-11 pr-10 py-2.5 rounded-2xl bg-[#0A0A0A] border border-white/10 text-white text-sm outline-none focus:border-[#00FFFF] transition-colors"
-                    />
-                    {query && (
-                      <button
-                        onClick={() => setQuery('')}
-                        aria-label="Clear search"
-                        className="absolute right-3 top-1/2 mt-1 -translate-y-1/2 w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-gray-400"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-
               {mobilePanel === 'filters' && (
                 <motion.div
                   key="m-filters"
@@ -300,7 +263,7 @@ export default function Explore() {
                       <div className="flex gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide pb-0.5">
                         <button
                           onClick={() => setListingType('')}
-                          className={`shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                          className={`shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest ${
                             !listingType ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400'
                           }`}
                         >
@@ -310,7 +273,7 @@ export default function Explore() {
                           <button
                             key={t.value}
                             onClick={() => setListingType(listingType === t.value ? '' : t.value)}
-                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest ${
                               listingType === t.value ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400'
                             }`}
                           >
@@ -321,13 +284,13 @@ export default function Explore() {
                     )}
 
                     <div className="flex items-center justify-between pt-0.5">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                      <span className="text-[10px] font-bold tracking-widest text-gray-500">
                         {isLoading ? 'Loading…' : `${resultCount} result${resultCount !== 1 ? 's' : ''}`}
                       </span>
                       {hasFilters && (
                         <button
                           onClick={clearFilters}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-gray-300"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300"
                         >
                           <X className="w-3 h-3" /> Clear
                         </button>
@@ -402,7 +365,7 @@ export default function Explore() {
                   <button
                     key={t.key}
                     onClick={() => { setTab(t.key); setListingType(''); }}
-                    className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors ${
+                    className={`relative flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest whitespace-nowrap transition-colors ${
                       isActive ? 'text-black' : 'text-gray-400 hover:text-white'
                     }`}
                   >
@@ -425,13 +388,13 @@ export default function Explore() {
             </nav>
 
             <div className="flex items-center gap-2 shrink-0">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 hidden sm:block">
+              <span className="text-[10px] font-bold tracking-widest text-gray-500 hidden sm:block">
                 {isLoading ? 'Loading…' : `${resultCount} result${resultCount !== 1 ? 's' : ''}`}
               </span>
               {hasFilters && (
                 <button
                   onClick={clearFilters}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/25 transition-colors"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/25 transition-colors"
                 >
                   <X className="w-3 h-3" /> Clear
                 </button>
@@ -444,7 +407,7 @@ export default function Explore() {
             <div className="flex flex-wrap gap-2 mt-3">
               <button
                 onClick={() => setListingType('')}
-                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                className={`px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest transition-all active:scale-95 ${
                   !listingType ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
                 }`}
               >
@@ -454,7 +417,7 @@ export default function Explore() {
                 <button
                   key={t.value}
                   onClick={() => setListingType(listingType === t.value ? '' : t.value)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest transition-all active:scale-95 ${
                     listingType === t.value ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
                   }`}
                 >

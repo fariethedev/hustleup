@@ -72,7 +72,7 @@ export default function ReviewModal({
           </button>
         )}
 
-        <h3 className="text-sm font-black text-white uppercase tracking-tight">{title}</h3>
+        <h3 className="text-sm font-black text-white tracking-tight">{title}</h3>
         <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">
           How was it working with <span className="text-white font-bold">{subjectName}</span>?
           {context && <span className="block text-gray-500 mt-0.5 truncate">{context}</span>}
@@ -97,7 +97,7 @@ export default function ReviewModal({
             </button>
           ))}
         </div>
-        <p className="text-center text-[11px] font-black uppercase tracking-widest text-gray-500 -mt-3 mb-4 h-4">
+        <p className="text-center text-[11px] font-black tracking-widest text-gray-500 -mt-3 mb-4 h-4">
           {RATING_WORDS[shown]}
         </p>
 
@@ -116,7 +116,7 @@ export default function ReviewModal({
         <button
           onClick={submit}
           disabled={busy}
-          className="w-full mt-4 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full mt-4 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {busy ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : submitLabel}
         </button>

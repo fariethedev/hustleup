@@ -93,11 +93,18 @@ public class ListingController {
             // form field should not turn into a 400.
             @RequestParam(required = false) String eventStartsAt,
             @RequestParam(required = false) String eventVenue,
+            // EVENT capacity and sales window. Strings for the same reason eventStartsAt is:
+            // a form that leaves them blank sends "" rather than omitting them, and an empty
+            // string bound to Integer/LocalDateTime is a 400 the seller cannot interpret.
+            @RequestParam(required = false) String eventCapacity,
+            @RequestParam(required = false) String salesOpenAt,
+            @RequestParam(required = false) String salesCloseAt,
             @RequestParam(required = false) String meta,
             @RequestParam(required = false) List<MultipartFile> images) {
         return ResponseEntity.ok(listingService.create(title, description, listingType,
                 price, currency, negotiable, city, agentFee, swapEnabled,
-                shippingMethod, shippingPrice, eventStartsAt, eventVenue, meta, images));
+                shippingMethod, shippingPrice, eventStartsAt, eventVenue,
+                eventCapacity, salesOpenAt, salesCloseAt, meta, images));
     }
 
     // JSON body (not @RequestParam/form fields) — matches how the dashboard's price/negotiable
@@ -125,8 +132,14 @@ public class ListingController {
         BigDecimal shippingPrice = body.get("shippingPrice") != null
                 ? new BigDecimal(body.get("shippingPrice").toString())
                 : null;
+        // Absent keys leave the door alone — an organiser editing the price must not silently
+        // uncap their event or reopen sales they closed.
+        String eventCapacity = body.get("eventCapacity") != null ? String.valueOf(body.get("eventCapacity")) : null;
+        String salesOpenAt = (String) body.get("salesOpenAt");
+        String salesCloseAt = (String) body.get("salesCloseAt");
         return ResponseEntity.ok(listingService.update(id, title, description, price, negotiable, city,
-                meta, status, swapEnabled, shippingMethod, shippingPrice));
+                meta, status, swapEnabled, shippingMethod, shippingPrice,
+                eventCapacity, salesOpenAt, salesCloseAt));
     }
 
     @GetMapping("/user/{userId}")

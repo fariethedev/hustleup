@@ -56,7 +56,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
     <button
       onClick={toggleFollow}
       disabled={busy}
-      className={`flex items-center justify-center gap-1.5 rounded-lg font-black uppercase tracking-wide transition-all active:scale-95 disabled:opacity-60 ${extraClass} ${
+      className={`flex items-center justify-center gap-1.5 rounded-lg font-black tracking-wide transition-all active:scale-95 disabled:opacity-60 ${extraClass} ${
         following
           ? 'bg-white/5 border border-white/10 text-gray-300 hover:border-white/25'
           : 'bg-[#CDFF00] text-black hover:bg-[#d9ff33]'
@@ -94,7 +94,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
             {u.fullName}
             {u.idVerified && <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
           </span>
-          <span className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-wider text-gray-500">
+          <span className="flex items-center gap-1.5 text-[8px] font-bold tracking-wider text-gray-500">
             <span>{roleLabel}</span>
             {followerCount !== null && (
               <>
@@ -105,7 +105,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
               </>
             )}
           </span>
-          <span className="mt-0.5 flex items-center gap-0.5 text-[8px] font-bold uppercase tracking-wider text-gray-500 max-w-full">
+          <span className="mt-0.5 flex items-center gap-0.5 text-[8px] font-bold tracking-wider text-gray-500 max-w-full">
             <MapPin className="w-2.5 h-2.5 text-[#CDFF00] shrink-0" />
             <span className="truncate">{displayCity(u.city)}</span>
           </span>
@@ -149,7 +149,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
           {u.idVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
         </h3>
 
-        <div className="mt-1 flex items-center gap-2 text-[9px] font-bold uppercase tracking-wider text-gray-500">
+        <div className="mt-1 flex items-center gap-2 text-[9px] font-bold tracking-wider text-gray-500">
           <span>{roleLabel}</span>
           <span className="w-px h-3 bg-white/10" />
           {followerCount !== null && (

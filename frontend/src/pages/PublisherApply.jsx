@@ -116,7 +116,7 @@ export default function PublisherApply() {
   };
 
   const field = 'w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#CDFF00]/60 transition-colors';
-  const label = 'text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5 block';
+  const label = 'text-[10px] font-black tracking-widest text-gray-500 mb-1.5 block';
 
   if (loading) {
     return (
@@ -131,13 +131,13 @@ export default function PublisherApply() {
 
   return (
     <div className="min-h-screen text-white max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <Link to="/jobs" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-colors mb-6">
+      <Link to="/jobs" className="inline-flex items-center gap-2 text-[10px] font-black tracking-widest text-gray-500 hover:text-white transition-colors mb-6">
         <ArrowLeft className="w-4 h-4" /> Back
       </Link>
 
       <div className="flex items-center gap-3 mb-2">
         <BadgeCheck className="w-7 h-7 text-[#CDFF00]" />
-        <h1 className="text-2xl font-black uppercase tracking-tight">Get verified</h1>
+        <h1 className="text-2xl font-black tracking-tight">Get verified</h1>
       </div>
       <p className="text-sm text-gray-500 mb-8">
         Jobs and News are restricted to verified organisations. Tell us who you are and we will review it.
@@ -160,7 +160,7 @@ export default function PublisherApply() {
               <div className="flex items-center justify-between mb-2">
                 <t.icon className={`w-5 h-5 ${type === t.id ? 'text-[#CDFF00]' : 'text-gray-500'}`} />
                 {mine && STATUS_UI[mine.status] && (
-                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${STATUS_UI[mine.status].tone}`}>
+                  <span className={`text-[9px] font-black tracking-widest px-2 py-1 rounded-md border ${STATUS_UI[mine.status].tone}`}>
                     {STATUS_UI[mine.status].label}
                   </span>
                 )}
@@ -177,7 +177,7 @@ export default function PublisherApply() {
         <div className={`p-4 rounded-2xl border mb-6 ${statusUi.tone}`}>
           <div className="flex items-center gap-2 mb-1">
             <statusUi.icon className="w-4 h-4" />
-            <span className="text-xs font-black uppercase tracking-widest">{statusUi.label}</span>
+            <span className="text-xs font-black tracking-widest">{statusUi.label}</span>
           </div>
           {current.status === 'PENDING' && (
             <p className="text-xs opacity-80">
@@ -250,7 +250,7 @@ export default function PublisherApply() {
                   ? <img src={logoPreview} alt="" className="w-full h-full object-contain p-2" />
                   : <span className="flex flex-col items-center gap-1.5 text-gray-500 group-hover:text-[#CDFF00] transition-colors">
                       <Upload className="w-4 h-4" />
-                      <span className="text-[9px] font-bold uppercase tracking-widest">Upload logo</span>
+                      <span className="text-[9px] font-bold tracking-widest">Upload logo</span>
                     </span>}
               </button>
               <input ref={logoRef} type="file" accept="image/*" hidden onChange={pickLogo} />
@@ -261,7 +261,7 @@ export default function PublisherApply() {
                       className="w-full h-24 rounded-xl border-2 border-dashed border-white/15 hover:border-[#CDFF00]/50 flex items-center justify-center px-3 text-center transition-colors group">
                 <span className="flex flex-col items-center gap-1.5 text-gray-500 group-hover:text-[#CDFF00] transition-colors">
                   <Upload className="w-4 h-4" />
-                  <span className="text-[9px] font-bold uppercase tracking-widest truncate max-w-full">
+                  <span className="text-[9px] font-bold tracking-widest truncate max-w-full">
                     {document ? document.name : 'Registration / credential'}
                   </span>
                 </span>
@@ -283,7 +283,7 @@ export default function PublisherApply() {
           <motion.button
             whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
             onClick={submit} disabled={submitting}
-            className="w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {submitting
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>

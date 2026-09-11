@@ -105,6 +105,31 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      */
     List<Booking> findByListingId(UUID listingId);
 
+
+    /**
+     * Seats on an event that are spoken for but not yet paid — a checkout in flight.
+     *
+     * <p><b>Why a hold exists at all.</b> Tickets are only minted once Stripe confirms the
+     * charge, so counting issued tickets alone would leave the seats between "pressed buy"
+     * and "payment cleared" invisible. Two people buying the last four seats at the same
+     * moment would both be told there was room, and one of them would find out at the door.
+     *
+     * <p><b>Why the hold expires.</b> Bounded to bookings created since {@code since}, so an
+     * abandoned checkout releases its seats instead of holding them against a sold-out event
+     * forever. That is the same bargain every ticketing site makes: a few minutes to finish
+     * paying, then the seats go back.
+     *
+     * @return seats currently held, or null when there are none (COALESCE is on the caller)
+     */
+    @Query("""
+            SELECT SUM(b.quantity) FROM Booking b
+             WHERE b.listingId = :listingId
+               AND b.status = com.hustleup.marketplace.booking.model.BookingStatus.BOOKED
+               AND b.paymentStatus NOT IN ('PAID', 'TRANSFERRED', 'REFUNDED')
+               AND b.createdAt >= :since
+            """)
+    Long sumHeldSeats(@Param("listingId") UUID listingId, @Param("since") LocalDateTime since);
+
     /**
      * Looks up the booking a Stripe PaymentIntent belongs to — used by the payout webhook
      * to mark a booking PAID once the buyer's Checkout Session completes.
@@ -123,4 +148,27 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
      * order stuck UNPAID — this is what the webhook uses instead.
      */
     List<Booking> findAllByPaymentIntentId(String paymentIntentId);
+
+    /**
+     * Paid bookings whose money is now the seller's to take.
+     *
+     * <p>Mirrors {@code ShopOrderRepository.findReleasable}, because the protection is the
+     * same one: a booking is released either because the buyer said they got what they paid
+     * for, or because the hold period expired after the seller marked it delivered. Anything
+     * already {@code TRANSFERRED} or {@code REFUNDED} is excluded by the paymentStatus filter,
+     * which is what stops one charge being paid out twice.
+     *
+     * <p>The clock runs from delivery rather than from payment: a seller who has not delivered
+     * yet should not be accruing a claim on the buyer's money, and the buyer's window to object
+     * only means something once there is something to object to.
+     */
+    @Query("""
+            SELECT b FROM Booking b
+             WHERE b.paymentStatus = 'PAID'
+               AND b.status IN (com.hustleup.marketplace.booking.model.BookingStatus.BOOKED,
+                                com.hustleup.marketplace.booking.model.BookingStatus.COMPLETED)
+               AND (b.fulfilment.buyerConfirmedAt IS NOT NULL
+                    OR (b.fulfilment.deliveredAt IS NOT NULL AND b.fulfilment.deliveredAt < :cutoff))
+            """)
+    List<Booking> findReleasable(@Param("cutoff") LocalDateTime cutoff);
 }

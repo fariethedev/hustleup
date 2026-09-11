@@ -159,7 +159,7 @@ export default function ShopManager({ user }) {
           <div className="w-12 h-12 rounded-full bg-[#CDFF00]/10 flex items-center justify-center mx-auto mb-3">
             <Store className="w-6 h-6 text-[#CDFF00]" />
           </div>
-          <h3 className="text-lg font-black text-white uppercase tracking-tight mb-1.5">Open your shop</h3>
+          <h3 className="text-lg font-black text-white tracking-tight mb-1.5">Open your shop</h3>
           <p className="text-xs text-gray-500 mb-5 leading-relaxed">
             A storefront gets you a card on Explore and a page of your own. You control every
             part of it from here — name, look, city and what's on the shelf.
@@ -174,7 +174,7 @@ export default function ShopManager({ user }) {
           <button
             onClick={createShop}
             disabled={saving || !form.name.trim()}
-            className="w-full mt-5 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+            className="w-full mt-5 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
           >
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : <><Plus className="w-4 h-4" /> Create shop</>}
           </button>
@@ -203,16 +203,16 @@ export default function ShopManager({ user }) {
           />
           <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 truncate">
+              <p className="text-[9px] font-black tracking-widest text-gray-400 truncate">
                 {form.category || 'No category'} · {form.city || 'No city'}
               </p>
-              <h3 className="text-lg font-black text-white uppercase tracking-tight truncate">
+              <h3 className="text-lg font-black text-white tracking-tight truncate">
                 {form.name || 'Untitled shop'}
               </h3>
             </div>
             <Link
               to={`/shop/${shop.slug || shop.id}`}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 border border-white/20 text-[9px] font-black uppercase tracking-widest text-white hover:border-white/40 transition-colors"
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 border border-white/20 text-[9px] font-black tracking-widest text-white hover:border-white/40 transition-colors"
             >
               <ExternalLink className="w-3 h-3" /> View
             </Link>
@@ -220,7 +220,7 @@ export default function ShopManager({ user }) {
         </div>
 
         {/* Read-only stats — derived from real reviews and listings, not editable here */}
-        <div className="flex items-center gap-4 px-4 py-2.5 border-t border-white/5 text-[9px] font-black uppercase tracking-widest text-gray-500">
+        <div className="flex items-center gap-4 px-4 py-2.5 border-t border-white/5 text-[9px] font-black tracking-widest text-gray-500">
           <span>{shop.rating > 0 ? `${shop.rating.toFixed(1)}★` : 'No rating yet'}</span>
           <span>{shop.reviewCount} reviews</span>
           <span>{products.length} products</span>
@@ -233,7 +233,7 @@ export default function ShopManager({ user }) {
 
       {/* ── Shop details ── */}
       <div className="glass rounded-2xl p-4 border border-white/5 space-y-3">
-        <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500">Storefront details</h4>
+        <h4 className="text-[10px] font-black tracking-widest text-gray-500">Storefront details</h4>
 
         <div className="grid sm:grid-cols-2 gap-2.5">
           <Field label="Shop name" value={form.name} onChange={(v) => set('name', v)} />
@@ -243,7 +243,7 @@ export default function ShopManager({ user }) {
         <Field label="Tagline" value={form.tagline} onChange={(v) => set('tagline', v)} placeholder="One line buyers see on your card" maxLength={160} />
 
         <div>
-          <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">About your shop</label>
+          <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">About your shop</label>
           <textarea
             rows={3}
             value={form.description || ''}
@@ -258,7 +258,7 @@ export default function ShopManager({ user }) {
 
         {/* Banner */}
         <div>
-          <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Banner image</label>
+          <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">Banner image</label>
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => bannerInput.current?.click()}
@@ -288,7 +288,7 @@ export default function ShopManager({ user }) {
 
         {/* Accent colour */}
         <div>
-          <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+          <label className="flex items-center gap-1.5 text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
             <Palette className="w-3 h-3" /> Accent colour
           </label>
           <div className="flex flex-wrap items-center gap-2">
@@ -331,13 +331,13 @@ export default function ShopManager({ user }) {
           <button
             onClick={saveShop}
             disabled={saving || !dirty}
-            className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
           >
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : dirty ? <><Check className="w-4 h-4" /> Save changes</> : 'Saved'}
           </button>
           <button
             onClick={deleteShop}
-            className="px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-black uppercase tracking-widest hover:bg-red-500/20 transition-colors"
+            className="px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-black tracking-widest hover:bg-red-500/20 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -347,12 +347,12 @@ export default function ShopManager({ user }) {
       {/* ── Products ── */}
       <div className="glass rounded-2xl p-4 border border-white/5">
         <div className="flex items-center justify-between gap-3 mb-3">
-          <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+          <h4 className="text-[10px] font-black tracking-widest text-gray-500">
             Products <span className="text-gray-600">({products.length})</span>
           </h4>
           <button
             onClick={() => setEditingProduct('new')}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black text-[9px] font-black uppercase tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black text-[9px] font-black tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
           >
             <Plus className="w-3.5 h-3.5" /> Add product
           </button>
@@ -380,7 +380,7 @@ export default function ShopManager({ user }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-white truncate">{p.name}</p>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                    <p className="text-[10px] font-black tracking-widest text-gray-500">
                       {p.category || 'Uncategorised'} · <span className="text-[#CDFF00]">{formatPrice(p.price, p.currency)}</span>
                     </p>
                   </div>
@@ -477,7 +477,7 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
         className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-black text-white uppercase tracking-tight">
+          <h3 className="text-sm font-black text-white tracking-tight">
             {isNew ? 'Add product' : 'Edit product'}
           </h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500">
@@ -489,7 +489,7 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
           <Field label="Name" value={form.name} onChange={(v) => set('name', v)} placeholder="e.g. Oversized Graphic Tee" />
 
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Description</label>
+            <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">Description</label>
             <textarea
               rows={2}
               value={form.description || ''}
@@ -500,7 +500,7 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Price</label>
+              <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">Price</label>
               <input
                 type="number" min="0" step="0.01"
                 value={form.price}
@@ -509,7 +509,7 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
               />
             </div>
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Currency</label>
+              <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">Currency</label>
               <select
                 value={form.currency}
                 onChange={(e) => set('currency', e.target.value)}
@@ -525,7 +525,7 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
           {/* Delivery terms live on the shelf, not on each order: they decide what the buyer
               is charged at checkout and which tracking steps you're offered afterwards. */}
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+            <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
               How you send it
             </label>
             <select
@@ -541,7 +541,7 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
 
           {chargesPostage && (
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+              <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
                 Delivery cost
               </label>
               <input
@@ -558,7 +558,7 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
           )}
 
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">Photo</label>
+            <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">Photo</label>
             <div className="flex items-center gap-2.5">
               <div className="w-14 h-14 rounded-lg overflow-hidden bg-black border border-white/10 shrink-0">
                 <SmartImage src={form.imageUrl} alt="" fallbackIcon={Package} className="w-full h-full object-cover" />
@@ -582,7 +582,7 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
         <button
           onClick={save}
           disabled={saving}
-          className="w-full mt-5 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full mt-5 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Check className="w-4 h-4" /> {isNew ? 'Add to shop' : 'Save changes'}</>}
         </button>
@@ -595,7 +595,7 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
 function Field({ label, value, onChange, placeholder, maxLength }) {
   return (
     <div>
-      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">{label}</label>
+      <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">{label}</label>
       <input
         type="text"
         value={value || ''}
@@ -612,7 +612,7 @@ function Field({ label, value, onChange, placeholder, maxLength }) {
 function CityField({ value, onChange, fallback }) {
   return (
     <div>
-      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">City</label>
+      <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">City</label>
       <select
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}

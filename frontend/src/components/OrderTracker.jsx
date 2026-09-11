@@ -29,7 +29,7 @@ export default function OrderTracker({ fulfilment, compact = false }) {
 
   if (status === 'CANCELLED') {
     return (
-      <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-red-400">
+      <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-2 text-[10px] font-black tracking-widest text-red-400">
         <Ban className="w-3.5 h-3.5" /> Delivery cancelled
       </div>
     );
@@ -52,11 +52,11 @@ export default function OrderTracker({ fulfilment, compact = false }) {
   return (
     <div className="mt-3 pt-3 border-t border-white/5">
       <div className="flex items-center justify-between gap-3 mb-3">
-        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">
+        <div className="flex items-center gap-1.5 text-[9px] font-black tracking-[0.2em] text-gray-500">
           {meta?.icon ? <meta.icon className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
           {meta?.label || 'Delivery'}
         </div>
-        <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${done ? 'text-emerald-400' : 'text-[#CDFF00]'}`}>
+        <span className={`text-[9px] font-black tracking-[0.2em] ${done ? 'text-emerald-400' : 'text-[#CDFF00]'}`}>
           {stepLabel(method, status)}
         </span>
       </div>
@@ -85,7 +85,7 @@ export default function OrderTracker({ fulfilment, compact = false }) {
               </div>
               {!compact && (
                 <span
-                  className={`mt-1.5 text-[8px] font-black uppercase tracking-[0.1em] leading-tight text-center px-0.5 ${
+                  className={`mt-1.5 text-[8px] font-black tracking-[0.1em] leading-tight text-center px-0.5 ${
                     reached ? 'text-gray-300' : 'text-gray-600'
                   } ${isLast ? '' : '-ml-4 mr-4'}`}
                 >
@@ -101,7 +101,7 @@ export default function OrderTracker({ fulfilment, compact = false }) {
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] font-bold text-gray-500">
         {fulfilment.trackingNumber && (
           <span className="flex items-center gap-1.5">
-            <span className="text-gray-600 uppercase tracking-widest text-[9px]">
+            <span className="text-gray-600 tracking-widest text-[9px]">
               {fulfilment.carrier || 'Tracking'}
             </span>
             <span className="text-gray-300 font-mono normal-case">{fulfilment.trackingNumber}</span>

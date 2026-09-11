@@ -9,7 +9,7 @@ import {
   BadgeCheck, X, Film, Star, Users, Store, Sparkles, Package, VenetianMask, Lock, Crown, Crop,
   MoreHorizontal, Pencil, Trash2, Repeat2, UsersRound,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { formatPrice } from '../utils/constants';
 import { useShops } from '../hooks/useShops';
 import PostMediaGallery from '../components/PostMediaGallery';
@@ -20,7 +20,7 @@ import SmartImage from '../components/SmartImage';
 import ImageCropper from '../components/ImageCropper';
 import CommunityPanel from '../components/CommunityPanel';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
-import { timeAgo } from '../utils/time';
+import { timeAgo, formatDateTime } from '../utils/time';
 import { uploadUrl } from '../config';
 
 const POST_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1920&q=80';
@@ -213,7 +213,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
     anon ? (
       <span className={`flex items-center gap-1.5 ${className}`}>
         <span className="truncate">Anonymous</span>
-        <span className="shrink-0 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-white/10 text-gray-400 border border-white/10">
+        <span className="shrink-0 px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest bg-white/10 text-gray-400 border border-white/10">
           Hidden
         </span>
       </span>
@@ -279,7 +279,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
    * such context and inventing one would be a claim about where it came from.
    */
   const communityLabel = !post.communityName ? null : (
-    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#CDFF00]">
+    <span className="inline-flex items-center gap-1 text-[10px] font-black tracking-widest text-[#CDFF00]">
       <UsersRound className="w-3 h-3" /> {post.communityName}
     </span>
   );
@@ -356,7 +356,10 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 text-sm">
               <AuthorName className="font-bold text-white" />
-              <span className="text-gray-500 shrink-0">· {timeAgo(post.createdAt)}</span>
+              {/* The date it was posted, not how long ago. "34w" is a number a reader has
+                  to do arithmetic on before it means anything; a date is the thing they
+                  were actually asking for. */}
+              <span className="text-gray-500 shrink-0">· {formatDateTime(post.createdAt)}</span>
               {editedMark}
               {ownerMenu}
             </div>
@@ -403,7 +406,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
         <div className="min-w-0">
           <AuthorName className="text-sm font-bold text-white block" />
           <span className="flex items-center gap-2 text-xs text-gray-500">
-            <span>{timeAgo(post.createdAt)} ago {post.editedAt ? '· edited' : ''}</span>
+            <span>{formatDateTime(post.createdAt)}{post.editedAt ? ' · edited' : ''}</span>
             {communityLabel}
           </span>
         </div>
@@ -412,17 +415,12 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
 
       <div className="relative" onDoubleClick={doubleTapLike}>
         {hasMedia ? (
-          <PostMediaGallery
-            media={post.media}
-            // Anonymous posts pass no author through to the fullscreen viewer either — it
-            // renders its own overlay header from this object.
-            author={anon
-              ? { name: 'Anonymous', avatar: null, id: null }
-              : { name: post.authorName, avatar: post.authorAvatarUrl, id: post.authorId }}
-            onLike={() => onLike(post.id)}
-            onShare={() => onShare(post)}
-            liked={post.likedByCurrentUser}
-          />
+          // author/onLike/onShare used to be passed so the video overlay could draw its own
+          // author pill and like and share buttons. It no longer does: the post header above
+          // and the action row below already carry all three, and the overlay copy of like
+          // did not even run the heart animation. Liking a video is the same double-tap
+          // gesture as liking an image, handled by onDoubleClick on the wrapper.
+          <PostMediaGallery media={post.media} />
         ) : (
           <div className="relative w-full aspect-square bg-black">
             <img
@@ -477,7 +475,7 @@ function ListingPromoCard({ listing, onSave, onShare }) {
               {listing.sellerName}
               {listing.sellerVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
             </span>
-            <span className="text-[10px] font-bold text-[#CDFF00] uppercase tracking-widest">Marketplace</span>
+            <span className="text-[10px] font-bold text-[#CDFF00] tracking-widest">Marketplace</span>
           </div>
         </Link>
       </div>
@@ -512,7 +510,7 @@ function ListingPromoCard({ listing, onSave, onShare }) {
         </p>
         <Link
           to={`/listing/${listing.id}`}
-          className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 text-xs font-bold uppercase tracking-widest text-[#CDFF00] hover:bg-[#CDFF00] hover:text-black transition-all"
+          className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 text-xs font-bold tracking-widest text-[#CDFF00] hover:bg-[#CDFF00] hover:text-black transition-all"
         >
           View listing <ShoppingBag className="w-3.5 h-3.5" />
         </Link>
@@ -542,7 +540,7 @@ function ShopPromoCard({ shop }) {
           />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-bold text-[#CDFF00] uppercase tracking-widest mb-0.5 flex items-center gap-1">
+          <p className="text-[10px] font-bold text-[#CDFF00] tracking-widest mb-0.5 flex items-center gap-1">
             <Store className="w-3 h-3" /> Suggested shop
           </p>
           <p className="text-sm font-bold text-white truncate">{shop.name}</p>
@@ -610,6 +608,8 @@ export default function Feed() {
   const [selectedPost, setSelectedPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
+  // Why the thread could not be read, or null. Distinct from an empty thread — see openComments.
+  const [commentsError, setCommentsError] = useState(null);
   const [commentInput, setCommentInput] = useState('');
   const [commenting, setCommenting] = useState(false);
   // The comment being replied to, or null for a new top-level comment. Holds the whole
@@ -1039,16 +1039,37 @@ export default function Feed() {
     // A reply target left over from the last post would silently attach this comment to
     // someone else's thread.
     setReplyTo(null);
+    setCommentsError(null);
     setCommentsLoading(true);
     try {
       const res = await feedApi.getComments(post.id);
       setComments(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
+      // A failed fetch used to land in the console and nowhere else, so the drawer fell
+      // through to "No comments yet — be the first." on a post whose own count said eight.
+      // Unreadable and un-retryable were indistinguishable from empty, which is the worst
+      // of the three to show.
       console.error('Failed to load comments:', err);
+      setCommentsError(err.response?.data?.error || 'Could not load the comments here.');
     } finally {
       setCommentsLoading(false);
     }
   };
+
+
+  // Opening a post from elsewhere — the comment count on the profile modal sends the post id
+  // through router state. Without this the link landed on the feed and left you to scroll for
+  // the conversation you had just tapped.
+  const routeState = useLocation().state;
+  useEffect(() => {
+    const wanted = routeState?.openPostId;
+    if (!wanted || selectedPost) return;
+    const target = posts.find((p) => p.id === wanted);
+    if (target) openComments(target);
+    // Runs once the feed has loaded and found it; openComments is stable enough here and
+    // adding it to the deps would reopen the modal every time comments change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeState?.openPostId, posts]);
 
   const submitComment = async () => {
     if (!commentInput.trim() || !selectedPost) return;
@@ -1184,7 +1205,7 @@ export default function Feed() {
                   <button
                     key={t.id}
                     onClick={() => switchTab(t.id)}
-                    className={`px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                    className={`px-4 py-2 rounded-full text-[11px] font-bold tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${
                       tab === t.id ? 'bg-[#CDFF00] text-black' : 'text-gray-400 hover:text-white'
                     }`}
                   >
@@ -1218,7 +1239,7 @@ export default function Feed() {
                     <button
                       type="button"
                       onClick={() => setPostTarget(null)}
-                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors shrink-0 ${
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap transition-colors shrink-0 ${
                         postTarget === null
                           ? 'bg-[#CDFF00] text-black'
                           : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'
@@ -1231,7 +1252,7 @@ export default function Feed() {
                         key={community.id}
                         type="button"
                         onClick={() => setPostTarget(community)}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors shrink-0 ${
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap transition-colors shrink-0 ${
                           postTarget?.id === community.id
                             ? 'bg-[#CDFF00] text-black'
                             : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'
@@ -1275,7 +1296,7 @@ export default function Feed() {
                             <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover" />
                             <span className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5">
                               <Crop className="w-4 h-4 text-[#CDFF00]" />
-                              <span className="text-[8px] font-black uppercase tracking-widest text-white">Adjust</span>
+                              <span className="text-[8px] font-black tracking-widest text-white">Adjust</span>
                             </span>
                           </button>
                         )}
@@ -1400,7 +1421,7 @@ export default function Feed() {
               <p className="text-sm text-gray-500 max-w-xs mx-auto">
                 This tab only ever shows posts from people you follow. Follow a few and they'll land here.
               </p>
-              <Link to="/explore/creators" className="inline-block mt-5 px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[11px] font-black uppercase tracking-widest">
+              <Link to="/explore/creators" className="inline-block mt-5 px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[11px] font-black tracking-widest">
                 Find people
               </Link>
             </div>
@@ -1446,7 +1467,7 @@ export default function Feed() {
                 className="relative w-full max-w-lg bg-[#0A0A0A] border border-white/10 rounded-3xl p-5"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="flex items-center gap-2 text-sm font-black text-white uppercase tracking-tight">
+                  <h3 className="flex items-center gap-2 text-sm font-black text-white tracking-tight">
                     <Repeat2 className="w-4 h-4 text-[#00FFFF]" /> Repost
                   </h3>
                   <button
@@ -1504,14 +1525,14 @@ export default function Feed() {
                 <div className="flex gap-2.5 mt-4">
                   <button
                     onClick={() => setRepostTarget(null)}
-                    className="flex-1 py-3 rounded-xl border border-white/10 text-white font-black uppercase tracking-widest text-[10px] hover:bg-white/5 transition-colors"
+                    className="flex-1 py-3 rounded-xl border border-white/10 text-white font-black tracking-widest text-[10px] hover:bg-white/5 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={submitRepost}
                     disabled={reposting}
-                    className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest text-[10px] hover:bg-[#E0FF4D] transition-colors disabled:opacity-50"
+                    className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black tracking-widest text-[10px] hover:bg-[#E0FF4D] transition-colors disabled:opacity-50"
                   >
                     {reposting ? 'Reposting' : 'Repost'}
                   </button>
@@ -1559,6 +1580,19 @@ export default function Feed() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  ) : commentsError ? (
+                    /* Says the thread could not be read, rather than that it is empty, and
+                       offers the retry that a transient failure needs. */
+                    <div className="py-20 text-center flex flex-col items-center gap-3">
+                      <MessageCircle className="w-10 h-10 text-gray-700" />
+                      <p className="text-sm text-gray-400">{commentsError}</p>
+                      <button
+                        onClick={() => selectedPost && openComments(selectedPost)}
+                        className="px-4 py-2 rounded-xl bg-white/5 border border-white/15 text-[10px] font-black tracking-widest text-gray-300 hover:text-white hover:border-white/30 transition-colors"
+                      >
+                        Try again
+                      </button>
                     </div>
                   ) : comments.length === 0 ? (
                     <div className="py-20 text-center flex flex-col items-center gap-3">
@@ -1791,7 +1825,7 @@ export default function Feed() {
               <div className="w-14 h-14 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-4">
                 <VenetianMask className="w-7 h-7 text-[#CDFF00]" />
               </div>
-              <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2">Post anonymously</h3>
+              <h3 className="text-lg font-black text-white tracking-tight mb-2">Post anonymously</h3>
               <p className="text-sm text-gray-400 leading-relaxed mb-5">
                 Share something without your name or avatar attached. Ask the awkward question,
                 tell the honest story — Premium members post to the feed anonymously.
@@ -1818,13 +1852,13 @@ export default function Feed() {
                 // with "Could not start checkout".
                 onClick={() => startUpgrade('MONTHLY')}
                 disabled={upgrading}
-                className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-60"
+                className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-60"
               >
                 {upgrading ? 'Upgrading…' : 'Go Premium'}
               </button>
               <button
                 onClick={() => setShowUpgrade(false)}
-                className="w-full mt-2 py-2 text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-white transition-colors"
+                className="w-full mt-2 py-2 text-[11px] font-bold tracking-widest text-gray-500 hover:text-white transition-colors"
               >
                 Not now
               </button>

@@ -155,6 +155,29 @@ public class Listing {
     @Column(name = "event_starts_at")
     private LocalDateTime eventStartsAt;
 
+    // How many people can come. Null means uncapped, which is what every event created
+    // before this existed is — a free-standing gig with no door limit. Zero is not a way to
+    // express that: it means nobody can come, and the checkout refuses on it.
+    //
+    // Enforced server-side in BookingService when tickets are bought, not merely hidden in
+    // the UI. A capacity that only exists in the client is a capacity that a second browser
+    // tab walks straight through, and overselling a 100-person room is not a cosmetic bug —
+    // it is people turned away at a door they paid to get through.
+    @Column(name = "event_capacity")
+    private Integer eventCapacity;
+
+    // When tickets may be bought. Both null means "on sale from the moment it is posted
+    // until the event starts", which is the sensible default and what existing events get.
+    //
+    // salesCloseAt exists separately from eventStartsAt because organisers routinely stop
+    // selling before the doors open — to print a guest list, to brief security on numbers.
+    // Without it the only way to close sales was to delete the listing.
+    @Column(name = "sales_open_at")
+    private LocalDateTime salesOpenAt;
+
+    @Column(name = "sales_close_at")
+    private LocalDateTime salesCloseAt;
+
     // Where the event is held — a full address or venue name, more specific than locationCity
     // (which stays as the city used for browse filtering). Null for non-EVENT listings.
     @Column(name = "event_venue")

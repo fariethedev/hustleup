@@ -63,13 +63,13 @@ export default function CommunityPanel({ onChanged }) {
   return (
     <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
       <div className="flex items-center justify-between gap-3 mb-3">
-        <h3 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">
+        <h3 className="flex items-center gap-2 text-[11px] font-black tracking-[0.2em] text-gray-400">
           <UsersRound className="w-3.5 h-3.5" /> Communities
         </h3>
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#E0FF4D] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#E0FF4D] transition-colors"
         >
           <Plus className="w-3 h-3" /> New
         </button>
@@ -103,7 +103,7 @@ export default function CommunityPanel({ onChanged }) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-white truncate">{community.name}</p>
-                  <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 truncate">
+                  <p className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500 truncate">
                     {community.city && (
                       <span className="flex items-center gap-0.5 truncate">
                         <MapPin className="w-3 h-3 shrink-0" /> {community.city}
@@ -117,7 +117,7 @@ export default function CommunityPanel({ onChanged }) {
                 {/* The creator has no Leave: a community whose owner walked out has nobody
                     answerable for it, so the server refuses that and the button says why. */}
                 {community.ownedByCurrentUser ? (
-                  <span className="px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[#CDFF00] shrink-0">
+                  <span className="px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest text-[#CDFF00] shrink-0">
                     Yours
                   </span>
                 ) : (
@@ -125,7 +125,7 @@ export default function CommunityPanel({ onChanged }) {
                     type="button"
                     onClick={() => toggleMembership(community)}
                     disabled={busyId === community.id}
-                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors shrink-0 flex items-center gap-1 disabled:opacity-50 ${
+                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black tracking-widest transition-colors shrink-0 flex items-center gap-1 disabled:opacity-50 ${
                       community.joinedByCurrentUser
                         ? 'bg-white/5 border border-white/10 text-gray-300 hover:text-white'
                         : 'bg-[#CDFF00] text-black hover:bg-[#E0FF4D]'
@@ -145,7 +145,7 @@ export default function CommunityPanel({ onChanged }) {
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="w-full mt-2 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-colors"
+              className="w-full mt-2 py-2 text-[10px] font-black tracking-widest text-gray-500 hover:text-white transition-colors"
             >
               {expanded ? 'Show fewer' : `Show all ${sorted.length}`}
             </button>
@@ -206,7 +206,7 @@ function CreateCommunityModal({ onClose, onCreated }) {
         className="relative w-full max-w-md bg-[#0A0A0A] border border-white/10 rounded-3xl p-5 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-black text-white uppercase tracking-tight">New community</h3>
+          <h3 className="text-sm font-black text-white tracking-tight">New community</h3>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-gray-500 hover:bg-white/10">
             <X className="w-4 h-4" />
           </button>
@@ -220,7 +220,7 @@ function CreateCommunityModal({ onClose, onCreated }) {
             placeholder="e.g. Cars in Lublin"
           />
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+            <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
               What belongs here
             </label>
             <textarea
@@ -237,7 +237,7 @@ function CreateCommunityModal({ onClose, onCreated }) {
           </div>
 
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+            <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
               Banner
             </label>
             <div className="flex items-center gap-2.5">
@@ -267,14 +267,14 @@ function CreateCommunityModal({ onClose, onCreated }) {
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 rounded-xl border border-white/10 text-white font-black uppercase tracking-widest text-[10px] hover:bg-white/5 transition-colors"
+            className="flex-1 py-3 rounded-xl border border-white/10 text-white font-black tracking-widest text-[10px] hover:bg-white/5 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest text-[10px] hover:bg-[#E0FF4D] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black tracking-widest text-[10px] hover:bg-[#E0FF4D] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {saving ? 'Creating' : 'Create'}
@@ -288,7 +288,7 @@ function CreateCommunityModal({ onClose, onCreated }) {
 function Field({ label, value, onChange, placeholder }) {
   return (
     <div>
-      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+      <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
         {label}
       </label>
       <input

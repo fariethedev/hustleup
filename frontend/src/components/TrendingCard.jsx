@@ -35,7 +35,7 @@ export default function TrendingCard({ item, index = 0 }) {
 
         {/* Top Badge */}
         <div className="absolute top-6 left-6">
-          <span className={`flex items-center gap-2 px-4 py-2 rounded-2xl ${badgeColor} text-[10px] font-black uppercase tracking-widest text-white border border-white/10`}>
+          <span className={`flex items-center gap-2 px-4 py-2 rounded-2xl ${badgeColor} text-[10px] font-black tracking-widest text-white border border-white/10`}>
             <Icon className="w-3.5 h-3.5" />
             {type}
           </span>
@@ -47,7 +47,7 @@ export default function TrendingCard({ item, index = 0 }) {
               <h4 className="text-2xl font-black text-white mb-1 group-hover:text-[#CDFF00] transition-colors leading-tight line-clamp-2">
                 {title}
               </h4>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
+              <p className="text-xs font-bold text-gray-500 tracking-widest mb-4">
                 {subtitle}
               </p>
               <p className="text-xs text-gray-400 font-medium leading-relaxed italic opacity-0 group-hover:opacity-100 transition-opacity duration-700 line-clamp-2 mb-6">
@@ -55,7 +55,7 @@ export default function TrendingCard({ item, index = 0 }) {
               </p>
            </div>
            
-           <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black font-black text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-700 delay-100 hover:bg-[#CDFF00]">
+           <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black font-black text-[10px] tracking-widest opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-700 delay-100 hover:bg-[#CDFF00]">
               Explore <ArrowUpRight className="w-3.5 h-3.5" />
            </div>
         </div>

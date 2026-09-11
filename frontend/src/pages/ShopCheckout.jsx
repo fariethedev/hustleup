@@ -133,11 +133,11 @@ export default function ShopCheckout() {
 
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-6">
-            <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">Checkout</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Checkout</h1>
             <p className="text-[11px] text-gray-500 font-bold mt-1.5">{shop.name}</p>
             {/* Payment is a real step, it just happens on Stripe — showing it stops the
                 redirect feeling like the page threw you somewhere unexpected. */}
-            <div className="mt-3 inline-flex items-center gap-2 sm:gap-3 text-[10px] font-black uppercase tracking-widest">
+            <div className="mt-3 inline-flex items-center gap-2 sm:gap-3 text-[10px] font-black tracking-widest">
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#CDFF00] text-black">
                 <span className="w-4 h-4 rounded-full bg-black/20 flex items-center justify-center text-[9px]">1</span>
                 Your details
@@ -154,7 +154,7 @@ export default function ShopCheckout() {
             {/* ── Left: details + payment ── */}
             <div className="space-y-4">
               <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
-                <h2 className="text-xs font-black text-white uppercase tracking-widest mb-1">Your details</h2>
+                <h2 className="text-xs font-black text-white tracking-widest mb-1">Your details</h2>
                 <p className="text-[11px] text-gray-500 mb-4">So {shop.name} knows who to deliver to.</p>
                 <div className="space-y-2.5">
                   {field('fullName', 'Full name', 'text', User)}
@@ -171,7 +171,7 @@ export default function ShopCheckout() {
                     <CreditCard className="w-4 h-4 text-[#CDFF00]" />
                   </span>
                   <div className="min-w-0">
-                    <h2 className="text-xs font-black text-white uppercase tracking-widest">Payment</h2>
+                    <h2 className="text-xs font-black text-white tracking-widest">Payment</h2>
                     <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
                       You&apos;ll choose how to pay on Stripe&apos;s secure page — card,
                       Apple&nbsp;Pay, Google&nbsp;Pay, BLIK or PayPal, depending on what&apos;s
@@ -190,7 +190,7 @@ export default function ShopCheckout() {
 
             {/* ── Right: summary, in view while the form is filled ── */}
             <aside className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5 h-fit lg:sticky lg:top-20">
-              <h2 className="text-xs font-black text-white uppercase tracking-widest mb-4">Order summary</h2>
+              <h2 className="text-xs font-black text-white tracking-widest mb-4">Order summary</h2>
 
               <div className="flex items-center gap-3 pb-3">
                 <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
@@ -198,7 +198,7 @@ export default function ShopCheckout() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-white truncate">{product.name}</p>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 truncate">{shop.name}</p>
+                  <p className="text-[10px] font-black tracking-widest text-gray-500 truncate">{shop.name}</p>
                 </div>
               </div>
 
@@ -230,7 +230,7 @@ export default function ShopCheckout() {
                   <span className="text-[#CDFF00] font-bold">Included</span>
                 </div>
                 <div className="flex items-center justify-between pt-2.5 border-t border-white/5">
-                  <span className="text-white font-black uppercase tracking-widest text-xs">Total</span>
+                  <span className="text-white font-black tracking-widest text-xs">Total</span>
                   <span className="text-[#CDFF00] text-2xl font-black">{formatPrice(total, product.currency)}</span>
                 </div>
                 <p className="text-[10px] text-gray-500 leading-relaxed">
@@ -255,7 +255,7 @@ export default function ShopCheckout() {
                 type="button"
                 onClick={placeOrder}
                 disabled={!canSubmit}
-                className="mt-4 w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all shadow-[0_8px_24px_rgba(205,255,0,0.22)]"
+                className="mt-4 w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all shadow-[0_8px_24px_rgba(205,255,0,0.22)]"
               >
                 {submitting
                   ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Taking you to Stripe…</>
@@ -266,7 +266,7 @@ export default function ShopCheckout() {
                   "Nothing charged yet" because the button only wrote to sessionStorage —
                   leaving that wording in place would be a lie in the opposite direction. */}
               <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/5">
-                <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black uppercase tracking-widest">
+                <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black tracking-widest">
                   <ShieldCheck className="w-3.5 h-3.5" /> Secure checkout
                 </div>
                 <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">

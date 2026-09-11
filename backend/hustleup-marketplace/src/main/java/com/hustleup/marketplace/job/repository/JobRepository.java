@@ -29,9 +29,9 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
            WHERE j.status = com.hustleup.marketplace.job.model.Job$JobStatus.OPEN
              AND (j.expiresAt IS NULL OR j.expiresAt > :now)
              AND (:category IS NULL OR j.category = :category)
-             AND (:q IS NULL OR LOWER(j.title) LIKE %:q%
-                             OR LOWER(j.companyName) LIKE %:q%
-                             OR LOWER(j.description) LIKE %:q%)
+             AND (:q IS NULL OR LOWER(j.title) LIKE CONCAT('%', LOWER(:q), '%')
+                             OR LOWER(j.companyName) LIKE CONCAT('%', LOWER(:q), '%')
+                             OR LOWER(j.description) LIKE CONCAT('%', LOWER(:q), '%'))
            ORDER BY j.createdAt DESC
            """)
     Page<Job> findBoard(LocalDateTime now, String category, String q, Pageable pageable);

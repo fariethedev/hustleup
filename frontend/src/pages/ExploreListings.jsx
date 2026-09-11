@@ -82,10 +82,10 @@ export default function ExploreListings() {
       {/* ── Page header ── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-7 pb-5">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-          <span className="text-[10px] font-black uppercase tracking-[0.35em] text-[#00FFFF]">
+          <span className="text-[10px] font-black tracking-[0.35em] text-[#00FFFF]">
             {city || 'All of Poland'}
           </span>
-          <h1 className="mt-2 text-3xl sm:text-4xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
+          <h1 className="mt-2 text-3xl sm:text-4xl font-black text-white tracking-tighter flex items-center gap-3">
             <ShoppingBag className="w-7 h-7 text-[#00FFFF]" />
             {activeType ? activeType.label : 'All listings'}
           </h1>
@@ -146,7 +146,7 @@ export default function ExploreListings() {
           <div className="flex flex-wrap gap-2 mt-3">
             <button
               onClick={() => setParam('type', '')}
-              className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+              className={`px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all active:scale-95 ${
                 !type ? 'bg-[#FF00FF] text-white' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
               }`}
             >
@@ -156,7 +156,7 @@ export default function ExploreListings() {
               <button
                 key={t.value}
                 onClick={() => setParam('type', type === t.value ? '' : t.value)}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all active:scale-95 ${
                   type === t.value ? 'bg-[#FF00FF] text-white' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
                 }`}
               >
@@ -167,7 +167,7 @@ export default function ExploreListings() {
             {hasFilters && (
               <button
                 onClick={clearAll}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/30 transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/30 transition-all active:scale-95"
               >
                 <X className="w-3.5 h-3.5" /> Clear
               </button>
@@ -191,11 +191,11 @@ export default function ExploreListings() {
         ) : visible.length === 0 ? (
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center py-24">
             <ShoppingBag className="w-12 h-12 mx-auto text-white/15 mb-5" />
-            <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">Nothing matched</h2>
+            <h2 className="text-xl font-black text-white tracking-tight mb-2">Nothing matched</h2>
             <p className="text-sm text-gray-400 mb-6">Try a wider search, or clear the filters.</p>
             <button
               onClick={clearAll}
-              className="px-6 py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
+              className="px-6 py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
             >
               Clear filters
             </button>

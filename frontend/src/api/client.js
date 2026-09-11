@@ -39,7 +39,7 @@ const asMessage = (value) => {
   return null;
 };
 
-// Handle 401/403 — attempt token refresh, then logout
+// Handle 401 — attempt token refresh, then logout. 403 is passed through.
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -59,9 +59,17 @@ api.interceptors.response.use(
       console.error('API Error:', msg);
     }
 
-    // On 401 or 403: try refreshing the access token once (only if user was authenticated)
+    // On 401 only. 401 means "we do not know who you are", which a fresh access token can
+    // fix; 403 means "we know, and you may not", which it cannot.
+    //
+    // This used to refresh on both, because the API answered every unauthenticated request
+    // with 403 and the two were indistinguishable from here. The cost was real: the dashboard
+    // calls seller-only endpoints, so a buyer opening it collected legitimate 403s, each of
+    // which forced a token refresh — and a refresh that failed logged them out and bounced
+    // them to the login screen. The API now returns 401 for authentication and 403 for
+    // authorisation, so this can tell them apart.
     const hasStoredToken = !!localStorage.getItem('hustleup_token') || !!localStorage.getItem('hustleup_refresh');
-    if ((status === 401 || status === 403) && !original._retry && hasStoredToken) {
+    if (status === 401 && !original._retry && hasStoredToken) {
       original._retry = true;
       const refreshToken = localStorage.getItem('hustleup_refresh');
       if (refreshToken) {
@@ -186,6 +194,10 @@ export const bookingsApi = {
   counterOffer: (id, counterPrice) =>
     api.patch(`/bookings/${id}/counter`, { counterPrice }),
   accept: (id) => api.patch(`/bookings/${id}/accept`),
+  // The buyer confirming they got what they paid for. This is what releases the seller's
+  // money — marking a booking complete is the seller's own account of the sale and no
+  // longer moves anything on its own.
+  confirmReceipt: (id) => api.patch(`/bookings/${id}/received`),
   cancel: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }),
   // Completing takes no body. It used to require the seller's review of the buyer, which
   // held their own payout behind an opinion they had no reason to hold; they are asked for
@@ -212,6 +224,20 @@ export const bookingsApi = {
   // Same delivery-update contract as shopsApi.updateFulfilment — one tracker component
   // drives both, because a buyer doesn't care which kind of order they placed.
   updateFulfilment: (id, update) => api.patch(`/bookings/${id}/fulfilment`, update),
+};
+
+// Buyer protection. Raising a claim freezes the order's payout until an admin decides, so
+// money cannot reach the seller while a buyer is saying they never got what they paid for.
+export const claimsApi = {
+  // orderType: 'BOOKING' | 'SHOP_ORDER'
+  // reason: 'NOT_RECEIVED' | 'DAMAGED' | 'NOT_AS_DESCRIBED' | 'OTHER'
+  raise: (orderType, orderId, reason, detail = '') =>
+    api.post('/claims', { orderType, orderId, reason, detail }),
+  mine: () => api.get('/claims/mine'),
+  // Admin only.
+  open: () => api.get('/claims/open'),
+  all: () => api.get('/claims'),
+  resolve: (id, refund, note = '') => api.patch(`/claims/${id}`, { refund, note }),
 };
 
 // Digital event tickets. There is no create() here on purpose — tickets are issued by the
@@ -461,6 +487,8 @@ export const followsApi = {
   relationship: (userId) => api.get(`/follows/${userId}/relationship`),
   // { followers, following } for ANY user — used to show follower counts on creator cards.
   counts: (userId) => api.get(`/follows/${userId}/counts`),
+  /** Everyone you have blocked — the Privacy tab in Settings. */
+  blocked: () => api.get('/follows/blocked'),
   block: (userId) => api.post(`/follows/${userId}/block`),
   unblock: (userId) => api.delete(`/follows/${userId}/block`),
   report: (userId, reason) => api.post(`/follows/${userId}/report`, { reason }),

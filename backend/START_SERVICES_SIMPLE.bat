@@ -13,7 +13,7 @@ echo.
 echo Starting 6 services...
 echo.
 
-cd /d C:\Users\Admin\.gemini\antigravity\scratch\hustleup\backend
+cd /d "%~dp0"
 
 REM Gateway
 echo [1/6] Starting API Gateway on port 8000...

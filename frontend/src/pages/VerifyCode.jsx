@@ -134,7 +134,7 @@ export default function VerifyCode() {
             : <MailCheck className="w-7 h-7 text-[#CDFF00]" />}
         </div>
 
-        <h1 className="text-2xl font-black text-white uppercase tracking-tight mb-2">
+        <h1 className="text-2xl font-black text-white tracking-tight mb-2">
           {verified ? 'Email confirmed' : 'Check your email'}
         </h1>
         <p className="text-sm text-gray-400 mb-7 leading-relaxed">
@@ -185,7 +185,7 @@ export default function VerifyCode() {
             <button
               onClick={() => submit()}
               disabled={code.length !== LENGTH || submitting}
-              className="w-full py-3.5 rounded-2xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all"
+              className="w-full py-3.5 rounded-2xl bg-[#CDFF00] text-black font-black text-xs tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all"
             >
               Confirm email <ArrowRight className="w-4 h-4" />
             </button>

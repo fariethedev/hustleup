@@ -81,7 +81,7 @@ export default function JobComposer({ categories = [], onClose, onPosted }) {
   };
 
   const field = 'w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 outline-none focus:border-[#CDFF00]/60 transition-colors';
-  const label = 'text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5 block';
+  const label = 'text-[10px] font-black tracking-widest text-gray-500 mb-1.5 block';
 
   return createPortal(
     <motion.div
@@ -96,7 +96,7 @@ export default function JobComposer({ categories = [], onClose, onPosted }) {
         className="w-full sm:max-w-xl bg-[#0a0a0a] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh]"
       >
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
-          <h2 className="text-base font-black text-white uppercase tracking-tight">Post a job</h2>
+          <h2 className="text-base font-black text-white tracking-tight">Post a job</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
             <X className="w-5 h-5" />
           </button>
@@ -135,7 +135,7 @@ export default function JobComposer({ categories = [], onClose, onPosted }) {
                 <button onClick={() => fileRef.current?.click()}
                         className="w-24 h-20 rounded-xl border-2 border-dashed border-white/15 hover:border-[#CDFF00]/50 flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-[#CDFF00] transition-colors">
                   <ImageIcon className="w-4 h-4" />
-                  <span className="text-[9px] font-bold uppercase tracking-widest">Add</span>
+                  <span className="text-[9px] font-bold tracking-widest">Add</span>
                 </button>
               )}
             </div>
@@ -212,7 +212,7 @@ export default function JobComposer({ categories = [], onClose, onPosted }) {
 
         <div className="px-5 py-4 border-t border-white/10 shrink-0">
           <button onClick={submit} disabled={submitting}
-                  className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                  className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
             {submitting
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Posting…</>
               : <><Plus className="w-4 h-4" /> Publish advert</>}

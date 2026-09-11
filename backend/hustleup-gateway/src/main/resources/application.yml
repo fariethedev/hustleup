@@ -98,6 +98,14 @@ spring:
           predicates:
             - Path=/api/v1/feedback/**,/api/v1/feedback
 
+        # Buyer protection claims. In the marketplace service because that is where both the
+        # bookings and the storefront orders a claim can be raised against live, and where the
+        # payout paths a claim freezes are.
+        - id: marketplace-claims
+          uri: ${MARKETPLACE_URI:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/claims/**,/api/v1/claims
+
         # Jobs & Gigs board — posting is restricted to verified hiring companies.
         - id: marketplace-jobs
           uri: ${MARKETPLACE_URI:http://localhost:8083}

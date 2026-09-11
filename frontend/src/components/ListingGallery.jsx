@@ -181,7 +181,7 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
           </button>
         )}
 
-        <div className="absolute bottom-3 right-3 px-2 py-1 rounded-lg bg-black/70 text-white text-[9px] font-black uppercase tracking-widest pointer-events-none z-10">
+        <div className="absolute bottom-3 right-3 px-2 py-1 rounded-lg bg-black/70 text-white text-[9px] font-black tracking-widest pointer-events-none z-10">
           {active + 1} / {media.length}
         </div>
 
@@ -211,7 +211,7 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
           barely legible anyway — a label about the item does not need to be inside it. */}
       {typeLabel && (
         <div className="mt-3">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-violet text-[#CDFF00] font-black text-[9px] uppercase tracking-widest border border-white/10">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-violet text-[#CDFF00] font-black text-[9px] tracking-widest border border-white/10">
             <Zap className="w-3 h-3 fill-[#CDFF00]" /> {typeLabel}
           </span>
         </div>

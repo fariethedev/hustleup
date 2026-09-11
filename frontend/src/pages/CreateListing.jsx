@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectIsAuthenticated, selectIsSeller, logout } from '../store/authSlice';
 import { listingsApi } from '../api/client';
@@ -20,6 +20,22 @@ const TARGET_MEDIA = 5;
 /** Hard cap on uploads, to keep a single listing from becoming a photo dump. */
 const MAX_MEDIA = 10;
 
+/**
+ * Horizontal slide for the step panels.
+ *
+ * `custom` carries the direction, so going back travels back rather than repeating the
+ * forward motion — an animation that plays the same way regardless of direction actively
+ * misleads about where you are in a sequence.
+ */
+const slide = {
+  enter: (dir) => ({ x: dir > 0 ? 48 : -48, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  // No absolute positioning on exit: that is for mode="sync", where both panels are
+  // mounted at once. Under mode="wait" the old panel is gone before the new one mounts,
+  // so taking it out of flow only makes the card collapse during the handover.
+  exit: (dir) => ({ x: dir > 0 ? -48 : 48, opacity: 0 }),
+};
+
 export default function CreateListing() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const isSeller = useSelector(selectIsSeller);
@@ -27,10 +43,14 @@ export default function CreateListing() {
   const dispatch = useDispatch();
 
   const [step, setStep] = useState(1);
+  const [direction, setDirection] = useState(1); // 1 = forward, -1 = back
   const [form, setForm] = useState({
     title: '', description: '', listingType: '', price: '', currency: 'PLN',
     negotiable: false, swapEnabled: false, city: '', meta: '',
     eventStartsAt: '', eventVenue: '',
+    // The door. Blank capacity means uncapped, which is the honest default for a
+    // free-standing gig; blank sales dates mean on sale from posting until it starts.
+    eventCapacity: '', salesOpenAt: '', salesCloseAt: '',
     // Preselected from the category in step 1 rather than left blank — every listing needs
     // an answer, and "collection" for goods / "no shipping" for a service is right often
     // enough that most sellers only have to confirm it.
@@ -63,7 +83,7 @@ export default function CreateListing() {
           <div className="w-14 h-14 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-5">
             <Store className="w-7 h-7 text-[#CDFF00]" />
           </div>
-          <h2 className="text-xl font-black text-white uppercase tracking-wider mb-2 text-center">
+          <h2 className="text-xl font-black text-white tracking-wider mb-2 text-center">
             You need a seller account
           </h2>
           <p className="text-gray-400 text-sm leading-relaxed mb-5 text-center">
@@ -81,7 +101,7 @@ export default function CreateListing() {
 
           <button
             onClick={startSellerAccount}
-            className="w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:bg-[#E0FF4D] transition-all flex items-center justify-center gap-2"
+            className="w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black tracking-widest hover:bg-[#E0FF4D] transition-all flex items-center justify-center gap-2"
           >
             <LogOut className="w-4 h-4" /> Sign out &amp; create seller account
           </button>
@@ -122,6 +142,9 @@ export default function CreateListing() {
       if (form.listingType === 'EVENT') {
         formData.append('eventStartsAt', form.eventStartsAt || '');
         formData.append('eventVenue', form.eventVenue || '');
+        formData.append('eventCapacity', form.eventCapacity || '');
+        formData.append('salesOpenAt', form.salesOpenAt || '');
+        formData.append('salesCloseAt', form.salesCloseAt || '');
       }
       if (form.meta) formData.append('meta', form.meta);
       images.forEach((img) => formData.append('images', img));
@@ -150,13 +173,36 @@ export default function CreateListing() {
   const shippingMeta = getMethod(form.shippingMethod);
   const chargesPostage = !!shippingMeta && !['PICKUP', 'DIGITAL', 'NONE'].includes(form.shippingMethod);
 
+  // Which way the next step should come in from. Sliding both directions the same way makes
+  // going back feel like going forward, which is the one thing a stepped form has to keep
+  // straight.
+  const goTo = (next) => { setDirection(next > step ? 1 : -1); setStep(next); };
+
+  // What the footer can do from here. Kept as data rather than three hand-written pairs of
+  // buttons: the old form repeated Back/Next in every step with its own disabled rule, so the
+  // rules drifted and step 3 could be reached with a price the previous step had rejected.
+  const STEP_META = {
+    1: { label: 'Category & title', canAdvance: !!(form.title && form.listingType) },
+    2: { label: 'Price & delivery', canAdvance: !!form.price },
+    3: { label: 'Photos & details', canAdvance: true },
+  };
+  const meta = STEP_META[step];
+  const isLast = step === 3;
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10 mt-10">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-3xl sm:text-4xl font-heading font-extrabold text-white mb-2 uppercase tracking-wide">
+    // Centred, and only as wide as the form needs. A single card the eye can rest on is the
+    // point — the page used to be a left-aligned column that grew and shrank under the
+    // heading as steps changed height.
+    <div className="min-h-[calc(100dvh-3.5rem)] flex items-center justify-center px-4 py-10">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-xl"
+      >
+        <h1 className="text-3xl sm:text-4xl font-heading font-extrabold text-white mb-2 tracking-wide text-center">
           Post <span className="text-[#CDFF00]">Listing</span>
         </h1>
-        <p className="text-gray-400 mb-8 font-bold uppercase tracking-wider text-sm">Monetize your hustle</p>
+        <p className="text-gray-400 mb-8 font-bold tracking-wider text-sm text-center">{meta.label}</p>
 
         {/* Progress Tracker */}
         <div className="flex items-center gap-2 mb-10">
@@ -170,18 +216,32 @@ export default function CreateListing() {
           ))}
         </div>
 
-        <div className="glass rounded-3xl p-8 border border-white/5">
+        <div className="glass rounded-3xl p-6 sm:p-8 border border-white/5 overflow-hidden">
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20 text-[#CDFF00] text-sm font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2">
+            <div className="mb-6 p-4 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20 text-[#CDFF00] text-sm font-bold tracking-wider text-center flex items-center justify-center gap-2">
               <X className="w-4 h-4" /> {error}
             </div>
           )}
 
+          {/* One step on screen at a time, sliding in the direction of travel. */}
+          {/* min-height so the card does not shrink to the footer in the beat between one
+              panel leaving and the next arriving. */}
+          <div className="min-h-[420px]">
+          <AnimatePresence mode="wait" custom={direction} initial={false}>
           {/* Step 1: Core Details */}
           {step === 1 && (
-            <div className="space-y-6">
+            <motion.div
+              key="step-1"
+              custom={direction}
+              variants={slide}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              className="space-y-6"
+            >
               <div>
-                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Category *</label>
+                <label className="block text-xs font-black text-gray-500 tracking-widest mb-3">Category *</label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {LISTING_TYPES.map((type) => {
                     const Icon = type.icon;
@@ -198,7 +258,7 @@ export default function CreateListing() {
                         }`}
                       >
                         <Icon className="w-6 h-6" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">{type.label}</span>
+                        <span className="text-[10px] font-bold tracking-widest">{type.label}</span>
                       </button>
                     );
                   })}
@@ -206,7 +266,7 @@ export default function CreateListing() {
               </div>
 
               <div>
-                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Listing Title *</label>
+                <label className="block text-xs font-black text-gray-500 tracking-widest mb-2">Listing Title *</label>
                 <input
                   type="text"
                   value={form.title}
@@ -217,7 +277,7 @@ export default function CreateListing() {
               </div>
 
               <div>
-                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Description</label>
+                <label className="block text-xs font-black text-gray-500 tracking-widest mb-2">Description</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => set('description', e.target.value)}
@@ -227,24 +287,24 @@ export default function CreateListing() {
                 />
               </div>
 
-              <div className="pt-4">
-                <button
-                  onClick={() => { if (form.title && form.listingType) setStep(2); }}
-                  className="w-full py-4 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:bg-[#E0FF4D] transition-all disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-400 flex items-center justify-center gap-2 outline-none"
-                  disabled={!form.title || !form.listingType}
-                >
-                  Next Step <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Step 2: Pricing */}
           {step === 2 && (
-            <div className="space-y-6">
+            <motion.div
+              key="step-2"
+              custom={direction}
+              variants={slide}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              className="space-y-6"
+            >
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Price *</label>
+                  <label className="block text-xs font-black text-gray-500 tracking-widest mb-2">Price *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -256,7 +316,7 @@ export default function CreateListing() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Currency</label>
+                  <label className="block text-xs font-black text-gray-500 tracking-widest mb-2">Currency</label>
                   <select
                     value={form.currency}
                     onChange={(e) => set('currency', e.target.value)}
@@ -278,7 +338,7 @@ export default function CreateListing() {
                   {form.negotiable && <Check className="w-4 h-4 text-black" />}
                 </div>
                 <div>
-                  <span className={`block font-black uppercase tracking-widest text-sm mb-1 ${form.negotiable ? 'text-[#CDFF00]' : 'text-gray-400'}`}>Price Negotiable</span>
+                  <span className={`block font-black tracking-widest text-sm mb-1 ${form.negotiable ? 'text-[#CDFF00]' : 'text-gray-400'}`}>Price Negotiable</span>
                   <p className="text-xs text-gray-500 font-medium">Allow buyers to submit counter-offers</p>
                 </div>
               </button>
@@ -296,7 +356,7 @@ export default function CreateListing() {
                   {form.swapEnabled && <Check className="w-4 h-4 text-black" />}
                 </div>
                 <div>
-                  <span className={`block font-black uppercase tracking-widest text-sm mb-1 ${form.swapEnabled ? 'text-[#FF00FF]' : 'text-gray-400'}`}>Open to swaps</span>
+                  <span className={`block font-black tracking-widest text-sm mb-1 ${form.swapEnabled ? 'text-[#FF00FF]' : 'text-gray-400'}`}>Open to swaps</span>
                   <p className="text-xs text-gray-500 font-medium">Let people trade an item or a skill for this instead of cash</p>
                 </div>
               </button>
@@ -306,7 +366,7 @@ export default function CreateListing() {
                   out in DMs once money has changed hands. The choice also decides which
                   tracking steps the seller is offered after the sale. */}
               <div>
-                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <label className="block text-xs font-black text-gray-500 tracking-widest mb-3 flex items-center gap-2">
                   <Truck className="w-3.5 h-3.5" /> How do you deliver this? *
                 </label>
                 <div className="grid grid-cols-2 gap-2.5">
@@ -326,7 +386,7 @@ export default function CreateListing() {
                       >
                         <Icon className="w-4 h-4 mt-0.5 shrink-0" />
                         <span className="min-w-0">
-                          <span className="block text-[10px] font-black uppercase tracking-widest leading-tight">{m.label}</span>
+                          <span className="block text-[10px] font-black tracking-widest leading-tight">{m.label}</span>
                           <span className="block text-[10px] text-gray-500 font-medium mt-1 leading-snug">{m.hint}</span>
                         </span>
                       </button>
@@ -336,7 +396,7 @@ export default function CreateListing() {
 
                 {chargesPostage && (
                   <div className="mt-3">
-                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">
+                    <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">
                       Delivery cost
                     </label>
                     <input
@@ -365,14 +425,14 @@ export default function CreateListing() {
               {/* City picker rather than free text: browse filters everything by Polish city,
                   so a typo'd or blank city quietly drops the listing out of every city view. */}
               <div>
-                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">City / Location</label>
+                <label className="block text-xs font-black text-gray-500 tracking-widest mb-2">City / Location</label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {POLISH_CITIES.slice(0, 6).map((c) => (
                     <button
                       key={c}
                       type="button"
                       onClick={() => set('city', c)}
-                      className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                      className={`px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all active:scale-95 ${
                         form.city === c
                           ? 'bg-[#CDFF00] text-black'
                           : 'bg-black border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
@@ -395,33 +455,30 @@ export default function CreateListing() {
                 </datalist>
               </div>
 
-              <div className="flex gap-4 pt-4">
-                <button onClick={() => setStep(1)} className="flex-1 py-4 rounded-xl glass bg-black/40 border border-white/10 border border-white/10 text-white font-bold uppercase tracking-widest hover:glass bg-black/40 border border-white/10 transition-all flex items-center justify-center gap-2 outline-none">
-                  <ArrowLeft className="w-4 h-4" /> Back
-                </button>
-                <button
-                  onClick={() => { if (form.price) setStep(3); }}
-                  className="flex-1 py-4 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:bg-[#E0FF4D] transition-all disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-400 flex items-center justify-center gap-2 outline-none"
-                  disabled={!form.price}
-                >
-                  Next <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Step 3: Images & Summary */}
           {step === 3 && (
-            <div className="space-y-6">
+            <motion.div
+              key="step-3"
+              custom={direction}
+              variants={slide}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              className="space-y-6"
+            >
               {/* EVENT-only: a ticket has to print a date and a venue, so these are asked
                   for here rather than buried in the free-text description. */}
               {form.listingType === 'EVENT' && (
                 <div className="p-5 rounded-xl bg-[#CDFF00]/5 border border-[#CDFF00]/25 space-y-4">
-                  <h3 className="text-xs font-black text-[#CDFF00] uppercase tracking-widest flex items-center gap-2">
+                  <h3 className="text-xs font-black text-[#CDFF00] tracking-widest flex items-center gap-2">
                     <CalendarClock className="w-4 h-4" /> Event details
                   </h3>
                   <div>
-                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Starts</label>
+                    <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">Starts</label>
                     <input
                       type="datetime-local"
                       value={form.eventStartsAt}
@@ -430,7 +487,7 @@ export default function CreateListing() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Venue / address</label>
+                    <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">Venue / address</label>
                     <input
                       type="text"
                       value={form.eventVenue}
@@ -439,19 +496,70 @@ export default function CreateListing() {
                       placeholder="e.g. Klub Hybrydy, ul. Złota 7/9"
                     />
                   </div>
+                  {/* Capacity is what makes this a ticketed event rather than an open
+                      invitation. Left blank it stays uncapped, so an organiser who does not
+                      have a door limit is not forced to invent one. */}
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">
+                      Capacity
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={form.eventCapacity}
+                      onChange={(e) => set('eventCapacity', e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] outline-none transition-all font-bold"
+                      placeholder="Leave blank for no limit"
+                    />
+                    <p className="mt-1.5 text-[10px] text-gray-500 leading-relaxed">
+                      Once this many tickets are sold the event shows as sold out and stops
+                      taking money. Tickets being paid for right now count towards it, so the
+                      last few seats can't be sold twice.
+                    </p>
+                  </div>
+
+                  {/* Both optional. Most events want neither — they go on sale immediately and
+                      stop when the doors open, which is what blank means. */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">
+                        Sales open
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={form.salesOpenAt}
+                        onChange={(e) => set('salesOpenAt', e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] outline-none transition-all font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">
+                        Sales close
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={form.salesCloseAt}
+                        onChange={(e) => set('salesCloseAt', e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] outline-none transition-all font-bold"
+                      />
+                    </div>
+                  </div>
+
                   <p className="text-[10px] text-gray-500 leading-relaxed">
-                    Both appear on every ticket, and buyers get a scannable QR code the moment they book.
-                    You scan them in from the listing's Door screen.
+                    Date and venue appear on every ticket, and buyers get a scannable QR code
+                    once their payment clears. You scan them in from the listing's Door screen.
+                    Leave the sales dates blank to sell from now until the event starts.
                   </p>
                 </div>
               )}
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest">
+                  <label className="text-xs font-black text-gray-500 tracking-widest">
                     Photos & video
                   </label>
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${
+                  <span className={`text-[10px] font-black tracking-widest ${
                     images.length >= TARGET_MEDIA ? 'text-[#CDFF00]' : 'text-gray-600'
                   }`}>
                     {images.length} / {TARGET_MEDIA}
@@ -464,7 +572,7 @@ export default function CreateListing() {
                     : 'border-white/20 cursor-pointer hover:border-[#CDFF00]/50 hover:bg-[#CDFF00]/5'
                 }`}>
                   <ImageIcon className="w-10 h-10 mx-auto text-gray-500 mb-3" />
-                  <p className="text-sm font-bold text-gray-300 uppercase tracking-widest mb-1">Upload Media</p>
+                  <p className="text-sm font-bold text-gray-300 tracking-widest mb-1">Upload Media</p>
                   <p className="text-xs text-gray-600 font-medium">
                     {images.length >= MAX_MEDIA
                       ? `Maximum ${MAX_MEDIA} items reached`
@@ -515,49 +623,68 @@ export default function CreateListing() {
 
               {/* Summary */}
               <div className="p-6 rounded-xl bg-black border border-white/10 space-y-3">
-                <h3 className="text-xs font-black text-[#CDFF00] uppercase tracking-widest mb-4">Summary</h3>
+                <h3 className="text-xs font-black text-[#CDFF00] tracking-widest mb-4">Summary</h3>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Category</span>
+                  <span className="text-gray-500 font-bold tracking-widest text-[10px]">Category</span>
                   <span className="text-white font-bold">{LISTING_TYPES.find(t => t.value === form.listingType)?.label}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Title</span>
+                  <span className="text-gray-500 font-bold tracking-widest text-[10px]">Title</span>
                   <span className="text-white font-bold">{form.title}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Price</span>
+                  <span className="text-gray-500 font-bold tracking-widest text-[10px]">Price</span>
                   <span className="text-white font-black">{form.price} {form.currency} {form.negotiable && <span className="text-[#CDFF00] ml-1">(OBO)</span>}</span>
                 </div>
                 {form.listingType === 'EVENT' && (
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Starts</span>
+                    <span className="text-gray-500 font-bold tracking-widest text-[10px]">Starts</span>
                     <span className="text-white font-bold">
                       {form.eventStartsAt ? new Date(form.eventStartsAt).toLocaleString() : 'Not set'}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Media</span>
+                  <span className="text-gray-500 font-bold tracking-widest text-[10px]">Media</span>
                   <span className="text-white font-bold">
                     {images.length > 0 ? `${images.length} uploaded` : 'None — gallery will be filled for you'}
                   </span>
                 </div>
               </div>
 
-              <div className="flex gap-4 pt-4">
-                <button onClick={() => setStep(2)} className="flex-1 py-4 rounded-xl glass bg-black/40 border border-white/10 border border-white/10 text-white font-bold uppercase tracking-widest hover:glass bg-black/40 border border-white/10 transition-all flex items-center justify-center gap-2 outline-none">
-                  <ArrowLeft className="w-4 h-4" /> Back
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="flex-[2] py-4 rounded-xl bg-[#CDFF00] text-black font-black uppercase tracking-widest hover:bg-[#E0FF4D] shadow-lg hover:shadow-[#CDFF00]/20 disabled:opacity-50 transition-all outline-none"
-                >
-                  {loading ? 'Publishing...' : 'Publish Listing'}
-                </button>
-              </div>
-            </div>
+            </motion.div>
           )}
+          </AnimatePresence>
+          </div>
+
+          {/* One footer for the whole card.
+              Every step used to end in its own pair of buttons, which meant the same Back/Next
+              written three times with three separate disabled rules — and they had drifted, so
+              step 3 was reachable with a price step 2 would have refused. Deriving both the
+              label and the guard from STEP_META means a step cannot be advanced past its own
+              requirements, and the last step is the only one that submits. */}
+          <div className="flex gap-3 pt-8">
+            {step > 1 && (
+              <button
+                onClick={() => goTo(step - 1)}
+                disabled={loading}
+                className="flex-1 py-4 rounded-xl glass bg-black/40 border border-white/10 text-white font-bold tracking-widest hover:bg-white/5 transition-all flex items-center justify-center gap-2 outline-none disabled:opacity-50"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back
+              </button>
+            )}
+            <button
+              onClick={() => (isLast ? handleSubmit() : goTo(step + 1))}
+              disabled={loading || !meta.canAdvance}
+              className={`${step > 1 ? 'flex-[2]' : 'w-full'} py-4 rounded-xl bg-[#CDFF00] text-black font-black tracking-widest hover:bg-[#E0FF4D] shadow-lg hover:shadow-[#CDFF00]/20 transition-all flex items-center justify-center gap-2 outline-none disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed`}
+            >
+              {loading
+                ? 'Publishing…'
+                : isLast
+                  ? 'Publish Listing'
+                  : <>Next <ArrowRight className="w-5 h-5" /></>}
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>
@@ -592,7 +719,7 @@ function MediaThumb({ file, isLead, onRemove }) {
       )}
 
       {isVideo && (
-        <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/80 text-[8px] font-black uppercase tracking-widest text-white flex items-center gap-1">
+        <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/80 text-[8px] font-black tracking-widest text-white flex items-center gap-1">
           <Play className="w-2 h-2 fill-white" /> Clip
         </span>
       )}
@@ -600,7 +727,7 @@ function MediaThumb({ file, isLead, onRemove }) {
       {/* The first item is the one that shows on browse cards and shares, so it's worth
           calling out which photo the seller is actually leading with. */}
       {isLead && (
-        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-[#CDFF00] text-[8px] font-black uppercase tracking-widest text-black">
+        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-[#CDFF00] text-[8px] font-black tracking-widest text-black">
           Cover
         </span>
       )}

@@ -18,6 +18,19 @@ export const BOOKING_STATUS_MAP = {
   CANCELLED: { label: 'Cancelled', color: 'bg-[#CDFF00]/15 text-[#CDFF00]' },
 };
 
+/**
+ * Turns a server enum into something readable: "OUT_FOR_DELIVERY" → "Out for delivery".
+ *
+ * The UI no longer sets everything in capitals, which means enum values that used to be
+ * hidden behind `text-transform` now reach the screen exactly as the database spells them.
+ * Anywhere a raw status, role or type is rendered, it goes through here first.
+ */
+export const labelize = (value) => {
+  if (!value) return '';
+  const words = String(value).replace(/_/g, ' ').trim().toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 export const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'ZAR'];
 
 export const POLISH_CITIES = [

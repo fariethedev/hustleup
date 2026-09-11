@@ -53,7 +53,7 @@ export default function JobApplyModal({ job, onClose, onApplied }) {
         className="w-full sm:max-w-md bg-[#0a0a0a] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col"
       >
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
-          <h2 className="text-base font-black text-white uppercase tracking-tight">Apply</h2>
+          <h2 className="text-base font-black text-white tracking-tight">Apply</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
             <X className="w-5 h-5" />
           </button>
@@ -69,7 +69,7 @@ export default function JobApplyModal({ job, onClose, onApplied }) {
           </div>
 
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5 block">
+            <label className="text-[10px] font-black tracking-widest text-gray-500 mb-1.5 block">
               Message to the employer
             </label>
             <textarea
@@ -107,7 +107,7 @@ export default function JobApplyModal({ job, onClose, onApplied }) {
         <div className="px-5 py-4 border-t border-white/10 shrink-0">
           <button
             onClick={submit} disabled={submitting}
-            className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {submitting
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>

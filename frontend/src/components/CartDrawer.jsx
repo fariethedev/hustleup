@@ -101,8 +101,8 @@ export default function CartDrawer() {
                   <ShoppingBag className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-heading font-black text-white uppercase tracking-tight">Vault</h2>
-                  <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.3em] mt-0.5">
+                  <h2 className="text-xl font-heading font-black text-white tracking-tight">Vault</h2>
+                  <p className="text-gray-500 text-[10px] font-black tracking-[0.3em] mt-0.5">
                     {count} SYNCED {count === 1 ? 'OBJECT' : 'OBJECTS'}
                   </p>
                 </div>
@@ -156,7 +156,7 @@ export default function CartDrawer() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-black text-base tracking-tight leading-tight truncate">{item.title}</p>
-                        <p className="text-gray-500 text-[9px] font-black uppercase tracking-[0.2em] mt-1 opacity-70">
+                        <p className="text-gray-500 text-[9px] font-black tracking-[0.2em] mt-1 opacity-70">
                           {item.sellerName}
                         </p>
                         <p className="text-[#CDFF00] font-black text-base mt-2 shadow-[0_0_15px_rgba(205,255,0,0.1)]">
@@ -212,12 +212,12 @@ export default function CartDrawer() {
               <div className="px-6 py-5 border-t border-white/10 space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-400 text-sm font-bold uppercase tracking-widest">Total</span>
+                    <span className="text-gray-400 text-sm font-bold tracking-widest">Total</span>
                     <select
                       value={displayCurrency}
                       onChange={(e) => changeCurrency(e.target.value)}
                       aria-label="Display currency"
-                      className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-widest text-gray-300 outline-none focus:border-[#CDFF00]/60 cursor-pointer"
+                      className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-black tracking-widest text-gray-300 outline-none focus:border-[#CDFF00]/60 cursor-pointer"
                     >
                       {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -231,7 +231,7 @@ export default function CartDrawer() {
                 </p>
                 <button
                   onClick={checkout}
-                  className="w-full py-4 rounded-2xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#d9ff33] transition-all hover:scale-[1.02] active:scale-95 shadow-[0_8px_30px_rgba(205,255,0,0.25)]"
+                  className="w-full py-4 rounded-2xl bg-[#CDFF00] text-black font-black text-xs tracking-widest flex items-center justify-center gap-2 hover:bg-[#d9ff33] transition-all hover:scale-[1.02] active:scale-95 shadow-[0_8px_30px_rgba(205,255,0,0.25)]"
                 >
                   Proceed to Checkout <ArrowRight className="w-4 h-4" />
                 </button>

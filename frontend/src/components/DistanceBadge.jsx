@@ -25,7 +25,7 @@ export default function DistanceBadge({ lat, lng, className = '' }) {
 
   if (state === 'shown' && distance != null) {
     return (
-      <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[#CDFF00] ${className}`}>
+      <span className={`inline-flex items-center gap-1 text-[9px] font-black tracking-widest text-[#CDFF00] ${className}`}>
         <MapPin className="w-3 h-3" /> {formatDistance(distance)}
       </span>
     );
@@ -40,7 +40,7 @@ export default function DistanceBadge({ lat, lng, className = '' }) {
       type="button"
       onClick={handleClick}
       disabled={state === 'loading'}
-      className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-gray-500 hover:text-[#CDFF00] transition-colors ${className}`}
+      className={`inline-flex items-center gap-1 text-[9px] font-bold tracking-widest text-gray-500 hover:text-[#CDFF00] transition-colors ${className}`}
     >
       {state === 'loading' ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
       {state === 'loading' ? 'Locating…' : 'Show distance'}

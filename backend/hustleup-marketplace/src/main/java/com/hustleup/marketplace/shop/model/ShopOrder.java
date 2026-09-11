@@ -135,6 +135,15 @@ public class ShopOrder {
     @Column(name = "released_at")
     private LocalDateTime releasedAt;
 
+    /**
+     * When the seller was told their payout is waiting on Connect onboarding.
+     *
+     * <p>Only so they are told once. The sweep revisits every held order every hour, and a
+     * seller who has not finished onboarding would otherwise be reminded hourly, forever.
+     */
+    @Column(name = "payout_blocked_notified_at")
+    private LocalDateTime payoutBlockedNotifiedAt;
+
     @Column(name = "payment_intent_id")
     private String paymentIntentId;
 

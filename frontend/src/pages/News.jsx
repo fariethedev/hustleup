@@ -73,7 +73,7 @@ export default function News() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+          <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500">
             <ShieldCheck className="w-4 h-4 text-[#CDFF00]" />
             Verified outlets only
           </div>
@@ -81,14 +81,14 @@ export default function News() {
             <motion.button
               whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={() => setComposerOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest"
             >
               <Plus className="w-4 h-4" /> Publish article
             </motion.button>
           ) : (
             <Link
               to="/publisher/apply?type=NEWS_OUTLET"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-[#CDFF00]/40 text-[10px] font-black uppercase tracking-widest text-gray-300 transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-[#CDFF00]/40 text-[10px] font-black tracking-widest text-gray-300 transition-colors"
             >
               <BadgeCheck className="w-4 h-4 text-[#CDFF00]" /> Run an outlet? Get verified
             </Link>
@@ -107,7 +107,7 @@ export default function News() {
           <div className="flex gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide pb-0.5">
             <button
               onClick={() => setSection('all')}
-              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
                 section === 'all'
                   ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                   : 'bg-white/5 border-white/10 text-gray-400'
@@ -119,7 +119,7 @@ export default function News() {
               <button
                 key={sec.id}
                 onClick={() => setSection(section === sec.id ? 'all' : sec.id)}
-                className={`shrink-0 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+                className={`shrink-0 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
                   section === sec.id
                     ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                     : 'bg-white/5 border-white/10 text-gray-400'
@@ -147,7 +147,7 @@ export default function News() {
         <div className="hidden sm:flex flex-wrap items-center gap-2 mb-8">
           <button
             onClick={() => setSection('all')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
               section === 'all'
                 ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                 : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
@@ -159,7 +159,7 @@ export default function News() {
             <button
               key={s.id}
               onClick={() => setSection(section === s.id ? 'all' : s.id)}
-              className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+              className={`px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
                 section === s.id
                   ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                   : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
@@ -183,8 +183,8 @@ export default function News() {
               <Newspaper className="w-6 h-6 text-gray-600" />
             </div>
             <div>
-              <h3 className="text-base font-black uppercase tracking-tight">No stories yet</h3>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1.5">
+              <h3 className="text-base font-black tracking-tight">No stories yet</h3>
+              <p className="text-[10px] text-gray-500 font-bold tracking-widest mt-1.5">
                 {searchQuery || section !== 'all' ? 'Try another search or section' : 'Verified outlets publish here'}
               </p>
             </div>
@@ -212,7 +212,7 @@ export default function News() {
                   </div>
                   <div className="p-4 flex-1 flex flex-col">
                     {a.category && (
-                      <span className="self-start text-[9px] font-black text-[#CDFF00] bg-[#CDFF00]/10 px-2.5 py-1 rounded-md uppercase tracking-widest border border-[#CDFF00]/20 mb-2">
+                      <span className="self-start text-[9px] font-black text-[#CDFF00] bg-[#CDFF00]/10 px-2.5 py-1 rounded-md tracking-widest border border-[#CDFF00]/20 mb-2">
                         {a.category}
                       </span>
                     )}
@@ -220,7 +220,7 @@ export default function News() {
                     {a.summary && (
                       <p className="text-xs text-gray-500 leading-relaxed line-clamp-3 mb-3">{a.summary}</p>
                     )}
-                    <div className="mt-auto flex items-center justify-between gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                    <div className="mt-auto flex items-center justify-between gap-2 text-[10px] font-bold text-gray-500 tracking-widest">
                       <span className="flex items-center gap-1.5 min-w-0">
                         {a.outletLogoUrl && (
                           <img src={a.outletLogoUrl} alt="" className="w-4 h-4 rounded object-cover shrink-0" />
@@ -256,7 +256,7 @@ export default function News() {
             >
               <div className="sticky top-0 z-10 px-5 py-3 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/10 flex items-center justify-between">
                 <button onClick={() => setSelected(null)}
-                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors">
+                        className="flex items-center gap-2 text-[10px] font-black tracking-widest text-gray-400 hover:text-white transition-colors">
                   <ArrowLeft className="w-4 h-4" /> Back
                 </button>
                 <button onClick={() => setSelected(null)}
@@ -271,13 +271,13 @@ export default function News() {
 
               <div className="p-6 sm:p-8">
                 {selected.category && (
-                  <span className="inline-block text-[9px] font-black text-[#CDFF00] bg-[#CDFF00]/10 px-2.5 py-1 rounded-md uppercase tracking-widest border border-[#CDFF00]/20 mb-3">
+                  <span className="inline-block text-[9px] font-black text-[#CDFF00] bg-[#CDFF00]/10 px-2.5 py-1 rounded-md tracking-widest border border-[#CDFF00]/20 mb-3">
                     {selected.category}
                   </span>
                 )}
                 <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight mb-3">{selected.title}</h1>
 
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-6 pb-6 border-b border-white/10">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-gray-500 tracking-widest mb-6 pb-6 border-b border-white/10">
                   <span className="flex items-center gap-1.5">
                     {selected.outletLogoUrl && (
                       <img src={selected.outletLogoUrl} alt="" className="w-4 h-4 rounded object-cover" />
@@ -312,7 +312,7 @@ export default function News() {
                     className="flex items-center justify-between gap-3 mb-6 px-4 py-3.5 rounded-2xl border border-[#CDFF00]/25 bg-[#CDFF00]/[0.06] hover:border-[#CDFF00]/60 transition-colors group"
                   >
                     <span className="min-w-0">
-                      <span className="block text-[10px] font-black uppercase tracking-widest text-[#CDFF00]">
+                      <span className="block text-[10px] font-black tracking-widest text-[#CDFF00]">
                         Read the full story
                       </span>
                       <span className="block text-xs text-gray-400 truncate">
@@ -348,7 +348,7 @@ export default function News() {
                 {selected.tags?.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-6 pt-6 border-t border-white/10">
                     {selected.tags.map((t) => (
-                      <span key={t} className="text-[9px] font-bold text-gray-500 bg-white/5 border border-white/5 px-2 py-1 rounded-md uppercase tracking-widest">
+                      <span key={t} className="text-[9px] font-bold text-gray-500 bg-white/5 border border-white/5 px-2 py-1 rounded-md tracking-widest">
                         {t}
                       </span>
                     ))}

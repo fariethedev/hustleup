@@ -64,7 +64,7 @@ export default function OrderNextSteps({ status, paid = false, method }) {
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-5 text-left">
-      <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-4">
+      <h3 className="text-[10px] font-black tracking-widest text-gray-500 mb-4">
         What happens next
       </h3>
 
@@ -101,7 +101,7 @@ export default function OrderNextSteps({ status, paid = false, method }) {
                   step.done ? 'text-white' : active ? 'text-[#CDFF00]' : 'text-gray-400'
                 }`}>
                   {step.title}
-                  {active && <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-gray-500">Now</span>}
+                  {active && <span className="ml-2 text-[9px] font-black tracking-widest text-gray-500">Now</span>}
                 </p>
                 <p className="text-xs text-gray-500 leading-relaxed mt-1">{step.body}</p>
               </div>

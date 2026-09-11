@@ -109,7 +109,7 @@ export default function BondCard({
           style={{ opacity: likeOpacity, scale: likeScale }}
           className="absolute top-10 left-6 -rotate-[18deg] rounded-xl border-[3px] border-[#CDFF00] px-4 py-1.5 pointer-events-none"
         >
-          <span className="text-2xl font-heading font-black uppercase tracking-wider text-[#CDFF00] drop-shadow-[0_0_12px_rgba(205,255,0,0.5)]">
+          <span className="text-2xl font-heading font-black tracking-wider text-[#CDFF00] drop-shadow-[0_0_12px_rgba(205,255,0,0.5)]">
             Like
           </span>
         </motion.div>
@@ -118,7 +118,7 @@ export default function BondCard({
           style={{ opacity: nopeOpacity, scale: nopeScale }}
           className="absolute top-10 right-6 rotate-[18deg] rounded-xl border-[3px] border-[#FF4458] px-4 py-1.5 pointer-events-none"
         >
-          <span className="text-2xl font-heading font-black uppercase tracking-wider text-[#FF4458] drop-shadow-[0_0_12px_rgba(255,68,88,0.5)]">
+          <span className="text-2xl font-heading font-black tracking-wider text-[#FF4458] drop-shadow-[0_0_12px_rgba(255,68,88,0.5)]">
             Nope
           </span>
         </motion.div>
@@ -128,7 +128,7 @@ export default function BondCard({
           className="absolute inset-x-0 bottom-28 flex justify-center pointer-events-none"
         >
           <div className="-rotate-[8deg] rounded-xl border-[3px] border-[#00E0FF] px-4 py-1.5 bg-black/30 backdrop-blur-sm">
-            <span className="text-xl font-heading font-black uppercase tracking-wider text-[#00E0FF] drop-shadow-[0_0_12px_rgba(0,224,255,0.6)]">
+            <span className="text-xl font-heading font-black tracking-wider text-[#00E0FF] drop-shadow-[0_0_12px_rgba(0,224,255,0.6)]">
               Super like
             </span>
           </div>
@@ -136,7 +136,7 @@ export default function BondCard({
 
         {/* ── Top badges ──────────────────────────────────────────────────────── */}
         <div className="absolute top-4 inset-x-4 flex items-start justify-between gap-2 pointer-events-none">
-          <span className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest">
+          <span className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white text-[10px] font-bold tracking-widest">
             {profile.lookingFor || 'Networking'}
           </span>
           {profile.likedYou && (
@@ -144,7 +144,7 @@ export default function BondCard({
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.15, type: 'spring', bounce: 0.5 }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#CDFF00]/25"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#CDFF00] text-black text-[10px] font-black tracking-widest shadow-lg shadow-[#CDFF00]/25"
             >
               <Star className="w-3 h-3 fill-black" /> Likes you
             </motion.span>
@@ -213,7 +213,7 @@ export default function BondCard({
                       {profile.fullName}
                       {profile.age > 0 && <span className="ml-2 font-light text-white/70">{profile.age}</span>}
                     </h2>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-[#CDFF00] mt-1.5">
+                    <p className="text-[11px] font-bold tracking-widest text-[#CDFF00] mt-1.5">
                       {profile.lookingFor || 'Networking'}
                     </p>
                   </div>
@@ -228,7 +228,7 @@ export default function BondCard({
 
                 {profile.bio && (
                   <div className="mb-5">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2">About</p>
+                    <p className="text-[10px] font-bold tracking-widest text-white/40 mb-2">About</p>
                     <p className="flex gap-2 text-sm text-white/85 leading-relaxed">
                       <Quote className="w-3.5 h-3.5 text-white/25 shrink-0 mt-1" />
                       {profile.bio}
@@ -238,7 +238,7 @@ export default function BondCard({
 
                 {interests.length > 0 && (
                   <div className="mb-5">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2">Interests</p>
+                    <p className="text-[10px] font-bold tracking-widest text-white/40 mb-2">Interests</p>
                     <div className="flex flex-wrap gap-2">
                       {interests.map((tag) => (
                         <span

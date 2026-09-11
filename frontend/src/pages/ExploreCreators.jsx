@@ -70,10 +70,10 @@ export default function ExploreCreators() {
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-7 pb-5">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-          <span className="text-[10px] font-black uppercase tracking-[0.35em] text-[#CDFF00]">
+          <span className="text-[10px] font-black tracking-[0.35em] text-[#CDFF00]">
             {city || 'All of Poland'}
           </span>
-          <h1 className="mt-2 text-3xl sm:text-4xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
+          <h1 className="mt-2 text-3xl sm:text-4xl font-black text-white tracking-tighter flex items-center gap-3">
             <Users className="w-7 h-7 text-[#CDFF00]" />
             Creators
           </h1>
@@ -122,7 +122,7 @@ export default function ExploreCreators() {
               <button
                 key={r.value || 'all'}
                 onClick={() => setParam('role', r.value)}
-                className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                className={`px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all active:scale-95 ${
                   role === r.value ? 'bg-[#00FFFF] text-black' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
                 }`}
               >
@@ -131,7 +131,7 @@ export default function ExploreCreators() {
             ))}
             <button
               onClick={() => setParam('verified', verifiedOnly ? '' : '1')}
-              className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+              className={`px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all active:scale-95 ${
                 verifiedOnly ? 'bg-[#CDFF00] text-black' : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
               }`}
             >
@@ -140,7 +140,7 @@ export default function ExploreCreators() {
             {hasFilters && (
               <button
                 onClick={clearAll}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/30 transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/30 transition-all active:scale-95"
               >
                 <X className="w-3.5 h-3.5" /> Clear
               </button>
@@ -163,7 +163,7 @@ export default function ExploreCreators() {
         ) : visible.length === 0 ? (
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center py-24">
             <Users className="w-12 h-12 mx-auto text-white/15 mb-5" />
-            <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">No one here</h2>
+            <h2 className="text-xl font-black text-white tracking-tight mb-2">No one here</h2>
             <p className="text-sm text-gray-400 mb-6">
               {creators.length === 0
                 ? 'Sign in to see who else is building on HustleSpace.'
@@ -172,7 +172,7 @@ export default function ExploreCreators() {
             {creators.length > 0 && (
               <button
                 onClick={clearAll}
-                className="px-6 py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black uppercase tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
+                className="px-6 py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
               >
                 Clear filters
               </button>

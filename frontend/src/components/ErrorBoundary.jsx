@@ -24,13 +24,13 @@ class ErrorBoundary extends React.Component {
           <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
             <AlertTriangle className="w-8 h-8 text-red-500" />
           </div>
-          <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-2">Something went wrong</h2>
+          <h2 className="text-2xl font-black text-white tracking-tight mb-2">Something went wrong</h2>
           <p className="text-gray-400 font-medium mb-8 max-w-md">
             The component crashed while rendering. This is usually due to missing data or a temporary glitch.
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="flex items-center gap-2 px-6 py-3 bg-[#CDFF00] text-black font-black uppercase tracking-widest text-xs rounded-xl hover:scale-105 transition-transform shadow-lg shadow-[#CDFF00]/20"
+            className="flex items-center gap-2 px-6 py-3 bg-[#CDFF00] text-black font-black tracking-widest text-xs rounded-xl hover:scale-105 transition-transform shadow-lg shadow-[#CDFF00]/20"
           >
             <RefreshCw className="w-4 h-4" />
             Reload Page

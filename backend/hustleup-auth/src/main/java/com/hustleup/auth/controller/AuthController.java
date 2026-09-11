@@ -76,9 +76,9 @@ public class AuthController {
     // Same strength bar as AuthDtos.RegisterRequest.password (@Pattern there can't be
     // reused directly since /reset-password takes a raw Map body, not a validated DTO).
     private static final java.util.regex.Pattern PASSWORD_POLICY =
-            java.util.regex.Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$");
+            java.util.regex.Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{10,}$");
     private static final String PASSWORD_POLICY_MESSAGE =
-            "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number";
+            "Password must be at least 10 characters and include an uppercase letter, a lowercase letter, a number and a symbol";
 
     /**
      * How long a refresh token stays valid — 7 days.

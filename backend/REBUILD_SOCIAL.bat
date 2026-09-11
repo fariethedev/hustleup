@@ -1,6 +1,10 @@
 @echo off
 setlocal
-cd /d C:\Users\Admin\.gemini\antigravity\scratch\hustleup\backend
+REM The repo root, resolved from where this script actually lives. This was hardcoded to
+REM C:\Users\Admin\.gemini\antigravity\scratch\hustleup\backend, which does not exist on
+REM this machine — so the script cd'd nowhere and then built whatever directory it happened
+REM to be run from, or nothing at all.
+cd /d "%~dp0"
 
 echo ============================================
 echo Rebuilding Auth + Social Services

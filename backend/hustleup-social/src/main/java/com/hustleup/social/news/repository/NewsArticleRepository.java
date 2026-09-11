@@ -21,14 +21,21 @@ public interface NewsArticleRepository extends JpaRepository<NewsArticle, UUID> 
      * <p>Both filters follow the "null means do not filter" pattern so a single query
      * serves every combination the page can ask for. Search covers title, summary and
      * outlet name — the three things a reader would type looking for a story.
+     *
+     * <p>The wildcards are built with CONCAT rather than written as {@code LIKE %:q%}. That
+     * shorter form is not parameter syntax in Hibernate 6 — it is read as a separate token and
+     * expanded into a parameter nobody binds, so the query failed at runtime with
+     * "No argument for named parameter ':q_1'" and the whole endpoint returned 500. It also
+     * lowercases the argument, not just the column: lowering one side only meant a search for
+     * "Lublin" could never match a row, however it was stored.
      */
     @Query("""
            SELECT a FROM NewsArticle a
            WHERE a.status = com.hustleup.social.news.model.NewsArticle$ArticleStatus.PUBLISHED
              AND (:category IS NULL OR a.category = :category)
-             AND (:q IS NULL OR LOWER(a.title) LIKE %:q%
-                             OR LOWER(a.summary) LIKE %:q%
-                             OR LOWER(a.outletName) LIKE %:q%)
+             AND (:q IS NULL OR LOWER(a.title) LIKE CONCAT('%', LOWER(:q), '%')
+                             OR LOWER(a.summary) LIKE CONCAT('%', LOWER(:q), '%')
+                             OR LOWER(a.outletName) LIKE CONCAT('%', LOWER(:q), '%'))
            ORDER BY a.publishedAt DESC
            """)
     Page<NewsArticle> findPublished(String category, String q, Pageable pageable);

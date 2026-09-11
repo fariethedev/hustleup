@@ -103,7 +103,7 @@ function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
           >
             <Heart className="w-3.5 h-3.5" style={{ color: ROSE, fill: ROSE }} />
           </motion.span>
-          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: BLUSH }}>
+          <span className="text-[10px] font-black tracking-widest" style={{ color: BLUSH }}>
             New matches
           </span>
           <span
@@ -132,7 +132,7 @@ function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
                 <span className="block w-full h-full rounded-full overflow-hidden border-2 border-[#0A0A0A] bg-black">
                   {m.avatarUrl
                     ? <img src={uploadUrl(m.avatarUrl)} alt="" className="w-full h-full object-cover" />
-                    : <span className="w-full h-full flex items-center justify-center text-sm font-black uppercase" style={{ color: ROSE }}>
+                    : <span className="w-full h-full flex items-center justify-center text-sm font-black" style={{ color: ROSE }}>
                         {(m.name || m.fullName || 'U')[0]}
                       </span>}
                 </span>
@@ -226,7 +226,7 @@ function Avatar({ person, size = 12 }) {
     <div className={`${px} rounded-full overflow-hidden bg-black border border-white/10 flex items-center justify-center shrink-0`}>
       {person?.avatarUrl
         ? <img src={uploadUrl(person.avatarUrl)} className="w-full h-full object-cover" />
-        : <span className="text-[#CDFF00] font-black uppercase text-sm">{(person?.name || person?.fullName || 'U')[0]}</span>}
+        : <span className="text-[#CDFF00] font-black text-sm">{(person?.name || person?.fullName || 'U')[0]}</span>}
     </div>
   );
 }
@@ -700,7 +700,7 @@ export default function DirectMessages() {
           >
             {/* Header */}
             <div className="px-4 h-[60px] flex items-center justify-between shrink-0 border-b border-white/[0.07]">
-              <h1 className="text-base font-black text-white uppercase tracking-tight flex items-center gap-2.5">
+              <h1 className="text-base font-black text-white tracking-tight flex items-center gap-2.5">
                 <motion.span
                   className="w-2 h-2 rounded-full bg-[#CDFF00] shadow-[0_0_10px_#CDFF00]"
                   animate={reduceMotion ? {} : { opacity: [1, 0.35, 1], scale: [1, 0.82, 1] }}
@@ -919,7 +919,7 @@ export default function DirectMessages() {
                                   also separates "a deal is happening here" from the fainter
                                   lime the row already uses for unread. */}
                               {negotiating && (
-                                <span className="shrink-0 flex items-center gap-1 px-1.5 py-[1px] rounded bg-[#CDFF00] text-black text-[9px] font-black uppercase tracking-[0.08em]">
+                                <span className="shrink-0 flex items-center gap-1 px-1.5 py-[1px] rounded bg-[#CDFF00] text-black text-[9px] font-black tracking-[0.08em]">
                                   <HandCoins className="w-2.5 h-2.5" /> Deal
                                 </span>
                               )}
@@ -1197,7 +1197,7 @@ export default function DirectMessages() {
                           type="button"
                           disabled={offerBusy || !offerPrice}
                           onClick={submitOffer}
-                          className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black uppercase text-[9px] tracking-widest hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shrink-0"
+                          className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shrink-0"
                         >
                           {offerBusy ? 'Sending…' : 'Send Offer'}
                         </button>
@@ -1234,7 +1234,7 @@ export default function DirectMessages() {
                         >
                           <Heart className="w-10 h-10" style={{ color: ROSE, fill: ROSE }} />
                         </motion.div>
-                        <p className="relative text-base font-black text-white uppercase tracking-tight">
+                        <p className="relative text-base font-black text-white tracking-tight">
                           It's a match
                         </p>
                         <p className="relative text-xs mt-1.5 font-semibold" style={{ color: BLUSH }}>
@@ -1270,7 +1270,7 @@ export default function DirectMessages() {
                           className="flex justify-center mb-3"
                         >
                           <span
-                            className="flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[10px] uppercase font-bold tracking-widest"
+                            className="flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[10px] font-bold tracking-widest"
                             style={{ borderColor: `${ROSE}55`, backgroundColor: `${ROSE}14`, color: BLUSH }}
                           >
                             <Heart className="w-3 h-3" style={{ color: ROSE, fill: ROSE }} />
@@ -1289,7 +1289,7 @@ export default function DirectMessages() {
                               transition={QUICK_TWEEN}
                               className="flex justify-center my-3"
                             >
-                              <span className="px-3 py-1 rounded-lg bg-black/60 border border-white/10 text-[10px] text-gray-400 uppercase font-bold tracking-widest">
+                              <span className="px-3 py-1 rounded-lg bg-black/60 border border-white/10 text-[10px] text-gray-400 font-bold tracking-widest">
                                 {row.label}
                               </span>
                             </motion.div>
@@ -1459,7 +1459,7 @@ export default function DirectMessages() {
                                         : <Sparkles className="w-5 h-5 text-[#CDFF00]" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                      <p className="text-[10px] font-black uppercase tracking-widest text-[#CDFF00]">Story</p>
+                                      <p className="text-[10px] font-black tracking-widest text-[#CDFF00]">Story</p>
                                       <p className="text-sm font-bold text-white truncate">
                                         {msg.sharedStoryAuthorName || 'A story'}
                                       </p>
@@ -1612,7 +1612,7 @@ export default function DirectMessages() {
                                 {pickerTab === 'emoji' ? (
                                   EMOJI_CATEGORIES.map((cat) => (
                                     <div key={cat.name} className="mb-2">
-                                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1 px-1">{cat.name}</p>
+                                      <p className="text-[10px] font-bold tracking-widest text-gray-500 mb-1 px-1">{cat.name}</p>
                                       <div className="grid grid-cols-8">
                                         {cat.list.map((em) => (
                                           <motion.button
@@ -1631,7 +1631,7 @@ export default function DirectMessages() {
                                   ))
                                 ) : (
                                   <>
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2 px-1">Tap to send</p>
+                                    <p className="text-[10px] font-bold tracking-widest text-gray-500 mb-2 px-1">Tap to send</p>
                                     <div className="grid grid-cols-4 gap-2">
                                       {STICKERS.map((st, i) => (
                                         <motion.button
@@ -1771,7 +1771,7 @@ export default function DirectMessages() {
                   <MessageSquareOff className="w-7 h-7 text-gray-600" />
                 </motion.div>
                 <div>
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight">HustleSpace Chat</h3>
+                  <h3 className="text-lg font-black text-white tracking-tight">HustleSpace Chat</h3>
                   <p className="text-sm text-gray-500 max-w-xs mt-1.5">
                     Pick someone from the list — the conversation opens right here.
                   </p>

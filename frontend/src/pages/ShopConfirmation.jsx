@@ -55,7 +55,7 @@ export default function ShopConfirmation() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="rounded-[1.75rem] border border-white/10 bg-black/50 p-6">
-            <div className="text-[10px] font-black uppercase tracking-[0.24em] text-gray-500">Order Summary</div>
+            <div className="text-[10px] font-black tracking-[0.24em] text-gray-500">Order Summary</div>
             <div className="text-2xl font-black text-white mt-3">{product.name}</div>
             <div className="text-sm text-gray-400 mt-1">{shop.name}</div>
             <div className="mt-6 space-y-3 text-sm">
@@ -65,7 +65,7 @@ export default function ShopConfirmation() {
               </div>
               <div className="flex items-center justify-between text-gray-400">
                 <span>Payment method</span>
-                <span className="text-white font-bold uppercase">{paymentMethod.replace('_', ' ')}</span>
+                <span className="text-white font-bold">{paymentMethod.replace('_', ' ')}</span>
               </div>
               <div className="flex items-center justify-between text-gray-400">
                 <span>Total</span>
@@ -75,7 +75,7 @@ export default function ShopConfirmation() {
           </div>
 
           <div className="rounded-[1.75rem] border border-white/10 bg-black/50 p-6">
-            <div className="flex items-center gap-2 text-[#CDFF00] text-sm font-black uppercase tracking-[0.22em]">
+            <div className="flex items-center gap-2 text-[#CDFF00] text-sm font-black tracking-[0.22em]">
               <Receipt className="w-4 h-4" /> Next integrations
             </div>
             <div className="mt-5 space-y-4 text-sm text-gray-400">
@@ -96,11 +96,11 @@ export default function ShopConfirmation() {
         </div>
 
         <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to={`/shop/${shop.slug || shop.id}`} className="px-8 py-4 rounded-2xl border border-white/10 text-white font-black uppercase tracking-[0.24em] text-sm text-center">
+          <Link to={`/shop/${shop.slug || shop.id}`} className="px-8 py-4 rounded-2xl border border-white/10 text-white font-black tracking-[0.24em] text-sm text-center">
             Back To Shop
           </Link>
           {/* DMs land on the shop owner's thread rather than the inbox root. */}
-          <Link to={`/dm/${shop.ownerId}`} className="px-8 py-4 rounded-2xl bg-[#CDFF00] text-black font-black uppercase tracking-[0.24em] text-sm text-center">
+          <Link to={`/dm/${shop.ownerId}`} className="px-8 py-4 rounded-2xl bg-[#CDFF00] text-black font-black tracking-[0.24em] text-sm text-center">
             Message Seller
           </Link>
         </div>

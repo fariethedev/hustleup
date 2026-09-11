@@ -70,19 +70,18 @@ export default function Login() {
     afterSocialLogin(resultAction, facebookLogin);
   };
 
+  // Top-aligned rather than vertically centred. Centring inside the full leftover viewport
+  // pushed the card into the middle of the screen, leaving a large dead gap under the
+  // navbar on anything taller than a phone — the form is the only thing on this page, so
+  // it should start near the top instead of being hunted for.
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] md:min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-4 overflow-hidden">
+    <div className="min-h-[calc(100vh-3.5rem)] md:min-h-[calc(100vh-4rem)] flex items-start justify-center px-4 pt-4 pb-8 sm:pt-6 overflow-hidden">
       <motion.div
         className="w-full min-w-0 max-w-md"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="text-center mb-5">
-          <Link to="/" className="inline-flex mb-3 group">
-            <div className="w-10 h-10 rounded-xl bg-[#CDFF00] flex items-center justify-center text-black font-heading font-extrabold text-xl group-hover:scale-105 transition-transform shadow-[0_0_20px_rgba(205,255,0,0.3)]">
-              H
-            </div>
-          </Link>
           <h1 className="text-2xl font-heading font-black text-white">Welcome back</h1>
           <p className="text-gray-400 text-sm mt-1">Log in to your account</p>
         </div>

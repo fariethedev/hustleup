@@ -62,8 +62,8 @@ export default function Checkout() {
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <ShoppingBag className="w-16 h-16 mx-auto text-gray-700" />
-          <h2 className="text-2xl font-black text-white uppercase tracking-tight">Your cart is empty</h2>
-          <Link to="/explore" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm uppercase tracking-widest inline-block">
+          <h2 className="text-2xl font-black text-white tracking-tight">Your cart is empty</h2>
+          <Link to="/explore" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm tracking-widest inline-block">
             Browse Listings
           </Link>
         </div>
@@ -152,8 +152,8 @@ export default function Checkout() {
                  real step, it just happens on Stripe rather than here, and showing it stops
                  the redirect feeling like the page threw you somewhere unexpected. ── */}
           <div className="text-center mb-6">
-            <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">Checkout</h1>
-            <div className="mt-3 inline-flex items-center gap-2 sm:gap-3 text-[10px] font-black uppercase tracking-widest">
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Checkout</h1>
+            <div className="mt-3 inline-flex items-center gap-2 sm:gap-3 text-[10px] font-black tracking-widest">
               <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#CDFF00] text-black">
                 <span className="w-4 h-4 rounded-full bg-black/20 flex items-center justify-center text-[9px]">1</span>
                 Your details
@@ -176,7 +176,7 @@ export default function Checkout() {
               here, and staying silent about them is what made them disappear unbought. */}
           {shopItems.length > 0 && (
             <div className="mb-4 p-3 rounded-xl border border-[#CDFF00]/30 bg-[#CDFF00]/[0.07] text-[11px] leading-relaxed">
-              <span className="font-black uppercase tracking-widest text-[#CDFF00]">
+              <span className="font-black tracking-widest text-[#CDFF00]">
                 {shopItems.length} storefront {shopItems.length === 1 ? 'item' : 'items'} not included
               </span>
               <p className="text-gray-400 mt-1">
@@ -192,7 +192,7 @@ export default function Checkout() {
             {/* ── Left: the only thing this page actually collects ── */}
             <div className="space-y-4">
               <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
-                <h2 className="text-xs font-black text-white uppercase tracking-widest mb-1">Your details</h2>
+                <h2 className="text-xs font-black text-white tracking-widest mb-1">Your details</h2>
                 <p className="text-[11px] text-gray-500 mb-4">So the seller knows who to deliver to.</p>
                 <div className="space-y-2.5">
                   {field('fullName', 'Full name', 'text', User, 'name')}
@@ -209,7 +209,7 @@ export default function Checkout() {
                     <CreditCard className="w-4 h-4 text-[#CDFF00]" />
                   </span>
                   <div className="min-w-0">
-                    <h2 className="text-xs font-black text-white uppercase tracking-widest">Payment</h2>
+                    <h2 className="text-xs font-black text-white tracking-widest">Payment</h2>
                     <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
                       You&apos;ll choose how to pay on Stripe&apos;s secure page — card, Apple&nbsp;Pay,
                       Google&nbsp;Pay, BLIK or PayPal, depending on what&apos;s available for your
@@ -242,7 +242,7 @@ export default function Checkout() {
             {/* ── Right: the receipt, in view while the form is filled ── */}
             <aside className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5 h-fit lg:sticky lg:top-20">
               <div className="flex items-baseline justify-between mb-3">
-                <h2 className="text-xs font-black text-white uppercase tracking-widest">Order summary</h2>
+                <h2 className="text-xs font-black text-white tracking-widest">Order summary</h2>
                 <span className="text-[10px] font-bold text-gray-500">
                   {items.length} item{items.length === 1 ? '' : 's'}
                 </span>
@@ -300,7 +300,7 @@ export default function Checkout() {
                 {/* The "Paying with" row went with the picker — it named a choice that was
                     never sent to Stripe and could not be honoured. */}
                 <div className="flex items-center justify-between pt-2.5 border-t border-white/5">
-                  <span className="text-white font-black uppercase tracking-widest text-xs">Total</span>
+                  <span className="text-white font-black tracking-widest text-xs">Total</span>
                   <span className="text-[#CDFF00] text-2xl font-black">{formatPrice(total, currency)}</span>
                 </div>
                 <p className="text-[10px] text-gray-500 leading-relaxed">
@@ -320,7 +320,7 @@ export default function Checkout() {
                 type="button"
                 onClick={placeOrder}
                 disabled={!canSubmit}
-                className="mt-4 w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all shadow-[0_8px_24px_rgba(205,255,0,0.22)]"
+                className="mt-4 w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all shadow-[0_8px_24px_rgba(205,255,0,0.22)]"
               >
                 {loading ? (
                   <>
@@ -337,7 +337,7 @@ export default function Checkout() {
               </div>
 
               <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/5">
-                <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black uppercase tracking-widest">
+                <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black tracking-widest">
                   <ShieldCheck className="w-3.5 h-3.5" /> Buyer protection
                 </div>
                 <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
