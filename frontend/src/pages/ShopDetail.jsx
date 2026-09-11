@@ -6,7 +6,7 @@ import { listingsApi, followsApi } from '../api/client';
 import { formatPrice, displayCity } from '../utils/constants';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
-import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, Heart, CalendarClock, ShoppingBag, Pencil, ClipboardList, HandCoins } from 'lucide-react';
+import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, Heart, CalendarClock, ShoppingBag, Pencil, ClipboardList, HandCoins, MessageSquare } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import SmartImage from '../components/SmartImage';
 import ListingCard from '../components/ListingCard';
@@ -253,6 +253,22 @@ export default function ShopDetail() {
             >
               <Share2 className="w-4 h-4" />
             </button>
+            {/* Messaging the owner is one action, so it is one button, here with the other
+                two rather than a panel of its own down the sidebar. It used to be a full
+                "Run by" card — avatar, name, city, glow and a full-width button — which is a
+                lot of page to spend on a link to a chat, and on mobile it sat above the
+                products a shopper came for. The owner is still one tap away: the name in the
+                hero links to their profile. */}
+            {!isOwner && (
+              <Link
+                to={`/dm/${shop.ownerId}`}
+                aria-label={`Message ${shop.ownerName || 'the owner'}`}
+                title={`Message ${shop.ownerName || 'the owner'}`}
+                className="w-10 h-10 rounded-2xl bg-black/70 backdrop-blur-md border border-white/15 flex items-center justify-center hover:scale-110 transition-transform active:scale-95"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </Link>
+            )}
             {/* Hidden on your own shop: following yourself is not a thing. */}
             {!isOwner && (
               <button
@@ -559,34 +575,25 @@ export default function ShopDetail() {
                </div>
              )}
 
+             {/* "Run by" used to live here as a full panel ending in a Message owner button.
+                 Messaging moved to the action row in the hero; who runs the shop is one line
+                 rather than a card, and still links to their profile. */}
              {!isOwner && (
-               <div className="p-5 sm:p-8 rounded-3xl sm:rounded-[32px] bg-white/[0.03] border border-white/5 overflow-hidden relative">
-                  <div
-                    className="absolute top-0 right-0 w-32 h-32 blur-3xl opacity-20"
-                    style={{ background: shop.accentColor || '#CDFF00' }}
-                  />
-                  <h5 className="text-[10px] font-black tracking-widest text-gray-500 mb-4">Run by</h5>
-                  <Link to={`/profile/${shop.ownerId}`} className="flex items-center gap-3 mb-5 group">
-                    <div className="w-11 h-11 rounded-full overflow-hidden bg-black border border-white/10 shrink-0">
-                      <SmartImage src={shop.ownerAvatarUrl} alt={shop.ownerName} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-white truncate group-hover:text-[#CDFF00] transition-colors">
-                        {shop.ownerName || 'Seller'}
-                      </p>
-                      <p className="text-[10px] font-black tracking-widest text-gray-500">
-                        {displayCity(shop.city)}
-                      </p>
-                    </div>
-                  </Link>
-                  {/* DMs go to the owner's account, which is who actually answers. */}
-                  <Link
-                    to={`/dm/${shop.ownerId}`}
-                    className="block w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-center text-[10px] font-black tracking-widest text-white hover:bg-white/10 transition-colors"
-                  >
-                    Message owner
-                  </Link>
-               </div>
+               <Link
+                 to={`/profile/${shop.ownerId}`}
+                 className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/15 transition-colors group"
+               >
+                 <div className="w-8 h-8 rounded-full overflow-hidden bg-black border border-white/10 shrink-0">
+                   <SmartImage src={shop.ownerAvatarUrl} alt={shop.ownerName} className="w-full h-full object-cover" />
+                 </div>
+                 <div className="min-w-0 flex-1">
+                   <p className="text-[9px] font-black tracking-widest text-gray-500">Run by</p>
+                   <p className="text-xs font-bold text-white truncate group-hover:text-[#CDFF00] transition-colors">
+                     {shop.ownerName || 'Seller'}
+                   </p>
+                 </div>
+                 <ChevronRight className="w-3.5 h-3.5 text-gray-600 shrink-0 group-hover:text-white transition-colors" />
+               </Link>
              )}
           </aside>
         </div>
