@@ -6,7 +6,7 @@ import { selectIsAuthenticated, selectIsSeller, logout } from '../store/authSlic
 import { listingsApi } from '../api/client';
 import { LISTING_TYPES, CURRENCIES, POLISH_CITIES, formatPrice } from '../utils/constants';
 import { SHIPPING_METHODS, defaultMethodFor, getMethod } from '../utils/shipping';
-import { Lock, Image as ImageIcon, Check, X, ArrowRight, ArrowLeft, Play, CalendarClock, Store, LogOut, Truck } from 'lucide-react';
+import { Lock, Image as ImageIcon, Check, X, ArrowRight, ArrowLeft, Play, CalendarClock, Store, LogOut, Truck, LayoutGrid, Wallet, ClipboardList } from 'lucide-react';
 import { isVideoUrl } from '../utils/media';
 
 /**
@@ -51,6 +51,10 @@ export default function CreateListing() {
     // The door. Blank capacity means uncapped, which is the honest default for a
     // free-standing gig; blank sales dates mean on sale from posting until it starts.
     eventCapacity: '', salesOpenAt: '', salesCloseAt: '',
+    // What this seller needs from a buyer before they can start the order — one prompt
+    // per line, asked at checkout. Blank for most listings, which need nothing beyond
+    // the standard contact details.
+    checkoutFields: '',
     // Preselected from the category in step 1 rather than left blank — every listing needs
     // an answer, and "collection" for goods / "no shipping" for a service is right often
     // enough that most sellers only have to confirm it.
@@ -146,6 +150,7 @@ export default function CreateListing() {
         formData.append('salesOpenAt', form.salesOpenAt || '');
         formData.append('salesCloseAt', form.salesCloseAt || '');
       }
+      formData.append('checkoutFields', form.checkoutFields || '');
       if (form.meta) formData.append('meta', form.meta);
       images.forEach((img) => formData.append('images', img));
       
@@ -182,9 +187,9 @@ export default function CreateListing() {
   // buttons: the old form repeated Back/Next in every step with its own disabled rule, so the
   // rules drifted and step 3 could be reached with a price the previous step had rejected.
   const STEP_META = {
-    1: { label: 'Category & title', canAdvance: !!(form.title && form.listingType) },
-    2: { label: 'Price & delivery', canAdvance: !!form.price },
-    3: { label: 'Photos & details', canAdvance: true },
+    1: { label: 'Basics', blurb: 'Category and title', icon: LayoutGrid, canAdvance: !!(form.title && form.listingType) },
+    2: { label: 'Price', blurb: 'Price and delivery', icon: Wallet, canAdvance: !!form.price },
+    3: { label: 'Details', blurb: 'Photos and the rest', icon: ImageIcon, canAdvance: true },
   };
   const meta = STEP_META[step];
   const isLast = step === 3;
@@ -193,30 +198,79 @@ export default function CreateListing() {
     // Centred, and only as wide as the form needs. A single card the eye can rest on is the
     // point — the page used to be a left-aligned column that grew and shrank under the
     // heading as steps changed height.
-    <div className="min-h-[calc(100dvh-3.5rem)] flex items-center justify-center px-4 py-10">
+    // Mobile first: top-aligned with phone-sized padding, growing into a centred card only
+    // once there is room. Vertically centring on a phone put the first field under the fold
+    // whenever the keyboard opened, and py-10 on a 375px screen is a tenth of the viewport
+    // spent on nothing.
+    <div className="min-h-[calc(100dvh-3.5rem)] flex items-start sm:items-center justify-center px-3 sm:px-4 pt-4 pb-10 sm:py-10">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-xl"
       >
-        <h1 className="text-3xl sm:text-4xl font-heading font-extrabold text-white mb-2 tracking-wide text-center">
+        <h1 className="text-2xl sm:text-4xl font-heading font-extrabold text-white mb-1 sm:mb-2 tracking-wide text-center">
           Post <span className="text-[#CDFF00]">Listing</span>
         </h1>
-        <p className="text-gray-400 mb-8 font-bold tracking-wider text-sm text-center">{meta.label}</p>
+        <p className="text-gray-400 mb-5 sm:mb-8 font-bold tracking-wider text-xs sm:text-sm text-center">
+          {meta.blurb}
+        </p>
 
-        {/* Progress Tracker */}
-        <div className="flex items-center gap-2 mb-10">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center gap-2 flex-1">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all border ${
-                step >= s ? 'bg-[#CDFF00] text-black border-[#CDFF00]' : 'bg-transparent text-gray-600 border-white/10'
-              }`}>{s}</div>
-              {s < 3 && <div className={`flex-1 h-0.5 transition-all ${step > s ? 'bg-[#CDFF00]' : 'glass bg-black/40 border border-white/10'}`} />}
-            </div>
-          ))}
+        {/* The same rail as sign-up: icon, label, and completed steps tappable so a
+            correction does not mean walking forward through the whole form again. Labels
+            hide below sm — three of them do not fit a phone beside the connectors. */}
+        <div className="flex items-center gap-2 mb-5 sm:mb-8">
+          {[1, 2, 3].map((n) => {
+            const done = step > n;
+            const active = step === n;
+            const Icon = STEP_META[n].icon;
+            return (
+              <div key={n} className="flex items-center gap-2 flex-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => done && goTo(n)}
+                  disabled={!done && !active}
+                  aria-current={active ? 'step' : undefined}
+                  className={`flex items-center gap-2 min-w-0 ${done ? 'cursor-pointer hover:opacity-80' : 'cursor-default'} ${
+                    !done && !active ? 'opacity-40' : ''
+                  }`}
+                >
+                  <motion.span
+                    initial={false}
+                    animate={{ scale: active ? 1.08 : 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                      done
+                        ? 'bg-[#CDFF00] border-[#CDFF00] text-black'
+                        : active
+                          ? 'bg-[#CDFF00]/15 border-[#CDFF00]/50 text-[#CDFF00]'
+                          : 'bg-white/5 border-white/10 text-gray-500'
+                    }`}
+                  >
+                    {done ? <Check className="w-4 h-4" strokeWidth={3} /> : <Icon className="w-4 h-4" />}
+                  </motion.span>
+                  <span className={`text-[11px] font-black tracking-widest truncate hidden sm:block ${
+                    active ? 'text-white' : 'text-gray-500'
+                  }`}>
+                    {STEP_META[n].label}
+                  </span>
+                </button>
+                {n < 3 && (
+                  <div className="flex-1 h-0.5 rounded-full bg-white/10 overflow-hidden">
+                    <motion.div
+                      initial={false}
+                      animate={{ scaleX: step > n ? 1 : 0 }}
+                      style={{ originX: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="h-full w-full bg-[#CDFF00]"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        <div className="glass rounded-3xl p-6 sm:p-8 border border-white/5 overflow-hidden">
+        <div className="glass rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-white/5 overflow-hidden">
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20 text-[#CDFF00] text-sm font-bold tracking-wider text-center flex items-center justify-center gap-2">
               <X className="w-4 h-4" /> {error}
@@ -226,7 +280,7 @@ export default function CreateListing() {
           {/* One step on screen at a time, sliding in the direction of travel. */}
           {/* min-height so the card does not shrink to the footer in the beat between one
               panel leaving and the next arriving. */}
-          <div className="min-h-[420px]">
+          <div className="min-h-[340px] sm:min-h-[420px]">
           <AnimatePresence mode="wait" custom={direction} initial={false}>
           {/* Step 1: Core Details */}
           {step === 1 && (
@@ -553,6 +607,27 @@ export default function CreateListing() {
                   </p>
                 </div>
               )}
+
+              {/* What the seller needs back. Asked for here, at the point they are describing
+                  the listing, because it is part of what they are selling — not an
+                  afterthought to chase in DMs once someone has already paid. */}
+              <div>
+                <label className="block text-xs font-black text-gray-500 tracking-widest mb-2 flex items-center gap-2">
+                  <ClipboardList className="w-3.5 h-3.5" /> What you need from the buyer
+                </label>
+                <textarea
+                  rows={3}
+                  value={form.checkoutFields}
+                  onChange={(e) => set('checkoutFields', e.target.value)}
+                  placeholder={['One per line, e.g.', 'Your shoe size', 'Name to print on the cake', 'Gate code for delivery'].join('\n')}
+                  className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white placeholder-gray-600 focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all text-sm resize-none"
+                />
+                <p className="mt-1.5 text-[10px] text-gray-500 leading-relaxed">
+                  Each line becomes a question the buyer must answer before they can pay, and
+                  the answers arrive with the order. Leave blank if you only need their name,
+                  email and phone — those are always collected.
+                </p>
+              </div>
 
               <div>
                 <div className="flex items-center justify-between mb-2">
