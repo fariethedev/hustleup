@@ -92,10 +92,13 @@ function HeartField({ count = 7, className = '' }) {
 function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
   return (
     <div className="px-3 pb-2 shrink-0">
-      <div className="relative rounded-2xl border border-[#FF4E8E]/30 bg-gradient-to-b from-[#FF4E8E]/[0.12] via-[#FF4E8E]/[0.04] to-transparent p-3 overflow-hidden">
-        <HeartField count={9} />
+      {/* Kept deliberately short. This sits above the conversations, so every pixel it takes
+          is one fewer row of actual chat visible on a phone — it is an entry point, not a
+          section of its own. */}
+      <div className="relative rounded-2xl border border-[#FF4E8E]/30 bg-gradient-to-b from-[#FF4E8E]/[0.12] via-[#FF4E8E]/[0.04] to-transparent p-2.5 overflow-hidden">
+        <HeartField count={6} />
 
-        <div className="relative flex items-center gap-1.5 mb-2.5">
+        <div className="relative flex items-center gap-1.5 mb-2">
           <motion.span
             animate={reduceMotion ? {} : { scale: [1, 1.18, 1] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
@@ -122,11 +125,11 @@ function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
               whileHover={reduceMotion ? {} : { y: -2 }}
               whileTap={{ scale: 0.94 }}
               transition={SOFT_SPRING}
-              className="shrink-0 w-[58px] flex flex-col items-center gap-1.5"
+              className="shrink-0 w-[50px] flex flex-col items-center gap-1"
               aria-label={`Open your match with ${m.name || m.fullName}`}
             >
               <span
-                className="relative w-[54px] h-[54px] rounded-full p-[2px]"
+                className="relative w-[46px] h-[46px] rounded-full p-[2px]"
                 style={{ background: `linear-gradient(135deg, ${ROSE}, ${BLUSH})` }}
               >
                 <span className="block w-full h-full rounded-full overflow-hidden border-2 border-[#0A0A0A] bg-black">
@@ -1215,34 +1218,35 @@ export default function DirectMessages() {
                   {messages.length === 0 && activeIsBondMatch ? (
                     /* A matched thread with nothing in it yet opens on the match itself,
                        standing in for the day separator a thread with no messages lacks —
-                       so the first thing in the conversation is the reason there is one. */
+                       so the first thing in the conversation is the reason there is one.
+
+                       Sized like a separator rather than a splash screen. This used to be a
+                       full-height centred card with a 40px pulsing heart, which is most of a
+                       phone screen given to a line of text you read once: the empty thread it
+                       introduced had nowhere left to show itself, and the card stayed the
+                       whole time you were trying to think of an opener. It now sits at the
+                       top, the width of a message bubble, and the thread starts underneath. */
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={SOFT_SPRING}
-                      className="h-full flex items-center justify-center px-4"
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={QUICK_TWEEN}
+                      className="flex justify-center"
                     >
                       <div
-                        className="relative w-full max-w-xs rounded-3xl border p-6 text-center overflow-hidden"
+                        className="relative max-w-[280px] rounded-2xl border px-3.5 py-2.5 text-center overflow-hidden"
                         style={{ borderColor: `${ROSE}55`, backgroundColor: `${ROSE}12` }}
                       >
-                        <HeartField count={11} />
-                        <motion.div
-                          animate={reduceMotion ? {} : { scale: [1, 1.12, 1] }}
-                          transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                          className="relative flex justify-center mb-3"
-                        >
-                          <Heart className="w-10 h-10" style={{ color: ROSE, fill: ROSE }} />
-                        </motion.div>
-                        <p className="relative text-base font-black text-white tracking-tight">
+                        <HeartField count={4} className="rounded-2xl" />
+                        <p className="relative flex items-center justify-center gap-1.5 text-[13px] font-black text-white tracking-tight">
+                          <Heart className="w-3.5 h-3.5 shrink-0" style={{ color: ROSE, fill: ROSE }} />
                           It's a match
                         </p>
-                        <p className="relative text-xs mt-1.5 font-semibold" style={{ color: BLUSH }}>
+                        <p className="relative text-[11px] mt-0.5 font-semibold" style={{ color: BLUSH }}>
                           You and {firstNameOf(activePartnerData)} liked each other
                           {matchedAtLabel && ` ${matchedAtLabel}`}
                         </p>
-                        <p className="relative text-[11px] text-gray-400 mt-3 leading-relaxed">
-                          Nobody's said anything yet. Break the ice 💗
+                        <p className="relative text-[10px] text-gray-400 mt-1">
+                          Break the ice 💗
                         </p>
                       </div>
                     </motion.div>
