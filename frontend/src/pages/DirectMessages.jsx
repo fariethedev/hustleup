@@ -266,6 +266,34 @@ export default function DirectMessages() {
   // partners list' own isBondMatch field) so it's correct the moment a match is navigated to
   // from the swipe deck, before the 8s /partners poll has caught up.
   const [activeIsBondMatch, setActiveIsBondMatch] = useState(false);
+
+  /**
+   * Whether the Bond styling is shown in full, or turned down to a single icon.
+   *
+   * A Bond thread is decorated end to end — a rose ring on the avatar, a rose subtitle, a
+   * banner above the first message — which is the right emphasis the day you match and too
+   * much of it every day after. This is the "quieter, please" switch, and it is remembered
+   * because someone who wants it down wants it down tomorrow too.
+   *
+   * Read through a try/catch: a browser with site data blocked throws on access rather than
+   * returning null, and a chat thread should not fail to render over a cosmetic preference.
+   */
+  const [bondExpanded, setBondExpanded] = useState(() => {
+    try { return localStorage.getItem('hustleup_bond_highlight') !== 'min'; }
+    catch { return true; }
+  });
+
+  const toggleBondHighlight = () => {
+    setBondExpanded((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('hustleup_bond_highlight', next ? 'full' : 'min'); } catch { /* not fatal */ }
+      return next;
+    });
+  };
+
+  // Everything below keys off this rather than activeIsBondMatch directly, so one flag
+  // decides the whole treatment and the thread cannot end up half-decorated.
+  const showBondStyling = activeIsBondMatch && bondExpanded;
   const [activeMatchedAt, setActiveMatchedAt] = useState(null);
   const scrollContainerRef = useRef(null);
   // Mirrors activePartner synchronously so an in-flight poll can tell whether the
@@ -1019,7 +1047,7 @@ export default function DirectMessages() {
 
                   <Link to={`/profile/${activePartner}`} className="flex items-center gap-3 min-w-0 flex-1 group">
                     <motion.div whileHover={reduceMotion ? {} : { scale: 1.07 }} transition={SOFT_SPRING}>
-                      {activeIsBondMatch ? (
+                      {showBondStyling ? (
                         <span
                           className="block rounded-full p-[2px]"
                           style={{ background: `linear-gradient(135deg, ${ROSE}, ${BLUSH})` }}
@@ -1034,7 +1062,7 @@ export default function DirectMessages() {
                     </motion.div>
                     <div className="min-w-0">
                       <h3 className={`text-sm font-bold text-white truncate flex items-center gap-1.5 leading-tight transition-colors ${
-                        activeIsBondMatch ? 'group-hover:text-[#FFA6C9]' : 'group-hover:text-[#CDFF00]'
+                        showBondStyling ? 'group-hover:text-[#FFA6C9]' : 'group-hover:text-[#CDFF00]'
                       }`}>
                         {activePartnerData.name || activePartnerData.fullName}
                         {activePartnerData.verified && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00]" />}
@@ -1052,7 +1080,7 @@ export default function DirectMessages() {
                         )}
                       </h3>
                       <p className="text-[11px] truncate leading-tight mt-0.5 flex items-center gap-1">
-                        {activeIsBondMatch ? (
+                        {showBondStyling ? (
                           <span className="font-semibold" style={{ color: BLUSH }}>
                             Matched on Bond{matchedAtLabel && ` ${matchedAtLabel}`}
                           </span>
@@ -1062,6 +1090,25 @@ export default function DirectMessages() {
                       </p>
                     </div>
                   </Link>
+
+                  {/* Only on a Bond thread, and only ever affects how it looks — the match
+                      itself is unchanged, and the icon in the name stays either way so the
+                      context is never actually lost. */}
+                  {activeIsBondMatch && (
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      transition={SOFT_SPRING}
+                      onClick={toggleBondHighlight}
+                      aria-pressed={!bondExpanded}
+                      aria-label={bondExpanded ? 'Minimise the Bond highlight' : 'Show the Bond highlight'}
+                      title={bondExpanded ? 'Minimise the Bond highlight' : 'Show the Bond highlight'}
+                      className="p-2 rounded-xl hover:bg-white/[0.07] transition-colors"
+                      style={{ color: bondExpanded ? ROSE : '#6b7280' }}
+                    >
+                      <ThumbsUp className="w-[18px] h-[18px]" style={bondExpanded ? { fill: ROSE } : undefined} />
+                    </motion.button>
+                  )}
 
                   <motion.button
                     whileHover={{ scale: 1.1 }}
@@ -1261,7 +1308,7 @@ export default function DirectMessages() {
                     <AnimatePresence initial={false}>
                       {/* Once the thread has messages, the match becomes its opening line —
                           the same role a day separator plays for everything below it. */}
-                      {activeIsBondMatch && (
+                      {showBondStyling && (
                         <motion.div
                           key="bond-origin"
                           initial={{ opacity: 0, scale: 0.9 }}
@@ -1526,7 +1573,12 @@ export default function DirectMessages() {
                                       when the file is missing. A raw <img> gave a silent empty
                                       bubble for all three of those. */}
                                   <SmartImage
-                                    src={msg.mediaUrl}
+                                    // Server-relative, like every upload. Rendered raw it
+                                    // resolves against the frontend's own origin, which serves
+                                    // nothing of the kind — the photo sends fine and then shows
+                                    // as a broken bubble. Every other image on this page already
+                                    // goes through uploadUrl; this one was missed.
+                                    src={uploadUrl(msg.mediaUrl)}
                                     alt="Photo"
                                     onClick={() => setLightboxUrl(msg.mediaUrl)}
                                     className={`rounded-xl max-h-[320px] w-full min-w-[180px] aspect-[4/3] object-cover cursor-pointer ${pending ? 'opacity-60' : ''}`}
