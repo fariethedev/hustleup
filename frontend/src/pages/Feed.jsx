@@ -4,11 +4,7 @@ import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { feedApi, listingsApi, subscriptionsApi, communitiesApi, dispatchToast } from '../api/client';
 import { isPremiumActive, isPremiumRequiredError, PLAN_IDS } from '../utils/premium';
-import {
-  Heart, MessageCircle, Send, Bookmark, Image as ImageIcon, ShoppingBag,
-  BadgeCheck, X, Film, Star, Users, Store, Sparkles, Package, VenetianMask, Lock, Crown, Crop,
-  MoreHorizontal, Pencil, Trash2, Repeat2, UsersRound,
-} from 'lucide-react';
+import { ThumbsUp, MessageCircleMore, SendHorizontal, BookmarkCheck, Images as ImageIcon, ShoppingBasket, ShieldCheck, CircleX, Clapperboard, Sparkle, UserRound, Building2, WandSparkles, Box, Drama, LockKeyhole, Gem, Frame, Ellipsis, SquarePen, Eraser, IterationCw, UserCog } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { formatPrice } from '../utils/constants';
 import { useShops } from '../hooks/useShops';
@@ -87,7 +83,7 @@ function CommentRow({ comment, isReply = false, isAuthenticated, onToggleLike, o
               liked ? 'text-red-500' : 'text-gray-500 hover:text-white'
             }`}
           >
-            <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-red-500' : ''}`} />
+            <ThumbsUp className={`w-3.5 h-3.5 ${liked ? 'fill-red-500' : ''}`} />
             {/* Hidden at zero rather than showing "0", which reads as a judgement on the
                 comment instead of an absence of votes. */}
             {count > 0 && <span>{count}</span>}
@@ -119,7 +115,7 @@ function HeartBurst({ show }) {
           transition={{ duration: 0.45 }}
           className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
         >
-          <Heart className="w-24 h-24 text-white fill-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.5)]" />
+          <ThumbsUp className="w-24 h-24 text-white fill-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.5)]" />
         </motion.div>
       )}
     </AnimatePresence>
@@ -158,7 +154,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
           aria-expanded={menuOpen}
           className="p-1.5 -mr-1 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
         >
-          <MoreHorizontal className="w-4 h-4" />
+          <Ellipsis className="w-4 h-4" />
         </button>
         {menuOpen && (
           <>
@@ -170,14 +166,14 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
                 onClick={() => { setMenuOpen(false); onEdit?.(post); }}
                 className="w-full px-3 py-2.5 text-left text-xs font-semibold text-gray-200 hover:bg-white/5 flex items-center gap-2"
               >
-                <Pencil className="w-3.5 h-3.5" /> Edit
+                <SquarePen className="w-3.5 h-3.5" /> Edit
               </button>
               <button
                 type="button"
                 onClick={() => { setMenuOpen(false); onDelete?.(post); }}
                 className="w-full px-3 py-2.5 text-left text-xs font-semibold text-red-400 hover:bg-red-500/10 flex items-center gap-2"
               >
-                <Trash2 className="w-3.5 h-3.5" /> Delete
+                <Eraser className="w-3.5 h-3.5" /> Delete
               </button>
             </div>
           </>
@@ -201,7 +197,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
   const AuthorAvatar = ({ size = 'w-9 h-9', iconSize = 'w-4 h-4' }) => (
     anon ? (
       <div className={`${size} rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0`}>
-        <VenetianMask className={`${iconSize} text-gray-300`} />
+        <Drama className={`${iconSize} text-gray-300`} />
       </div>
     ) : (
       <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size={size} />
@@ -237,10 +233,10 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
         disabled={likeInProgress[post.id]}
         className={`transition-all hover:scale-110 ${post.likedByCurrentUser ? 'text-red-500' : 'text-gray-400 hover:text-white'}`}
       >
-        <Heart className={`w-6 h-6 ${post.likedByCurrentUser ? 'fill-current' : ''}`} />
+        <ThumbsUp className={`w-6 h-6 ${post.likedByCurrentUser ? 'fill-current' : ''}`} />
       </button>
       <button onClick={() => onOpenComments(post)} className="text-gray-400 hover:text-white transition-all hover:scale-110">
-        <MessageCircle className="w-6 h-6" />
+        <MessageCircleMore className="w-6 h-6" />
       </button>
       {/* Repost sits between reply and share because that is what it is: passing something
           on inside the app, where Send hands it to one person outside the feed. Hidden on
@@ -254,20 +250,20 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
             post.repostedByCurrentUser ? 'text-[#00FFFF]' : 'text-gray-400 hover:text-white'
           }`}
         >
-          <Repeat2 className="w-6 h-6" />
+          <IterationCw className="w-6 h-6" />
           {(post.repostCount || 0) > 0 && (
             <span className="text-xs font-bold">{post.repostCount}</span>
           )}
         </button>
       )}
       <button onClick={() => onShare(post)} className="text-gray-400 hover:text-white transition-all hover:scale-110">
-        <Send className="w-5 h-5" />
+        <SendHorizontal className="w-5 h-5" />
       </button>
       <button
         onClick={() => onSave(post.id)}
         className={`ml-auto transition-all hover:scale-110 ${post.savedByCurrentUser ? 'text-[#CDFF00]' : 'text-gray-400 hover:text-white'}`}
       >
-        <Bookmark className={`w-6 h-6 ${post.savedByCurrentUser ? 'fill-current' : ''}`} />
+        <BookmarkCheck className={`w-6 h-6 ${post.savedByCurrentUser ? 'fill-current' : ''}`} />
       </button>
     </div>
   );
@@ -280,7 +276,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
    */
   const communityLabel = !post.communityName ? null : (
     <span className="inline-flex items-center gap-1 text-[10px] font-black tracking-widest text-[#CDFF00]">
-      <UsersRound className="w-3 h-3" /> {post.communityName}
+      <UserCog className="w-3 h-3" /> {post.communityName}
     </span>
   );
 
@@ -368,7 +364,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
                 above the quote. */}
             {post.repostOf && !post.content && (
               <p className="flex items-center gap-1 text-[11px] font-bold text-gray-500 mt-0.5">
-                <Repeat2 className="w-3.5 h-3.5" /> Reposted
+                <IterationCw className="w-3.5 h-3.5" /> Reposted
               </p>
             )}
             {post.content && (
@@ -473,7 +469,7 @@ function ListingPromoCard({ listing, onSave, onShare }) {
           <div className="min-w-0">
             <span className="text-sm font-bold text-white hover:underline flex items-center gap-1 truncate">
               {listing.sellerName}
-              {listing.sellerVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
+              {listing.sellerVerified && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
             </span>
             <span className="text-[10px] font-bold text-[#CDFF00] tracking-widest">Marketplace</span>
           </div>
@@ -495,13 +491,13 @@ function ListingPromoCard({ listing, onSave, onShare }) {
       <div className="p-3.5">
         <div className="flex items-center gap-4 mb-2">
           <button onClick={() => onShare(listing)} className="text-gray-400 hover:text-white transition-all hover:scale-110">
-            <Send className="w-5 h-5" />
+            <SendHorizontal className="w-5 h-5" />
           </button>
           <button
             onClick={() => onSave(listing.id)}
             className={`ml-auto transition-all hover:scale-110 ${listing.savedByCurrentUser ? 'text-[#CDFF00]' : 'text-gray-400 hover:text-white'}`}
           >
-            <Bookmark className={`w-6 h-6 ${listing.savedByCurrentUser ? 'fill-current' : ''}`} />
+            <BookmarkCheck className={`w-6 h-6 ${listing.savedByCurrentUser ? 'fill-current' : ''}`} />
           </button>
         </div>
         <p className="text-sm text-gray-200">
@@ -512,7 +508,7 @@ function ListingPromoCard({ listing, onSave, onShare }) {
           to={`/listing/${listing.id}`}
           className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 text-xs font-bold tracking-widest text-[#CDFF00] hover:bg-[#CDFF00] hover:text-black transition-all"
         >
-          View listing <ShoppingBag className="w-3.5 h-3.5" />
+          View listing <ShoppingBasket className="w-3.5 h-3.5" />
         </Link>
       </div>
     </motion.div>
@@ -535,18 +531,18 @@ function ShopPromoCard({ shop }) {
           <SmartImage
             src={uploadUrl(shop.bannerUrl)}
             alt={shop.name}
-            fallbackIcon={Store}
+            fallbackIcon={Building2}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold text-[#CDFF00] tracking-widest mb-0.5 flex items-center gap-1">
-            <Store className="w-3 h-3" /> Suggested shop
+            <Building2 className="w-3 h-3" /> Suggested shop
           </p>
           <p className="text-sm font-bold text-white truncate">{shop.name}</p>
           <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
-            <span className="flex items-center gap-1"><Package className="w-3 h-3" /> {shop.productCount ?? 0}</span>
-            <span className="flex items-center gap-1"><Star className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" /> {shop.rating > 0 ? shop.rating.toFixed(1) : 'New'}</span>
+            <span className="flex items-center gap-1"><Box className="w-3 h-3" /> {shop.productCount ?? 0}</span>
+            <span className="flex items-center gap-1"><Sparkle className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" /> {shop.rating > 0 ? shop.rating.toFixed(1) : 'New'}</span>
             <span className="truncate">{[shop.category, shop.city].filter(Boolean).join(' · ')}</span>
           </div>
         </div>
@@ -695,6 +691,13 @@ export default function Feed() {
       setFollowingLoading(false);
     }
   };
+
+  // The destination picker only exists on the Communities tab, so a target chosen there must
+  // not survive leaving it — a post written on For You would otherwise land in a community
+  // the composer is no longer showing, and the author would have no way to know.
+  useEffect(() => {
+    if (tab !== 'communities') setPostTarget(null);
+  }, [tab]);
 
   /** Posts from every community you've joined, plus the list of those communities. */
   const loadCommunityFeed = async () => {
@@ -1195,10 +1198,10 @@ export default function Feed() {
           <div className="mb-5 -mx-4 px-4 overflow-x-auto overscroll-x-contain scrollbar-hide">
             <div className="flex items-center gap-1 p-1 rounded-full bg-white/5 border border-white/10 w-fit mx-auto">
               {[
-                { id: 'foryou', label: 'For you', icon: Sparkles },
-                { id: 'following', label: 'Following', icon: Users },
-                { id: 'communities', label: 'Communities', icon: UsersRound },
-                { id: 'saved', label: 'Saved', icon: Bookmark },
+                { id: 'foryou', label: 'For you', icon: WandSparkles },
+                { id: 'following', label: 'Following', icon: UserRound },
+                { id: 'communities', label: 'Communities', icon: UserCog },
+                { id: 'saved', label: 'Saved', icon: BookmarkCheck },
               ].map((t) => {
                 const Icon = t.icon;
                 return (
@@ -1224,17 +1227,25 @@ export default function Feed() {
                   on and your face is replaced by the mask, before you commit to posting. */}
               {anonymous ? (
                 <div className="w-11 h-11 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
-                  <VenetianMask className="w-5 h-5 text-white" />
+                  <Drama className="w-5 h-5 text-white" />
                 </div>
               ) : (
                 <Avatar name={user?.fullName} avatarUrl={user?.avatarUrl} size="w-11 h-11" />
               )}
-              <div className="flex-1 space-y-3">
-                {/* Where this post is going. Shown only once you belong to a community —
-                    a picker with one option is noise. It says the destination before you
-                    write rather than after, because "which feed did that go to?" is not a
-                    question anyone should have to answer by hunting for their own post. */}
-                {myCommunities.length > 0 && (
+              {/* min-w-0 is load-bearing. A flex item defaults to min-width:auto, which means
+                  it refuses to shrink below the intrinsic width of its contents — so the row
+                  of community chips below pushed this column wider than the screen instead of
+                  scrolling inside it, and the whole page went with it. Every community joined
+                  made it worse, which is why it only showed up once there were a few. */}
+              <div className="flex-1 min-w-0 space-y-3">
+                {/* Where this post is going — on the Communities tab only.
+                    It says the destination before you write rather than after, because "which
+                    feed did that go to?" is not a question anyone should have to answer by
+                    hunting for their own post. Confined to this tab because everywhere else
+                    the answer is already known: a post written on For You goes to everyone,
+                    and a row of community chips there was one more thing to read past on a
+                    screen that has no room for it. */}
+                {tab === 'communities' && myCommunities.length > 0 && (
                   <div className="flex items-center gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-hide -mx-1 px-1 pb-0.5">
                     <button
                       type="button"
@@ -1258,7 +1269,7 @@ export default function Feed() {
                             : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'
                         }`}
                       >
-                        <UsersRound className="w-3 h-3" /> {community.name}
+                        <UserCog className="w-3 h-3" /> {community.name}
                       </button>
                     ))}
                   </div>
@@ -1281,7 +1292,7 @@ export default function Feed() {
                       <div key={idx} className="relative shrink-0">
                         {file.type.startsWith('video/') ? (
                           <div className="w-20 h-20 rounded-xl bg-black flex items-center justify-center border border-white/10">
-                            <Film className="w-7 h-7 text-gray-400" />
+                            <Clapperboard className="w-7 h-7 text-gray-400" />
                           </div>
                         ) : (
                           // Tapping the thumbnail opens the cropper — the thumbnail is a
@@ -1295,7 +1306,7 @@ export default function Feed() {
                           >
                             <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover" />
                             <span className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5">
-                              <Crop className="w-4 h-4 text-[#CDFF00]" />
+                              <Frame className="w-4 h-4 text-[#CDFF00]" />
                               <span className="text-[8px] font-black tracking-widest text-white">Adjust</span>
                             </span>
                           </button>
@@ -1305,7 +1316,7 @@ export default function Feed() {
                           onClick={() => removeMedia(idx)}
                           className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black border border-white/20 text-white flex justify-center items-center hover:bg-red-500 hover:border-red-500 transition-colors"
                         >
-                          <X className="w-3 h-3" />
+                          <CircleX className="w-3 h-3" />
                         </button>
                       </div>
                     ))}
@@ -1318,7 +1329,7 @@ export default function Feed() {
                     animate={{ opacity: 1, height: 'auto' }}
                     className="flex items-start gap-2 text-[11px] text-gray-400 leading-relaxed bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2"
                   >
-                    <VenetianMask className="w-3.5 h-3.5 text-[#CDFF00] shrink-0 mt-0.5" />
+                    <Drama className="w-3.5 h-3.5 text-[#CDFF00] shrink-0 mt-0.5" />
                     {/* Say plainly what anonymity does and does not cover. Someone choosing it
                         is making a judgement about exposure and deserves the real boundary. */}
                     <span>
@@ -1349,9 +1360,9 @@ export default function Feed() {
                           : 'bg-transparent text-gray-400 border-white/15 hover:text-white hover:border-white/35'
                       }`}
                     >
-                      <VenetianMask className="w-4 h-4" />
+                      <Drama className="w-4 h-4" />
                       <span className="hidden xs:inline sm:inline">Anonymous</span>
-                      {premium === false && <Lock className="w-3 h-3 opacity-70" />}
+                      {premium === false && <LockKeyhole className="w-3 h-3 opacity-70" />}
                     </button>
                   </div>
 
@@ -1408,7 +1419,7 @@ export default function Feed() {
             })
           ) : tab === 'saved' ? (
             <div className="text-center py-24 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
-              <Bookmark className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+              <BookmarkCheck className="w-12 h-12 mx-auto text-gray-600 mb-4" />
               <h3 className="text-white font-bold mb-1">Nothing saved yet</h3>
               <p className="text-sm text-gray-500">Tap the bookmark icon on any post or listing to save it here.</p>
             </div>
@@ -1416,7 +1427,7 @@ export default function Feed() {
             /* Says which of the two reasons this is empty, because the fix is different:
                follow someone, or wait for the people you follow to post. */
             <div className="text-center py-24 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
-              <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+              <UserRound className="w-12 h-12 mx-auto text-gray-600 mb-4" />
               <h3 className="text-white font-bold mb-1">Nothing from your circle yet</h3>
               <p className="text-sm text-gray-500 max-w-xs mx-auto">
                 This tab only ever shows posts from people you follow. Follow a few and they'll land here.
@@ -1427,7 +1438,7 @@ export default function Feed() {
             </div>
           ) : tab === 'communities' ? (
             <div className="text-center py-16 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
-              <UsersRound className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+              <UserCog className="w-12 h-12 mx-auto text-gray-600 mb-4" />
               <h3 className="text-white font-bold mb-1">
                 {myCommunities.length === 0 ? 'Join a community' : 'No posts here yet'}
               </h3>
@@ -1439,7 +1450,7 @@ export default function Feed() {
             </div>
           ) : (
             <div className="text-center py-24 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl">
-              <Sparkles className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+              <WandSparkles className="w-12 h-12 mx-auto text-gray-600 mb-4" />
               <h3 className="text-white font-bold mb-1">Your feed is empty</h3>
               <p className="text-sm text-gray-500">Be the first to share something.</p>
             </div>
@@ -1468,13 +1479,13 @@ export default function Feed() {
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="flex items-center gap-2 text-sm font-black text-white tracking-tight">
-                    <Repeat2 className="w-4 h-4 text-[#00FFFF]" /> Repost
+                    <IterationCw className="w-4 h-4 text-[#00FFFF]" /> Repost
                   </h3>
                   <button
                     onClick={() => setRepostTarget(null)}
                     className="p-1.5 rounded-lg text-gray-500 hover:bg-white/10"
                   >
-                    <X className="w-4 h-4" />
+                    <CircleX className="w-4 h-4" />
                   </button>
                 </div>
 
@@ -1561,10 +1572,10 @@ export default function Feed() {
               >
                 <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
                   <h3 className="text-white font-bold text-sm flex items-center gap-2">
-                    <MessageCircle className="w-4 h-4 text-[#CDFF00]" /> Comments
+                    <MessageCircleMore className="w-4 h-4 text-[#CDFF00]" /> Comments
                   </h3>
                   <button onClick={() => setSelectedPost(null)} className="p-1.5 rounded-full hover:bg-white/10 text-gray-500 hover:text-white transition-colors">
-                    <X className="w-4 h-4" />
+                    <CircleX className="w-4 h-4" />
                   </button>
                 </div>
 
@@ -1585,7 +1596,7 @@ export default function Feed() {
                     /* Says the thread could not be read, rather than that it is empty, and
                        offers the retry that a transient failure needs. */
                     <div className="py-20 text-center flex flex-col items-center gap-3">
-                      <MessageCircle className="w-10 h-10 text-gray-700" />
+                      <MessageCircleMore className="w-10 h-10 text-gray-700" />
                       <p className="text-sm text-gray-400">{commentsError}</p>
                       <button
                         onClick={() => selectedPost && openComments(selectedPost)}
@@ -1596,7 +1607,7 @@ export default function Feed() {
                     </div>
                   ) : comments.length === 0 ? (
                     <div className="py-20 text-center flex flex-col items-center gap-3">
-                      <MessageCircle className="w-10 h-10 text-gray-700" />
+                      <MessageCircleMore className="w-10 h-10 text-gray-700" />
                       <p className="text-sm text-gray-500">No comments yet — be the first.</p>
                     </div>
                   ) : (
@@ -1647,7 +1658,7 @@ export default function Feed() {
                           aria-label="Cancel reply"
                           className="shrink-0 text-[#CDFF00]/70 hover:text-white transition-colors"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <CircleX className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     )}
@@ -1669,7 +1680,7 @@ export default function Feed() {
                         disabled={commenting || !commentInput.trim()}
                         className="absolute right-1.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-[#CDFF00] text-black flex items-center justify-center disabled:opacity-30 hover:brightness-110 active:scale-95 transition-all"
                       >
-                        {commenting ? <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+                        {commenting ? <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <SendHorizontal className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
@@ -1700,11 +1711,11 @@ export default function Feed() {
               >
                 <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
                   <h3 className="text-white font-bold text-sm flex items-center gap-2">
-                    <Heart className="w-4 h-4 text-red-500 fill-red-500" />
+                    <ThumbsUp className="w-4 h-4 text-red-500 fill-red-500" />
                     Likes · {likersPost.likesCount || likers.length}
                   </h3>
                   <button onClick={() => setLikersPost(null)} className="p-1.5 rounded-full hover:bg-white/10 text-gray-500 hover:text-white transition-colors">
-                    <X className="w-4 h-4" />
+                    <CircleX className="w-4 h-4" />
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto py-2">
@@ -1730,7 +1741,7 @@ export default function Feed() {
                         <Avatar name={u.name} avatarUrl={u.avatarUrl} size="w-10 h-10" />
                         <span className="text-sm font-bold text-white flex items-center gap-1.5 min-w-0">
                           <span className="truncate">{u.name}</span>
-                          {u.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
+                          {u.verified && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
                         </span>
                       </Link>
                     ))
@@ -1819,11 +1830,11 @@ export default function Feed() {
                 className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-500 hover:bg-white/10 hover:text-white transition-colors"
                 aria-label="Close"
               >
-                <X className="w-4 h-4" />
+                <CircleX className="w-4 h-4" />
               </button>
 
               <div className="w-14 h-14 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-4">
-                <VenetianMask className="w-7 h-7 text-[#CDFF00]" />
+                <Drama className="w-7 h-7 text-[#CDFF00]" />
               </div>
               <h3 className="text-lg font-black text-white tracking-tight mb-2">Post anonymously</h3>
               <p className="text-sm text-gray-400 leading-relaxed mb-5">
@@ -1838,7 +1849,7 @@ export default function Feed() {
                   'Everything else in Premium, including Hustle Bond',
                 ].map((line) => (
                   <li key={line} className="flex items-start gap-2 text-xs text-gray-300">
-                    <Crown className="w-3.5 h-3.5 text-[#CDFF00] shrink-0 mt-0.5" />
+                    <Gem className="w-3.5 h-3.5 text-[#CDFF00] shrink-0 mt-0.5" />
                     {line}
                   </li>
                 ))}
