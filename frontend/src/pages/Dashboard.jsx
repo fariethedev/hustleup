@@ -8,7 +8,7 @@ import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constan
 import {
   Settings2, Plus, Inbox, ClipboardList, Check, X, MessageSquare, ListTodo, PackageSearch,
   BellRing, TrendingUp, CalendarClock, Pencil, Store, Trash2, Ban, Landmark, CreditCard, ShieldCheck, ShieldAlert,
-  Ticket, ScanLine, ArrowRight, Star, Truck, Package, Megaphone
+  Ticket, ScanLine, ArrowRight, Star, Truck, Package, Megaphone, User2
 } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
 import ShopManager from '../components/ShopManager';
@@ -600,6 +600,11 @@ export default function Dashboard() {
                             })()}
                           </div>
                         </div>
+
+                        {/* Who to contact and what they told you. Shown to the seller, who
+                            is the one who has to act on it — and to the buyer, because a typo
+                            in a delivery address is only findable if it is shown back. */}
+                        <BuyerDetails booking={booking} />
 
                         {/* Renders itself away for anything with no delivery track — an
                             unpaid order, or a service that was never going to be shipped. */}
@@ -1198,6 +1203,88 @@ const SHOP_ORDER_STATES = {
   CANCELLED: { label: 'Cancelled', color: 'bg-red-500/15 text-red-400' },
   REFUNDED: { label: 'Refunded', color: 'bg-amber-500/15 text-amber-400' },
 };
+
+/**
+ * The buyer's contact details and their answers to the seller's checkout questions.
+ *
+ * <p>Collapsed behind a summary line rather than always open: on a seller's list of twenty
+ * bookings, twenty address blocks is a wall. It opens on the one they are working on.
+ *
+ * <p>Renders nothing at all for bookings placed before any of this was captured — an empty
+ * panel headed "Buyer details" says the details are missing rather than that the feature is
+ * newer than the order.
+ */
+function BuyerDetails({ booking }) {
+  const [open, setOpen] = useState(false);
+
+  const rows = [
+    { label: 'Name', value: booking.customerName },
+    { label: 'Email', value: booking.customerEmail },
+    { label: 'Phone', value: booking.customerPhone },
+    { label: 'Address', value: booking.deliveryAddress },
+  ].filter((r) => r.value);
+
+  // Free text on both sides — the prompts are the seller's own words and the answers are
+  // the buyer's, so this is displayed and never interpreted.
+  let answers = [];
+  try {
+    const parsed = booking.checkoutAnswers ? JSON.parse(booking.checkoutAnswers) : null;
+    if (parsed && typeof parsed === 'object') answers = Object.entries(parsed);
+  } catch {
+    // Malformed JSON costs the answers, not the card.
+  }
+
+  if (rows.length === 0 && answers.length === 0) return null;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-white/5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-[9px] font-black tracking-[0.2em] text-gray-500 hover:text-white transition-colors"
+      >
+        <User2 className="w-3.5 h-3.5" />
+        Buyer details
+        {answers.length > 0 && (
+          <span className="text-[#CDFF00]">· {answers.length} answered</span>
+        )}
+        <span className="text-gray-600">{open ? '−' : '+'}</span>
+      </button>
+
+      {open && (
+        <div className="mt-2.5 space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+            {rows.map((r) => (
+              <div key={r.label} className="min-w-0">
+                <span className="block text-[9px] font-black tracking-widest text-gray-600">{r.label}</span>
+                {/* Tappable on a phone: a seller reading an order wants to call or mail the
+                    buyer from here, not copy the value out by hand. */}
+                {r.label === 'Email' ? (
+                  <a href={`mailto:${r.value}`} className="text-xs text-[#CDFF00] hover:underline break-all">{r.value}</a>
+                ) : r.label === 'Phone' ? (
+                  <a href={`tel:${r.value}`} className="text-xs text-[#CDFF00] hover:underline">{r.value}</a>
+                ) : (
+                  <span className="text-xs text-gray-300 whitespace-pre-wrap break-words">{r.value}</span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {answers.length > 0 && (
+            <div className="pt-2 mt-1 border-t border-white/5 space-y-1.5">
+              {answers.map(([prompt, answer]) => (
+                <div key={prompt} className="min-w-0">
+                  <span className="block text-[9px] font-black tracking-widest text-gray-600">{prompt}</span>
+                  <span className="text-xs text-gray-300 break-words">{String(answer)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function EmptyState({ icon: Icon, title, desc, cta }) {
   return (

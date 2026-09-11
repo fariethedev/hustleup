@@ -99,12 +99,14 @@ public class ListingController {
             @RequestParam(required = false) String eventCapacity,
             @RequestParam(required = false) String salesOpenAt,
             @RequestParam(required = false) String salesCloseAt,
+            // Newline-separated prompts the buyer answers at checkout, in the seller's words.
+            @RequestParam(required = false) String checkoutFields,
             @RequestParam(required = false) String meta,
             @RequestParam(required = false) List<MultipartFile> images) {
         return ResponseEntity.ok(listingService.create(title, description, listingType,
                 price, currency, negotiable, city, agentFee, swapEnabled,
                 shippingMethod, shippingPrice, eventStartsAt, eventVenue,
-                eventCapacity, salesOpenAt, salesCloseAt, meta, images));
+                eventCapacity, salesOpenAt, salesCloseAt, checkoutFields, meta, images));
     }
 
     // JSON body (not @RequestParam/form fields) — matches how the dashboard's price/negotiable
@@ -139,7 +141,7 @@ public class ListingController {
         String salesCloseAt = (String) body.get("salesCloseAt");
         return ResponseEntity.ok(listingService.update(id, title, description, price, negotiable, city,
                 meta, status, swapEnabled, shippingMethod, shippingPrice,
-                eventCapacity, salesOpenAt, salesCloseAt));
+                eventCapacity, salesOpenAt, salesCloseAt, (String) body.get("checkoutFields")));
     }
 
     @GetMapping("/user/{userId}")

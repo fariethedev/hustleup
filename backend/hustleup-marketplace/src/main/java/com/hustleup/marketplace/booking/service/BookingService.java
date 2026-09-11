@@ -406,6 +406,18 @@ public class BookingService {
      */
     @Transactional
     public CartCheckout createCartCheckout(List<Map<String, Object>> items) throws StripeException {
+        return createCartCheckout(items, null);
+    }
+
+    /**
+     * Cart checkout, carrying the buyer's contact details onto every booking it creates.
+     *
+     * @param customer {@code {name, email, phone, address, answers: {listingId: {prompt: answer}}}},
+     *                 or null from a client that does not send them yet
+     */
+    @Transactional
+    public CartCheckout createCartCheckout(List<Map<String, Object>> items,
+                                           Map<String, Object> customer) throws StripeException {
         if (items == null || items.isEmpty()) {
             throw new RuntimeException("Your cart is empty");
         }
@@ -427,6 +439,12 @@ public class BookingService {
             BookingDto dto = create(listingId, null, when, null, qty, false);
             Booking booking = bookingRepository.findById(dto.getId())
                     .orElseThrow(() -> new RuntimeException("Booking vanished mid-checkout"));
+
+            // Stamp the buyer's details onto every line. Written here rather than inside
+            // create() because create() is also reached from the listing page and the
+            // request-to-join flow, where no checkout form has been filled in yet.
+            applyCustomerDetails(booking, customer, listingId);
+            booking = bookingRepository.save(booking);
 
             if (booking.getStatus() == BookingStatus.BOOKED) {
                 payable.add(booking);
@@ -991,6 +1009,49 @@ public class BookingService {
                 .filter(b -> outstanding.contains(b.getStatus()))
                 .map(b -> enrichDto(b, user.getId()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Copies the checkout form onto a booking.
+     *
+     * <p>Falls back to the account's own name and email when the form left them blank: a
+     * seller with no way to contact a buyer is the thing this exists to prevent, and the
+     * account details are better than nothing. The phone and address have no fallback —
+     * inventing either would be worse than leaving them empty.
+     */
+    private void applyCustomerDetails(Booking booking, Map<String, Object> customer, UUID listingId) {
+        User buyer = userRepository.findById(booking.getBuyerId()).orElse(null);
+
+        String name = customer == null ? null : str(customer.get("name"));
+        String email = customer == null ? null : str(customer.get("email"));
+
+        booking.setCustomerName(name != null ? name : (buyer != null ? buyer.displayName() : null));
+        booking.setCustomerEmail(email != null ? email : (buyer != null ? buyer.getEmail() : null));
+        booking.setCustomerPhone(customer == null ? null : str(customer.get("phone")));
+        booking.setDeliveryAddress(customer == null ? null : str(customer.get("address")));
+
+        // Answers arrive keyed by listing id, because one cart can hold several listings and
+        // each seller asked their own questions. Only this line's answers belong on this
+        // booking — handing a seller another seller's questions would leak both.
+        if (customer != null && customer.get("answers") instanceof Map<?, ?> allAnswers) {
+            Object mine = allAnswers.get(listingId.toString());
+            if (mine instanceof Map<?, ?> answers && !answers.isEmpty()) {
+                try {
+                    booking.setCheckoutAnswers(new com.fasterxml.jackson.databind.ObjectMapper()
+                            .writeValueAsString(answers));
+                } catch (Exception ignored) {
+                    // Unserialisable answers are dropped rather than failing the purchase.
+                    // Losing an optional note is recoverable; losing the sale is not.
+                }
+            }
+        }
+    }
+
+    /** Trims a loosely-typed body value, treating blank as absent. */
+    private String str(Object value) {
+        if (value == null) return null;
+        String text = String.valueOf(value).trim();
+        return text.isEmpty() ? null : text;
     }
 
     /**

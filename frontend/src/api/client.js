@@ -217,7 +217,9 @@ export const bookingsApi = {
    * → { url, paidBookingIds, awaitingApproval }
    * `url` is null when every item needs seller approval first.
    */
-  cartCheckout: (items) => api.post('/bookings/checkout', { items }),
+  // `customer` carries the buyer's contact details and their answers to the sellers'
+  // own checkout questions onto every booking created. Optional on the wire.
+  cartCheckout: (items, customer) => api.post('/bookings/checkout', { items, customer }),
   // Seller's outstanding sales (INQUIRED / NEGOTIATING / BOOKED) — powers the pending
   // badge and panel. Seller side only; a seller's own purchases are not included.
   pendingSales: () => api.get('/bookings/pending-sales'),

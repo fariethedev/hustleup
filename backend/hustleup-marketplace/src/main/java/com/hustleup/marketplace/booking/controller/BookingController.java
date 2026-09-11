@@ -314,7 +314,10 @@ public class BookingController {
         try {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> items = (List<Map<String, Object>>) body.get("items");
-            var result = bookingService.createCartCheckout(items);
+            var result = bookingService.createCartCheckout(items,
+                // Optional: {name, email, phone, address, answers}. Older clients send no
+                // such key at all, which the service reads as "fall back to the account".
+                body.get("customer") instanceof Map<?, ?> c ? (Map<String, Object>) c : null);
             Map<String, Object> out = new java.util.LinkedHashMap<>();
             out.put("url", result.checkoutUrl());
             out.put("paidBookingIds", result.paidBookingIds());

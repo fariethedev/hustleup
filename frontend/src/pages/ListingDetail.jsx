@@ -115,6 +115,9 @@ export default function ListingDetail() {
       // can show postage before checkout rather than after payment.
       shippingMethod: listing.shippingMethod,
       shippingPrice: convertToPLN(listing.shippingPrice || 0, listing.currency || 'PLN'),
+      // What this seller asks a buyer at checkout. Carried on the line so the checkout
+      // can put the questions in front of them without re-fetching every listing.
+      checkoutFields: listing.checkoutFields,
     }));
     setAddedToCart(true);
     showToast('Added to cart!');
@@ -253,6 +256,9 @@ export default function ListingDetail() {
       // can show postage before checkout rather than after payment.
       shippingMethod: listing.shippingMethod,
       shippingPrice: convertToPLN(listing.shippingPrice || 0, listing.currency || 'PLN'),
+      // What this seller asks a buyer at checkout. Carried on the line so the checkout
+      // can put the questions in front of them without re-fetching every listing.
+      checkoutFields: listing.checkoutFields,
     }));
     navigate('/checkout');
   };

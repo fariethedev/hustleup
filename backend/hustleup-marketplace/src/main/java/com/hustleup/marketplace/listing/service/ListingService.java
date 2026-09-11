@@ -123,7 +123,7 @@ public class ListingService {
                               boolean swapEnabled, String shippingMethod, BigDecimal shippingPrice,
                               String eventStartsAt, String eventVenue,
                               String eventCapacity, String salesOpenAt, String salesCloseAt,
-                              String meta, List<MultipartFile> images) {
+                              String checkoutFields, String meta, List<MultipartFile> images) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -173,6 +173,7 @@ public class ListingService {
                 .eventCapacity(type == ListingType.EVENT ? parseCapacity(eventCapacity) : null)
                 .salesOpenAt(type == ListingType.EVENT ? parseEventStart(salesOpenAt) : null)
                 .salesCloseAt(type == ListingType.EVENT ? parseEventStart(salesCloseAt) : null)
+                .checkoutFields(blankToNull(checkoutFields))
                 .meta(meta)
                 .mediaUrls(mediaUrlsCsv)
                 .build();
@@ -269,7 +270,8 @@ public class ListingService {
     public ListingDto update(UUID id, String title, String description, BigDecimal price,
                               boolean negotiable, String city, String meta, String status,
                               Boolean swapEnabled, String shippingMethod, BigDecimal shippingPrice,
-                              String eventCapacity, String salesOpenAt, String salesCloseAt) {
+                              String eventCapacity, String salesOpenAt, String salesCloseAt,
+                              String checkoutFields) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -301,6 +303,8 @@ public class ListingService {
         if (eventCapacity != null) listing.setEventCapacity(parseCapacity(eventCapacity));
         if (salesOpenAt != null) listing.setSalesOpenAt(parseEventStart(salesOpenAt));
         if (salesCloseAt != null) listing.setSalesCloseAt(parseEventStart(salesCloseAt));
+        // Absent means "leave alone"; an empty string is a real instruction to clear them.
+        if (checkoutFields != null) listing.setCheckoutFields(blankToNull(checkoutFields));
 
         Listing saved = listingRepository.save(listing);
         algoliaIndexService.indexListing(saved);

@@ -97,6 +97,14 @@ public class ListingDto {
     private String salesState;
     private String salesMessage;
 
+    /**
+     * What this seller needs from a buyer at checkout, one prompt per line.
+     *
+     * <p>Public, because the checkout has to ask them before payment — and because a buyer
+     * deciding whether to order is entitled to see what will be required of them first.
+     */
+    private String checkoutFields;
+
     // --- Extra metadata ---
     private String meta;              // optional JSON blob for category-specific fields
     private List<String> mediaUrls;   // parsed image/video URLs (entity stores as CSV, DTO exposes as List)
@@ -158,6 +166,7 @@ public class ListingDto {
                 .shippingMethod(listing.getShippingMethod() != null
                         ? listing.getShippingMethod().name() : null)
                 .shippingPrice(listing.getShippingPrice())
+                .checkoutFields(listing.getCheckoutFields())
                 .eventStartsAt(listing.getEventStartsAt())
                 .eventVenue(listing.getEventVenue())
                 .eventCapacity(listing.getEventCapacity())

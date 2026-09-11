@@ -69,6 +69,23 @@ public class BookingDto {
      */
     private Fulfilment fulfilment;
 
+    // --- Who to contact, and what they told the seller -----------------------
+    /**
+     * Contact details captured at checkout.
+     *
+     * <p>Returned to both sides. The seller needs them to fulfil the order; the buyer needs
+     * to see what they gave, because a typo in a delivery address is only discoverable if it
+     * is shown back to them. Neither is secret from the other — they are in a transaction
+     * together, which is the whole point of exchanging them.
+     */
+    private String customerName;
+    private String customerEmail;
+    private String customerPhone;
+    private String deliveryAddress;
+
+    /** Answers to the seller's own checkout questions, as a JSON object of prompt → answer. */
+    private String checkoutAnswers;
+
     // --- Status ---
     private String status;        // BookingStatus.name() — e.g. "BOOKED", "CANCELLED"
     private String cancelReason;  // reason provided at cancellation time; null for non-cancelled bookings
@@ -114,6 +131,11 @@ public class BookingDto {
                 // embeddable for bookings predating the delivery columns, and the tracker
                 // needs an object to read a (null) status off rather than a null.
                 .fulfilment(booking.getFulfilment())
+                .customerName(booking.getCustomerName())
+                .customerEmail(booking.getCustomerEmail())
+                .customerPhone(booking.getCustomerPhone())
+                .deliveryAddress(booking.getDeliveryAddress())
+                .checkoutAnswers(booking.getCheckoutAnswers())
                 // .name() converts the enum constant to its string representation
                 .status(booking.getStatus().name())
                 .cancelReason(booking.getCancelReason())
