@@ -42,6 +42,7 @@ import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Account;
 import com.stripe.model.AccountLink;
+import com.stripe.model.PaymentIntent;
 import com.stripe.model.Refund;
 import com.stripe.model.Transfer;
 import com.stripe.model.checkout.Session;
@@ -50,6 +51,7 @@ import com.stripe.param.AccountLinkCreateParams;
 import com.stripe.param.RefundCreateParams;
 import com.stripe.param.TransferCreateParams;
 import com.stripe.param.checkout.SessionCreateParams;
+import lombok.extern.slf4j.Slf4j;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -59,6 +61,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class StripeConnectService {
 
@@ -413,15 +416,16 @@ public class StripeConnectService {
         // on every order, which is a quiet way of teaching them to pad their shipping prices.
         payoutMinorUnits += toMinorUnits(booking.getFulfilment().shippingPriceOrZero());
 
-        TransferCreateParams params = TransferCreateParams.builder()
+        TransferCreateParams.Builder params = TransferCreateParams.builder()
                 .setAmount(payoutMinorUnits)
                 .setCurrency(booking.getCurrency().toLowerCase())
                 .setDestination(sellerStripeAccountId)
                 .setTransferGroup(booking.getId().toString())
-                .putMetadata("bookingId", booking.getId().toString())
-                .build();
+                .putMetadata("bookingId", booking.getId().toString());
 
-        return Transfer.create(params).getId();
+        applySourceCharge(params, booking.getPaymentIntentId(), "booking " + booking.getId());
+
+        return Transfer.create(params.build()).getId();
     }
 
     /**
@@ -447,15 +451,63 @@ public class StripeConnectService {
 
         payoutMinorUnits += toMinorUnits(order.getFulfilment().shippingPriceOrZero());
 
-        TransferCreateParams params = TransferCreateParams.builder()
+        TransferCreateParams.Builder params = TransferCreateParams.builder()
                 .setAmount(payoutMinorUnits)
                 .setCurrency(order.getCurrency().toLowerCase())
                 .setDestination(sellerStripeAccountId)
                 .setTransferGroup(order.getId().toString())
-                .putMetadata("shopOrderId", order.getId().toString())
-                .build();
+                .putMetadata("shopOrderId", order.getId().toString());
 
-        return Transfer.create(params).getId();
+        applySourceCharge(params, order.getPaymentIntentId(), "order " + order.getId());
+
+        return Transfer.create(params.build()).getId();
+    }
+
+    /**
+     * Ties a transfer to the specific charge it is paying out from.
+     *
+     * <h3>Why this is not optional</h3>
+     * <p>Without {@code source_transaction} a transfer is drawn from the platform's
+     * <em>available</em> balance. A card charge does not land there — it lands in
+     * <em>pending</em> and only becomes available after Stripe's settlement delay, which is
+     * days. So every payout failed with {@code balance_insufficient} the moment it was
+     * attempted, was caught by the caller, logged, and left the money held. From the outside
+     * that looked exactly like nothing happening: sellers onboarded, buyers confirmed
+     * receipt, and no transfer ever appeared in Stripe.
+     *
+     * <p>With it, Stripe takes the funds from that charge directly and the transfer succeeds
+     * immediately — which is the documented way to do separate charges and transfers, and the
+     * only way it works at all in test mode, where the platform balance is generally zero.
+     *
+     * <p>Best-effort by design: a booking with no PaymentIntent (a free one, or a row
+     * predating the field) still transfers the old way rather than being refused. That path
+     * needs a funded platform balance, which is the correct behaviour for money that did not
+     * come from a specific charge.
+     *
+     * @param reference what is being paid out, for the log line only
+     */
+    private void applySourceCharge(TransferCreateParams.Builder params,
+                                   String paymentIntentId, String reference) {
+        if (paymentIntentId == null || paymentIntentId.isBlank()) {
+            log.warn("Payout for {} has no PaymentIntent — transferring from the platform balance, "
+                     + "which needs available funds", reference);
+            return;
+        }
+        try {
+            String chargeId = PaymentIntent.retrieve(paymentIntentId).getLatestCharge();
+            if (chargeId == null || chargeId.isBlank()) {
+                log.warn("PaymentIntent {} for {} has no charge yet — transferring from the "
+                         + "platform balance", paymentIntentId, reference);
+                return;
+            }
+            params.setSourceTransaction(chargeId);
+        } catch (StripeException e) {
+            // Not fatal. Falling through leaves a balance-funded transfer, which either works
+            // or fails loudly at Transfer.create — better than refusing a payout here over a
+            // lookup that might just be a transient network blip.
+            log.warn("Could not resolve the charge behind {} for {}: {}",
+                    paymentIntentId, reference, e.getMessage());
+        }
     }
 
     /** Refunds the buyer in full when a paid booking is cancelled before completion. */

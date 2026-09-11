@@ -929,11 +929,42 @@ public class BookingService {
             return;
         }
 
-        payoutAccountRepository.findBySellerId(booking.getSellerId())
-                .filter(SellerPayoutAccount::isPayoutsEnabled)
-                .ifPresent(payoutAccount -> {
+        // Was: findBySellerId(...).filter(isPayoutsEnabled).ifPresent(...) — which skipped
+        // silently on both misses. A seller with no account and a seller whose cached flag was
+        // stale produced the same outcome as a successful payout: nothing in the log, nothing
+        // in Stripe, and no way to tell the three apart from the outside.
+        SellerPayoutAccount payoutAccount = payoutAccountRepository
+                .findBySellerId(booking.getSellerId()).orElse(null);
+        if (payoutAccount == null) {
+            log.info("Booking {} is due but seller {} has no payout account — holding",
+                    booking.getId(), booking.getSellerId());
+            return;
+        }
+
+        // The local flag is a cache of Stripe's answer, kept current by the account.updated
+        // webhook and by the seller opening the payouts page. Neither is guaranteed to have
+        // happened — a test-mode platform frequently has no webhook configured at all — so a
+        // false flag is re-checked at source before it is allowed to block real money.
+        if (!payoutAccount.isPayoutsEnabled()) {
+            try {
+                payoutAccount = stripeConnectService.refreshAccountStatus(payoutAccount);
+            } catch (StripeException e) {
+                log.warn("Could not refresh payout account for seller {}: {}",
+                        booking.getSellerId(), e.getMessage());
+            }
+        }
+        if (!payoutAccount.isPayoutsEnabled()) {
+            log.info("Booking {} is due but seller {} has not finished Connect onboarding "
+                     + "(charges={}, details={}) — holding",
+                    booking.getId(), booking.getSellerId(),
+                    payoutAccount.isChargesEnabled(), payoutAccount.isDetailsSubmitted());
+            return;
+        }
+
+        java.util.Optional.of(payoutAccount)
+                .ifPresent(account -> {
                     try {
-                        String transferId = stripeConnectService.transferToSeller(booking, payoutAccount.getStripeAccountId());
+                        String transferId = stripeConnectService.transferToSeller(booking, account.getStripeAccountId());
                         booking.setTransferId(transferId);
                         booking.setPaymentStatus("TRANSFERRED");
 
@@ -943,6 +974,9 @@ public class BookingService {
                                 "<p>You've been paid out for <b>" + title + "</b>.</p>");
                         notifyByPush(booking.getSellerId(), "Payout sent", "You've been paid out for " + title + ".");
                     } catch (StripeException e) {
+                        // Left PAID on purpose: recording a transfer that did not happen would
+                        // erase, from the platform's own books, money it still owes. The sweep
+                        // picks it up again.
                         log.error("Payout failed for booking {} — left held: {}", booking.getId(), e.getMessage());
                     }
                 });
