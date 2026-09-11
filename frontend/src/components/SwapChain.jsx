@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Repeat, ArrowRight, Package, Coins } from 'lucide-react';
+import { Recycle, MoveRight, Box, Banknote } from 'lucide-react';
 import { swapsApi } from '../api/client';
 import { uploadUrl } from '../config';
 import { hasCash, cashLabel } from '../utils/swap';
@@ -33,7 +33,7 @@ export default function SwapChain({ limit = 8 }) {
     <div className="relative w-full border-b border-white/5 py-4">
       <div className="flex items-center gap-2 px-4 mb-3">
         <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#FF00FF] to-[#00FFFF] flex items-center justify-center">
-          <Repeat className="w-3 h-3 text-black" strokeWidth={3} />
+          <Recycle className="w-3 h-3 text-black" strokeWidth={3} />
         </div>
         <h2 className="text-[11px] font-black tracking-[0.2em] text-white">Swap chain</h2>
         <span className="text-[10px] text-gray-600 font-bold">{links.length} recent trade{links.length === 1 ? '' : 's'}</span>
@@ -59,7 +59,7 @@ export default function SwapChain({ limit = 8 }) {
                 </span>
               </Link>
 
-              <Repeat className="w-3 h-3 text-[#CDFF00] shrink-0" />
+              <Recycle className="w-3 h-3 text-[#CDFF00] shrink-0" />
 
               <Link to={`/profile/${s.targetOwnerId}`} className="flex items-center gap-1.5 min-w-0 group">
                 <div className="w-5 h-5 rounded-full overflow-hidden bg-white/10 shrink-0">
@@ -74,7 +74,7 @@ export default function SwapChain({ limit = 8 }) {
             {/* What changed hands */}
             <div className="flex items-center gap-2">
               <Thumb side={s.gives} />
-              <ArrowRight className="w-3 h-3 text-gray-500 shrink-0" />
+              <MoveRight className="w-3 h-3 text-gray-500 shrink-0" />
               <Thumb side={s.wants} />
             </div>
 
@@ -83,7 +83,7 @@ export default function SwapChain({ limit = 8 }) {
                 there is no viewer whose side it could be phrased from. */}
             {hasCash(s) && (
               <div className="mt-2 flex items-center gap-1.5 text-[9px] font-black tracking-widest text-[#CDFF00]">
-                <Coins className="w-3 h-3 shrink-0" />
+                <Banknote className="w-3 h-3 shrink-0" />
                 <span className="truncate">+ {cashLabel(s)} on top</span>
               </div>
             )}
@@ -100,7 +100,7 @@ function Thumb({ side }) {
       <div className="w-full h-14 rounded-lg overflow-hidden bg-black/40 mb-1">
         {side?.imageUrl
           ? <img src={uploadUrl(side.imageUrl)} alt="" className="w-full h-full object-cover" />
-          : <div className="w-full h-full flex items-center justify-center"><Package className="w-4 h-4 text-gray-600" /></div>}
+          : <div className="w-full h-full flex items-center justify-center"><Box className="w-4 h-4 text-gray-600" /></div>}
       </div>
       <p className="text-[9px] font-bold text-gray-400 truncate leading-tight">{side?.title || '—'}</p>
     </div>

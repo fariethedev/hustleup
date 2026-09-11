@@ -4,10 +4,7 @@ import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { datingApi, subscriptionsApi, dispatchToast } from '../api/client';
 import { isPremiumActive } from '../utils/premium';
-import {
-  Heart, X, Sparkles, MessageCircle, User, Camera, Crown, Users, Zap,
-  Star, RotateCcw,
-} from 'lucide-react';
+import { ThumbsUp, CircleX, WandSparkles, MessageCircleMore, CircleUserRound, Aperture, Gem, UserRound, Rocket, Sparkle, Undo } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import BondCard from '../components/BondCard';
 import { formatPrice } from '../utils/constants';
@@ -57,7 +54,7 @@ function MatchCelebrationModal({ currentUser, matchedProfile, superLike, onClose
             className="absolute"
             style={{ left: `${8 + i * 10}%` }}
           >
-            <Heart className="w-5 h-5" style={{ color: accent, fill: accent, opacity: 0.5 }} />
+            <ThumbsUp className="w-5 h-5" style={{ color: accent, fill: accent, opacity: 0.5 }} />
           </motion.div>
         ))}
       </div>
@@ -74,12 +71,12 @@ function MatchCelebrationModal({ currentUser, matchedProfile, superLike, onClose
           transition={{ delay: 0.15, type: 'spring', bounce: 0.6 }}
         >
           {superLike ? (
-            <Star
+            <Sparkle
               className="w-14 h-14 mx-auto mb-3"
               style={{ color: accent, fill: accent, filter: `drop-shadow(0 0 20px ${accent}66)` }}
             />
           ) : (
-            <Heart
+            <ThumbsUp
               className="w-14 h-14 mx-auto mb-3"
               style={{ color: accent, fill: accent, filter: `drop-shadow(0 0 20px ${accent}66)` }}
             />
@@ -125,7 +122,7 @@ function MatchCelebrationModal({ currentUser, matchedProfile, superLike, onClose
           className="w-full py-3.5 rounded-xl text-black font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all mb-3 flex items-center justify-center gap-2"
           style={{ backgroundColor: accent }}
         >
-          <MessageCircle className="w-4 h-4" /> Send a message
+          <MessageCircleMore className="w-4 h-4" /> Send a message
         </button>
         <button
           onClick={onClose}
@@ -249,7 +246,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-white">Your Bond profile</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">
-            <X className="w-4.5 h-4.5" />
+            <CircleX className="w-4.5 h-4.5" />
           </button>
         </div>
 
@@ -258,7 +255,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
           <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white/10 bg-black">
             <img src={imagePreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.id}`} className="w-full h-full object-cover" alt="" />
             <button onClick={() => fileRef.current?.click()} className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-              <Camera className="w-5 h-5 text-[#CDFF00] mb-1" />
+              <Aperture className="w-5 h-5 text-[#CDFF00] mb-1" />
               <span className="text-[9px] font-bold text-[#CDFF00]">Upload</span>
             </button>
           </div>
@@ -365,9 +362,9 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
  */
 function PremiumPaywall({ onUpgrade, upgrading, plans }) {
   const perks = [
-    { icon: Heart, text: 'Unlimited swipes on creatives near you' },
-    { icon: Users, text: 'See mutual matches and message instantly' },
-    { icon: Zap, text: 'Priority placement in other members’ stacks' },
+    { icon: ThumbsUp, text: 'Unlimited swipes on creatives near you' },
+    { icon: UserRound, text: 'See mutual matches and message instantly' },
+    { icon: Rocket, text: 'Priority placement in other members’ stacks' },
   ];
 
   // The longest term is the best per-month value, so it is worth pointing at. Derived
@@ -380,7 +377,7 @@ function PremiumPaywall({ onUpgrade, upgrading, plans }) {
     <div className="w-full max-w-sm mx-auto px-4">
       <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-center">
         <div className="w-11 h-11 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-3">
-          <Crown className="w-5 h-5 text-[#CDFF00]" />
+          <Gem className="w-5 h-5 text-[#CDFF00]" />
         </div>
         <h2 className="text-base font-bold text-white mb-1">Bond is a Premium feature</h2>
         <p className="text-xs text-gray-400 leading-relaxed mb-4">
@@ -790,12 +787,12 @@ export default function Dating() {
             onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`; }}
           />
           <span className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <User className="w-4 h-4 text-[#CDFF00]" />
+            <CircleUserRound className="w-4 h-4 text-[#CDFF00]" />
           </span>
         </button>
 
         <h1 className="flex items-center gap-2 text-lg sm:text-xl font-heading font-black text-white tracking-tight">
-          <Heart className="w-4 h-4 text-[#CDFF00] fill-[#CDFF00]" />
+          <ThumbsUp className="w-4 h-4 text-[#CDFF00] fill-[#CDFF00]" />
           Bond
         </h1>
 
@@ -804,7 +801,7 @@ export default function Dating() {
           aria-label="Messages"
           className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-[#CDFF00] hover:border-[#CDFF00]/40 transition-colors"
         >
-          <MessageCircle className="w-4 h-4" />
+          <MessageCircleMore className="w-4 h-4" />
         </Link>
       </header>
 
@@ -825,7 +822,7 @@ export default function Dating() {
               onClick={() => setShowSetup(true)}
               className="shrink-0 mb-2.5 w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#CDFF00]/[0.07] border border-[#CDFF00]/25 hover:border-[#CDFF00]/50 transition-all text-left"
             >
-              <Sparkles className="w-4 h-4 text-[#CDFF00] shrink-0" />
+              <WandSparkles className="w-4 h-4 text-[#CDFF00] shrink-0" />
               <span className="text-xs font-bold text-white">Finish your profile</span>
               <span className="text-[10px] text-gray-400 ml-auto">You'll get swiped on more</span>
             </button>
@@ -836,7 +833,7 @@ export default function Dating() {
             {deck.length === 0 ? (
               <div className="w-full h-full flex flex-col items-center justify-center bg-white/[0.02] border border-dashed border-white/10 rounded-3xl p-6 text-center">
                 <div className="w-14 h-14 rounded-full bg-white/[0.04] flex items-center justify-center mb-4">
-                  <Sparkles className="w-6 h-6 text-gray-600" />
+                  <WandSparkles className="w-6 h-6 text-gray-600" />
                 </div>
                 <h3 className="text-sm font-bold text-white mb-1">You're all caught up</h3>
                 <p className="text-xs text-gray-500 mb-5 max-w-[15rem] leading-relaxed">
@@ -880,14 +877,14 @@ export default function Dating() {
           {/* ── Controls ──────────────────────────────────────────────────── */}
           <div className="shrink-0 pt-4 flex justify-center items-center gap-3.5">
             <ActionButton
-              icon={RotateCcw}
+              icon={Undo}
               label="Undo last swipe"
               color="#FFB800"
               onClick={rewind}
               disabled={rewinding || busy}
             />
             <ActionButton
-              icon={X}
+              icon={CircleX}
               label="Nope"
               color="#FF4458"
               glow={nopeGlow}
@@ -896,7 +893,7 @@ export default function Dating() {
               large
             />
             <ActionButton
-              icon={Star}
+              icon={Sparkle}
               label="Super like"
               color="#00E0FF"
               glow={superGlow}
@@ -905,7 +902,7 @@ export default function Dating() {
               fill
             />
             <ActionButton
-              icon={Heart}
+              icon={ThumbsUp}
               label="Like"
               color="#CDFF00"
               glow={likeGlow}

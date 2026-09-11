@@ -8,17 +8,14 @@ import { useShops } from '../hooks/useShops';
 import ListingCard from '../components/ListingCard';
 import ShopCard from '../components/ShopCard';
 import CreatorCard from '../components/CreatorCard';
-import {
-  Store, ShoppingBag, MapPin, Search, X, Users, Compass,
-  SlidersHorizontal, LayoutGrid,
-} from 'lucide-react';
+import { Building2, ShoppingBasket, Navigation, ScanSearch, CircleX, UserRound, Map, ListFilter, Grid2x2 } from 'lucide-react';
 
 /* ── Tab definitions ── */
 const TABS = [
-  { key: 'all',      label: 'All',      icon: LayoutGrid, accent: '#00FFFF' },
-  { key: 'listings', label: 'Listings',  icon: ShoppingBag, accent: '#00FFFF' },
-  { key: 'shops',    label: 'Shops',     icon: Store,       accent: '#FF00FF' },
-  { key: 'creators', label: 'Creators',  icon: Users,       accent: '#CDFF00' },
+  { key: 'all',      label: 'All',      icon: Grid2x2, accent: '#00FFFF' },
+  { key: 'listings', label: 'Listings',  icon: ShoppingBasket, accent: '#00FFFF' },
+  { key: 'shops',    label: 'Shops',     icon: Building2,       accent: '#FF00FF' },
+  { key: 'creators', label: 'Creators',  icon: UserRound,       accent: '#CDFF00' },
 ];
 
 /* ── Sort options (listings only) ── */
@@ -214,7 +211,7 @@ export default function Explore() {
                     : 'bg-white/5 border-white/10 text-gray-300'
                 }`}
               >
-                <SlidersHorizontal className="w-4 h-4" />
+                <ListFilter className="w-4 h-4" />
                 {(city || listingType || sort !== 'latest') && mobilePanel !== 'filters' && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#CDFF00] border border-black" />
                 )}
@@ -233,7 +230,7 @@ export default function Explore() {
                 >
                   <div className="pt-2.5 space-y-2.5">
                     <div className="relative">
-                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CDFF00] pointer-events-none" />
+                      <Navigation className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CDFF00] pointer-events-none" />
                       <select
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
@@ -247,7 +244,7 @@ export default function Explore() {
 
                     {(tab === 'listings' || tab === 'all') && (
                       <div className="relative">
-                        <SlidersHorizontal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#FF00FF] pointer-events-none" />
+                        <ListFilter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#FF00FF] pointer-events-none" />
                         <select
                           value={sort}
                           onChange={(e) => setSort(e.target.value)}
@@ -292,7 +289,7 @@ export default function Explore() {
                           onClick={clearFilters}
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300"
                         >
-                          <X className="w-3 h-3" /> Clear
+                          <CircleX className="w-3 h-3" /> Clear
                         </button>
                       )}
                     </div>
@@ -305,10 +302,10 @@ export default function Explore() {
           {/* ── Desktop: everything inline, unchanged ── */}
           <div className="hidden sm:block">
 
-          {/* Row 1: Search + City */}
+          {/* Row 1: ScanSearch + City */}
           <div className="flex flex-col sm:flex-row gap-2.5">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <ScanSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
                 type="search"
                 value={query}
@@ -322,13 +319,13 @@ export default function Explore() {
                   aria-label="Clear search"
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <CircleX className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
 
             <div className="relative sm:w-52">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CDFF00] pointer-events-none" />
+              <Navigation className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CDFF00] pointer-events-none" />
               <select
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
@@ -343,7 +340,7 @@ export default function Explore() {
             {/* Sort — only visible on listings tab or all tab */}
             {(tab === 'listings' || tab === 'all') && (
               <div className="relative sm:w-52">
-                <SlidersHorizontal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#FF00FF] pointer-events-none" />
+                <ListFilter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#FF00FF] pointer-events-none" />
                 <select
                   value={sort}
                   onChange={(e) => setSort(e.target.value)}
@@ -396,7 +393,7 @@ export default function Explore() {
                   onClick={clearFilters}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/25 transition-colors"
                 >
-                  <X className="w-3 h-3" /> Clear
+                  <CircleX className="w-3 h-3" /> Clear
                 </button>
               )}
             </div>
@@ -444,7 +441,7 @@ export default function Explore() {
           {tab === 'all' && (
             <motion.div key="all" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
               {isLoading ? skeletons(8) : allItems.length === 0 ? (
-                emptyState(<Compass className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'Nothing matches your search. Try different keywords or clear the filters.')
+                emptyState(<Map className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'Nothing matches your search. Try different keywords or clear the filters.')
               ) : (
                 <motion.div layout className={FEED_COLUMN}>
                   {allItems.map((item, i) => (
@@ -463,7 +460,7 @@ export default function Explore() {
           {tab === 'listings' && (
             <motion.div key="listings" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
               {loading ? skeletons(8) : listings.length === 0 ? (
-                emptyState(<ShoppingBag className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No listings match your search.')
+                emptyState(<ShoppingBasket className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No listings match your search.')
               ) : (
                 <motion.div layout className={FEED_COLUMN}>
                   <AnimatePresence mode="popLayout">
@@ -482,7 +479,7 @@ export default function Explore() {
           {tab === 'shops' && (
             <motion.div key="shops" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
               {shopsLoading ? skeletons(6, 'h-80') : shops.length === 0 ? (
-                emptyState(<Store className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No shops match your search.')
+                emptyState(<Building2 className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No shops match your search.')
               ) : (
                 <motion.div layout className={FEED_COLUMN}>
                   <AnimatePresence mode="popLayout">
@@ -501,7 +498,7 @@ export default function Explore() {
           {tab === 'creators' && (
             <motion.div key="creators" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>
               {loading ? skeletons(10, 'h-64') : people.length === 0 ? (
-                emptyState(<Users className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No creators match your search.')
+                emptyState(<UserRound className="w-12 h-12 mx-auto text-white/15 mb-5" />, 'No creators match your search.')
               ) : (
                 <motion.div layout className={FEED_COLUMN}>
                   <AnimatePresence mode="popLayout">

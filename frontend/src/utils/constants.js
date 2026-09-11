@@ -1,12 +1,12 @@
-import { Scissors, Utensils, PartyPopper, Shirt, Package, Wrench } from 'lucide-react';
+import { Slice, ChefHat, Cake, Footprints, Box, Hammer } from 'lucide-react';
 
 export const LISTING_TYPES = [
-  { value: 'HAIR_BEAUTY', label: 'Hair & Beauty', icon: Scissors, color: 'from-pink-500 to-rose-500' },
-  { value: 'FOOD', label: 'Food & Catering', icon: Utensils, color: 'from-orange-500 to-amber-500' },
-  { value: 'EVENT', label: 'Events & Entertainment', icon: PartyPopper, color: 'from-purple-500 to-indigo-500' },
-  { value: 'FASHION', label: 'Fashion & Clothing', icon: Shirt, color: 'from-fuchsia-500 to-pink-500' },
-  { value: 'GOODS', label: 'Goods & Products', icon: Package, color: 'from-blue-500 to-cyan-500' },
-  { value: 'SKILL', label: 'Skills & Services', icon: Wrench, color: 'from-emerald-500 to-teal-500' },
+  { value: 'HAIR_BEAUTY', label: 'Hair & Beauty', icon: Slice, color: 'from-pink-500 to-rose-500' },
+  { value: 'FOOD', label: 'Food & Catering', icon: ChefHat, color: 'from-orange-500 to-amber-500' },
+  { value: 'EVENT', label: 'Events & Entertainment', icon: Cake, color: 'from-purple-500 to-indigo-500' },
+  { value: 'FASHION', label: 'Fashion & Clothing', icon: Footprints, color: 'from-fuchsia-500 to-pink-500' },
+  { value: 'GOODS', label: 'Goods & Products', icon: Box, color: 'from-blue-500 to-cyan-500' },
+  { value: 'SKILL', label: 'Skills & Services', icon: Hammer, color: 'from-emerald-500 to-teal-500' },
 ];
 
 export const BOOKING_STATUS_MAP = {

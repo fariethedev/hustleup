@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Type, Image as ImageIcon, CheckCircle2, AlertCircle, Loader2, Video, ChevronRight, Crop } from 'lucide-react';
+import { CircleX, Baseline, Images as ImageIcon, BadgeCheck, CircleAlert, Loader, Clapperboard, CircleChevronRight, Frame } from 'lucide-react';
 import { storiesApi, dispatchToast } from '../../api/client';
 import ImageCropper from '../ImageCropper';
 import { lockBodyScroll } from '../../utils/lockBodyScroll';
@@ -163,7 +163,7 @@ export default function StoryCreator({ onClose, onSuccess }) {
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all"
           >
-            <X className="w-5 h-5" />
+            <CircleX className="w-5 h-5" />
           </button>
         </div>
 
@@ -172,9 +172,9 @@ export default function StoryCreator({ onClose, onSuccess }) {
             {/* Type Selection */}
             <div className="grid grid-cols-3 gap-2">
               {[
-                { id: 'TEXT', icon: Type, label: 'Text' },
+                { id: 'TEXT', icon: Baseline, label: 'Text' },
                 { id: 'IMAGE', icon: ImageIcon, label: 'Photo' },
-                { id: 'VIDEO', icon: Video, label: 'Video' }
+                { id: 'VIDEO', icon: Clapperboard, label: 'Video' }
               ].map((type) => (
                 <button
                   key={type.id}
@@ -243,7 +243,7 @@ export default function StoryCreator({ onClose, onSuccess }) {
                               onClick={(e) => { e.stopPropagation(); setCropCandidate(mediaFile); }}
                               className="px-4 py-2 rounded-full bg-[#CDFF00] text-black font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-transform"
                             >
-                              <Crop className="w-3.5 h-3.5" /> Adjust
+                              <Frame className="w-3.5 h-3.5" /> Adjust
                             </button>
                           )}
                           <span className="px-4 py-2 rounded-full bg-white/15 border border-white/25 text-white font-bold text-xs">
@@ -254,7 +254,7 @@ export default function StoryCreator({ onClose, onSuccess }) {
                     ) : (
                       <div className="text-center p-6">
                         <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3 group-hover:bg-[#CDFF00]/10 transition-all">
-                          {storyType === 'VIDEO' ? <Video className="w-6 h-6 text-gray-500 group-hover:text-[#CDFF00]" /> : <ImageIcon className="w-6 h-6 text-gray-500 group-hover:text-[#CDFF00]" />}
+                          {storyType === 'VIDEO' ? <Clapperboard className="w-6 h-6 text-gray-500 group-hover:text-[#CDFF00]" /> : <ImageIcon className="w-6 h-6 text-gray-500 group-hover:text-[#CDFF00]" />}
                         </div>
                         <h4 className="text-white font-semibold text-sm mb-1">Select {storyType === 'VIDEO' ? 'a clip' : 'a photo'}</h4>
                         <p className="text-gray-500 text-xs">Max file size 20MB</p>
@@ -270,7 +270,7 @@ export default function StoryCreator({ onClose, onSuccess }) {
                   animate={{ opacity: 1, y: 0 }}
                   className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400 w-full"
                 >
-                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <CircleAlert className="w-4 h-4 shrink-0" />
                   <span className="text-xs font-medium">{error}</span>
                 </motion.div>
               )}
@@ -288,11 +288,11 @@ export default function StoryCreator({ onClose, onSuccess }) {
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Posting…
+                <Loader className="w-4 h-4 animate-spin" /> Posting…
               </>
             ) : (
               <>
-                Post story <ChevronRight className="w-4 h-4" />
+                Post story <CircleChevronRight className="w-4 h-4" />
               </>
             )}
           </button>

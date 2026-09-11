@@ -5,7 +5,7 @@ import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { ticketsApi } from '../api/client';
 import { formatPrice } from '../utils/constants';
-import { Ticket, MapPin, CalendarClock, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
+import { TicketCheck, Navigation, CalendarRange, BadgeCheck, OctagonX, MoveRight } from 'lucide-react';
 import SmartImage from '../components/SmartImage';
 import HeroBrief from '../components/HeroBrief';
 import { uploadUrl } from '../config';
@@ -58,7 +58,7 @@ export default function Tickets() {
         ) : tickets.length === 0 ? (
           <div className="text-center py-14 glass rounded-2xl border border-white/5">
             <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4 border border-white/5">
-              <Ticket className="w-6 h-6 text-white/20" />
+              <TicketCheck className="w-6 h-6 text-white/20" />
             </div>
             <h3 className="text-lg font-black text-white tracking-[0.1em] mb-2">No tickets yet</h3>
             <p className="text-gray-500 font-bold tracking-widest text-[10px] max-w-xs mx-auto leading-relaxed mb-5">
@@ -68,7 +68,7 @@ export default function Tickets() {
               to="/explore?type=EVENT"
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#CDFF00] text-black font-black tracking-widest text-[9px] hover:scale-105 transition-all"
             >
-              Find an event <ArrowRight className="w-3.5 h-3.5" />
+              Find an event <MoveRight className="w-3.5 h-3.5" />
             </Link>
           </div>
         ) : (
@@ -122,7 +122,7 @@ function TicketRow({ ticket, index, muted = false }) {
         <SmartImage
           src={uploadUrl(ticket.eventImageUrl)}
           alt={ticket.eventTitle}
-          fallbackIcon={Ticket}
+          fallbackIcon={TicketCheck}
           className="w-24 sm:w-32 shrink-0 object-cover"
         />
 
@@ -145,14 +145,14 @@ function TicketRow({ ticket, index, muted = false }) {
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[9px] font-black tracking-[0.1em] text-gray-500">
             <span className="flex items-center gap-1">
-              <CalendarClock className="w-3 h-3 text-[#CDFF00]" />
+              <CalendarRange className="w-3 h-3 text-[#CDFF00]" />
               {startsAt
                 ? `${startsAt.toLocaleDateString()} · ${startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                 : 'Date TBC'}
             </span>
             {(ticket.eventVenue || ticket.eventCity) && (
               <span className="flex items-center gap-1 truncate">
-                <MapPin className="w-3 h-3 text-[#CDFF00]" /> {ticket.eventVenue || ticket.eventCity}
+                <Navigation className="w-3 h-3 text-[#CDFF00]" /> {ticket.eventVenue || ticket.eventCity}
               </span>
             )}
             {ticket.pricePaid != null && (
@@ -168,9 +168,9 @@ function TicketRow({ ticket, index, muted = false }) {
 /** Small status pill shared by the wallet list and the ticket detail screen. */
 export function TicketStatusChip({ status }) {
   const map = {
-    VALID: { label: 'Valid', className: 'bg-[#CDFF00]/15 text-[#CDFF00]', Icon: Ticket },
-    CHECKED_IN: { label: 'Checked in', className: 'bg-emerald-500/15 text-emerald-400', Icon: CheckCircle2 },
-    CANCELLED: { label: 'Cancelled', className: 'bg-red-500/15 text-red-400', Icon: XCircle },
+    VALID: { label: 'Valid', className: 'bg-[#CDFF00]/15 text-[#CDFF00]', Icon: TicketCheck },
+    CHECKED_IN: { label: 'Checked in', className: 'bg-emerald-500/15 text-emerald-400', Icon: BadgeCheck },
+    CANCELLED: { label: 'Cancelled', className: 'bg-red-500/15 text-red-400', Icon: OctagonX },
   };
   const { label, className, Icon } = map[status] || map.VALID;
 

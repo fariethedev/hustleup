@@ -5,11 +5,7 @@ import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated, selectIsSeller } from '../store/authSlice';
 import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, feedbackApi, dispatchToast } from '../api/client';
 import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constants';
-import {
-  Settings2, Plus, Inbox, ClipboardList, Check, X, MessageSquare, ListTodo, PackageSearch,
-  BellRing, TrendingUp, CalendarClock, Pencil, Store, Trash2, Ban, Landmark, CreditCard, ShieldCheck, ShieldAlert,
-  Ticket, ScanLine, ArrowRight, Star, Truck, Package, Megaphone, User2
-} from 'lucide-react';
+import { Cog, CirclePlus, Archive, ClipboardCheck, CircleCheck, CircleX, MessagesSquare, ListChecks, Boxes, BellDot, ChartLine, CalendarRange, SquarePen, Building2, Eraser, CircleSlash, Building, WalletCards, ShieldPlus, ShieldX, TicketCheck, QrCode, MoveRight, Sparkle, Forklift, Box, Speech, CircleUser } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
 import ShopManager from '../components/ShopManager';
 import ReviewModal from '../components/ReviewModal';
@@ -227,26 +223,26 @@ export default function Dashboard() {
       key: 'selling',
       label: 'Selling',
       tabs: [
-        { id: 'listings', label: 'Listings', icon: ClipboardList, count: listings.length },
-        { id: 'shop', label: 'Shop', icon: Store, count: 0 },
-        { id: 'sales', label: 'Sales', icon: TrendingUp, count: salesBookings.length },
-        ...(hasServiceListing ? [{ id: 'availability', label: 'Availability', icon: CalendarClock, count: slots.length }] : []),
-        ...(hasEventListing ? [{ id: 'door', label: 'Door', icon: ScanLine, count: eventListings.length }] : []),
+        { id: 'listings', label: 'Listings', icon: ClipboardCheck, count: listings.length },
+        { id: 'shop', label: 'Shop', icon: Building2, count: 0 },
+        { id: 'sales', label: 'Sales', icon: ChartLine, count: salesBookings.length },
+        ...(hasServiceListing ? [{ id: 'availability', label: 'Availability', icon: CalendarRange, count: slots.length }] : []),
+        ...(hasEventListing ? [{ id: 'door', label: 'Door', icon: QrCode, count: eventListings.length }] : []),
       ],
     }] : []),
     {
       key: 'activity',
       label: isSeller ? 'Orders' : 'Your activity',
       tabs: [
-        { id: 'bookings', label: 'Bookings', icon: ListTodo, count: bookings.length },
+        { id: 'bookings', label: 'Bookings', icon: ListChecks, count: bookings.length },
         // Storefront orders are a separate entity from bookings, so they get their own tab
         // rather than being merged into one list of two different shapes. Hidden until
         // there is one, on the same reasoning as Tickets below.
         ...(shopOrders.length > 0 || shopSales.length > 0
-          ? [{ id: 'orders', label: 'Shop orders', icon: Package, count: openShopOrders }]
+          ? [{ id: 'orders', label: 'Shop orders', icon: Box, count: openShopOrders }]
           : []),
         // Only surfaced once there's something in the wallet — an empty tab is noise.
-        ...(tickets.length > 0 ? [{ id: 'tickets', label: 'Tickets', icon: Ticket, count: tickets.filter((t) => t.status === 'VALID').length }] : []),
+        ...(tickets.length > 0 ? [{ id: 'tickets', label: 'Tickets', icon: TicketCheck, count: tickets.filter((t) => t.status === 'VALID').length }] : []),
       ],
     },
     {
@@ -257,15 +253,15 @@ export default function Dashboard() {
       // approved would mean the only people who can see the route are the ones who no
       // longer need it.
       tabs: [
-        { id: 'publishing', label: 'News & Jobs', icon: Megaphone, count: 0 },
+        { id: 'publishing', label: 'News & Jobs', icon: Speech, count: 0 },
       ],
     },
     {
       key: 'account',
       label: 'Account',
       tabs: [
-        ...(isSeller ? [{ id: 'payouts', label: 'Payouts', icon: Landmark, count: payoutStatus?.payoutsEnabled ? 0 : 1 }] : []),
-        { id: 'notifications', label: 'Alerts', icon: BellRing, count: notifications.filter((n) => !n.read).length },
+        ...(isSeller ? [{ id: 'payouts', label: 'Payouts', icon: Building, count: payoutStatus?.payoutsEnabled ? 0 : 1 }] : []),
+        { id: 'notifications', label: 'Alerts', icon: BellDot, count: notifications.filter((n) => !n.read).length },
       ],
     },
   ];
@@ -359,11 +355,11 @@ export default function Dashboard() {
             <div className="w-px h-5 bg-white/10 mx-1.5 shrink-0" />
             {isSeller && (
               <Link to="/create" className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#CDFF00] text-black font-black tracking-widest text-[9px] hover:bg-[#E0FF4D] transition-all">
-                <Plus className="w-3.5 h-3.5" /> Post New
+                <CirclePlus className="w-3.5 h-3.5" /> Post New
               </Link>
             )}
             <Link to={`/profile/${user?.id}`} className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg glass border border-white/10 text-white font-bold tracking-widest text-[9px] hover:bg-white/5 transition-all">
-              <Settings2 className="w-3.5 h-3.5" /> Settings
+              <Cog className="w-3.5 h-3.5" /> Settings
             </Link>
           </div>
 
@@ -381,7 +377,7 @@ export default function Dashboard() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-full bg-[#CDFF00]/15 flex items-center justify-center shrink-0">
-                      <Star className="w-4.5 h-4.5 text-[#CDFF00]" />
+                      <Sparkle className="w-4.5 h-4.5 text-[#CDFF00]" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-white truncate">
@@ -405,7 +401,7 @@ export default function Dashboard() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-[#CDFF00]/15 flex items-center justify-center shrink-0">
-                  <Store className="w-4.5 h-4.5 text-[#CDFF00]" />
+                  <Building2 className="w-4.5 h-4.5 text-[#CDFF00]" />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-white">Your shop</p>
@@ -431,7 +427,7 @@ export default function Dashboard() {
               {tab === 'bookings' && (
                 <div className="space-y-2.5">
                   {bookings.length === 0 ? (
-                    <EmptyState icon={Inbox} title="No Active Orders" desc="Your active purchasing or service bookings will appear here." />
+                    <EmptyState icon={Archive} title="No Active Orders" desc="Your active purchasing or service bookings will appear here." />
                   ) : (
                     bookings.map((booking) => {
                       const status = BOOKING_STATUS_MAP[booking.status] || { label: booking.status, color: 'bg-gray-800 text-gray-400' };
@@ -483,19 +479,19 @@ export default function Dashboard() {
                               way to reach the hidden ones. */}
                           <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                             <Link to={`/dm/${isBuyer ? booking.sellerId : booking.buyerId}`} className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5">
-                              <MessageSquare className="w-3 h-3" /> DM
+                              <MessagesSquare className="w-3 h-3" /> DM
                             </Link>
 
                             {booking.status === 'INQUIRED' && !isBuyer && (
                               <>
                                 <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
-                                  <Check className="w-3 h-3" /> Approve
+                                  <CircleCheck className="w-3 h-3" /> Approve
                                 </button>
                                 <button
                                   onClick={() => { setCounteringId(counteringId === booking.id ? null : booking.id); setCounterValue(''); }}
                                   className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1"
                                 >
-                                  <Pencil className="w-3 h-3" /> Counter
+                                  <SquarePen className="w-3 h-3" /> Counter
                                 </button>
                               </>
                             )}
@@ -503,7 +499,7 @@ export default function Dashboard() {
                             {/* Buyer accepting the seller's counter-offer */}
                             {booking.status === 'NEGOTIATING' && isBuyer && (
                               <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
-                                <Check className="w-3 h-3" /> Accept {formatPrice(booking.counterPrice, booking.currency)}
+                                <CircleCheck className="w-3 h-3" /> Accept {formatPrice(booking.counterPrice, booking.currency)}
                               </button>
                             )}
 
@@ -513,7 +509,7 @@ export default function Dashboard() {
                                 disabled={payingBookingId === booking.id}
                                 className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1 disabled:opacity-60"
                               >
-                                <CreditCard className="w-3 h-3" /> {payingBookingId === booking.id ? 'Redirecting…' : 'Pay Now'}
+                                <WalletCards className="w-3 h-3" /> {payingBookingId === booking.id ? 'Redirecting…' : 'Pay Now'}
                               </button>
                             )}
 
@@ -531,7 +527,7 @@ export default function Dashboard() {
                                 onClick={() => { if (confirm('Confirm you received this? It releases the seller\'s payment.')) handleBookingAction(booking.id, 'received'); }}
                                 className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1"
                               >
-                                <ShieldCheck className="w-3 h-3" /> Confirm received
+                                <ShieldPlus className="w-3 h-3" /> Confirm received
                               </button>
                             )}
 
@@ -546,7 +542,7 @@ export default function Dashboard() {
                                 onClick={() => setClaiming({ orderType: 'BOOKING', orderId: booking.id, title: booking.listingTitle })}
                                 className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 font-black text-[9px] tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center gap-1.5"
                               >
-                                <ShieldAlert className="w-3 h-3" /> Report a problem
+                                <ShieldX className="w-3 h-3" /> Report a problem
                               </button>
                             )}
 
@@ -558,7 +554,7 @@ export default function Dashboard() {
                                 onClick={() => setTracking({ order: booking, kind: 'booking', title: booking.listingTitle })}
                                 className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5"
                               >
-                                <Truck className="w-3 h-3" /> Delivery
+                                <Forklift className="w-3 h-3" /> Delivery
                               </button>
                             )}
 
@@ -580,7 +576,7 @@ export default function Dashboard() {
                                 }}
                                 className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1"
                               >
-                                <Check className="w-3 h-3" /> Complete
+                                <CircleCheck className="w-3 h-3" /> Complete
                               </button>
                             )}
 
@@ -594,7 +590,7 @@ export default function Dashboard() {
                                   onClick={() => { if (confirm(isPendingRequest ? 'Decline this request?' : 'Cancel this booking?')) handleBookingAction(booking.id, 'cancel'); }}
                                   className="px-3.5 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 font-black text-[9px] tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-1"
                                 >
-                                  <Ban className="w-3 h-3" /> {isPendingRequest ? 'Decline' : 'Cancel'}
+                                  <CircleSlash className="w-3 h-3" /> {isPendingRequest ? 'Decline' : 'Cancel'}
                                 </button>
                               );
                             })()}
@@ -633,7 +629,7 @@ export default function Dashboard() {
                               onClick={() => { setCounteringId(null); setCounterValue(''); }}
                               className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
                             >
-                              <X className="w-3.5 h-3.5" />
+                              <CircleX className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         )}
@@ -685,7 +681,7 @@ export default function Dashboard() {
                   )}
 
                   {shopOrders.length === 0 && shopSales.length === 0 && (
-                    <EmptyState icon={Package} title="No Shop Orders" desc="Storefront purchases and the orders placed with your shop will appear here." />
+                    <EmptyState icon={Box} title="No Shop Orders" desc="Storefront purchases and the orders placed with your shop will appear here." />
                   )}
                 </div>
               )}
@@ -716,7 +712,7 @@ export default function Dashboard() {
                         }`}>
                           {t.status === 'CHECKED_IN' ? 'Checked in' : t.status === 'CANCELLED' ? 'Void' : 'Valid'}
                         </span>
-                        <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-[#CDFF00] transition-colors" />
+                        <MoveRight className="w-4 h-4 text-gray-600 group-hover:text-[#CDFF00] transition-colors" />
                       </div>
                     </Link>
                   ))}
@@ -751,7 +747,7 @@ export default function Dashboard() {
                         </p>
                       </div>
                       <span className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[9px] font-black tracking-widest">
-                        <ScanLine className="w-3 h-3" /> Open door
+                        <QrCode className="w-3 h-3" /> Open door
                       </span>
                     </Link>
                   ))}
@@ -777,7 +773,7 @@ export default function Dashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                   {listings.length === 0 ? (
                     <div className="col-span-full">
-                      <EmptyState icon={PackageSearch} title="Inventory Empty" desc="You don't have any active drops right now." cta={{ label: 'New Drop', to: '/create' }} />
+                      <EmptyState icon={Boxes} title="Inventory Empty" desc="You don't have any active drops right now." cta={{ label: 'New Drop', to: '/create' }} />
                     </div>
                   ) : (
                     listings.map((listing) => {
@@ -799,7 +795,7 @@ export default function Dashboard() {
                             onClick={() => setEditingListing(listing)}
                             className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-white/20 transition-all shrink-0"
                           >
-                            <Pencil className="w-3.5 h-3.5" />
+                            <SquarePen className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       );
@@ -825,7 +821,7 @@ export default function Dashboard() {
 
                   <div className="space-y-2.5">
                     {salesBookings.length === 0 ? (
-                      <EmptyState icon={TrendingUp} title="No Sales Yet" desc="Completed bookings will show up here as sales once you mark them complete." />
+                      <EmptyState icon={ChartLine} title="No Sales Yet" desc="Completed bookings will show up here as sales once you mark them complete." />
                     ) : (
                       salesBookings.map((b) => (
                         <div key={b.id} className="glass rounded-2xl p-4 border border-white/5 flex items-center justify-between gap-3">
@@ -857,7 +853,7 @@ export default function Dashboard() {
                   <div className="glass rounded-2xl p-5 border border-white/5">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-10 h-10 rounded-xl bg-[#CDFF00]/10 flex items-center justify-center shrink-0">
-                        <Landmark className="w-5 h-5 text-[#CDFF00]" />
+                        <Building className="w-5 h-5 text-[#CDFF00]" />
                       </div>
                       <div>
                         <p className="text-sm font-bold text-white">Bank account</p>
@@ -867,7 +863,7 @@ export default function Dashboard() {
 
                     {payoutStatus?.payoutsEnabled ? (
                       <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20">
-                        <ShieldCheck className="w-4 h-4 text-[#CDFF00] shrink-0" />
+                        <ShieldPlus className="w-4 h-4 text-[#CDFF00] shrink-0" />
                         <p className="text-xs font-bold text-[#CDFF00]">Connected — you'll be paid out automatically when bookings are completed.</p>
                       </div>
                     ) : (
@@ -905,7 +901,7 @@ export default function Dashboard() {
               {tab === 'notifications' && (
                 <div className="max-w-3xl mx-auto space-y-2.5">
                   {notifications.length === 0 ? (
-                    <EmptyState icon={BellRing} title="Node Silent" desc="You have no unread alerts at the moment." />
+                    <EmptyState icon={BellDot} title="Node Silent" desc="You have no unread alerts at the moment." />
                   ) : (
                     notifications.map((notif) => (
                       <div
@@ -1019,7 +1015,7 @@ function EditPriceModal({ listing, onClose, onSaved }) {
       <div className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-white truncate pr-2">{listing.title}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 shrink-0"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 shrink-0"><CircleX className="w-4 h-4" /></button>
         </div>
         <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1.5 block">Price ({listing.currency})</label>
         <input
@@ -1101,14 +1097,14 @@ function AvailabilityTab({ listings, slots, onChange }) {
           onClick={addSlot} disabled={saving}
           className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-xs hover:bg-[#d9ff33] active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
         >
-          <Plus className="w-4 h-4" /> Add slot
+          <CirclePlus className="w-4 h-4" /> Add slot
         </button>
       </div>
 
       {/* Slot list */}
       <div className="space-y-2.5">
         {slots.length === 0 ? (
-          <EmptyState icon={CalendarClock} title="No Slots Yet" desc="Open a slot above so buyers can book a specific appointment time." />
+          <EmptyState icon={CalendarRange} title="No Slots Yet" desc="Open a slot above so buyers can book a specific appointment time." />
         ) : (
           slots.map((s) => (
             <div key={s.id} className="glass rounded-2xl p-4 border border-white/5 flex items-center justify-between gap-3">
@@ -1124,7 +1120,7 @@ function AvailabilityTab({ listings, slots, onChange }) {
                 </span>
                 {!s.booked && (
                   <button onClick={() => removeSlot(s.id)} className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all">
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Eraser className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
@@ -1152,7 +1148,7 @@ function ShopOrderCard({ order, onTrack }) {
     <div className="glass rounded-2xl p-4 border border-white/5 hover:border-[#CDFF00]/20 transition-all">
       <div className="flex items-start gap-3">
         <div className="w-12 h-12 rounded-lg overflow-hidden bg-black border border-white/10 shrink-0">
-          <SmartImage src={order.productImageUrl} alt="" fallbackIcon={Package} className="w-full h-full object-cover" />
+          <SmartImage src={order.productImageUrl} alt="" fallbackIcon={Box} className="w-full h-full object-cover" />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -1185,7 +1181,7 @@ function ShopOrderCard({ order, onTrack }) {
             onClick={onTrack}
             className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5 shrink-0"
           >
-            <Truck className="w-3 h-3" /> Delivery
+            <Forklift className="w-3 h-3" /> Delivery
           </button>
         )}
       </div>
@@ -1243,7 +1239,7 @@ function BuyerDetails({ booking }) {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1.5 text-[9px] font-black tracking-[0.2em] text-gray-500 hover:text-white transition-colors"
       >
-        <User2 className="w-3.5 h-3.5" />
+        <CircleUser className="w-3.5 h-3.5" />
         Buyer details
         {answers.length > 0 && (
           <span className="text-[#CDFF00]">· {answers.length} answered</span>

@@ -6,7 +6,7 @@ import { selectIsAuthenticated, selectIsSeller, logout } from '../store/authSlic
 import { listingsApi } from '../api/client';
 import { LISTING_TYPES, CURRENCIES, POLISH_CITIES, formatPrice } from '../utils/constants';
 import { SHIPPING_METHODS, defaultMethodFor, getMethod } from '../utils/shipping';
-import { Lock, Image as ImageIcon, Check, X, ArrowRight, ArrowLeft, Play, CalendarClock, Store, LogOut, Truck, LayoutGrid, Wallet, ClipboardList } from 'lucide-react';
+import { LockKeyhole, Images as ImageIcon, CircleCheck, CircleX, MoveRight, MoveLeft, CirclePlay, CalendarRange, Building2, DoorOpen, Forklift, Grid2x2, PiggyBank, ClipboardCheck } from 'lucide-react';
 import { isVideoUrl } from '../utils/media';
 
 /**
@@ -85,7 +85,7 @@ export default function CreateListing() {
       <div className="min-h-[60vh] flex items-center justify-center px-4">
         <div className="glass rounded-3xl p-8 max-w-md border border-white/5">
           <div className="w-14 h-14 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-5">
-            <Store className="w-7 h-7 text-[#CDFF00]" />
+            <Building2 className="w-7 h-7 text-[#CDFF00]" />
           </div>
           <h2 className="text-xl font-black text-white tracking-wider mb-2 text-center">
             You need a seller account
@@ -107,7 +107,7 @@ export default function CreateListing() {
             onClick={startSellerAccount}
             className="w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black tracking-widest hover:bg-[#E0FF4D] transition-all flex items-center justify-center gap-2"
           >
-            <LogOut className="w-4 h-4" /> Sign out &amp; create seller account
+            <DoorOpen className="w-4 h-4" /> Sign out &amp; create seller account
           </button>
           <button
             onClick={() => navigate(-1)}
@@ -187,8 +187,8 @@ export default function CreateListing() {
   // buttons: the old form repeated Back/Next in every step with its own disabled rule, so the
   // rules drifted and step 3 could be reached with a price the previous step had rejected.
   const STEP_META = {
-    1: { label: 'Basics', blurb: 'Category and title', icon: LayoutGrid, canAdvance: !!(form.title && form.listingType) },
-    2: { label: 'Price', blurb: 'Price and delivery', icon: Wallet, canAdvance: !!form.price },
+    1: { label: 'Basics', blurb: 'Category and title', icon: Grid2x2, canAdvance: !!(form.title && form.listingType) },
+    2: { label: 'Price', blurb: 'Price and delivery', icon: PiggyBank, canAdvance: !!form.price },
     3: { label: 'Details', blurb: 'Photos and the rest', icon: ImageIcon, canAdvance: true },
   };
   const meta = STEP_META[step];
@@ -246,7 +246,7 @@ export default function CreateListing() {
                           : 'bg-white/5 border-white/10 text-gray-500'
                     }`}
                   >
-                    {done ? <Check className="w-4 h-4" strokeWidth={3} /> : <Icon className="w-4 h-4" />}
+                    {done ? <CircleCheck className="w-4 h-4" strokeWidth={3} /> : <Icon className="w-4 h-4" />}
                   </motion.span>
                   <span className={`text-[11px] font-black tracking-widest truncate hidden sm:block ${
                     active ? 'text-white' : 'text-gray-500'
@@ -273,7 +273,7 @@ export default function CreateListing() {
         <div className="glass rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-white/5 overflow-hidden">
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20 text-[#CDFF00] text-sm font-bold tracking-wider text-center flex items-center justify-center gap-2">
-              <X className="w-4 h-4" /> {error}
+              <CircleX className="w-4 h-4" /> {error}
             </div>
           )}
 
@@ -389,7 +389,7 @@ export default function CreateListing() {
                 }`}
               >
                 <div className={`w-6 h-6 rounded flex items-center justify-center border shrink-0 ${form.negotiable ? 'bg-[#CDFF00] border-[#CDFF00]' : 'border-gray-600'}`}>
-                  {form.negotiable && <Check className="w-4 h-4 text-black" />}
+                  {form.negotiable && <CircleCheck className="w-4 h-4 text-black" />}
                 </div>
                 <div>
                   <span className={`block font-black tracking-widest text-sm mb-1 ${form.negotiable ? 'text-[#CDFF00]' : 'text-gray-400'}`}>Price Negotiable</span>
@@ -407,7 +407,7 @@ export default function CreateListing() {
                 }`}
               >
                 <div className={`w-6 h-6 rounded flex items-center justify-center border shrink-0 ${form.swapEnabled ? 'bg-[#FF00FF] border-[#FF00FF]' : 'border-gray-600'}`}>
-                  {form.swapEnabled && <Check className="w-4 h-4 text-black" />}
+                  {form.swapEnabled && <CircleCheck className="w-4 h-4 text-black" />}
                 </div>
                 <div>
                   <span className={`block font-black tracking-widest text-sm mb-1 ${form.swapEnabled ? 'text-[#FF00FF]' : 'text-gray-400'}`}>Open to swaps</span>
@@ -421,7 +421,7 @@ export default function CreateListing() {
                   tracking steps the seller is offered after the sale. */}
               <div>
                 <label className="block text-xs font-black text-gray-500 tracking-widest mb-3 flex items-center gap-2">
-                  <Truck className="w-3.5 h-3.5" /> How do you deliver this? *
+                  <Forklift className="w-3.5 h-3.5" /> How do you deliver this? *
                 </label>
                 <div className="grid grid-cols-2 gap-2.5">
                   {SHIPPING_METHODS.map((m) => {
@@ -529,7 +529,7 @@ export default function CreateListing() {
               {form.listingType === 'EVENT' && (
                 <div className="p-5 rounded-xl bg-[#CDFF00]/5 border border-[#CDFF00]/25 space-y-4">
                   <h3 className="text-xs font-black text-[#CDFF00] tracking-widest flex items-center gap-2">
-                    <CalendarClock className="w-4 h-4" /> Event details
+                    <CalendarRange className="w-4 h-4" /> Event details
                   </h3>
                   <div>
                     <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">Starts</label>
@@ -613,7 +613,7 @@ export default function CreateListing() {
                   afterthought to chase in DMs once someone has already paid. */}
               <div>
                 <label className="block text-xs font-black text-gray-500 tracking-widest mb-2 flex items-center gap-2">
-                  <ClipboardList className="w-3.5 h-3.5" /> What you need from the buyer
+                  <ClipboardCheck className="w-3.5 h-3.5" /> What you need from the buyer
                 </label>
                 <textarea
                   rows={3}
@@ -745,7 +745,7 @@ export default function CreateListing() {
                 disabled={loading}
                 className="flex-1 py-4 rounded-xl glass bg-black/40 border border-white/10 text-white font-bold tracking-widest hover:bg-white/5 transition-all flex items-center justify-center gap-2 outline-none disabled:opacity-50"
               >
-                <ArrowLeft className="w-4 h-4" /> Back
+                <MoveLeft className="w-4 h-4" /> Back
               </button>
             )}
             <button
@@ -757,7 +757,7 @@ export default function CreateListing() {
                 ? 'Publishing…'
                 : isLast
                   ? 'Publish Listing'
-                  : <>Next <ArrowRight className="w-5 h-5" /></>}
+                  : <>Next <MoveRight className="w-5 h-5" /></>}
             </button>
           </div>
         </div>
@@ -795,7 +795,7 @@ function MediaThumb({ file, isLead, onRemove }) {
 
       {isVideo && (
         <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/80 text-[8px] font-black tracking-widest text-white flex items-center gap-1">
-          <Play className="w-2 h-2 fill-white" /> Clip
+          <CirclePlay className="w-2 h-2 fill-white" /> Clip
         </span>
       )}
 
@@ -813,7 +813,7 @@ function MediaThumb({ file, isLead, onRemove }) {
         aria-label="Remove this file"
         className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#CDFF00] text-black flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
       >
-        <X className="w-3 h-3" />
+        <CircleX className="w-3 h-3" />
       </button>
     </div>
   );

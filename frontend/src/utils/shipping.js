@@ -1,4 +1,4 @@
-import { Package, Truck, Store, Mail, Bike, Download, Handshake } from 'lucide-react';
+import { Box, Forklift, Building2, AtSign, Car, CloudDownload, HeartHandshake } from 'lucide-react';
 
 /**
  * How sellers send things, and the delivery steps each method actually passes through.
@@ -36,7 +36,7 @@ export const SHIPPING_METHODS = [
     value: 'PICKUP',
     label: 'Collection in person',
     hint: 'The buyer comes to you. No postage.',
-    icon: Store,
+    icon: Building2,
     tracked: false,
     needsDropoff: true,
     steps: ['CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'COLLECTED'],
@@ -45,7 +45,7 @@ export const SHIPPING_METHODS = [
     value: 'PARCEL_LOCKER',
     label: 'Parcel locker',
     hint: 'InPost or similar — you drop it, they collect it.',
-    icon: Package,
+    icon: Box,
     tracked: true,
     needsDropoff: true,
     steps: ['CONFIRMED', 'PREPARING', 'SHIPPED', 'READY_FOR_PICKUP', 'COLLECTED'],
@@ -54,7 +54,7 @@ export const SHIPPING_METHODS = [
     value: 'COURIER',
     label: 'Courier',
     hint: 'Tracked, delivered to the buyer’s door.',
-    icon: Truck,
+    icon: Forklift,
     tracked: true,
     needsDropoff: false,
     steps: ['CONFIRMED', 'PREPARING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'],
@@ -63,7 +63,7 @@ export const SHIPPING_METHODS = [
     value: 'POST',
     label: 'Post',
     hint: 'Poczta Polska or similar.',
-    icon: Mail,
+    icon: AtSign,
     tracked: true,
     needsDropoff: false,
     steps: ['CONFIRMED', 'PREPARING', 'SHIPPED', 'DELIVERED'],
@@ -72,7 +72,7 @@ export const SHIPPING_METHODS = [
     value: 'SELLER_DELIVERY',
     label: 'You deliver it',
     hint: 'You take it to the buyer yourself.',
-    icon: Bike,
+    icon: Car,
     tracked: false,
     needsDropoff: false,
     steps: ['CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED'],
@@ -81,7 +81,7 @@ export const SHIPPING_METHODS = [
     value: 'DIGITAL',
     label: 'Digital delivery',
     hint: 'Files, codes or links — nothing to post.',
-    icon: Download,
+    icon: CloudDownload,
     tracked: false,
     needsDropoff: false,
     steps: ['CONFIRMED', 'DELIVERED'],
@@ -90,7 +90,7 @@ export const SHIPPING_METHODS = [
     value: 'NONE',
     label: 'No shipping needed',
     hint: 'A service you perform in person — nothing gets sent.',
-    icon: Handshake,
+    icon: HeartHandshake,
     tracked: false,
     needsDropoff: false,
     steps: ['CONFIRMED', 'DELIVERED'],

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Loader2, Truck, Ban } from 'lucide-react';
+import { CircleX, Loader, Forklift, CircleSlash } from 'lucide-react';
 import { getMethod, stepsFor, stepLabel, stepIndex } from '../utils/shipping';
 import { dispatchToast } from '../api/client';
 
@@ -79,12 +79,12 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 shrink-0">
-            <X className="w-4 h-4" />
+            <CircleX className="w-4 h-4" />
           </button>
         </div>
 
         <div className="flex items-center gap-1.5 mb-4 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-[10px] font-black tracking-widest text-gray-400">
-          {meta?.icon ? <meta.icon className="w-3.5 h-3.5 text-[#CDFF00]" /> : <Truck className="w-3.5 h-3.5 text-[#CDFF00]" />}
+          {meta?.icon ? <meta.icon className="w-3.5 h-3.5 text-[#CDFF00]" /> : <Forklift className="w-3.5 h-3.5 text-[#CDFF00]" />}
           Sending by {meta?.label || 'an unspecified method'}
         </div>
 
@@ -119,7 +119,7 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
                     : 'bg-black/50 border-white/10 text-gray-500 hover:border-red-500/40 hover:text-red-400'
                 }`}
               >
-                <Ban className="w-3 h-3" /> Cancel delivery
+                <CircleSlash className="w-3 h-3" /> Cancel delivery
               </button>
             </div>
           </div>
@@ -194,7 +194,7 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
             disabled={saving || !status}
             className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black tracking-widest text-[10px] hover:bg-[#E0FF4D] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+            {saving ? <Loader className="w-3.5 h-3.5 animate-spin" /> : null}
             {saving ? 'Saving' : 'Save & notify'}
           </button>
         </div>

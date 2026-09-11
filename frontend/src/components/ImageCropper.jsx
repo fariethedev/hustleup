@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, RotateCw, ZoomIn, RotateCcw, Check, Loader2 } from 'lucide-react';
+import { CircleX, Redo, Maximize2, Undo, CircleCheck, Loader } from 'lucide-react';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 
 /**
@@ -225,7 +225,7 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
           aria-label="Cancel crop"
           className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors"
         >
-          <X className="w-4 h-4" />
+          <CircleX className="w-4 h-4" />
         </button>
         <p className="text-xs font-black text-white tracking-widest">Adjust photo</p>
         <button
@@ -233,14 +233,14 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
           disabled={busy || !imgEl}
           className="h-9 px-4 rounded-full bg-[#CDFF00] text-black text-[11px] font-black tracking-widest flex items-center gap-1.5 disabled:opacity-40 active:scale-95 transition-all"
         >
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Done
+          {busy ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CircleCheck className="w-3.5 h-3.5" />} Done
         </button>
       </div>
 
       {/* Stage */}
       <div ref={stageRef} className="flex-1 min-h-0 flex items-center justify-center p-4 select-none">
         {!imgEl ? (
-          <Loader2 className="w-6 h-6 text-gray-600 animate-spin" />
+          <Loader className="w-6 h-6 text-gray-600 animate-spin" />
         ) : (
           <div
             className="relative overflow-hidden bg-black touch-none cursor-grab active:cursor-grabbing rounded-lg"
@@ -280,7 +280,7 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
       {/* Controls */}
       <div className="shrink-0 border-t border-white/10 px-4 py-3 space-y-3">
         <div className="flex items-center gap-3 max-w-md mx-auto">
-          <ZoomIn className="w-4 h-4 text-gray-500 shrink-0" />
+          <Maximize2 className="w-4 h-4 text-gray-500 shrink-0" />
           <input
             type="range" min="1" max="5" step="0.01" value={zoom}
             onChange={(e) => setZoom(parseFloat(e.target.value))}
@@ -288,10 +288,10 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
             className="flex-1 accent-[#CDFF00] cursor-pointer"
           />
           <button onClick={rotate} title="Rotate 90 degrees" aria-label="Rotate" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors">
-            <RotateCw className="w-4 h-4" />
+            <Redo className="w-4 h-4" />
           </button>
           <button onClick={reset} title="Reset" aria-label="Reset" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors">
-            <RotateCcw className="w-4 h-4" />
+            <Undo className="w-4 h-4" />
           </button>
         </div>
 

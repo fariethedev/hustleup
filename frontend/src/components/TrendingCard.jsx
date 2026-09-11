@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, Store, User, Zap } from 'lucide-react';
+import { MoveUpRight, Building2, CircleUserRound, Rocket } from 'lucide-react';
 
 export default function TrendingCard({ item, index = 0 }) {
   const { title, subtitle, image, description, link, type } = item;
   
-  const Icon = type === 'shop' ? Store : type === 'user' ? User : Zap;
+  const Icon = type === 'shop' ? Building2 : type === 'user' ? CircleUserRound : Rocket;
   const badgeColor = type === 'shop' ? 'glass-purple' : type === 'user' ? 'glass-lime' : 'glass-amber';
 
   return (
@@ -56,7 +56,7 @@ export default function TrendingCard({ item, index = 0 }) {
            </div>
            
            <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black font-black text-[10px] tracking-widest opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-700 delay-100 hover:bg-[#CDFF00]">
-              Explore <ArrowUpRight className="w-3.5 h-3.5" />
+              Explore <MoveUpRight className="w-3.5 h-3.5" />
            </div>
         </div>
       </Link>

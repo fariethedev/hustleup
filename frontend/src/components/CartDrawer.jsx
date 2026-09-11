@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from 'lucide-react';
+import { CircleX, Eraser, CirclePlus, CircleMinus, ShoppingBasket, MoveRight } from 'lucide-react';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 import SmartImage from './SmartImage';
 import {
@@ -98,7 +98,7 @@ export default function CartDrawer() {
             <div className="flex items-center justify-between px-8 py-6 border-b border-white/5 shrink-0">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-[#CDFF00] text-black flex items-center justify-center shadow-[0_10px_20px_rgba(205,255,0,0.2)]">
-                  <ShoppingBag className="w-6 h-6" />
+                  <ShoppingBasket className="w-6 h-6" />
                 </div>
                 <div>
                   <h2 className="text-xl font-heading font-black text-white tracking-tight">Vault</h2>
@@ -111,7 +111,7 @@ export default function CartDrawer() {
                 onClick={() => dispatch(closeCart())}
                 className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all group"
               >
-                <X className="w-6 h-6 text-gray-500 group-hover:text-white group-hover:rotate-90 transition-all duration-300" />
+                <CircleX className="w-6 h-6 text-gray-500 group-hover:text-white group-hover:rotate-90 transition-all duration-300" />
               </button>
             </div>
 
@@ -125,7 +125,7 @@ export default function CartDrawer() {
                     animate={{ opacity: 1 }}
                     className="flex flex-col items-center justify-center h-48 text-center"
                   >
-                    <ShoppingBag className="w-12 h-12 text-gray-700 mb-4" />
+                    <ShoppingBasket className="w-12 h-12 text-gray-700 mb-4" />
                     <p className="text-gray-500 font-bold text-sm">Your cart is empty</p>
                     <p className="text-gray-600 text-xs mt-1">Add listings to get started</p>
                   </motion.div>
@@ -147,7 +147,7 @@ export default function CartDrawer() {
                           <SmartImage
                             src={item.image}
                             alt={item.title}
-                            fallbackIcon={ShoppingBag}
+                            fallbackIcon={ShoppingBasket}
                             className="w-full h-full object-cover"
                           />
                         )}
@@ -180,7 +180,7 @@ export default function CartDrawer() {
                             }
                             className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all border border-white/5 active:scale-90"
                           >
-                            <Minus className="w-3.5 h-3.5 text-white" />
+                            <CircleMinus className="w-3.5 h-3.5 text-white" />
                           </button>
                           <span className="text-white font-black text-sm w-6 text-center tabular-nums">{item.quantity}</span>
                           <button
@@ -189,7 +189,7 @@ export default function CartDrawer() {
                             }
                             className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all border border-white/5 active:scale-90"
                           >
-                            <Plus className="w-3.5 h-3.5 text-white" />
+                            <CirclePlus className="w-3.5 h-3.5 text-white" />
                           </button>
                         </div>
                       </div>
@@ -199,7 +199,7 @@ export default function CartDrawer() {
                         onClick={() => dispatch(removeFromCart(item.listingId))}
                         className="self-start w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center transition-colors"
                       >
-                        <Trash2 className="w-4 h-4 text-red-400" />
+                        <Eraser className="w-4 h-4 text-red-400" />
                       </button>
                     </motion.div>
                   ))
@@ -233,7 +233,7 @@ export default function CartDrawer() {
                   onClick={checkout}
                   className="w-full py-4 rounded-2xl bg-[#CDFF00] text-black font-black text-xs tracking-widest flex items-center justify-center gap-2 hover:bg-[#d9ff33] transition-all hover:scale-[1.02] active:scale-95 shadow-[0_8px_30px_rgba(205,255,0,0.25)]"
                 >
-                  Proceed to Checkout <ArrowRight className="w-4 h-4" />
+                  Proceed to Checkout <MoveRight className="w-4 h-4" />
                 </button>
               </div>
             )}

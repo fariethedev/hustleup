@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { MapPin, Info, ChevronDown, Star, Quote, Sparkles } from 'lucide-react';
+import { Navigation, BadgeInfo, CircleChevronDown, Sparkle, TextQuote, WandSparkles } from 'lucide-react';
 import { uploadUrl } from '../config';
 
 /**
@@ -146,7 +146,7 @@ export default function BondCard({
               transition={{ delay: 0.15, type: 'spring', bounce: 0.5 }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#CDFF00] text-black text-[10px] font-black tracking-widest shadow-lg shadow-[#CDFF00]/25"
             >
-              <Star className="w-3 h-3 fill-black" /> Likes you
+              <Sparkle className="w-3 h-3 fill-black" /> Likes you
             </motion.span>
           )}
         </div>
@@ -162,7 +162,7 @@ export default function BondCard({
 
               {profile.location && (
                 <p className="flex items-center gap-1.5 text-xs font-semibold text-white/70 mt-2">
-                  <MapPin className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" /> {profile.location}
+                  <Navigation className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" /> {profile.location}
                 </p>
               )}
 
@@ -189,7 +189,7 @@ export default function BondCard({
               aria-label={`More about ${profile.fullName}`}
               className="shrink-0 w-9 h-9 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/80 hover:text-white hover:border-white/40 active:scale-90 transition-all"
             >
-              <Info className="w-4.5 h-4.5" />
+              <BadgeInfo className="w-4.5 h-4.5" />
             </button>
           </div>
         </div>
@@ -222,7 +222,7 @@ export default function BondCard({
                     aria-label="Close profile"
                     className="shrink-0 w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-white/80 hover:text-white active:scale-90 transition-all"
                   >
-                    <ChevronDown className="w-5 h-5" />
+                    <CircleChevronDown className="w-5 h-5" />
                   </button>
                 </div>
 
@@ -230,7 +230,7 @@ export default function BondCard({
                   <div className="mb-5">
                     <p className="text-[10px] font-bold tracking-widest text-white/40 mb-2">About</p>
                     <p className="flex gap-2 text-sm text-white/85 leading-relaxed">
-                      <Quote className="w-3.5 h-3.5 text-white/25 shrink-0 mt-1" />
+                      <TextQuote className="w-3.5 h-3.5 text-white/25 shrink-0 mt-1" />
                       {profile.bio}
                     </p>
                   </div>
@@ -255,12 +255,12 @@ export default function BondCard({
                 <div className="space-y-2.5">
                   {profile.location && (
                     <div className="flex items-center gap-2.5 text-sm text-white/75">
-                      <MapPin className="w-4 h-4 text-white/35 shrink-0" /> {profile.location}
+                      <Navigation className="w-4 h-4 text-white/35 shrink-0" /> {profile.location}
                     </div>
                   )}
                   {profile.gender && (
                     <div className="flex items-center gap-2.5 text-sm text-white/75">
-                      <Sparkles className="w-4 h-4 text-white/35 shrink-0" /> {profile.gender}
+                      <WandSparkles className="w-4 h-4 text-white/35 shrink-0" /> {profile.gender}
                     </div>
                   )}
                 </div>

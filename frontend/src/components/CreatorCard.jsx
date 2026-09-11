@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BadgeCheck, Check, MapPin, UserPlus, Users } from 'lucide-react';
+import { ShieldCheck, CircleCheck, Navigation, UserRoundPlus, UserRound } from 'lucide-react';
 import { followsApi } from '../api/client';
 import { displayCity } from '../utils/constants';
 import { uploadUrl } from '../config';
@@ -63,8 +63,8 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
       }`}
     >
       {following
-        ? <><Check className="w-3.5 h-3.5" /> Following</>
-        : <><UserPlus className="w-3.5 h-3.5" /> Follow</>}
+        ? <><CircleCheck className="w-3.5 h-3.5" /> Following</>
+        : <><UserRoundPlus className="w-3.5 h-3.5" /> Follow</>}
     </button>
   );
 
@@ -92,7 +92,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
 
           <span className="mt-2.5 flex items-center gap-1 text-[11px] font-black text-white leading-tight line-clamp-1 group-hover:text-[#00FFFF] transition-colors">
             {u.fullName}
-            {u.idVerified && <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
+            {u.idVerified && <ShieldCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
           </span>
           <span className="flex items-center gap-1.5 text-[8px] font-bold tracking-wider text-gray-500">
             <span>{roleLabel}</span>
@@ -100,13 +100,13 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
               <>
                 <span className="w-0.5 h-0.5 rounded-full bg-gray-600 shrink-0" />
                 <span className="flex items-center gap-0.5">
-                  <Users className="w-2.5 h-2.5 text-[#00FFFF] shrink-0" /> {compactCount(followerCount)}
+                  <UserRound className="w-2.5 h-2.5 text-[#00FFFF] shrink-0" /> {compactCount(followerCount)}
                 </span>
               </>
             )}
           </span>
           <span className="mt-0.5 flex items-center gap-0.5 text-[8px] font-bold tracking-wider text-gray-500 max-w-full">
-            <MapPin className="w-2.5 h-2.5 text-[#CDFF00] shrink-0" />
+            <Navigation className="w-2.5 h-2.5 text-[#CDFF00] shrink-0" />
             <span className="truncate">{displayCity(u.city)}</span>
           </span>
           {/* One line only — at 132px wide this is the tightest spot bio appears in the
@@ -146,7 +146,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
 
         <h3 className="mt-3 flex items-center gap-1 text-sm font-black text-white leading-tight line-clamp-1 group-hover:text-[#00FFFF] transition-colors">
           {u.fullName}
-          {u.idVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
+          {u.idVerified && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
         </h3>
 
         <div className="mt-1 flex items-center gap-2 text-[9px] font-bold tracking-wider text-gray-500">
@@ -155,13 +155,13 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
           {followerCount !== null && (
             <>
               <span className="flex items-center gap-1 shrink-0">
-                <Users className="w-3 h-3 text-[#00FFFF] shrink-0" /> {compactCount(followerCount)}
+                <UserRound className="w-3 h-3 text-[#00FFFF] shrink-0" /> {compactCount(followerCount)}
               </span>
               <span className="w-px h-3 bg-white/10" />
             </>
           )}
           <span className="flex items-center gap-1 min-w-0">
-            <MapPin className="w-3 h-3 text-[#CDFF00] shrink-0" />
+            <Navigation className="w-3 h-3 text-[#CDFF00] shrink-0" />
             <span className="truncate">{displayCity(u.city)}</span>
           </span>
         </div>

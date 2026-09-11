@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
-import { ArrowLeft, ArrowRight, ShieldCheck, ShoppingBag, Lock, User, Mail, Phone, CreditCard, Clock } from 'lucide-react';
+import { MoveLeft, MoveRight, ShieldPlus, ShoppingBasket, LockKeyhole, CircleUserRound, AtSign, PhoneCall, WalletCards, Timer } from 'lucide-react';
 import { selectCartItems, removeFromCart } from '../store/cartSlice';
 import { bookingsApi } from '../api/client';
 import { formatPrice } from '../utils/constants';
@@ -87,7 +87,7 @@ export default function Checkout() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4">
-          <ShoppingBag className="w-16 h-16 mx-auto text-gray-700" />
+          <ShoppingBasket className="w-16 h-16 mx-auto text-gray-700" />
           <h2 className="text-2xl font-black text-white tracking-tight">Your cart is empty</h2>
           <Link to="/explore" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm tracking-widest inline-block">
             Browse Listings
@@ -189,7 +189,7 @@ export default function Checkout() {
           to="/explore"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white transition-colors mb-4"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Explore
+          <MoveLeft className="w-3.5 h-3.5" /> Back to Explore
         </Link>
 
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
@@ -242,12 +242,12 @@ export default function Checkout() {
                   Sent to the seller so they can fulfil and contact you about the order.
                 </p>
                 <div className="space-y-2.5">
-                  {field('fullName', 'Full name', 'text', User, 'name')}
-                  {field('email', 'Email address', 'email', Mail, 'email')}
+                  {field('fullName', 'Full name', 'text', CircleUserRound, 'name')}
+                  {field('email', 'Email address', 'email', AtSign, 'email')}
                   {/* No longer optional. A seller with only an email has no way to reach
                       someone about a delivery happening today, which is exactly when it
                       matters — and a courier needs a number for the label. */}
-                  {field('phone', 'Phone number', 'tel', Phone, 'tel')}
+                  {field('phone', 'Phone number', 'tel', PhoneCall, 'tel')}
                 </div>
               </section>
 
@@ -316,7 +316,7 @@ export default function Checkout() {
               <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
                 <div className="flex items-start gap-3">
                   <span className="w-9 h-9 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/25 flex items-center justify-center shrink-0">
-                    <CreditCard className="w-4 h-4 text-[#CDFF00]" />
+                    <WalletCards className="w-4 h-4 text-[#CDFF00]" />
                   </span>
                   <div className="min-w-0">
                     <h2 className="text-xs font-black text-white tracking-widest">Payment</h2>
@@ -339,7 +339,7 @@ export default function Checkout() {
                   accepts). Saying so here stops a part-charged order looking like a fault. */}
               <section className="rounded-2xl border border-white/10 bg-black/30 p-4">
                 <div className="flex items-start gap-2.5">
-                  <Clock className="w-3.5 h-3.5 text-gray-500 shrink-0 mt-0.5" />
+                  <Timer className="w-3.5 h-3.5 text-gray-500 shrink-0 mt-0.5" />
                   <p className="text-[11px] text-gray-500 leading-relaxed">
                     Goods are paid for now. Anything that needs the seller to accept first
                     isn&apos;t charged yet — you&apos;ll be notified when it&apos;s approved,
@@ -373,7 +373,7 @@ export default function Checkout() {
                           <SmartImage
                             src={item.image}
                             alt={item.title}
-                            fallbackIcon={ShoppingBag}
+                            fallbackIcon={ShoppingBasket}
                             className="w-full h-full object-cover"
                           />
                         )}
@@ -438,17 +438,17 @@ export default function Checkout() {
                     Taking you to Stripe…
                   </>
                 ) : (
-                  <>Continue to payment <ArrowRight className="w-3.5 h-3.5" /></>
+                  <>Continue to payment <MoveRight className="w-3.5 h-3.5" /></>
                 )}
               </button>
 
               <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-500">
-                <Lock className="w-3 h-3" /> Encrypted checkout powered by Stripe
+                <LockKeyhole className="w-3 h-3" /> Encrypted checkout powered by Stripe
               </div>
 
               <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/5">
                 <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black tracking-widest">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Buyer protection
+                  <ShieldPlus className="w-3.5 h-3.5" /> Buyer protection
                 </div>
                 <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
                   Money is held by HustleSpace and only released to the seller once your order

@@ -7,7 +7,7 @@ import { selectUser } from '../store/authSlice';
 import { POLISH_CITIES } from '../utils/constants';
 import CreatorCard from '../components/CreatorCard';
 import ExploreNav from '../components/ExploreNav';
-import { MapPin, Search, Users, X } from 'lucide-react';
+import { Navigation, ScanSearch, UserRound, CircleX } from 'lucide-react';
 
 const ROLES = [
   { value: '', label: 'Everyone' },
@@ -74,7 +74,7 @@ export default function ExploreCreators() {
             {city || 'All of Poland'}
           </span>
           <h1 className="mt-2 text-3xl sm:text-4xl font-black text-white tracking-tighter flex items-center gap-3">
-            <Users className="w-7 h-7 text-[#CDFF00]" />
+            <UserRound className="w-7 h-7 text-[#CDFF00]" />
             Creators
           </h1>
           <p className="mt-2 text-sm text-gray-400">
@@ -93,7 +93,7 @@ export default function ExploreCreators() {
         <div className="p-4 rounded-3xl bg-[#0A0A0A] border border-white/10">
           <div className="flex flex-col sm:flex-row gap-2.5">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <ScanSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
                 type="search"
                 value={query}
@@ -104,7 +104,7 @@ export default function ExploreCreators() {
             </div>
 
             <div className="relative sm:w-52">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CDFF00] pointer-events-none" />
+              <Navigation className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CDFF00] pointer-events-none" />
               <select
                 value={city}
                 onChange={(e) => setParam('city', e.target.value)}
@@ -142,7 +142,7 @@ export default function ExploreCreators() {
                 onClick={clearAll}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/30 transition-all active:scale-95"
               >
-                <X className="w-3.5 h-3.5" /> Clear
+                <CircleX className="w-3.5 h-3.5" /> Clear
               </button>
             )}
           </div>
@@ -162,7 +162,7 @@ export default function ExploreCreators() {
           </div>
         ) : visible.length === 0 ? (
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center py-24">
-            <Users className="w-12 h-12 mx-auto text-white/15 mb-5" />
+            <UserRound className="w-12 h-12 mx-auto text-white/15 mb-5" />
             <h2 className="text-xl font-black text-white tracking-tight mb-2">No one here</h2>
             <p className="text-sm text-gray-400 mb-6">
               {creators.length === 0

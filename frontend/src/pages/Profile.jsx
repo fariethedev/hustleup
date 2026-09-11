@@ -11,11 +11,7 @@ import { displayName } from '../utils/displayName';
 import DistanceBadge from '../components/DistanceBadge';
 import { timeAgo } from '../utils/time';
 import { uploadUrl } from '../config';
-import {
-  MapPin, BadgeCheck, User2, MessageCircle, Settings, Camera,
-  Image as ImageIcon, Check, X, AtSign, Globe,
-  Grid3X3, Star, Heart, MoreHorizontal, Ban, Flag, ShieldOff, FileText, Plus
-} from 'lucide-react';
+import { Navigation, ShieldCheck, CircleUser, MessageCircleMore, Cog, Aperture, Images as ImageIcon, CircleCheck, CircleX, Hash, Earth, LayoutPanelLeft, Sparkle, ThumbsUp, Ellipsis, CircleSlash, Milestone, ShieldBan, FileType, CirclePlus } from 'lucide-react';
 
 export default function Profile() {
   const { id } = useParams();
@@ -245,15 +241,15 @@ export default function Profile() {
 
   if (!profile) return (
     <div className="text-center py-32 text-gray-500 font-bold">
-      <User2 className="w-16 h-16 mx-auto mb-4 opacity-50" /> Profile not found
+      <CircleUser className="w-16 h-16 mx-auto mb-4 opacity-50" /> Profile not found
     </div>
   );
 
   const tabs = [
-    { key: 'listings', label: 'Listings', icon: Grid3X3, count: listings.length },
+    { key: 'listings', label: 'Listings', icon: LayoutPanelLeft, count: listings.length },
     { key: 'posts', label: 'Posts', icon: ImageIcon, count: posts.length },
-    { key: 'reviews', label: 'Reviews', icon: Star, count: reviews.length },
-    ...(isOwn ? [{ key: 'likes', label: 'Likes', icon: Heart, count: null }] : []),
+    { key: 'reviews', label: 'Reviews', icon: Sparkle, count: reviews.length },
+    ...(isOwn ? [{ key: 'likes', label: 'Likes', icon: ThumbsUp, count: null }] : []),
   ];
 
   return (
@@ -298,7 +294,7 @@ export default function Profile() {
             </div>
             {profile.idVerified && (
               <div className="absolute bottom-1.5 right-1.5 sm:bottom-3 sm:right-3 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#CDFF00] text-black flex items-center justify-center ring-[4px] ring-[#050505]">
-                <BadgeCheck className="w-4.5 h-4.5 sm:w-5.5 sm:h-5.5" />
+                <ShieldCheck className="w-4.5 h-4.5 sm:w-5.5 sm:h-5.5" />
               </div>
             )}
           </div>
@@ -335,7 +331,7 @@ export default function Profile() {
                   aria-label="Add listing"
                   className="!flex-none w-10 h-10 rounded-xl bg-[#CDFF00] hover:bg-[#d9ff33] text-black transition-colors flex items-center justify-center shrink-0"
                 >
-                  <Plus className="w-5 h-5" />
+                  <CirclePlus className="w-5 h-5" />
                 </Link>
                 <button
                   onClick={() => setIsModalOpen(true)}
@@ -343,7 +339,7 @@ export default function Profile() {
                   aria-label="Edit profile"
                   className="!flex-none w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 text-white transition-colors flex items-center justify-center shrink-0"
                 >
-                  <Settings className="w-5 h-5" />
+                  <Cog className="w-5 h-5" />
                 </button>
               </>
             ) : rel.blocked ? (
@@ -351,7 +347,7 @@ export default function Profile() {
                 onClick={toggleBlock}
                 className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
               >
-                <ShieldOff className="w-4 h-4" /> Unblock
+                <ShieldBan className="w-4 h-4" /> Unblock
               </button>
             ) : (
               <>
@@ -370,7 +366,7 @@ export default function Profile() {
                   to={`/dm/${profile.id}`}
                   className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
                 >
-                  <MessageCircle className="w-4 h-4" /> Message
+                  <MessageCircleMore className="w-4 h-4" /> Message
                 </Link>
               </>
             )}
@@ -382,7 +378,7 @@ export default function Profile() {
                   aria-label="More options"
                   className="w-10 h-10 rounded-xl hover:bg-white/10 text-white transition-colors flex items-center justify-center"
                 >
-                  <MoreHorizontal className="w-5 h-5" />
+                  <Ellipsis className="w-5 h-5" />
                 </button>
                 {menuOpen && (
                   <>
@@ -392,13 +388,13 @@ export default function Profile() {
                         onClick={toggleBlock}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 text-left font-semibold"
                       >
-                        <Ban className="w-4 h-4" /> {rel.blocked ? 'Unblock' : 'Block'}
+                        <CircleSlash className="w-4 h-4" /> {rel.blocked ? 'Unblock' : 'Block'}
                       </button>
                       <button
                         onClick={() => { setMenuOpen(false); setReportOpen(true); }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 text-left font-semibold"
                       >
-                        <Flag className="w-4 h-4" /> Report
+                        <Milestone className="w-4 h-4" /> Report
                       </button>
                     </div>
                   </>
@@ -465,7 +461,7 @@ export default function Profile() {
                 <ListingCard key={l.id} listing={l} index={i} onDelete={isOwn ? handleDeleteListing : undefined} />
               ))}
             </div>
-          ) : <EmptyTab icon={FileText} text="No listings yet" />
+          ) : <EmptyTab icon={FileType} text="No listings yet" />
         )}
 
         {tab === 'posts' && (
@@ -494,7 +490,7 @@ export default function Profile() {
                 </div>
               ))}
             </div>
-          ) : <EmptyTab icon={Star} text="No reviews yet" />
+          ) : <EmptyTab icon={Sparkle} text="No reviews yet" />
         )}
 
         {tab === 'likes' && isOwn && (
@@ -507,7 +503,7 @@ export default function Profile() {
                 {likedPosts.map((post) => <PostTile key={post.id} post={post} showAuthor onOpen={setViewingPost} />)}
               </div>
             </>
-          ) : <EmptyTab icon={Heart} text="Posts you like will appear here" />
+          ) : <EmptyTab icon={ThumbsUp} text="Posts you like will appear here" />
         )}
       </div>
 
@@ -549,7 +545,7 @@ export default function Profile() {
                   onClick={() => setViewingPost(null)}
                   className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors shrink-0"
                 >
-                  <X className="w-5 h-5" />
+                  <CircleX className="w-5 h-5" />
                 </button>
               </div>
 
@@ -580,7 +576,7 @@ export default function Profile() {
                     viewingPost.likedByCurrentUser ? 'text-[#FF00FF]' : 'hover:text-white'
                   }`}
                 >
-                  <Heart className={`w-4 h-4 ${viewingPost.likedByCurrentUser ? 'fill-[#FF00FF]' : ''}`} />
+                  <ThumbsUp className={`w-4 h-4 ${viewingPost.likedByCurrentUser ? 'fill-[#FF00FF]' : ''}`} />
                   {viewingPost.likesCount || 0}
                 </button>
 
@@ -593,7 +589,7 @@ export default function Profile() {
                   aria-label="Open comments"
                   className="flex items-center gap-1.5 hover:text-white transition-colors"
                 >
-                  <MessageCircle className="w-4 h-4" /> {viewingPost.commentsCount || 0}
+                  <MessageCircleMore className="w-4 h-4" /> {viewingPost.commentsCount || 0}
                 </Link>
 
                 <Link
@@ -619,8 +615,8 @@ export default function Profile() {
               className="relative w-full max-w-md bg-[#141414] border border-white/10 rounded-2xl p-6"
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-bold flex items-center gap-2"><Flag className="w-4 h-4 text-red-400" /> Report {displayName(profile)}</h3>
-                <button onClick={() => setReportOpen(false)} className="p-1.5 rounded-full hover:bg-white/10 text-gray-500"><X className="w-4 h-4" /></button>
+                <h3 className="text-white font-bold flex items-center gap-2"><Milestone className="w-4 h-4 text-red-400" /> Report {displayName(profile)}</h3>
+                <button onClick={() => setReportOpen(false)} className="p-1.5 rounded-full hover:bg-white/10 text-gray-500"><CircleX className="w-4 h-4" /></button>
               </div>
               <textarea
                 value={reportReason}
@@ -654,10 +650,10 @@ export default function Profile() {
               {/* Header */}
               <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-black/40 shrink-0">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-[#CDFF00]" /> Edit profile
+                  <Cog className="w-5 h-5 text-[#CDFF00]" /> Edit profile
                 </h2>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-white/5 rounded-xl transition-colors">
-                  <X className="w-5 h-5 text-gray-400" />
+                  <CircleX className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
 
@@ -673,7 +669,7 @@ export default function Profile() {
                     >
                       {avatarPreview
                         ? <img src={avatarPreview} className="w-full h-full object-cover" />
-                        : <Camera className="w-6 h-6 text-gray-600 group-hover:text-[#CDFF00]" />}
+                        : <Aperture className="w-6 h-6 text-gray-600 group-hover:text-[#CDFF00]" />}
                       <input id="avatar-input" type="file" accept="image/*" hidden onChange={(e) => handleFileChange(e, 'avatar')} />
                     </div>
                     <div
@@ -717,7 +713,7 @@ export default function Profile() {
                     <input type="text" value={editData.addressLine1} onChange={(e) => setEditData({ ...editData, addressLine1: e.target.value })}
                       placeholder="Business address" className="bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00]" />
                     <div className="relative">
-                      <Globe className="w-4 h-4 text-gray-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <Earth className="w-4 h-4 text-gray-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
                       <input type="text" value={editData.website} onChange={(e) => setEditData({ ...editData, website: e.target.value })}
                         placeholder="Website" className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00]" />
                     </div>
@@ -735,7 +731,7 @@ export default function Profile() {
                   disabled={isUpdating}
                   className="px-6 py-2.5 rounded-xl bg-[#CDFF00] text-black text-sm font-bold hover:bg-[#d9ff33] active:scale-95 transition-all flex items-center gap-2 disabled:opacity-60"
                 >
-                  {isUpdating ? 'Saving…' : <>Save <Check className="w-4 h-4" /></>}
+                  {isUpdating ? 'Saving…' : <>Save <CircleCheck className="w-4 h-4" /></>}
                 </button>
               </div>
             </motion.div>
@@ -754,7 +750,7 @@ function ProfileBio({ profile }) {
         <span className="px-2 py-0.5 rounded-md bg-[#CDFF00]/15 text-[#CDFF00] text-[10px] font-bold tracking-widest">{profile.role}</span>
         {profile.city && (
           <span className="flex items-center gap-1 text-xs text-gray-500">
-            <MapPin className="w-3 h-3 text-[#CDFF00]" /> {profile.city}
+            <Navigation className="w-3 h-3 text-[#CDFF00]" /> {profile.city}
           </span>
         )}
         <DistanceBadge lat={profile.latitude} lng={profile.longitude} />
@@ -763,12 +759,12 @@ function ProfileBio({ profile }) {
       <div className="flex flex-wrap items-center gap-3 text-xs">
         {profile.website && (
           <a href={profile.website} target="_blank" rel="noreferrer" className="text-[#00FFFF] hover:underline flex items-center gap-1">
-            <Globe className="w-3 h-3" /> {profile.website.replace(/^https?:\/\//, '')}
+            <Earth className="w-3 h-3" /> {profile.website.replace(/^https?:\/\//, '')}
           </a>
         )}
         {profile.instagram && (
           <a href={`https://instagram.com/${profile.instagram.replace(/^@/, '')}`} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white flex items-center gap-1">
-            <AtSign className="w-3 h-3" /> {profile.instagram.replace(/^@/, '')}
+            <Hash className="w-3 h-3" /> {profile.instagram.replace(/^@/, '')}
           </a>
         )}
       </div>
@@ -796,8 +792,8 @@ function PostTile({ post, showAuthor = false, onOpen }) {
       {/* Hover overlay with like/comment counts */}
       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5">
         <div className="flex items-center gap-4 text-white text-sm font-bold">
-          <span className="flex items-center gap-1.5"><Heart className="w-4 h-4 fill-white" /> {post.likesCount || 0}</span>
-          <span className="flex items-center gap-1.5"><MessageCircle className="w-4 h-4 fill-white" /> {post.commentsCount || 0}</span>
+          <span className="flex items-center gap-1.5"><ThumbsUp className="w-4 h-4 fill-white" /> {post.likesCount || 0}</span>
+          <span className="flex items-center gap-1.5"><MessageCircleMore className="w-4 h-4 fill-white" /> {post.commentsCount || 0}</span>
         </div>
         {showAuthor && post.authorName && (
           <span className="text-[11px] text-gray-300">by {post.authorName}</span>

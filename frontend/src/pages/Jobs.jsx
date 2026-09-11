@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Briefcase, MapPin, Clock, Search,
-  Users, Zap, Check, LayoutGrid, Plus, BadgeCheck, Image as ImageIcon, ShieldCheck,
-  Wallet, Globe, X, Loader2, ExternalLink,
-} from 'lucide-react';
+import { BriefcaseBusiness, Navigation, Timer, ScanSearch, UserRound, Rocket, CircleCheck, Grid2x2, CirclePlus, ShieldCheck, Images as ImageIcon, ShieldPlus, PiggyBank, Earth, CircleX, Loader, SquareArrowOutUpRight } from 'lucide-react';
 import { jobsApi, publishersApi, dispatchToast } from '../api/client';
 import { JOB_CATEGORIES } from '../utils/taxonomy';
 import { useSelector } from 'react-redux';
@@ -87,7 +83,7 @@ export default function Jobs() {
         {/* Publisher call-to-action: either compose, or find out how to be allowed to. */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500">
-            <ShieldCheck className="w-4 h-4 text-[#CDFF00]" />
+            <ShieldPlus className="w-4 h-4 text-[#CDFF00]" />
             Verified employers only
           </div>
           {canPost ? (
@@ -96,14 +92,14 @@ export default function Jobs() {
               onClick={() => setComposerOpen(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest"
             >
-              <Plus className="w-4 h-4" /> Post a job
+              <CirclePlus className="w-4 h-4" /> Post a job
             </motion.button>
           ) : (
             <Link
               to="/publisher/apply?type=HIRING_COMPANY"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-[#CDFF00]/40 text-[10px] font-black tracking-widest text-gray-300 transition-colors"
             >
-              <BadgeCheck className="w-4 h-4 text-[#CDFF00]" /> Hiring? Get verified
+              <ShieldCheck className="w-4 h-4 text-[#CDFF00]" /> Hiring? Get verified
             </Link>
           )}
         </div>
@@ -126,7 +122,7 @@ export default function Jobs() {
                   : 'bg-white/5 border-white/10 text-gray-400'
               }`}
             >
-              <LayoutGrid className="w-3.5 h-3.5" /> All
+              <Grid2x2 className="w-3.5 h-3.5" /> All
             </button>
             {JOB_CATEGORIES.map((cat) => (
               <button
@@ -146,7 +142,7 @@ export default function Jobs() {
 
         {/* Desktop: unchanged inline layout */}
         <div className="hidden sm:flex items-center gap-2.5 bg-white/5 border border-white/10 focus-within:border-[#CDFF00]/50 rounded-xl px-4 py-2.5 mb-4 transition-colors">
-          <Search className="w-4 h-4 text-gray-500 shrink-0" />
+          <ScanSearch className="w-4 h-4 text-gray-500 shrink-0" />
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -171,7 +167,7 @@ export default function Jobs() {
                 : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
             }`}
           >
-            <LayoutGrid className="w-3.5 h-3.5" /> All
+            <Grid2x2 className="w-3.5 h-3.5" /> All
           </button>
           {JOB_CATEGORIES.map((cat) => (
             <button
@@ -243,7 +239,7 @@ export default function Jobs() {
                             </span>
                             {job.remote && (
                               <span className="flex items-center gap-1 text-[9px] font-bold text-gray-400 tracking-widest">
-                                <Globe className="w-3 h-3" /> Remote
+                                <Earth className="w-3 h-3" /> Remote
                               </span>
                             )}
                           </div>
@@ -254,24 +250,24 @@ export default function Jobs() {
                             <span className="flex items-center gap-1.5">
                               {job.companyLogoUrl
                                 ? <img src={job.companyLogoUrl} alt="" className="w-4 h-4 rounded object-cover" />
-                                : <Briefcase className="w-3.5 h-3.5 text-gray-600" />}
+                                : <BriefcaseBusiness className="w-3.5 h-3.5 text-gray-600" />}
                               {job.companyName}
                               {/* Every advert on this board is from a verified company —
                                   the tick is the whole point of the gate. */}
-                              <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00]" />
+                              <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00]" />
                             </span>
                             {job.location && (
                               <span className="flex items-center gap-1.5">
-                                <MapPin className="w-3.5 h-3.5 text-gray-600" /> {job.location}
+                                <Navigation className="w-3.5 h-3.5 text-gray-600" /> {job.location}
                               </span>
                             )}
                             {pay && (
                               <span className="flex items-center gap-1.5">
-                                <Wallet className="w-3.5 h-3.5 text-gray-600" /> {pay}
+                                <PiggyBank className="w-3.5 h-3.5 text-gray-600" /> {pay}
                               </span>
                             )}
                             <span className="flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5 text-gray-600" /> {timeAgo(job.createdAt)}
+                              <Timer className="w-3.5 h-3.5 text-gray-600" /> {timeAgo(job.createdAt)}
                             </span>
                           </div>
 
@@ -287,7 +283,7 @@ export default function Jobs() {
                             ))}
                             {job.applicationsCount > 0 && (
                               <span className="flex items-center gap-1 text-[9px] font-bold text-gray-600 tracking-widest ml-1">
-                                <Users className="w-3 h-3" /> {job.applicationsCount} applied
+                                <UserRound className="w-3 h-3" /> {job.applicationsCount} applied
                               </span>
                             )}
                             {job.mediaUrls?.length > 0 && (
@@ -309,7 +305,7 @@ export default function Jobs() {
                               rel="noopener noreferrer"
                               className="px-5 py-2.5 rounded-xl font-black text-[10px] tracking-widest transition-all flex items-center gap-1.5 bg-[#CDFF00] text-black hover:scale-105 active:scale-95"
                             >
-                              Apply on {job.sourceName} <ExternalLink className="w-3.5 h-3.5" />
+                              Apply on {job.sourceName} <SquareArrowOutUpRight className="w-3.5 h-3.5" />
                             </a>
                           ) : (
                             <button
@@ -324,8 +320,8 @@ export default function Jobs() {
                               {job.ownedByCurrentUser
                                 ? <>Your advert</>
                                 : applied
-                                  ? <><Check className="w-3.5 h-3.5" /> Applied</>
-                                  : <><Zap className="w-3.5 h-3.5" /> Apply now</>}
+                                  ? <><CircleCheck className="w-3.5 h-3.5" /> Applied</>
+                                  : <><Rocket className="w-3.5 h-3.5" /> Apply now</>}
                             </button>
                           )}
                         </div>
@@ -336,7 +332,7 @@ export default function Jobs() {
               }) : (
                 <div className="py-20 text-center flex flex-col items-center gap-4 bg-white/[0.02] border border-white/10 rounded-2xl">
                   <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center">
-                    <Search className="w-6 h-6 text-gray-600" />
+                    <ScanSearch className="w-6 h-6 text-gray-600" />
                   </div>
                   <div>
                     <h3 className="text-base font-black tracking-tight">No openings yet</h3>

@@ -5,7 +5,7 @@ import { useShops } from '../hooks/useShops';
 import { POLISH_CITIES } from '../utils/constants';
 import ShopCard from '../components/ShopCard';
 import ExploreNav from '../components/ExploreNav';
-import { MapPin, Search, Store, X } from 'lucide-react';
+import { Navigation, ScanSearch, Building2, CircleX } from 'lucide-react';
 
 export default function ExploreShops() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -59,7 +59,7 @@ export default function ExploreShops() {
             {city || 'All of Poland'}
           </span>
           <h1 className="mt-2 text-3xl sm:text-4xl font-black text-white tracking-tighter flex items-center gap-3">
-            <Store className="w-7 h-7 text-[#FF00FF]" />
+            <Building2 className="w-7 h-7 text-[#FF00FF]" />
             {category || 'All shops'}
           </h1>
           <p className="mt-2 text-sm text-gray-400">
@@ -78,7 +78,7 @@ export default function ExploreShops() {
         <div className="p-4 rounded-3xl bg-[#0A0A0A] border border-white/10">
           <div className="flex flex-col sm:flex-row gap-2.5">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <ScanSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
                 type="search"
                 value={query}
@@ -89,7 +89,7 @@ export default function ExploreShops() {
             </div>
 
             <div className="relative sm:w-52">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CDFF00] pointer-events-none" />
+              <Navigation className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CDFF00] pointer-events-none" />
               <select
                 value={city}
                 onChange={(e) => setParam('city', e.target.value)}
@@ -127,7 +127,7 @@ export default function ExploreShops() {
                 onClick={clearAll}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[10px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-white/30 transition-all active:scale-95"
               >
-                <X className="w-3.5 h-3.5" /> Clear
+                <CircleX className="w-3.5 h-3.5" /> Clear
               </button>
             )}
           </div>
@@ -147,7 +147,7 @@ export default function ExploreShops() {
           </div>
         ) : visible.length === 0 ? (
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center py-24">
-            <Store className="w-12 h-12 mx-auto text-white/15 mb-5" />
+            <Building2 className="w-12 h-12 mx-auto text-white/15 mb-5" />
             <h2 className="text-xl font-black text-white tracking-tight mb-2">No shops here</h2>
             <p className="text-sm text-gray-400 mb-6">
               {allShops.length === 0

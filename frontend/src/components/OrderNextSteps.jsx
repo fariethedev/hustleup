@@ -1,4 +1,4 @@
-import { Check, Loader2, CreditCard, PackageCheck, Truck, Home, Star } from 'lucide-react';
+import { CircleCheck, Loader, WalletCards, PackageOpen, Forklift, House, Sparkle } from 'lucide-react';
 
 /**
  * What happens between paying and holding the thing, spelled out.
@@ -29,21 +29,21 @@ export default function OrderNextSteps({ status, paid = false, method }) {
   const steps = [
     {
       key: 'paid',
-      icon: CreditCard,
+      icon: WalletCards,
       title: 'Payment received',
       body: 'Your money is held by HustleSpace, not paid out yet. The seller only receives it once the order is marked complete.',
       done: reached.paid,
     },
     {
       key: 'confirmed',
-      icon: PackageCheck,
+      icon: PackageOpen,
       title: 'Seller confirms and prepares your order',
       body: 'They get an alert the moment payment clears. Most sellers confirm within a day — you will get a notification when they do.',
       done: reached.confirmed,
     },
     {
       key: 'moving',
-      icon: isPickup ? Home : Truck,
+      icon: isPickup ? House : Forklift,
       title: isPickup ? 'Ready to collect' : 'On its way to you',
       body: isPickup
         ? 'The seller will tell you when and where to pick it up. Message them to agree a time that works.'
@@ -52,7 +52,7 @@ export default function OrderNextSteps({ status, paid = false, method }) {
     },
     {
       key: 'arrived',
-      icon: Star,
+      icon: Sparkle,
       title: isPickup ? 'Collect it, then rate the seller' : 'It arrives — then rate the seller',
       body: 'Marking the order complete releases payment to the seller and asks you for a rating. That rating is what other buyers see on their shop.',
       done: reached.arrived,
@@ -86,9 +86,9 @@ export default function OrderNextSteps({ status, paid = false, method }) {
                   }`}
                 >
                   {step.done
-                    ? <Check className="w-4 h-4" strokeWidth={3} />
+                    ? <CircleCheck className="w-4 h-4" strokeWidth={3} />
                     : active
-                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      ? <Loader className="w-4 h-4 animate-spin" />
                       : <Icon className="w-4 h-4" />}
                 </span>
                 {i < steps.length - 1 && (

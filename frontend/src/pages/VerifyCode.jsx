@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MailCheck, Loader2, ArrowRight, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { MailOpen, Loader, MoveRight, Undo, BadgeCheck } from 'lucide-react';
 import { authApi, dispatchToast } from '../api/client';
 import { useDispatch } from 'react-redux';
 import { sessionRestored } from '../store/authSlice';
@@ -130,8 +130,8 @@ export default function VerifyCode() {
       >
         <div className="w-14 h-14 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/25 flex items-center justify-center mx-auto mb-5">
           {verified
-            ? <CheckCircle2 className="w-7 h-7 text-[#CDFF00]" />
-            : <MailCheck className="w-7 h-7 text-[#CDFF00]" />}
+            ? <BadgeCheck className="w-7 h-7 text-[#CDFF00]" />
+            : <MailOpen className="w-7 h-7 text-[#CDFF00]" />}
         </div>
 
         <h1 className="text-2xl font-black text-white tracking-tight mb-2">
@@ -174,7 +174,7 @@ export default function VerifyCode() {
             <div className="h-6 mb-3">
               {submitting && (
                 <span className="inline-flex items-center gap-2 text-xs text-gray-400 font-bold">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Checking…
+                  <Loader className="w-3.5 h-3.5 animate-spin" /> Checking…
                 </span>
               )}
               {error && !submitting && (
@@ -187,7 +187,7 @@ export default function VerifyCode() {
               disabled={code.length !== LENGTH || submitting}
               className="w-full py-3.5 rounded-2xl bg-[#CDFF00] text-black font-black text-xs tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all"
             >
-              Confirm email <ArrowRight className="w-4 h-4" />
+              Confirm email <MoveRight className="w-4 h-4" />
             </button>
 
             <div className="mt-5 flex flex-col items-center gap-2">
@@ -196,7 +196,7 @@ export default function VerifyCode() {
                 disabled={cooldown > 0}
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <Undo className="w-3.5 h-3.5" />
                 {cooldown > 0 ? `Resend in ${cooldown}s` : 'Send a new code'}
               </button>
               <Link to="/dashboard" className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors">

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, Repeat, Package, Sparkles, Loader2, ArrowUp, ArrowDown, Coins } from 'lucide-react';
+import { CircleX, Recycle, Box, WandSparkles, Loader, MoveUp, MoveDown, Banknote } from 'lucide-react';
 import { listingsApi, swapsApi, dispatchToast } from '../api/client';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 import { formatPrice } from '../utils/constants';
@@ -99,7 +99,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
         <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-[#0A0A0A]/95 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF00FF] to-[#00FFFF] flex items-center justify-center">
-              <Repeat className="w-4 h-4 text-black" strokeWidth={3} />
+              <Recycle className="w-4 h-4 text-black" strokeWidth={3} />
             </div>
             <div>
               <h2 className="text-sm font-black text-white tracking-tight leading-none">Propose a swap</h2>
@@ -107,7 +107,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
             </div>
           </div>
           <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
-            <X className="w-4 h-4" />
+            <CircleX className="w-4 h-4" />
           </button>
         </div>
 
@@ -119,7 +119,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
               <div className="w-14 h-14 rounded-xl overflow-hidden bg-white/5 shrink-0">
                 {listing.mediaUrls?.[0]
                   ? <img src={uploadUrl(listing.mediaUrls[0])} alt="" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-gray-600" /></div>}
+                  : <div className="w-full h-full flex items-center justify-center"><Box className="w-5 h-5 text-gray-600" /></div>}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-white truncate">{listing.title}</p>
@@ -154,7 +154,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
             {mode === 'listing' ? (
               loadingMine ? (
                 <div className="py-8 flex justify-center">
-                  <Loader2 className="w-5 h-5 text-gray-600 animate-spin" />
+                  <Loader className="w-5 h-5 text-gray-600 animate-spin" />
                 </div>
               ) : myListings.length === 0 ? (
                 <p className="text-xs text-gray-500 py-4 text-center">
@@ -175,13 +175,13 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
                       <div className="w-11 h-11 rounded-lg overflow-hidden bg-white/5 shrink-0">
                         {l.mediaUrls?.[0]
                           ? <img src={uploadUrl(l.mediaUrls[0])} alt="" className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center"><Package className="w-4 h-4 text-gray-600" /></div>}
+                          : <div className="w-full h-full flex items-center justify-center"><Box className="w-4 h-4 text-gray-600" /></div>}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold text-white truncate">{l.title}</p>
                         <p className="text-[10px] text-gray-500 font-bold">{formatPrice(l.price, l.currency)}</p>
                       </div>
-                      {selectedId === l.id && <Sparkles className="w-4 h-4 text-[#CDFF00] shrink-0" />}
+                      {selectedId === l.id && <WandSparkles className="w-4 h-4 text-[#CDFF00] shrink-0" />}
                     </button>
                   ))}
                 </div>
@@ -206,8 +206,8 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
 
             <div className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/10 mb-2">
               {[
-                { key: 'PROPOSER_PAYS', label: 'I add money', icon: ArrowUp },
-                { key: 'OWNER_PAYS', label: 'They add money', icon: ArrowDown },
+                { key: 'PROPOSER_PAYS', label: 'I add money', icon: MoveUp },
+                { key: 'OWNER_PAYS', label: 'They add money', icon: MoveDown },
               ].map((d) => {
                 const DirIcon = d.icon;
                 const active = cashDirection === d.key;
@@ -227,7 +227,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
             </div>
 
             <div className="relative">
-              <Coins className="w-4 h-4 text-gray-600 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Banknote className="w-4 h-4 text-gray-600 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="number"
                 min="0"
@@ -272,7 +272,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
             disabled={!canSubmit}
             className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF00FF] to-[#00FFFF] text-black font-black text-xs tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all"
           >
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Repeat className="w-4 h-4" strokeWidth={3} />}
+            {submitting ? <Loader className="w-4 h-4 animate-spin" /> : <Recycle className="w-4 h-4" strokeWidth={3} />}
             Send swap offer
           </button>
         </div>

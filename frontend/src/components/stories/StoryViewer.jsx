@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Volume2, VolumeX, ChevronLeft, ChevronRight, Heart, Share, Play, Pause, SkipBack, SkipForward, Send, User, BadgeCheck, Trash2, Eye } from 'lucide-react';
+import { CircleX, Volume1, VolumeOff, CircleChevronLeft, CircleChevronRight, ThumbsUp, Share2, CirclePlay, CirclePause, Rewind, FastForward, SendHorizontal, CircleUserRound, ShieldCheck, Eraser, ScanEye } from 'lucide-react';
 import ShareModal from '../ShareModal';
 import { lockBodyScroll } from '../../utils/lockBodyScroll';
 import { storiesApi, dispatchToast } from '../../api/client';
@@ -283,7 +283,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full pr-6 shadow-2xl">
                 <div className="w-9 h-9 rounded-full bg-[#CDFF00] border border-black/20 flex items-center justify-center overflow-hidden">
-                  {currentUser.avatarUrl ? <img src={uploadUrl(currentUser.avatarUrl)} alt="" className="w-full h-full object-cover" /> : <User className="w-5 h-5 text-black" />}
+                  {currentUser.avatarUrl ? <img src={uploadUrl(currentUser.avatarUrl)} alt="" className="w-full h-full object-cover" /> : <CircleUserRound className="w-5 h-5 text-black" />}
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-white tracking-tight leading-none mb-0.5">{currentUser.fullName}</span>
@@ -296,7 +296,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                   onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
                   className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white"
                 >
-                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  {isMuted ? <VolumeOff className="w-4 h-4" /> : <Volume1 className="w-4 h-4" />}
                 </button>
                 {loggedInUser && currentStory?.authorId === String(loggedInUser.id) && (
                   <button
@@ -305,7 +305,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                     className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white hover:bg-red-500/80 hover:border-red-400 transition-all"
                     title="Delete story"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Eraser className="w-4 h-4" />
                   </button>
                 )}
               </div>
@@ -318,14 +318,14 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
             className="absolute top-12 right-6 z-[100] pointer-events-auto w-12 h-12 rounded-full bg-black/40 backdrop-blur-3xl border border-white/10 flex items-center justify-center text-white hover:bg-[#CDFF00] hover:text-black hover:border-transparent transition-all shadow-2xl active:scale-95"
             title="Close Story"
           >
-            <X className="w-6 h-6" />
+            <CircleX className="w-6 h-6" />
           </button>
 
-          {/* CENTER: Play/Pause Big Icon (on hover/tap) */}
+          {/* CENTER: CirclePlay/Pause Big Icon (on hover/tap) */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             {!isPlaying && (
               <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-20 h-20 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white">
-                <Play className="w-8 h-8 fill-current ml-1" />
+                <CirclePlay className="w-8 h-8 fill-current ml-1" />
               </motion.div>
             )}
           </div>
@@ -340,7 +340,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                 onClick={openViewers}
                 className="flex-1 flex items-center gap-3 bg-black/40 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-4 text-xs font-bold text-white hover:border-[#CDFF00] transition-all"
               >
-                <Eye className="w-4 h-4 text-[#CDFF00]" />
+                <ScanEye className="w-4 h-4 text-[#CDFF00]" />
                 <span>
                   {currentStory.viewsCount > 0
                     ? `Seen by ${currentStory.viewsCount}`
@@ -356,7 +356,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                   onClick={(e) => e.stopPropagation()}
                 />
                 <button className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-[#CDFF00] transition-colors">
-                  <Send className="w-4 h-4" />
+                  <SendHorizontal className="w-4 h-4" />
                 </button>
               </div>
             )}
@@ -365,7 +365,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
               onClick={toggleLike}
               className={`w-12 h-12 rounded-full backdrop-blur-xl border border-white/10 flex items-center justify-center transition-all ${currentStory.likedByCurrentUser ? 'bg-red-500/20 border-red-500/40 text-red-500' : 'bg-black/40 text-white hover:bg-white/10'}`}
             >
-              <Heart className={`w-5 h-5 ${currentStory.likedByCurrentUser ? 'fill-current' : ''}`} />
+              <ThumbsUp className={`w-5 h-5 ${currentStory.likedByCurrentUser ? 'fill-current' : ''}`} />
             </button>
 
             <button
@@ -373,7 +373,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
               title="Share story"
               className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white hover:bg-white/10 hover:border-[#CDFF00] transition-all active:scale-95"
             >
-              <Share className="w-5 h-5" />
+              <Share2 className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -411,7 +411,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
               >
                 <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
                   <h3 className="text-sm font-black text-white tracking-tight flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-[#CDFF00]" />
+                    <ScanEye className="w-4 h-4 text-[#CDFF00]" />
                     Viewers
                     {viewers.length > 0 && (
                       <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] text-gray-300 tabular-nums">
@@ -423,7 +423,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                     onClick={closeViewers}
                     className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all"
                   >
-                    <X className="w-5 h-5" />
+                    <CircleX className="w-5 h-5" />
                   </button>
                 </div>
 
@@ -436,7 +436,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                     </div>
                   ) : viewers.length === 0 ? (
                     <div className="py-12 text-center">
-                      <Eye className="w-8 h-8 text-gray-700 mx-auto mb-3" />
+                      <ScanEye className="w-8 h-8 text-gray-700 mx-auto mb-3" />
                       <p className="text-sm text-gray-500">No one has viewed this story yet</p>
                     </div>
                   ) : (
@@ -450,7 +450,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">
                             {v.name}
-                            {v.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
+                            {v.verified && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
                           </p>
                           <p className="text-[11px] text-gray-500">{formatAge(v.viewedAt)} ago</p>
                         </div>
@@ -474,13 +474,13 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
           onClick={prevUser} 
           className={`w-16 h-16 rounded-full bg-white/5 border border-white/10 text-white flex items-center justify-center pointer-events-auto hover:bg-[#CDFF00] hover:text-black transition-all ${userIndex === 0 ? 'opacity-0' : 'opacity-100'}`}
         >
-          <ChevronLeft className="w-8 h-8" />
+          <CircleChevronLeft className="w-8 h-8" />
         </button>
         <button 
           onClick={nextUser} 
           className="w-16 h-16 rounded-full bg-white/5 border border-white/10 text-white flex items-center justify-center pointer-events-auto hover:bg-[#CDFF00] hover:text-black transition-all"
         >
-          <ChevronRight className="w-8 h-8" />
+          <CircleChevronRight className="w-8 h-8" />
         </button>
       </div>
     </motion.div>,

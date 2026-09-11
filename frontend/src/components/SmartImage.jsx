@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image as ImageIcon } from 'lucide-react';
+import { Images as ImageIcon } from 'lucide-react';
 import { uploadUrl } from '../config';
 
 /**

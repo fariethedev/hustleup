@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Repeat, ArrowRight, Check, X, Undo2, Package, PackageCheck, Camera, Loader2, Inbox, Coins } from 'lucide-react';
+import { Recycle, MoveRight, CircleCheck, CircleX, CornerUpLeft, Box, PackageOpen, Aperture, Loader, Archive, Banknote } from 'lucide-react';
 import { swapsApi, dispatchToast } from '../api/client';
 import { formatPrice, labelize } from '../utils/constants';
 import { uploadUrl } from '../config';
@@ -33,7 +33,7 @@ function CashStrip({ offer, viewerIsProposer }) {
         ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
         : 'bg-green-500/10 border-green-500/30 text-green-300'
     }`}>
-      <Coins className="w-3 h-3 shrink-0" />
+      <Banknote className="w-3 h-3 shrink-0" />
       <span className="truncate">{phrase.text}</span>
       {/* Only shown when both sides are priced listings in one currency — otherwise there
           is no gap to be right or wrong about. */}
@@ -53,7 +53,7 @@ function SideCard({ side, label }) {
         <div className="w-11 h-11 rounded-lg overflow-hidden bg-white/5 shrink-0">
           {side?.imageUrl
             ? <img src={uploadUrl(side.imageUrl)} alt="" className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center"><Package className="w-4 h-4 text-gray-600" /></div>}
+            : <div className="w-full h-full flex items-center justify-center"><Box className="w-4 h-4 text-gray-600" /></div>}
         </div>
         <div className="min-w-0">
           <p className="text-xs font-bold text-white truncate">{side?.title || '—'}</p>
@@ -105,7 +105,7 @@ function HandoverPanel({ offer, viewerIsProposer, onDone }) {
   return (
     <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3">
       <div className="flex items-center gap-1.5 mb-2.5">
-        <PackageCheck className="w-3.5 h-3.5 text-[#CDFF00]" />
+        <PackageOpen className="w-3.5 h-3.5 text-[#CDFF00]" />
         <span className="text-[9px] font-black tracking-[0.2em] text-gray-400">
           {offer.handoverComplete ? 'Trade complete' : 'Handover'}
         </span>
@@ -114,7 +114,7 @@ function HandoverPanel({ offer, viewerIsProposer, onDone }) {
       {/* Your side — an action until it's done, then the receipt itself. */}
       {mine.at ? (
         <div className="flex items-center gap-2 text-[11px] font-bold text-green-400">
-          <Check className="w-3.5 h-3.5 shrink-0" />
+          <CircleCheck className="w-3.5 h-3.5 shrink-0" />
           <span>You confirmed it arrived</span>
           {mine.proof && (
             <a href={uploadUrl(mine.proof)} target="_blank" rel="noreferrer" className="ml-auto text-gray-400 hover:text-white underline">
@@ -135,7 +135,7 @@ function HandoverPanel({ offer, viewerIsProposer, onDone }) {
             htmlFor={inputId}
             className={`w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[10px] tracking-widest flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all ${busy ? 'opacity-50 pointer-events-none' : ''}`}
           >
-            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+            {busy ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Aperture className="w-3.5 h-3.5" />}
             {busy ? 'Uploading…' : 'Confirm received + add proof'}
           </label>
           <p className="mt-1.5 text-[10px] text-gray-500 leading-relaxed">
@@ -149,7 +149,7 @@ function HandoverPanel({ offer, viewerIsProposer, onDone }) {
       <div className="mt-2.5 pt-2.5 border-t border-white/5 flex items-center gap-2 text-[11px]">
         {theirs.at ? (
           <>
-            <Check className="w-3.5 h-3.5 text-green-400 shrink-0" />
+            <CircleCheck className="w-3.5 h-3.5 text-green-400 shrink-0" />
             <span className="text-gray-300 font-bold">They confirmed theirs arrived</span>
             {theirs.proof && (
               <a href={uploadUrl(theirs.proof)} target="_blank" rel="noreferrer" className="ml-auto text-gray-400 hover:text-white underline">
@@ -159,7 +159,7 @@ function HandoverPanel({ offer, viewerIsProposer, onDone }) {
           </>
         ) : (
           <>
-            <Loader2 className="w-3.5 h-3.5 text-gray-600 shrink-0" />
+            <Loader className="w-3.5 h-3.5 text-gray-600 shrink-0" />
             <span className="text-gray-500">Waiting on them to confirm</span>
           </>
         )}
@@ -214,7 +214,7 @@ export default function Swaps() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#FF00FF] to-[#00FFFF] flex items-center justify-center">
-            <Repeat className="w-5 h-5 text-black" strokeWidth={3} />
+            <Recycle className="w-5 h-5 text-black" strokeWidth={3} />
           </div>
           <div>
             <h1 className="text-xl font-black tracking-tight leading-none">Swap &amp; Top</h1>
@@ -241,10 +241,10 @@ export default function Swaps() {
         </div>
 
         {loading ? (
-          <div className="py-20 flex justify-center"><Loader2 className="w-6 h-6 text-gray-600 animate-spin" /></div>
+          <div className="py-20 flex justify-center"><Loader className="w-6 h-6 text-gray-600 animate-spin" /></div>
         ) : rows.length === 0 ? (
           <div className="py-20 text-center">
-            <Inbox className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+            <Archive className="w-10 h-10 text-gray-700 mx-auto mb-3" />
             <p className="text-sm text-gray-500 font-bold">
               {tab === 'incoming' ? 'No swap offers yet' : "You haven't proposed any swaps"}
             </p>
@@ -284,7 +284,7 @@ export default function Swaps() {
                     incoming offer you receive what they "give", so the sides swap round. */}
                 <div className="flex items-center gap-3">
                   <SideCard side={tab === 'incoming' ? s.gives : s.wants} label={tab === 'incoming' ? 'You get' : 'You want'} />
-                  <ArrowRight className="w-4 h-4 text-gray-600 shrink-0" />
+                  <MoveRight className="w-4 h-4 text-gray-600 shrink-0" />
                   <SideCard side={tab === 'incoming' ? s.wants : s.gives} label={tab === 'incoming' ? 'You give' : 'You give'} />
                 </div>
 
@@ -319,14 +319,14 @@ export default function Swaps() {
                           disabled={busyId === s.id}
                           className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[10px] tracking-widest flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-95 transition-all"
                         >
-                          {busyId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Accept
+                          {busyId === s.id ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CircleCheck className="w-3.5 h-3.5" />} Accept
                         </button>
                         <button
                           onClick={() => act(s.id, swapsApi.decline, 'Swap declined')}
                           disabled={busyId === s.id}
                           className="flex-1 py-2.5 rounded-xl border border-white/15 text-gray-300 font-black text-[10px] tracking-widest flex items-center justify-center gap-1.5 hover:bg-white/5 disabled:opacity-50 transition-all"
                         >
-                          <X className="w-3.5 h-3.5" /> Decline
+                          <CircleX className="w-3.5 h-3.5" /> Decline
                         </button>
                       </>
                     ) : (
@@ -335,7 +335,7 @@ export default function Swaps() {
                         disabled={busyId === s.id}
                         className="flex-1 py-2.5 rounded-xl border border-white/15 text-gray-300 font-black text-[10px] tracking-widest flex items-center justify-center gap-1.5 hover:bg-white/5 disabled:opacity-50 transition-all"
                       >
-                        {busyId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Undo2 className="w-3.5 h-3.5" />} Withdraw
+                        {busyId === s.id ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CornerUpLeft className="w-3.5 h-3.5" />} Withdraw
                       </button>
                     )}
                   </div>

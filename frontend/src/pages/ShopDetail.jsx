@@ -6,7 +6,7 @@ import { listingsApi, followsApi } from '../api/client';
 import { formatPrice, displayCity } from '../utils/constants';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
-import { Star, MapPin, ArrowLeft, ShoppingCart, Package, ChevronRight, Share2, Heart, CalendarClock, ShoppingBag, Pencil, ClipboardList, HandCoins, MessageSquare } from 'lucide-react';
+import { Sparkle, Navigation, MoveLeft, BaggageClaim, Box, CircleChevronRight, Forward, ThumbsUp, CalendarRange, ShoppingBasket, SquarePen, ClipboardCheck, BadgeDollarSign, MessagesSquare } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import SmartImage from '../components/SmartImage';
 import ListingCard from '../components/ListingCard';
@@ -164,7 +164,7 @@ export default function ShopDetail() {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
         <div className="text-center">
-          <Package className="w-16 h-16 mx-auto text-gray-300 mb-6 opacity-20" />
+          <Box className="w-16 h-16 mx-auto text-gray-300 mb-6 opacity-20" />
           <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Shop not found</h2>
           <p className="text-gray-400 mb-6 font-medium">This storefront doesn't exist, or its owner has taken it down.</p>
           <Link to="/explore/shops" className="px-8 py-3.5 rounded-2xl bg-[#CDFF00] text-black font-black tracking-widest hover:scale-105 transition-all">
@@ -202,7 +202,7 @@ export default function ShopDetail() {
           <SmartImage
             src={uploadUrl(shop.bannerUrl)}
             alt={shop.name}
-            fallbackIcon={Package}
+            fallbackIcon={Box}
             className="w-full h-full object-cover"
             fallbackClassName="opacity-40"
           />
@@ -230,7 +230,7 @@ export default function ShopDetail() {
             aria-label="All shops"
             className="flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-5 rounded-2xl bg-black/70 backdrop-blur-md border border-white/15 text-white font-black text-[10px] tracking-widest hover:scale-105 transition-all active:scale-95 shrink-0"
           >
-            <ArrowLeft className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">All shops</span>
+            <MoveLeft className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">All shops</span>
           </Link>
           <div className="flex gap-2 shrink-0">
             {/* The owner gets a direct route to the editor from their own storefront —
@@ -241,7 +241,7 @@ export default function ShopDetail() {
                 aria-label="Edit shop"
                 className="flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-4 rounded-2xl bg-[#CDFF00] text-black font-black text-[10px] tracking-widest hover:scale-105 transition-transform active:scale-95"
               >
-                <Pencil className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="hidden sm:inline">Edit shop</span>
+                <SquarePen className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0" /> <span className="hidden sm:inline">Edit shop</span>
               </Link>
             )}
             {/* Both of these used to be rendered with an aria-label and no onClick — they
@@ -251,7 +251,7 @@ export default function ShopDetail() {
               aria-label="Share this shop"
               className="w-10 h-10 rounded-2xl bg-black/70 backdrop-blur-md border border-white/15 flex items-center justify-center hover:scale-110 transition-transform active:scale-95"
             >
-              <Share2 className="w-4 h-4" />
+              <Forward className="w-4 h-4" />
             </button>
             {/* Messaging the owner is one action, so it is one button, here with the other
                 two rather than a panel of its own down the sidebar. It used to be a full
@@ -266,7 +266,7 @@ export default function ShopDetail() {
                 title={`Message ${shop.ownerName || 'the owner'}`}
                 className="w-10 h-10 rounded-2xl bg-black/70 backdrop-blur-md border border-white/15 flex items-center justify-center hover:scale-110 transition-transform active:scale-95"
               >
-                <MessageSquare className="w-4 h-4" />
+                <MessagesSquare className="w-4 h-4" />
               </Link>
             )}
             {/* Hidden on your own shop: following yourself is not a thing. */}
@@ -282,7 +282,7 @@ export default function ShopDetail() {
                     : 'bg-black/70 border-white/15 text-white'
                 }`}
               >
-                <Heart className={`w-4 h-4 ${following ? 'fill-[#FF00FF]' : ''}`} />
+                <ThumbsUp className={`w-4 h-4 ${following ? 'fill-[#FF00FF]' : ''}`} />
               </button>
             )}
           </div>
@@ -319,13 +319,13 @@ export default function ShopDetail() {
             >
               <span className="flex items-center gap-1.5 sm:gap-2">
                 <div className="w-fit px-2 py-1 bg-[#CDFF00] text-black rounded-lg flex items-center gap-1">
-                  <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-black" />
+                  <Sparkle className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-black" />
                   {shop.rating > 0 ? shop.rating.toFixed(1) : 'New'}
                 </div>
                 ({shop.reviewCount} <span className="opacity-50">Reviews</span>)
               </span>
               <span className="flex items-center gap-1.5 sm:gap-2">
-                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#CDFF00] shrink-0" /> {displayCity(shop.city)}
+                <Navigation className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#CDFF00] shrink-0" /> {displayCity(shop.city)}
               </span>
               {shop.ownerName && (
                 <Link to={`/profile/${shop.ownerId}`} className="flex items-center gap-1.5 sm:gap-2 min-w-0 hover:text-white transition-colors">
@@ -366,7 +366,7 @@ export default function ShopDetail() {
             {/* Breadcrumb Navigation */}
             <div className="flex items-center gap-3 text-[10px] font-black tracking-widest text-gray-500 mb-6">
               <Link to="/explore/shops" className="hover:text-[#CDFF00] transition-colors">Shops</Link>
-              <ChevronRight className="w-3 h-3" />
+              <CircleChevronRight className="w-3 h-3" />
               <span className="text-[#CDFF00]">{shop.name}</span>
             </div>
 
@@ -416,7 +416,7 @@ export default function ShopDetail() {
                         <SmartImage
                           src={uploadUrl(product.imageUrl)}
                           alt={product.name}
-                          fallbackIcon={ShoppingBag}
+                          fallbackIcon={ShoppingBasket}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                           loading="lazy"
                         />
@@ -433,7 +433,7 @@ export default function ShopDetail() {
                           aria-label={`Buy ${product.name}`}
                           className="absolute bottom-2 right-2 w-9 h-9 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all active:scale-90 bg-white/10 backdrop-blur-md border border-white/25 text-white hover:bg-[#CDFF00] hover:text-black hover:border-[#CDFF00]"
                         >
-                          <ShoppingCart className="w-4 h-4" />
+                          <BaggageClaim className="w-4 h-4" />
                         </button>
                         <button
                           onClick={(e) => {
@@ -444,7 +444,7 @@ export default function ShopDetail() {
                           aria-label={`Make an offer on ${product.name}`}
                           className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#CDFF00] text-black flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.5)] hover:scale-110 transition-transform"
                         >
-                          <HandCoins className="w-3.5 h-3.5" strokeWidth={2.5} />
+                          <BadgeDollarSign className="w-3.5 h-3.5" strokeWidth={2.5} />
                         </button>
                       </div>
 
@@ -489,7 +489,7 @@ export default function ShopDetail() {
 
             {filteredProducts.length === 0 && (
               <div className="text-center px-4 py-14 sm:py-24 rounded-3xl sm:rounded-[48px] border-dashed border-2 border-white/5">
-                <Package className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-500 mb-5 sm:mb-6 opacity-30" />
+                <Box className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-500 mb-5 sm:mb-6 opacity-30" />
                 <h3 className="text-lg sm:text-xl font-black text-white mb-2 tracking-tighter">
                   {products.length === 0 ? 'Nothing on the shelf yet' : 'Nothing in this category'}
                 </h3>
@@ -527,7 +527,7 @@ export default function ShopDetail() {
                     to="/dashboard"
                     className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] transition-colors"
                   >
-                    <Pencil className="w-3.5 h-3.5" /> Edit shop
+                    <SquarePen className="w-3.5 h-3.5" /> Edit shop
                   </Link>
                </div>
              )}
@@ -535,7 +535,7 @@ export default function ShopDetail() {
              {isBookable && (
                <div className="p-5 sm:p-6 rounded-3xl sm:rounded-[32px] bg-white/[0.03] border border-white/10">
                   <h5 className="text-[10px] font-black tracking-widest text-gray-500 mb-1 flex items-center gap-2">
-                    <CalendarClock className="w-3.5 h-3.5 text-[#CDFF00]" /> Book an appointment
+                    <CalendarRange className="w-3.5 h-3.5 text-[#CDFF00]" /> Book an appointment
                   </h5>
                   <p className="text-xs text-gray-400 mb-4">Pick a date and time that works for you.</p>
 
@@ -592,7 +592,7 @@ export default function ShopDetail() {
                      {shop.ownerName || 'Seller'}
                    </p>
                  </div>
-                 <ChevronRight className="w-3.5 h-3.5 text-gray-600 shrink-0 group-hover:text-white transition-colors" />
+                 <CircleChevronRight className="w-3.5 h-3.5 text-gray-600 shrink-0 group-hover:text-white transition-colors" />
                </Link>
              )}
           </aside>
@@ -602,7 +602,7 @@ export default function ShopDetail() {
         {ownerListings.length > 0 && (
           <div className="mt-10 sm:mt-16">
             <div className="flex items-center gap-2 mb-5">
-              <ClipboardList className="w-4 h-4 text-[#00FFFF]" />
+              <ClipboardCheck className="w-4 h-4 text-[#00FFFF]" />
               <h4 className="text-[10px] font-black tracking-widest text-gray-500">
                 Also from {shop.ownerName || 'this seller'}
               </h4>
@@ -630,7 +630,7 @@ export default function ShopDetail() {
                     <SmartImage
                       src={uploadUrl(product.imageUrl)}
                       alt={product.name}
-                      fallbackIcon={ShoppingBag}
+                      fallbackIcon={ShoppingBasket}
                       className="w-full h-full object-cover z-10 group-hover:scale-110 transition-transform duration-500"
                       loading="lazy"
                     />
@@ -662,7 +662,7 @@ export default function ShopDetail() {
                     style={{ background: `linear-gradient(135deg, ${s.accentColor || '#CDFF00'}, ${s.accentColor || '#CDFF00'}4D)` }}
                   >
                     <div className="w-full h-full rounded-full overflow-hidden border-2 border-[#050505] bg-black">
-                      <SmartImage src={s.bannerUrl} alt={s.name} fallbackIcon={Package} className="w-full h-full object-cover" />
+                      <SmartImage src={s.bannerUrl} alt={s.name} fallbackIcon={Box} className="w-full h-full object-cover" />
                     </div>
                   </div>
                   <span className="mt-2 text-xs font-bold text-white line-clamp-1 group-hover:text-[#CDFF00] transition-colors">{s.name}</span>

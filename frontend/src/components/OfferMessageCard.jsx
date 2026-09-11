@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, HandCoins, Pencil, X } from 'lucide-react';
+import { CircleCheck, BadgeDollarSign, SquarePen, CircleX } from 'lucide-react';
 import { bookingsApi, dispatchToast } from '../api/client';
 import { formatPrice, BOOKING_STATUS_MAP } from '../utils/constants';
 
@@ -115,7 +115,7 @@ export default function OfferMessageCard({ bookingId }) {
     >
       <div className="flex items-center gap-2 mb-2">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: LIME }}>
-          <HandCoins className="w-3.5 h-3.5 text-black" />
+          <BadgeDollarSign className="w-3.5 h-3.5 text-black" />
         </div>
         <span className="text-xs font-black text-white truncate flex-1">{booking.listingTitle || 'Negotiation'}</span>
         <span className={`px-1.5 py-0.5 rounded text-[8px] font-black tracking-[0.1em] shrink-0 ${status.color}`}>
@@ -141,14 +141,14 @@ export default function OfferMessageCard({ bookingId }) {
                 className="px-2.5 py-1.5 rounded-lg font-black text-[9px] tracking-widest text-black hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-1"
                 style={{ backgroundColor: LIME }}
               >
-                <Check className="w-3 h-3" /> Accept
+                <CircleCheck className="w-3 h-3" /> Accept
               </button>
               <button
                 disabled={busy}
                 onClick={() => { setCountering((v) => !v); setCounterValue(''); }}
                 className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1"
               >
-                <Pencil className="w-3 h-3" /> Counter
+                <SquarePen className="w-3 h-3" /> Counter
               </button>
             </>
           )}
@@ -160,7 +160,7 @@ export default function OfferMessageCard({ bookingId }) {
               className="px-2.5 py-1.5 rounded-lg font-black text-[9px] tracking-widest text-black hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-1"
               style={{ backgroundColor: LIME }}
             >
-              <Check className="w-3 h-3" /> Accept {formatPrice(booking.counterPrice, booking.currency)}
+              <CircleCheck className="w-3 h-3" /> Accept {formatPrice(booking.counterPrice, booking.currency)}
             </button>
           )}
 
@@ -169,7 +169,7 @@ export default function OfferMessageCard({ bookingId }) {
             onClick={() => { if (confirm(isPendingRequest ? 'Decline this offer?' : 'Cancel this negotiation?')) act(() => bookingsApi.cancel(bookingId, 'Declined in chat')); }}
             className="px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 font-black text-[9px] tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-1"
           >
-            <X className="w-3 h-3" /> {isPendingRequest ? 'Decline' : 'Cancel'}
+            <CircleX className="w-3 h-3" /> {isPendingRequest ? 'Decline' : 'Cancel'}
           </button>
         </div>
       )}

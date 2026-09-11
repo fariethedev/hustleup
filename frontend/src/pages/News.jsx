@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Search, Calendar, ArrowLeft, Newspaper, BadgeCheck, Plus, ShieldCheck,
-  Clock, Eye, LayoutGrid, X, ExternalLink
-} from 'lucide-react';
+import { ScanSearch, CalendarDays, MoveLeft, BookOpenText, ShieldCheck, CirclePlus, ShieldPlus, Timer, ScanEye, Grid2x2, CircleX, SquareArrowOutUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
@@ -74,7 +71,7 @@ export default function News() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500">
-            <ShieldCheck className="w-4 h-4 text-[#CDFF00]" />
+            <ShieldPlus className="w-4 h-4 text-[#CDFF00]" />
             Verified outlets only
           </div>
           {canPost ? (
@@ -83,14 +80,14 @@ export default function News() {
               onClick={() => setComposerOpen(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest"
             >
-              <Plus className="w-4 h-4" /> Publish article
+              <CirclePlus className="w-4 h-4" /> Publish article
             </motion.button>
           ) : (
             <Link
               to="/publisher/apply?type=NEWS_OUTLET"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:border-[#CDFF00]/40 text-[10px] font-black tracking-widest text-gray-300 transition-colors"
             >
-              <BadgeCheck className="w-4 h-4 text-[#CDFF00]" /> Run an outlet? Get verified
+              <ShieldCheck className="w-4 h-4 text-[#CDFF00]" /> Run an outlet? Get verified
             </Link>
           )}
         </div>
@@ -113,7 +110,7 @@ export default function News() {
                   : 'bg-white/5 border-white/10 text-gray-400'
               }`}
             >
-              <LayoutGrid className="w-3.5 h-3.5" /> All
+              <Grid2x2 className="w-3.5 h-3.5" /> All
             </button>
             {SECTIONS.map((sec) => (
               <button
@@ -133,7 +130,7 @@ export default function News() {
 
         {/* Desktop: unchanged inline layout */}
         <div className="hidden sm:flex items-center gap-2.5 bg-white/5 border border-white/10 focus-within:border-[#CDFF00]/50 rounded-xl px-4 py-2.5 mb-4 transition-colors">
-          <Search className="w-4 h-4 text-gray-500 shrink-0" />
+          <ScanSearch className="w-4 h-4 text-gray-500 shrink-0" />
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -153,7 +150,7 @@ export default function News() {
                 : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
             }`}
           >
-            <LayoutGrid className="w-3.5 h-3.5" /> All
+            <Grid2x2 className="w-3.5 h-3.5" /> All
           </button>
           {SECTIONS.map((s) => (
             <button
@@ -180,7 +177,7 @@ export default function News() {
         ) : articles.length === 0 ? (
           <div className="py-20 text-center flex flex-col items-center gap-4 bg-white/[0.02] border border-white/10 rounded-2xl">
             <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center">
-              <Newspaper className="w-6 h-6 text-gray-600" />
+              <BookOpenText className="w-6 h-6 text-gray-600" />
             </div>
             <div>
               <h3 className="text-base font-black tracking-tight">No stories yet</h3>
@@ -207,7 +204,7 @@ export default function News() {
                     {a.coverImageUrl
                       ? <img src={a.coverImageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
                       : <div className="w-full h-full flex items-center justify-center">
-                          <Newspaper className="w-8 h-8 text-gray-700" />
+                          <BookOpenText className="w-8 h-8 text-gray-700" />
                         </div>}
                   </div>
                   <div className="p-4 flex-1 flex flex-col">
@@ -226,10 +223,10 @@ export default function News() {
                           <img src={a.outletLogoUrl} alt="" className="w-4 h-4 rounded object-cover shrink-0" />
                         )}
                         <span className="truncate">{a.outletName}</span>
-                        <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />
+                        <ShieldCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />
                       </span>
                       <span className="flex items-center gap-1 shrink-0">
-                        <Clock className="w-3 h-3" /> {a.readingMinutes}m
+                        <Timer className="w-3 h-3" /> {a.readingMinutes}m
                       </span>
                     </div>
                   </div>
@@ -257,11 +254,11 @@ export default function News() {
               <div className="sticky top-0 z-10 px-5 py-3 bg-[#0a0a0a]/95 backdrop-blur-xl border-b border-white/10 flex items-center justify-between">
                 <button onClick={() => setSelected(null)}
                         className="flex items-center gap-2 text-[10px] font-black tracking-widest text-gray-400 hover:text-white transition-colors">
-                  <ArrowLeft className="w-4 h-4" /> Back
+                  <MoveLeft className="w-4 h-4" /> Back
                 </button>
                 <button onClick={() => setSelected(null)}
                         className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
-                  <X className="w-5 h-5" />
+                  <CircleX className="w-5 h-5" />
                 </button>
               </div>
 
@@ -288,13 +285,13 @@ export default function News() {
                         instead of borrowing a badge it did not earn. */}
                     {selected.sourceName
                       ? <span className="text-gray-600 normal-case">· via feed</span>
-                      : <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00]" />}
+                      : <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00]" />}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Calendar className="w-3 h-3" /> {formatDate(selected.publishedAt || selected.createdAt)}
+                    <CalendarDays className="w-3 h-3" /> {formatDate(selected.publishedAt || selected.createdAt)}
                   </span>
-                  <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {selected.readingMinutes}m read</span>
-                  <span className="flex items-center gap-1.5"><Eye className="w-3 h-3" /> {selected.viewsCount}</span>
+                  <span className="flex items-center gap-1.5"><Timer className="w-3 h-3" /> {selected.readingMinutes}m read</span>
+                  <span className="flex items-center gap-1.5"><ScanEye className="w-3 h-3" /> {selected.viewsCount}</span>
                 </div>
 
                 {selected.summary && (
@@ -319,7 +316,7 @@ export default function News() {
                         Published by {selected.sourceName}
                       </span>
                     </span>
-                    <ExternalLink className="w-4 h-4 text-[#CDFF00] group-hover:translate-x-0.5 transition-transform shrink-0" />
+                    <SquareArrowOutUpRight className="w-4 h-4 text-[#CDFF00] group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </a>
                 )}
 

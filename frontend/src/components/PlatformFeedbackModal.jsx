@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Star, X, Loader2, Sparkles } from 'lucide-react';
+import { Sparkle, CircleX, Loader, WandSparkles } from 'lucide-react';
 
 /**
  * Asks the seller how HustleSpace is working for them, once a sale is finished.
@@ -68,7 +68,7 @@ export default function PlatformFeedbackModal({ onSubmit, onClose }) {
       >
         <div className="flex items-start gap-3 mb-1">
           <span className="w-9 h-9 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/25 flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4 text-[#CDFF00]" />
+            <WandSparkles className="w-4 h-4 text-[#CDFF00]" />
           </span>
           <div className="min-w-0 flex-1">
             <h2 id="feedback-title" className="text-lg font-black text-white leading-tight">
@@ -84,7 +84,7 @@ export default function PlatformFeedbackModal({ onSubmit, onClose }) {
             aria-label="Close"
             className="shrink-0 w-8 h-8 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 flex items-center justify-center transition-colors"
           >
-            <X className="w-4 h-4" />
+            <CircleX className="w-4 h-4" />
           </button>
         </div>
 
@@ -103,7 +103,7 @@ export default function PlatformFeedbackModal({ onSubmit, onClose }) {
                 aria-pressed={rating === n}
                 className="p-1 rounded-lg transition-transform hover:scale-110 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#CDFF00]"
               >
-                <Star
+                <Sparkle
                   className={`w-8 h-8 transition-colors ${
                     n <= shown ? 'fill-[#CDFF00] text-[#CDFF00]' : 'text-white/20'
                   }`}
@@ -150,7 +150,7 @@ export default function PlatformFeedbackModal({ onSubmit, onClose }) {
             disabled={busy}
             className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 hover:brightness-110 active:scale-95 transition-all"
           >
-            {busy ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending…</> : 'Send feedback'}
+            {busy ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Sending…</> : 'Send feedback'}
           </button>
         </div>
       </motion.div>

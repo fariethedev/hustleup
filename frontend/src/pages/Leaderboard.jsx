@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
-import { Trophy, Coins, Flame, BadgeCheck, Loader2, TrendingUp, Repeat } from 'lucide-react';
+import { Medal, Banknote, Cigarette, ShieldCheck, Loader, ChartLine, Recycle } from 'lucide-react';
 import { leaderboardApi } from '../api/client';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { formatPrice } from '../utils/constants';
 import { uploadUrl } from '../config';
 
 const METRICS = [
-  { key: 'score',    label: 'Overall',     icon: Flame },
-  { key: 'sales',    label: 'Most sales',  icon: TrendingUp },
-  { key: 'earnings', label: 'Most earned', icon: Coins },
+  { key: 'score',    label: 'Overall',     icon: Cigarette },
+  { key: 'sales',    label: 'Most sales',  icon: ChartLine },
+  { key: 'earnings', label: 'Most earned', icon: Banknote },
 ];
 
 const WINDOWS = [
@@ -75,7 +75,7 @@ export default function Leaderboard() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#CDFF00] to-[#00FFFF] flex items-center justify-center">
-            <Trophy className="w-5 h-5 text-black" strokeWidth={3} />
+            <Medal className="w-5 h-5 text-black" strokeWidth={3} />
           </div>
           <div>
             <h1 className="text-xl font-black tracking-tight leading-none">Leaderboard</h1>
@@ -167,10 +167,10 @@ export default function Leaderboard() {
 
         {/* Board */}
         {loading ? (
-          <div className="py-20 flex justify-center"><Loader2 className="w-6 h-6 text-gray-600 animate-spin" /></div>
+          <div className="py-20 flex justify-center"><Loader className="w-6 h-6 text-gray-600 animate-spin" /></div>
         ) : rows.length === 0 ? (
           <div className="py-20 text-center">
-            <Trophy className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+            <Medal className="w-10 h-10 text-gray-700 mx-auto mb-3" />
             <p className="text-sm text-gray-500 font-bold">No ranked hustlers yet</p>
             <p className="text-xs text-gray-600 mt-1.5 max-w-xs mx-auto">
               Complete a sale or an accepted swap to be the first on the board.
@@ -199,13 +199,13 @@ export default function Leaderboard() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-bold text-white truncate group-hover:text-[#CDFF00] transition-colors">{e.userName}</p>
-                      {e.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#00FFFF] shrink-0" />}
+                      {e.verified && <ShieldCheck className="w-3.5 h-3.5 text-[#00FFFF] shrink-0" />}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-[9px] font-black tracking-widest text-gray-500">{e.tier}</span>
                       {e.acceptedSwaps > 0 && (
                         <span className="flex items-center gap-0.5 text-[9px] font-bold text-gray-600">
-                          <Repeat className="w-2.5 h-2.5" /> {e.acceptedSwaps}
+                          <Recycle className="w-2.5 h-2.5" /> {e.acceptedSwaps}
                         </span>
                       )}
                       {e.city && <span className="text-[9px] text-gray-600 font-bold truncate">{e.city}</span>}

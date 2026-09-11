@@ -1,11 +1,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LISTING_TYPES, formatPrice, convertToPLN } from '../utils/constants';
-import {
-  MapPin, BadgeCheck, MessageSquare, ShieldCheck, ShoppingCart,
-  ArrowLeft, Star, Heart, Share2, Package, Check,
-  HandCoins, Plus, CalendarClock, Ticket, Minus, Image as ImageIcon, Send, Repeat, ScanLine
-} from 'lucide-react';
+import { Navigation, ShieldCheck, MessagesSquare, ShieldPlus, BaggageClaim, MoveLeft, Sparkle, ThumbsUp, Forward, Box, CircleCheck, BadgeDollarSign, CirclePlus, CalendarRange, TicketCheck, CircleMinus, Images as ImageIcon, SendHorizontal, Recycle, QrCode } from 'lucide-react';
 import SwapOfferModal from '../components/SwapOfferModal';
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -278,7 +274,7 @@ export default function ListingDetail() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4">
-          <Package className="w-16 h-16 mx-auto text-gray-700" />
+          <Box className="w-16 h-16 mx-auto text-gray-700" />
           <h2 className="text-2xl font-black text-white tracking-tight">{error || 'Not found'}</h2>
           <Link to="/explore" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm tracking-widest inline-block">
             Back to Explore
@@ -322,7 +318,7 @@ export default function ListingDetail() {
             to="/explore"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest hover:text-[#CDFF00] transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Explore
+            <MoveLeft className="w-3.5 h-3.5" /> Explore
           </Link>
           <div className="flex gap-2">
             <button
@@ -331,13 +327,13 @@ export default function ListingDetail() {
                 saved ? 'text-[#FF00FF]' : 'text-[#CDFF00]'
               }`}
             >
-              <Heart className={`w-3.5 h-3.5 ${saved ? 'fill-[#FF00FF]' : ''}`} /> {saved ? 'Saved' : 'Save'}
+              <ThumbsUp className={`w-3.5 h-3.5 ${saved ? 'fill-[#FF00FF]' : ''}`} /> {saved ? 'Saved' : 'Save'}
             </button>
             <button
               onClick={() => setShareOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest text-white hover:bg-white/5 active:scale-95 transition-all"
             >
-              <Share2 className="w-3.5 h-3.5" /> Share
+              <Forward className="w-3.5 h-3.5" /> Share
             </button>
           </div>
         </div>
@@ -366,17 +362,17 @@ export default function ListingDetail() {
               <div className="flex flex-wrap items-center gap-3">
                 {listing.avgRating > 0 && (
                   <div className="flex items-center gap-1.5 bg-[#CDFF00] text-black px-2 py-0.5 rounded-lg text-xs font-black">
-                    <Star className="w-3 h-3 fill-black" /> {Number(listing.avgRating).toFixed(1)}
+                    <Sparkle className="w-3 h-3 fill-black" /> {Number(listing.avgRating).toFixed(1)}
                   </div>
                 )}
                 {listing.locationCity && (
                   <div className="flex items-center gap-1.5 text-gray-500 text-[9px] font-black tracking-widest">
-                    <MapPin className="w-3 h-3 text-[#CDFF00]" /> {listing.locationCity}
+                    <Navigation className="w-3 h-3 text-[#CDFF00]" /> {listing.locationCity}
                   </div>
                 )}
                 {listing.sellerVerified && (
                   <div className="flex items-center gap-1.5 text-[#A855F7] text-[9px] font-black tracking-widest">
-                    <ShieldCheck className="w-3 h-3" /> Trusted Merchant
+                    <ShieldPlus className="w-3 h-3" /> Trusted Merchant
                   </div>
                 )}
               </div>
@@ -387,7 +383,7 @@ export default function ListingDetail() {
                 <div className="flex flex-wrap items-center gap-3 mt-2.5">
                   {eventStart && (
                     <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#CDFF00]/10 border border-[#CDFF00]/25 text-[#CDFF00] text-[10px] font-black tracking-widest">
-                      <CalendarClock className="w-3 h-3" />
+                      <CalendarRange className="w-3 h-3" />
                       {eventStart.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
                       {' · '}
                       {eventStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -395,7 +391,7 @@ export default function ListingDetail() {
                   )}
                   {listing.eventVenue && (
                     <span className="flex items-center gap-1.5 text-gray-400 text-[10px] font-bold">
-                      <MapPin className="w-3 h-3 text-[#CDFF00]" /> {listing.eventVenue}
+                      <Navigation className="w-3 h-3 text-[#CDFF00]" /> {listing.eventVenue}
                     </span>
                   )}
                 </div>
@@ -468,7 +464,7 @@ export default function ListingDetail() {
                       {slotBooking ? (
                         <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                       ) : (
-                        <CalendarClock className="w-4 h-4" />
+                        <CalendarRange className="w-4 h-4" />
                       )}
                       Book this slot
                     </button>
@@ -480,7 +476,7 @@ export default function ListingDetail() {
                   // sale. Buying more is still possible from the block underneath.
                   <div className="mb-3 p-3 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 space-y-2">
                     <p className="text-[10px] font-black tracking-widest text-[#CDFF00] flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5" /> You're going
+                      <CircleCheck className="w-3.5 h-3.5" /> You're going
                     </p>
                     <p className="text-xs text-gray-300">
                       {liveTickets.length} ticket{liveTickets.length > 1 ? 's' : ''} in your wallet.
@@ -490,7 +486,7 @@ export default function ListingDetail() {
                       to={`/tickets/${liveTickets[0].id}`}
                       className="w-full py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#d9ff33] transition-colors"
                     >
-                      <Ticket className="w-3.5 h-3.5" /> Open my ticket
+                      <TicketCheck className="w-3.5 h-3.5" /> Open my ticket
                     </Link>
                   </div>
                 )}
@@ -536,7 +532,7 @@ export default function ListingDetail() {
                               onClick={() => setTicketQty((q) => Math.max(1, q - 1))}
                               className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors"
                             >
-                              <Minus className="w-3.5 h-3.5" />
+                              <CircleMinus className="w-3.5 h-3.5" />
                             </button>
                             <span className="text-sm font-black text-white w-5 text-center">{ticketQty}</span>
                             <button
@@ -544,7 +540,7 @@ export default function ListingDetail() {
                               disabled={ticketQty >= maxQty}
                               className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                             >
-                              <Plus className="w-3.5 h-3.5" />
+                              <CirclePlus className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
@@ -557,7 +553,7 @@ export default function ListingDetail() {
                           {ticketLoading ? (
                             <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                           ) : (
-                            <Ticket className="w-4 h-4" />
+                            <TicketCheck className="w-4 h-4" />
                           )}
                           Buy {ticketQty > 1 ? `${ticketQty} Tickets` : 'Ticket'} — {formatPrice(listing.price * ticketQty, listing.currency)}
                         </button>
@@ -578,9 +574,9 @@ export default function ListingDetail() {
                       }`}
                     >
                       {inCart || addedToCart ? (
-                        <><Check className="w-4 h-4" /> In Cart</>
+                        <><CircleCheck className="w-4 h-4" /> In Cart</>
                       ) : (
-                        <><Plus className="w-4 h-4" /> Add to Cart</>
+                        <><CirclePlus className="w-4 h-4" /> Add to Cart</>
                       )}
                     </button>
 
@@ -589,7 +585,7 @@ export default function ListingDetail() {
                       onClick={handleBuyNow}
                       className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 group"
                     >
-                      <ShoppingCart className="w-4 h-4 group-hover:rotate-12 transition-transform" /> Buy Now
+                      <BaggageClaim className="w-4 h-4 group-hover:rotate-12 transition-transform" /> Buy Now
                     </button>
 
                     {/* Negotiate (only for negotiable listings) */}
@@ -598,7 +594,7 @@ export default function ListingDetail() {
                         onClick={handleNegotiate}
                         className="w-full py-2.5 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#CDFF00]/10 transition-all"
                       >
-                        <HandCoins className="w-4 h-4" />
+                        <BadgeDollarSign className="w-4 h-4" />
                         Negotiate via DM
                       </button>
                     )}
@@ -609,7 +605,7 @@ export default function ListingDetail() {
                         onClick={() => (currentUser ? setSwapOpen(true) : navigate('/login'))}
                         className="w-full py-2.5 rounded-xl border border-[#FF00FF]/40 text-white font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF00FF]/10 to-[#00FFFF]/10 hover:from-[#FF00FF]/20 hover:to-[#00FFFF]/20 transition-all"
                       >
-                        <Repeat className="w-4 h-4" /> Offer a swap
+                        <Recycle className="w-4 h-4" /> Offer a swap
                       </button>
                     )}
                   </div>
@@ -622,7 +618,7 @@ export default function ListingDetail() {
                     to={`/events/${listing.id}/door`}
                     className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-95 transition-transform"
                   >
-                    <ScanLine className="w-4 h-4" /> Door & guest list
+                    <QrCode className="w-4 h-4" /> Door & guest list
                   </Link>
                 )}
 
@@ -669,7 +665,7 @@ export default function ListingDetail() {
                         disabled={postingUpdate || (!updateText.trim() && !updateImage)}
                         className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] transition-all disabled:opacity-50"
                       >
-                        <Send className="w-3 h-3" /> Post
+                        <SendHorizontal className="w-3 h-3" /> Post
                       </button>
                     </div>
                   </div>
@@ -716,7 +712,7 @@ export default function ListingDetail() {
                     <h5 className="text-sm font-black text-white tracking-tight group-hover:text-[#CDFF00] transition-colors truncate">
                       {listing.sellerName || seller?.fullName || 'Seller'}
                     </h5>
-                    {listing.sellerVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
+                    {listing.sellerVerified && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[9px] font-black tracking-widest text-gray-500">
@@ -732,7 +728,7 @@ export default function ListingDetail() {
                   }}
                   className="w-9 h-9 rounded-xl glass-strong flex items-center justify-center group-hover:bg-[#CDFF00]/10 transition-colors shrink-0"
                 >
-                  <MessageSquare className="w-4 h-4 text-white group-hover:text-[#CDFF00]" />
+                  <MessagesSquare className="w-4 h-4 text-white group-hover:text-[#CDFF00]" />
                 </button>
               </div>
             </div>

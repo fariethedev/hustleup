@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { authApi } from '../api/client';
-import { Mail, ArrowLeft } from 'lucide-react';
+import { AtSign, MoveLeft } from 'lucide-react';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -37,7 +37,7 @@ export default function ForgotPassword() {
           {sent ? (
             <div className="text-center py-2">
               <div className="w-12 h-12 rounded-full bg-[#CDFF00]/10 flex items-center justify-center mx-auto mb-4">
-                <Mail className="w-5 h-5 text-[#CDFF00]" />
+                <AtSign className="w-5 h-5 text-[#CDFF00]" />
               </div>
               <p className="text-white font-semibold mb-1">Check your inbox</p>
               <p className="text-gray-400 text-sm">If that email is registered, a reset link is on its way.</p>
@@ -66,7 +66,7 @@ export default function ForgotPassword() {
           )}
 
           <Link to="/login" className="flex items-center justify-center gap-1.5 mt-5 text-sm text-gray-400 hover:text-white transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to log in
+            <MoveLeft className="w-3.5 h-3.5" /> Back to log in
           </Link>
         </div>
       </motion.div>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectUser } from '../store/authSlice';
 import { LISTING_TYPES, formatPrice, convertToPLN, displayCity } from '../utils/constants';
-import { MapPin, BadgeCheck, ShoppingCart, Check, Star, HandCoins, Trash2 } from 'lucide-react';
+import { Navigation, ShieldCheck, BaggageClaim, CircleCheck, Sparkle, BadgeDollarSign, Eraser } from 'lucide-react';
 import { addToCart, selectCartItems } from '../store/cartSlice';
 import { useState } from 'react';
 import CardCarousel from './CardCarousel';
@@ -107,7 +107,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                 </span>
                 {listing.avgRating > 0 && (
                   <span className="flex items-center gap-0.5 text-[10px] font-black text-white shrink-0 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
-                    <Star className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" />
+                    <Sparkle className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" />
                     {Number(listing.avgRating).toFixed(1)}
                   </span>
                 )}
@@ -134,9 +134,9 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                 <span className="text-[10px] text-gray-200 font-bold truncate min-w-0 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
                   {listing.sellerName || 'Creator'}
                 </span>
-                {listing.sellerVerified && <BadgeCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
+                {listing.sellerVerified && <ShieldCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
                 <span className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-gray-300 tracking-wider shrink-0 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
-                  <MapPin className="w-3 h-3 text-[#CDFF00]" />
+                  <Navigation className="w-3 h-3 text-[#CDFF00]" />
                   <span className="max-w-[60px] truncate">{displayCity(listing.locationCity)}</span>
                 </span>
               </div>
@@ -152,7 +152,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                 aria-label="Price negotiable"
                 className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#CDFF00] text-black flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
               >
-                <HandCoins className="w-3.5 h-3.5" strokeWidth={2.5} />
+                <BadgeDollarSign className="w-3.5 h-3.5" strokeWidth={2.5} />
               </span>
             )}
 
@@ -167,7 +167,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                   aria-label={`Delete ${listing.title}`}
                   className="absolute bottom-2 right-2 w-9 h-9 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.5)] bg-red-500/20 backdrop-blur-md border border-red-500/50 text-red-300 hover:bg-red-500 hover:text-white transition-all active:scale-90"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Eraser className="w-4 h-4" />
                 </button>
               ) : (
                 <span className="absolute bottom-2 right-2 px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest bg-black/70 backdrop-blur-md border border-white/15 text-gray-300">
@@ -188,7 +188,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
                     : 'bg-white/10 backdrop-blur-md border border-white/25 text-white hover:bg-[#CDFF00] hover:text-black hover:border-[#CDFF00]'
                 }`}
               >
-                {isInCart ? <Check className="w-4 h-4" strokeWidth={3} /> : <ShoppingCart className="w-4 h-4" />}
+                {isInCart ? <CircleCheck className="w-4 h-4" strokeWidth={3} /> : <BaggageClaim className="w-4 h-4" />}
               </button>
             )}
           </div>

@@ -9,11 +9,7 @@ import { uploadUrl } from '../config';
 import { shortName } from '../utils/displayName';
 import SmartImage from '../components/SmartImage';
 import OfferMessageCard from '../components/OfferMessageCard';
-import {
-  MessageSquareOff, User, BadgeCheck, ArrowLeft,
-  Paperclip, Smile, MoreVertical, Search, Send,
-  Check, CheckCheck, Tag, X, Sticker as StickerIcon, RefreshCw, Flame, ShoppingBag, Heart, Sparkles, HandCoins
-} from 'lucide-react';
+import { MessageCircleOff, CircleUserRound, ShieldCheck, MoveLeft, Link2, Laugh, EllipsisVertical, ScanSearch, SendHorizontal, CircleCheck, ListChecks, Bookmark, CircleX, NotebookPen as StickerIcon, RefreshCcw, Cigarette, ShoppingBasket, ThumbsUp, WandSparkles, BadgeDollarSign } from 'lucide-react';
 
 /* Curated emoji + sticker sets for the composer pickers (no external deps). */
 const EMOJI_CATEGORIES = [
@@ -63,7 +59,7 @@ function HeartField({ count = 7, className = '' }) {
   return (
     <span aria-hidden="true" className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
       {[...Array(count)].map((_, i) => (
-        <Heart
+        <ThumbsUp
           key={i}
           className="absolute"
           style={{
@@ -104,7 +100,7 @@ function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
             transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
             className="flex"
           >
-            <Heart className="w-3.5 h-3.5" style={{ color: ROSE, fill: ROSE }} />
+            <ThumbsUp className="w-3.5 h-3.5" style={{ color: ROSE, fill: ROSE }} />
           </motion.span>
           <span className="text-[10px] font-black tracking-widest" style={{ color: BLUSH }}>
             New matches
@@ -143,7 +139,7 @@ function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
                   className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] rounded-full border-2 border-[#0A0A0A] flex items-center justify-center"
                   style={{ backgroundColor: ROSE }}
                 >
-                  <Heart className="w-2.5 h-2.5 text-white fill-white" />
+                  <ThumbsUp className="w-2.5 h-2.5 text-white fill-white" />
                 </span>
               </span>
               <span className="text-[10px] font-bold text-white/85 truncate w-full text-center">
@@ -734,7 +730,7 @@ export default function DirectMessages() {
                 transition={SOFT_SPRING}
                 className="p-2 rounded-xl hover:bg-white/[0.07] text-gray-500 hover:text-[#CDFF00] transition-colors"
               >
-                <MoreVertical className="w-4 h-4" />
+                <EllipsisVertical className="w-4 h-4" />
               </motion.button>
             </div>
 
@@ -743,7 +739,7 @@ export default function DirectMessages() {
               {/* Focus styling is CSS-only here: Framer has no "while focus-within"
                   variant, and scaling a text field while typing fights the caret. */}
               <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/10 focus-within:border-[#CDFF00]/50 focus-within:bg-white/[0.06] rounded-2xl px-3.5 py-2.5 transition-colors">
-                <Search className="w-4 h-4 text-gray-500 shrink-0" />
+                <ScanSearch className="w-4 h-4 text-gray-500 shrink-0" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -761,7 +757,7 @@ export default function DirectMessages() {
                       onClick={() => setSearch('')}
                       className="text-gray-500 hover:text-white"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <CircleX className="w-3.5 h-3.5" />
                     </motion.button>
                   )}
                 </AnimatePresence>
@@ -806,7 +802,7 @@ export default function DirectMessages() {
                   animate={{ opacity: 1, y: 0 }}
                   className="h-full flex flex-col items-center justify-center gap-3 text-center px-8"
                 >
-                  <Search className="w-7 h-7 text-gray-700" />
+                  <ScanSearch className="w-7 h-7 text-gray-700" />
                   <p className="text-sm text-gray-500">No chats found</p>
                 </motion.div>
               ) : (
@@ -916,14 +912,14 @@ export default function DirectMessages() {
                               <span className={`text-sm truncate ${unread ? 'text-white font-black' : 'text-white font-bold'}`}>
                                 {displayName}
                               </span>
-                              {p.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
+                              {p.verified && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
                               {/* Named as well as coloured: the lime row is the fast signal,
                                   but colour alone is not a signal for everyone, and this chip
                                   also separates "a deal is happening here" from the fainter
                                   lime the row already uses for unread. */}
                               {negotiating && (
                                 <span className="shrink-0 flex items-center gap-1 px-1.5 py-[1px] rounded bg-[#CDFF00] text-black text-[9px] font-black tracking-[0.08em]">
-                                  <HandCoins className="w-2.5 h-2.5" /> Deal
+                                  <BadgeDollarSign className="w-2.5 h-2.5" /> Deal
                                 </span>
                               )}
                               {bond && (
@@ -933,12 +929,12 @@ export default function DirectMessages() {
                                   className="flex shrink-0"
                                   title={p.matchedAt ? `Matched on Bond ${formatMatchDate(p.matchedAt)}` : 'Matched on Bond — not a sale'}
                                 >
-                                  <Heart className="w-3.5 h-3.5" style={{ color: ROSE, fill: ROSE }} />
+                                  <ThumbsUp className="w-3.5 h-3.5" style={{ color: ROSE, fill: ROSE }} />
                                 </motion.span>
                               )}
                               {p.streak > 1 && (
                                 <span className="flex items-center gap-0.5 text-[10px] font-bold text-orange-400 shrink-0" title={`${p.streak}-day streak`}>
-                                  <Flame className="w-3 h-3 fill-orange-400" />{p.streak}
+                                  <Cigarette className="w-3 h-3 fill-orange-400" />{p.streak}
                                 </span>
                               )}
                             </span>
@@ -957,7 +953,7 @@ export default function DirectMessages() {
                                         appeared on any row you had read, which put a "seen" tick
                                         against messages the other person had sent to you. */}
                                     {p.lastMessageMine && (
-                                      <CheckCheck
+                                      <ListChecks
                                         className={`w-3.5 h-3.5 shrink-0 ${p.lastMessageRead ? 'text-[#00FFFF]' : 'text-gray-600'}`}
                                         aria-label={p.lastMessageRead ? 'Read' : 'Sent'}
                                       />
@@ -1018,7 +1014,7 @@ export default function DirectMessages() {
                     className="lg:hidden p-1.5 -ml-1 rounded-xl hover:bg-white/[0.07] text-gray-400 hover:text-white"
                     aria-label="Back to chats"
                   >
-                    <ArrowLeft className="w-5 h-5" />
+                    <MoveLeft className="w-5 h-5" />
                   </motion.button>
 
                   <Link to={`/profile/${activePartner}`} className="flex items-center gap-3 min-w-0 flex-1 group">
@@ -1041,9 +1037,9 @@ export default function DirectMessages() {
                         activeIsBondMatch ? 'group-hover:text-[#FFA6C9]' : 'group-hover:text-[#CDFF00]'
                       }`}>
                         {activePartnerData.name || activePartnerData.fullName}
-                        {activePartnerData.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00]" />}
+                        {activePartnerData.verified && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00]" />}
                         {activeIsBondMatch && (
-                          <Heart
+                          <ThumbsUp
                             className="w-3.5 h-3.5 shrink-0"
                             style={{ color: ROSE, fill: ROSE }}
                             title="Matched on Bond — not a sale"
@@ -1051,7 +1047,7 @@ export default function DirectMessages() {
                         )}
                         {activePartnerData.streak > 1 && (
                           <span className="flex items-center gap-0.5 text-[11px] font-bold text-orange-400 shrink-0">
-                            <Flame className="w-3.5 h-3.5 fill-orange-400" />{activePartnerData.streak}
+                            <Cigarette className="w-3.5 h-3.5 fill-orange-400" />{activePartnerData.streak}
                           </span>
                         )}
                       </h3>
@@ -1075,7 +1071,7 @@ export default function DirectMessages() {
                     className={`p-2 rounded-xl hover:bg-white/[0.07] transition-colors ${msgSearchOpen ? 'text-[#CDFF00]' : 'text-gray-500'}`}
                     aria-label="Search in conversation"
                   >
-                    <Search className="w-[18px] h-[18px]" />
+                    <ScanSearch className="w-[18px] h-[18px]" />
                   </motion.button>
 
                   <div className="relative">
@@ -1087,7 +1083,7 @@ export default function DirectMessages() {
                       className={`p-2 rounded-xl hover:bg-white/[0.07] transition-colors ${headerMenuOpen ? 'text-white' : 'text-gray-500'}`}
                       aria-label="Conversation menu"
                     >
-                      <MoreVertical className="w-[18px] h-[18px]" />
+                      <EllipsisVertical className="w-[18px] h-[18px]" />
                     </motion.button>
                     <AnimatePresence>
                       {headerMenuOpen && (
@@ -1106,19 +1102,19 @@ export default function DirectMessages() {
                               onClick={() => setHeaderMenuOpen(false)}
                               className="flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-white/[0.07] font-semibold transition-colors"
                             >
-                              <User className="w-4 h-4 text-gray-500" /> View profile
+                              <CircleUserRound className="w-4 h-4 text-gray-500" /> View profile
                             </Link>
                             <button
                               onClick={() => { loadMessages(activePartner); setHeaderMenuOpen(false); }}
                               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-white/[0.07] text-left font-semibold transition-colors"
                             >
-                              <RefreshCw className="w-4 h-4 text-gray-500" /> Refresh chat
+                              <RefreshCcw className="w-4 h-4 text-gray-500" /> Refresh chat
                             </button>
                             <button
                               onClick={() => { setHeaderMenuOpen(false); closeChat(); }}
                               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-white/[0.07] text-left font-semibold transition-colors"
                             >
-                              <X className="w-4 h-4 text-gray-500" /> Close chat
+                              <CircleX className="w-4 h-4 text-gray-500" /> Close chat
                             </button>
                           </motion.div>
                         </>
@@ -1135,7 +1131,7 @@ export default function DirectMessages() {
                     className="hidden lg:flex p-2 rounded-xl bg-white/[0.04] border border-white/10 text-gray-400 hover:text-black hover:bg-[#CDFF00] hover:border-[#CDFF00] transition-colors"
                     aria-label="Close conversation"
                   >
-                    <X className="w-[18px] h-[18px]" />
+                    <CircleX className="w-[18px] h-[18px]" />
                   </motion.button>
                 </div>
 
@@ -1144,7 +1140,7 @@ export default function DirectMessages() {
                   {msgSearchOpen && (
                     <motion.div {...STRIP_MOTION} className="shrink-0 overflow-hidden border-b border-white/5 bg-black/40">
                       <div className="px-4 py-2.5 flex items-center gap-2">
-                        <Search className="w-4 h-4 text-gray-500 shrink-0" />
+                        <ScanSearch className="w-4 h-4 text-gray-500 shrink-0" />
                         <input
                           autoFocus
                           value={msgQuery}
@@ -1158,7 +1154,7 @@ export default function DirectMessages() {
                           onClick={() => { setMsgSearchOpen(false); setMsgQuery(''); }}
                           className="text-gray-500 hover:text-white"
                         >
-                          <X className="w-4 h-4" />
+                          <CircleX className="w-4 h-4" />
                         </motion.button>
                       </div>
                     </motion.div>
@@ -1172,7 +1168,7 @@ export default function DirectMessages() {
                   {listingContext && (
                     <motion.div {...STRIP_MOTION} className="shrink-0 overflow-hidden border-b border-white/5 bg-black/40">
                       <div className="px-4 pt-2.5 pb-2 flex items-center gap-2">
-                        <Tag className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />
+                        <Bookmark className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />
                         <span className="text-xs text-[#CDFF00] font-bold truncate flex-1">{listingContext.title}</span>
                         {listingContext.price != null && (
                           <span className="text-[10px] text-gray-500 shrink-0">Listed {formatPrice(listingContext.price, listingContext.currency)}</span>
@@ -1183,7 +1179,7 @@ export default function DirectMessages() {
                           onClick={() => { setListingContext(null); setOfferPrice(''); }}
                           className="text-gray-500 hover:text-white shrink-0"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <CircleX className="w-3.5 h-3.5" />
                         </motion.button>
                       </div>
                       <div className="px-4 pb-2.5 flex items-center gap-2">
@@ -1238,7 +1234,7 @@ export default function DirectMessages() {
                       >
                         <HeartField count={4} className="rounded-2xl" />
                         <p className="relative flex items-center justify-center gap-1.5 text-[13px] font-black text-white tracking-tight">
-                          <Heart className="w-3.5 h-3.5 shrink-0" style={{ color: ROSE, fill: ROSE }} />
+                          <ThumbsUp className="w-3.5 h-3.5 shrink-0" style={{ color: ROSE, fill: ROSE }} />
                           It's a match
                         </p>
                         <p className="relative text-[11px] mt-0.5 font-semibold" style={{ color: BLUSH }}>
@@ -1277,7 +1273,7 @@ export default function DirectMessages() {
                             className="flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[10px] font-bold tracking-widest"
                             style={{ borderColor: `${ROSE}55`, backgroundColor: `${ROSE}14`, color: BLUSH }}
                           >
-                            <Heart className="w-3 h-3" style={{ color: ROSE, fill: ROSE }} />
+                            <ThumbsUp className="w-3 h-3" style={{ color: ROSE, fill: ROSE }} />
                             Matched on Bond{matchedAtLabel && ` ${matchedAtLabel}`}
                           </span>
                         </motion.div>
@@ -1315,10 +1311,10 @@ export default function DirectMessages() {
                         // double-tick means delivered and unread; cyan means read.
                         const ticks = isMe && (
                           pending
-                            ? <span title="Sending" aria-label="Sending"><Check className="w-3.5 h-3.5 text-gray-500" /></span>
+                            ? <span title="Sending" aria-label="Sending"><CircleCheck className="w-3.5 h-3.5 text-gray-500" /></span>
                             : msg.readAt
-                              ? <span title={`Read ${formatClock(msg.readAt)}`} aria-label="Read"><CheckCheck className="w-3.5 h-3.5 text-[#00FFFF]" /></span>
-                              : <span title="Sent" aria-label="Sent"><CheckCheck className="w-3.5 h-3.5 text-gray-500" /></span>
+                              ? <span title={`Read ${formatClock(msg.readAt)}`} aria-label="Read"><ListChecks className="w-3.5 h-3.5 text-[#00FFFF]" /></span>
+                              : <span title="Sent" aria-label="Sent"><ListChecks className="w-3.5 h-3.5 text-gray-500" /></span>
                         );
                         // Bubbles enter from their own side of the thread.
                         const bubbleIn = reduceMotion
@@ -1370,7 +1366,7 @@ export default function DirectMessages() {
                                     <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
                                       {msg.sharedListingImage
                                         ? <img src={uploadUrl(msg.sharedListingImage)} alt="" className="w-full h-full object-cover" />
-                                        : <ShoppingBag className="w-5 h-5 text-gray-500" />}
+                                        : <ShoppingBasket className="w-5 h-5 text-gray-500" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <p className="text-sm font-bold text-white truncate">{msg.sharedListingTitle || 'Listing'}</p>
@@ -1413,7 +1409,7 @@ export default function DirectMessages() {
                                     <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
                                       {msg.sharedPostImage
                                         ? <img src={uploadUrl(msg.sharedPostImage)} alt="" className="w-full h-full object-cover" />
-                                        : <Send className="w-5 h-5 text-gray-500" />}
+                                        : <SendHorizontal className="w-5 h-5 text-gray-500" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <p className="text-sm font-bold text-white truncate">{msg.sharedPostContent || 'Post'}</p>
@@ -1460,7 +1456,7 @@ export default function DirectMessages() {
                                         ? (msg.sharedStoryType === 'VIDEO'
                                             ? <video src={uploadUrl(msg.sharedStoryImage)} className="w-full h-full object-cover" muted playsInline />
                                             : <img src={uploadUrl(msg.sharedStoryImage)} alt="" className="w-full h-full object-cover" />)
-                                        : <Sparkles className="w-5 h-5 text-[#CDFF00]" />}
+                                        : <WandSparkles className="w-5 h-5 text-[#CDFF00]" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <p className="text-[10px] font-black tracking-widest text-[#CDFF00]">Story</p>
@@ -1583,7 +1579,7 @@ export default function DirectMessages() {
                           {/* Tabs */}
                           <div className="relative flex border-b border-white/5">
                             {[
-                              { id: 'emoji', label: 'Emoji', Icon: Smile },
+                              { id: 'emoji', label: 'Emoji', Icon: Laugh },
                               { id: 'stickers', label: 'Stickers', Icon: StickerIcon },
                             ].map((tab) => (
                               <button
@@ -1686,7 +1682,7 @@ export default function DirectMessages() {
                             onClick={clearAttachment}
                             className="p-2 rounded-full hover:bg-white/[0.07] text-gray-500 hover:text-white"
                           >
-                            <X className="w-4 h-4" />
+                            <CircleX className="w-4 h-4" />
                           </motion.button>
                         </div>
                       </motion.div>
@@ -1716,7 +1712,7 @@ export default function DirectMessages() {
                       className={`p-2 rounded-full transition-colors shrink-0 ${pickerOpen ? 'text-[#CDFF00]' : 'text-gray-500 hover:text-white'}`}
                       aria-label="Emoji and stickers"
                     >
-                      <Smile className="w-6 h-6" />
+                      <Laugh className="w-6 h-6" />
                     </motion.button>
                     <motion.button
                       type="button"
@@ -1727,7 +1723,7 @@ export default function DirectMessages() {
                       className={`p-2 rounded-full transition-colors shrink-0 ${attachedImage ? 'text-[#CDFF00]' : 'text-gray-500 hover:text-white'}`}
                       aria-label="Attach a photo"
                     >
-                      <Paperclip className="w-5 h-5" />
+                      <Link2 className="w-5 h-5" />
                     </motion.button>
                     <input
                       ref={inputRef}
@@ -1748,7 +1744,7 @@ export default function DirectMessages() {
                     >
                       {uploading
                         ? <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                        : <Send className="w-5 h-5 ml-0.5" />}
+                        : <SendHorizontal className="w-5 h-5 ml-0.5" />}
                     </motion.button>
                   </form>
                 </div>
@@ -1772,7 +1768,7 @@ export default function DirectMessages() {
                   transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
                   className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center"
                 >
-                  <MessageSquareOff className="w-7 h-7 text-gray-600" />
+                  <MessageCircleOff className="w-7 h-7 text-gray-600" />
                 </motion.div>
                 <div>
                   <h3 className="text-lg font-black text-white tracking-tight">HustleSpace Chat</h3>
@@ -1803,7 +1799,7 @@ export default function DirectMessages() {
               onClick={() => setLightboxUrl(null)}
               className="absolute top-4 right-4 p-2.5 rounded-full bg-white/10 hover:bg-[#CDFF00] hover:text-black text-white transition-colors"
             >
-              <X className="w-6 h-6" />
+              <CircleX className="w-6 h-6" />
             </motion.button>
             <motion.img
               initial={{ scale: 0.9, opacity: 0 }}

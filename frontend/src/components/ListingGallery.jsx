@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Play, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Box, CirclePlay, Rocket, CircleChevronLeft, CircleChevronRight } from 'lucide-react';
 import SmartImage from './SmartImage';
 import { isVideoUrl } from '../utils/media';
 
@@ -73,7 +73,7 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
     return (
       <div className="relative aspect-[4/3] max-h-[380px] w-full rounded-2xl overflow-hidden glass-strong border border-white/10">
         <div className="w-full h-full flex items-center justify-center bg-gray-900">
-          <Package className="w-20 h-20 text-gray-700" />
+          <Box className="w-20 h-20 text-gray-700" />
         </div>
       </div>
     );
@@ -167,7 +167,7 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
             aria-label="Previous item"
             className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/60 backdrop-blur border border-white/10 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[#CDFF00] hover:text-black transition-all active:scale-90"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <CircleChevronLeft className="w-5 h-5" />
           </button>
         )}
         {hasMultiple && active < media.length - 1 && (
@@ -177,7 +177,7 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
             aria-label="Next item"
             className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/60 backdrop-blur border border-white/10 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[#CDFF00] hover:text-black transition-all active:scale-90"
           >
-            <ChevronRight className="w-5 h-5" />
+            <CircleChevronRight className="w-5 h-5" />
           </button>
         )}
 
@@ -212,7 +212,7 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
       {typeLabel && (
         <div className="mt-3">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-violet text-[#CDFF00] font-black text-[9px] tracking-widest border border-white/10">
-            <Zap className="w-3 h-3 fill-[#CDFF00]" /> {typeLabel}
+            <Rocket className="w-3 h-3 fill-[#CDFF00]" /> {typeLabel}
           </span>
         </div>
       )}
@@ -238,7 +238,7 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
                   // Videos get a static tile rather than a decoded first frame — generating
                   // real thumbnails would mean loading every clip just to render the strip.
                   <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                    <Play className="w-5 h-5 text-white/70 fill-white/70" />
+                    <CirclePlay className="w-5 h-5 text-white/70 fill-white/70" />
                   </div>
                 ) : (
                   <SmartImage src={url} alt="" className="w-full h-full object-cover" />

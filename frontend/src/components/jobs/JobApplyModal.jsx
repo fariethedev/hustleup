@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, Loader2, AlertCircle, Paperclip, Zap, BadgeCheck } from 'lucide-react';
+import { CircleX, Loader, CircleAlert, Link2, Rocket, ShieldCheck } from 'lucide-react';
 import { jobsApi } from '../../api/client';
 import { lockBodyScroll } from '../../utils/lockBodyScroll';
 
@@ -55,7 +55,7 @@ export default function JobApplyModal({ job, onClose, onApplied }) {
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
           <h2 className="text-base font-black text-white tracking-tight">Apply</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
-            <X className="w-5 h-5" />
+            <CircleX className="w-5 h-5" />
           </button>
         </div>
 
@@ -64,7 +64,7 @@ export default function JobApplyModal({ job, onClose, onApplied }) {
             <p className="text-sm font-black text-white leading-tight">{job.title}</p>
             <p className="text-xs text-gray-400 font-semibold flex items-center gap-1.5 mt-1">
               {job.companyName}
-              <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00]" />
+              <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00]" />
             </p>
           </div>
 
@@ -85,7 +85,7 @@ export default function JobApplyModal({ job, onClose, onApplied }) {
               onClick={() => fileRef.current?.click()}
               className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 hover:border-[#CDFF00]/40 text-sm text-gray-300 transition-colors"
             >
-              <Paperclip className="w-4 h-4 text-gray-500 shrink-0" />
+              <Link2 className="w-4 h-4 text-gray-500 shrink-0" />
               <span className="truncate">{attachment ? attachment.name : 'Attach a CV or portfolio (optional)'}</span>
             </button>
             {/* The server's upload allowlist accepts images and video, so a PDF CV is
@@ -98,7 +98,7 @@ export default function JobApplyModal({ job, onClose, onApplied }) {
 
           {error && (
             <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+              <CircleAlert className="w-4 h-4 shrink-0" />
               <span className="text-xs font-medium">{error}</span>
             </div>
           )}
@@ -110,8 +110,8 @@ export default function JobApplyModal({ job, onClose, onApplied }) {
             className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {submitting
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
-              : <><Zap className="w-4 h-4" /> Send application</>}
+              ? <><Loader className="w-4 h-4 animate-spin" /> Sending…</>
+              : <><Rocket className="w-4 h-4" /> Send application</>}
           </button>
         </div>
       </motion.div>

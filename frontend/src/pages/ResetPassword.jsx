@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { authApi } from '../api/client';
-import { X, Check } from 'lucide-react';
+import { CircleX, CircleCheck } from 'lucide-react';
 
 // Mirrors the backend's password policy (AuthController.PASSWORD_POLICY / AuthDtos.java).
 const PASSWORD_POLICY = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
@@ -51,7 +51,7 @@ export default function ResetPassword() {
           ) : done ? (
             <div className="text-center py-2">
               <div className="w-12 h-12 rounded-full bg-[#CDFF00]/10 flex items-center justify-center mx-auto mb-4">
-                <Check className="w-5 h-5 text-[#CDFF00]" />
+                <CircleCheck className="w-5 h-5 text-[#CDFF00]" />
               </div>
               <p className="text-white font-semibold mb-4">Password updated</p>
               <button
@@ -65,7 +65,7 @@ export default function ResetPassword() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
                 <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center flex items-center justify-center gap-2">
-                  <X className="w-4 h-4 shrink-0" /> {error}
+                  <CircleX className="w-4 h-4 shrink-0" /> {error}
                 </div>
               )}
               <div>

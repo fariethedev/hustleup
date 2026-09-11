@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, ChevronLeft, ChevronRight, Eye, PlusCircle } from 'lucide-react';
+import { CirclePlus, CircleChevronLeft, CircleChevronRight, ScanEye, SquarePlus } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { authApi, storiesApi, usersApi } from '../../api/client';
 import { selectUser } from '../../store/authSlice';
@@ -184,7 +184,7 @@ export default function StoryBar() {
               title="Add to your story"
               className="absolute -bottom-0.5 -right-0.5 w-6 h-6 bg-[#CDFF00] rounded-full border-2 border-[#050505] flex items-center justify-center z-10 transition-transform hover:scale-110 active:scale-95"
             >
-              <Plus className="w-3.5 h-3.5 text-black stroke-[3px]" />
+              <CirclePlus className="w-3.5 h-3.5 text-black stroke-[3px]" />
             </button>
           )}
         </div>
@@ -218,7 +218,7 @@ export default function StoryBar() {
               aria-label="Scroll left"
               className="absolute left-1 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-black/80 border border-white/10 text-white shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <CircleChevronLeft className="w-4 h-4" />
             </motion.button>
           )}
         </AnimatePresence>
@@ -233,7 +233,7 @@ export default function StoryBar() {
               aria-label="Scroll right"
               className="absolute right-1 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-black/80 border border-white/10 text-white shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform"
             >
-              <ChevronRight className="w-4 h-4" />
+              <CircleChevronRight className="w-4 h-4" />
             </motion.button>
           )}
         </AnimatePresence>
@@ -294,7 +294,7 @@ export default function StoryBar() {
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left hover:bg-white/5 transition-colors"
               >
                 <span className="w-10 h-10 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0">
-                  <Eye className="w-4.5 h-4.5 text-white" />
+                  <ScanEye className="w-4.5 h-4.5 text-white" />
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-bold text-white">View your story</span>
@@ -310,7 +310,7 @@ export default function StoryBar() {
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left hover:bg-white/5 transition-colors"
               >
                 <span className="w-10 h-10 rounded-full bg-[#CDFF00]/15 border border-[#CDFF00]/30 flex items-center justify-center shrink-0">
-                  <PlusCircle className="w-4.5 h-4.5 text-[#CDFF00]" />
+                  <SquarePlus className="w-4.5 h-4.5 text-[#CDFF00]" />
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-bold text-white">Add to your story</span>

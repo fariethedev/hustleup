@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, Loader2, AlertCircle, Image as ImageIcon, Send, FileText, Trash2 } from 'lucide-react';
+import { CircleX, Loader, CircleAlert, Images as ImageIcon, SendHorizontal, FileType, Eraser } from 'lucide-react';
 import { newsApi } from '../../api/client';
 import { lockBodyScroll } from '../../utils/lockBodyScroll';
 
@@ -107,7 +107,7 @@ export default function ArticleComposer({ sections = [], onClose, onPublished })
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
           <h2 className="text-base font-black text-white tracking-tight">Write an article</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
-            <X className="w-5 h-5" />
+            <CircleX className="w-5 h-5" />
           </button>
         </div>
 
@@ -181,7 +181,7 @@ export default function ArticleComposer({ sections = [], onClose, onPublished })
                     : <img src={p.url} alt="" className="w-full h-full object-cover" />}
                   <button onClick={() => removeAt(i)}
                           className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <Trash2 className="w-4 h-4 text-red-400" />
+                    <Eraser className="w-4 h-4 text-red-400" />
                   </button>
                 </div>
               ))}
@@ -198,7 +198,7 @@ export default function ArticleComposer({ sections = [], onClose, onPublished })
 
           {error && (
             <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+              <CircleAlert className="w-4 h-4 shrink-0" />
               <span className="text-xs font-medium">{error}</span>
             </div>
           )}
@@ -207,13 +207,13 @@ export default function ArticleComposer({ sections = [], onClose, onPublished })
         <div className="px-5 py-4 border-t border-white/10 shrink-0 flex gap-2">
           <button onClick={() => submit('DRAFT')} disabled={submitting}
                   className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-black text-[11px] tracking-widest hover:bg-white/10 transition-all disabled:opacity-50 flex items-center gap-2">
-            <FileText className="w-4 h-4" /> Draft
+            <FileType className="w-4 h-4" /> Draft
           </button>
           <button onClick={() => submit('PUBLISHED')} disabled={submitting}
                   className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
             {submitting
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Publishing…</>
-              : <><Send className="w-4 h-4" /> Publish</>}
+              ? <><Loader className="w-4 h-4 animate-spin" /> Publishing…</>
+              : <><SendHorizontal className="w-4 h-4" /> Publish</>}
           </button>
         </div>
       </motion.div>

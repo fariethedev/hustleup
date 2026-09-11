@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { XCircle, ArrowRight } from 'lucide-react';
+import { OctagonX, MoveRight } from 'lucide-react';
 
 /**
  * Where Stripe sends a buyer who backed out of Premium checkout.
@@ -19,7 +19,7 @@ export default function PaymentCancelled() {
         className="w-full max-w-md text-center p-8 rounded-3xl bg-white/[0.03] border border-white/10"
       >
         <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-6">
-          <XCircle className="w-8 h-8 text-gray-400" />
+          <OctagonX className="w-8 h-8 text-gray-400" />
         </div>
 
         <h1 className="text-2xl font-heading font-black tracking-tight mb-3">Checkout cancelled</h1>
@@ -33,7 +33,7 @@ export default function PaymentCancelled() {
             to="/dashboard"
             className="flex-1 px-6 py-3 rounded-full bg-[#CDFF00] text-black text-sm font-bold hover:brightness-110 active:scale-95 transition-all inline-flex items-center justify-center gap-2"
           >
-            Back to dashboard <ArrowRight className="w-4 h-4" />
+            Back to dashboard <MoveRight className="w-4 h-4" />
           </Link>
           <Link
             to="/explore"

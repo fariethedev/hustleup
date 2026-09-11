@@ -11,10 +11,7 @@ import FacebookLoginRaw from '@greatsumini/react-facebook-login';
 const FacebookLogin = FacebookLoginRaw.default || FacebookLoginRaw;
 import { Turnstile } from '@marsidev/react-turnstile';
 import { registerUser, googleLogin, facebookLogin, clearError, selectFieldErrors } from '../store/authSlice';
-import {
-  X, Briefcase, ShoppingBag, AtSign, Check, Loader2, Eye, EyeOff, MapPin,
-  ArrowRight, ArrowLeft, Lock, User2, Phone, Sparkles,
-} from 'lucide-react';
+import { CircleX, BriefcaseBusiness, ShoppingBasket, Hash, CircleCheck, Loader, ScanEye, EyeClosed, Navigation, MoveRight, MoveLeft, LockKeyhole, CircleUser, PhoneCall, WandSparkles } from 'lucide-react';
 import { POLISH_CITIES } from '../utils/constants';
 import { authApi } from '../api/client';
 import PasswordStrength from '../components/PasswordStrength';
@@ -25,8 +22,8 @@ const AppleIcon = (props) => <svg viewBox="0 0 24 24" {...props}><path fill="cur
 const FacebookIcon = (props) => <svg viewBox="0 0 24 24" {...props}><path fill="currentColor" d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg>;
 
 const roles = [
-  { value: 'BUYER', label: 'Buyer', hint: 'I want to shop & hire', icon: ShoppingBag },
-  { value: 'SELLER', label: 'Seller', hint: 'I want to sell & earn', icon: Briefcase },
+  { value: 'BUYER', label: 'Buyer', hint: 'I want to shop & hire', icon: ShoppingBasket },
+  { value: 'SELLER', label: 'Seller', hint: 'I want to sell & earn', icon: BriefcaseBusiness },
 ];
 
 /**
@@ -39,9 +36,9 @@ const roles = [
  * rejected submit, which is the one moment they are no longer useful.
  */
 const STEPS = [
-  { id: 1, label: 'Account', icon: Lock, blurb: 'Your email and a password' },
-  { id: 2, label: 'Profile', icon: User2, blurb: 'What to call you' },
-  { id: 3, label: 'Finish', icon: Sparkles, blurb: 'Check and confirm' },
+  { id: 1, label: 'Account', icon: LockKeyhole, blurb: 'Your email and a password' },
+  { id: 2, label: 'Profile', icon: CircleUser, blurb: 'What to call you' },
+  { id: 3, label: 'Finish', icon: WandSparkles, blurb: 'Check and confirm' },
 ];
 
 const inputClass = (invalid) =>
@@ -235,7 +232,7 @@ export default function Register() {
                           : 'bg-white/5 border-white/10 text-gray-500'
                     }`}
                   >
-                    {done ? <Check className="w-4 h-4" strokeWidth={3} /> : <Icon className="w-4 h-4" />}
+                    {done ? <CircleCheck className="w-4 h-4" strokeWidth={3} /> : <Icon className="w-4 h-4" />}
                   </motion.span>
                   <span className={`text-[11px] font-black tracking-widest truncate hidden sm:block ${
                     active ? 'text-white' : 'text-gray-500'
@@ -262,7 +259,7 @@ export default function Register() {
         <div className="glass bg-black/60 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur-3xl">
           {displayError && (
             <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center flex items-center justify-center gap-2">
-              <X className="w-4 h-4 shrink-0" /> {displayError}
+              <CircleX className="w-4 h-4 shrink-0" /> {displayError}
             </div>
           )}
 
@@ -320,7 +317,7 @@ export default function Register() {
                         aria-pressed={showPassword}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors p-0.5"
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showPassword ? <EyeClosed className="w-4 h-4" /> : <ScanEye className="w-4 h-4" />}
                       </button>
                     </div>
 
@@ -361,7 +358,7 @@ export default function Register() {
                         aria-pressed={showConfirmPassword}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors p-0.5"
                       >
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showConfirmPassword ? <EyeClosed className="w-4 h-4" /> : <ScanEye className="w-4 h-4" />}
                       </button>
                     </div>
                     <AnimatePresence>
@@ -498,7 +495,7 @@ export default function Register() {
                   <div>
                     <label className="block text-sm font-semibold text-gray-300 mb-1.5">Username</label>
                     <div className="relative">
-                      <AtSign className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <Hash className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
                         type="text"
                         required
@@ -516,9 +513,9 @@ export default function Register() {
                         placeholder="yourhandle"
                       />
                       <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                        {checkingUsername && <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />}
-                        {!checkingUsername && usernameState?.available && <Check className="w-4 h-4 text-[#CDFF00]" />}
-                        {!checkingUsername && usernameState && !usernameState.available && <X className="w-4 h-4 text-red-400" />}
+                        {checkingUsername && <Loader className="w-4 h-4 text-gray-500 animate-spin" />}
+                        {!checkingUsername && usernameState?.available && <CircleCheck className="w-4 h-4 text-[#CDFF00]" />}
+                        {!checkingUsername && usernameState && !usernameState.available && <CircleX className="w-4 h-4 text-red-400" />}
                       </span>
                     </div>
                     {/* The server's verdict wins over the as-you-type check: it is the one
@@ -544,7 +541,7 @@ export default function Register() {
                         City <span className="font-normal text-gray-500">(optional)</span>
                       </label>
                       <div className="relative">
-                        <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                        <Navigation className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                         <select
                           value={form.city}
                           onChange={(e) => set('city', e.target.value)}
@@ -565,7 +562,7 @@ export default function Register() {
                         Phone <span className="font-normal text-gray-500">(optional)</span>
                       </label>
                       <div className="relative">
-                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                        <PhoneCall className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                         <input
                           type="tel"
                           autoComplete="tel"
@@ -637,7 +634,7 @@ export default function Register() {
                   onClick={back}
                   className="px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm hover:bg-white/10 transition-colors flex items-center gap-2"
                 >
-                  <ArrowLeft className="w-4 h-4" /> Back
+                  <MoveLeft className="w-4 h-4" /> Back
                 </button>
               )}
               <button
@@ -648,7 +645,7 @@ export default function Register() {
                 {loading
                   ? 'Creating account…'
                   : step < STEPS.length
-                    ? <>Continue <ArrowRight className="w-4 h-4" /></>
+                    ? <>Continue <MoveRight className="w-4 h-4" /></>
                     : 'Create account'}
               </button>
             </div>

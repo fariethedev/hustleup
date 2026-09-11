@@ -6,7 +6,7 @@ import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { bookingsApi, messagesApi } from '../api/client';
 import { Client } from '@stomp/stompjs';
 import { WS_URL } from '../config';
-import { MessageSquareOff, Send, User, ChevronLeft, Zap, Terminal, Signal, Shield, Info } from 'lucide-react';
+import { MessageCircleOff, SendHorizontal, CircleUserRound, CircleChevronLeft, Rocket, SquareTerminal, Wifi, ShieldHalf, BadgeInfo } from 'lucide-react';
 
 export default function Messages() {
   const { bookingId } = useParams();
@@ -99,12 +99,12 @@ export default function Messages() {
              <div className="flex items-center justify-between gap-3">
                 <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tighter">INBOUND</h2>
                 <div className="p-3 bg-[#CDFF00]/10 border border-[#CDFF00]/20 rounded-2xl shrink-0">
-                   <Signal className="w-5 h-5 text-[#CDFF00] animate-pulse" />
+                   <Wifi className="w-5 h-5 text-[#CDFF00] animate-pulse" />
                 </div>
              </div>
              <div className="relative group">
                 <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                   <Terminal className="w-4 h-4 text-[#CDFF00]" />
+                   <SquareTerminal className="w-4 h-4 text-[#CDFF00]" />
                 </div>
                 <input 
                   type="text" 
@@ -121,7 +121,7 @@ export default function Messages() {
               ))
             ) : bookings.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center px-10">
-                 <Shield className="w-12 h-12 text-gray-700 mb-6" />
+                 <ShieldHalf className="w-12 h-12 text-gray-700 mb-6" />
                  <p className="text-[10px] font-black text-gray-600 tracking-[0.4em]">Zero Active Protocols</p>
               </div>
             ) : (
@@ -174,7 +174,7 @@ export default function Messages() {
                      onClick={() => setActiveBooking(null)}
                      className="lg:hidden shrink-0 p-3 sm:p-4 rounded-2xl bg-white/5 border border-white/10 text-white"
                    >
-                     <ChevronLeft className="w-5 h-5" />
+                     <CircleChevronLeft className="w-5 h-5" />
                    </button>
                    <Link to={`/profile/${peerId}`} className="relative group cursor-pointer shrink-0">
                       <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-2xl sm:rounded-3xl bg-black border-2 border-white/10 group-hover:border-[#CDFF00] shadow-[0_0_30px_rgba(205,255,0,0.1)] flex items-center justify-center text-[#CDFF00] font-black text-base sm:text-2xl transition-all">
@@ -192,7 +192,7 @@ export default function Messages() {
 
                 <div className="hidden sm:flex items-center gap-4 shrink-0">
                    <button className="p-4 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all">
-                      <Info className="w-5 h-5" />
+                      <BadgeInfo className="w-5 h-5" />
                    </button>
                 </div>
               </header>
@@ -201,7 +201,7 @@ export default function Messages() {
               <div className="flex-1 overflow-y-auto p-4 sm:p-10 space-y-4 sm:space-y-8 scrollbar-hide">
                 {messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-30">
-                     <Zap className="w-20 h-20 text-[#CDFF00]" />
+                     <Rocket className="w-20 h-20 text-[#CDFF00]" />
                      <p className="text-xs font-black tracking-[0.5em]">Initiate Handshake</p>
                   </div>
                 ) : (
@@ -221,7 +221,7 @@ export default function Messages() {
                                <span className="text-[9px] font-black text-gray-600 tracking-widest">
                                   {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                </span>
-                               {isMe && <Zap className="w-2.5 h-2.5 text-[#CDFF00] opacity-50" />}
+                               {isMe && <Rocket className="w-2.5 h-2.5 text-[#CDFF00] opacity-50" />}
                             </div>
                          </div>
                       </div>
@@ -248,7 +248,7 @@ export default function Messages() {
                        }}
                      />
                      <div className="hidden sm:flex absolute right-6 bottom-5 gap-2">
-                        <Terminal className="w-4 h-4 text-gray-700 group-focus-within:text-[#CDFF00]" />
+                        <SquareTerminal className="w-4 h-4 text-gray-700 group-focus-within:text-[#CDFF00]" />
                      </div>
                   </div>
                   <button
@@ -256,7 +256,7 @@ export default function Messages() {
                     disabled={!newMsg.trim()}
                     className="shrink-0 p-3 sm:p-6 rounded-2xl sm:rounded-[2rem] bg-[#CDFF00] text-black shadow-[0_10px_30px_rgba(205,255,0,0.3)] hover:scale-110 active:scale-95 transition-all disabled:opacity-20 disabled:scale-100"
                   >
-                    <Send className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3px]" />
+                    <SendHorizontal className="w-5 h-5 sm:w-6 sm:h-6 stroke-[3px]" />
                   </button>
                 </form>
               </div>
@@ -265,7 +265,7 @@ export default function Messages() {
             <div className="flex-1 flex flex-col items-center justify-center p-20 text-center space-y-8">
                <div className="w-32 h-32 rounded-[3rem] bg-white/[0.02] border border-white/10 flex items-center justify-center relative overflow-hidden group">
                   <div className="absolute inset-0 bg-gradient-to-tr from-[#CDFF00]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <MessageSquareOff className="w-12 h-12 text-gray-700 relative z-10" />
+                  <MessageCircleOff className="w-12 h-12 text-gray-700 relative z-10" />
                </div>
                <div className="space-y-4">
                   <h3 className="text-4xl font-black text-white tracking-tighter">Standby Mode</h3>

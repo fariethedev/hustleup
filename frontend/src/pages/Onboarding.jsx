@@ -6,7 +6,7 @@ import { selectUser, loadUserProfile } from '../store/authSlice';
 import { usersApi, shopsApi, dispatchToast } from '../api/client';
 import { LISTING_TYPES, POLISH_CITIES } from '../utils/constants';
 import { invalidateShops } from '../hooks/useShops';
-import { Camera, Check, ArrowRight, ArrowLeft, Store, MapPin, Sparkles, X } from 'lucide-react';
+import { Aperture, CircleCheck, MoveRight, MoveLeft, Building2, Navigation, WandSparkles, CircleX } from 'lucide-react';
 
 /**
  * Seller shop-setup, shown right after registering (and reachable again from the
@@ -139,7 +139,7 @@ export default function Onboarding() {
           transition={{ type: 'spring', bounce: 0.35, duration: 0.6 }}
         >
           <div className="w-16 h-16 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-5">
-            <Sparkles className="w-8 h-8 text-[#CDFF00]" />
+            <WandSparkles className="w-8 h-8 text-[#CDFF00]" />
           </div>
           <h1 className="text-2xl font-black text-white mb-2">You're all set!</h1>
           <p className="text-gray-400 text-sm mb-6">Jump in and start exploring HustleSpace.</p>
@@ -210,7 +210,7 @@ export default function Onboarding() {
                     aria-label={`Step ${i + 1}: ${s.label}`}
                     aria-current={active ? 'step' : undefined}
                   >
-                    {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                    {done ? <CircleCheck className="w-3.5 h-3.5" /> : i + 1}
                   </motion.button>
                   {i < STEPS.length - 1 && (
                     <div className="h-[2px] flex-1 rounded-full bg-white/10 overflow-hidden">
@@ -281,7 +281,7 @@ export default function Onboarding() {
 
         <div className="px-4 py-3.5 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#CDFF00] grid place-items-center shrink-0">
-            {selected ? <selected.icon className="w-5 h-5 text-black" /> : <Store className="w-5 h-5 text-black" />}
+            {selected ? <selected.icon className="w-5 h-5 text-black" /> : <Building2 className="w-5 h-5 text-black" />}
           </div>
           <div className="min-w-0">
             <motion.p
@@ -292,7 +292,7 @@ export default function Onboarding() {
             </motion.p>
             <p className="text-[11px] text-gray-500 flex items-center gap-1.5 truncate">
               {categoryLabel || 'Uncategorised'}
-              {effectiveCity && <><span className="text-gray-700">·</span><MapPin className="w-3 h-3 shrink-0" />{effectiveCity}</>}
+              {effectiveCity && <><span className="text-gray-700">·</span><Navigation className="w-3 h-3 shrink-0" />{effectiveCity}</>}
             </p>
           </div>
         </div>
@@ -381,7 +381,7 @@ export default function Onboarding() {
                         animate={{ opacity: 1, y: 0 }}
                         className="flex flex-col items-center gap-2 text-gray-600 group-hover:text-[#CDFF00] transition-colors"
                       >
-                        <Camera className="w-7 h-7" />
+                        <Aperture className="w-7 h-7" />
                         <span className="text-xs font-bold tracking-widest">Upload a banner</span>
                         <span className="text-[10px] text-gray-600 normal-case tracking-normal font-medium">
                           Wide images look best — around 1200×400
@@ -405,7 +405,7 @@ export default function Onboarding() {
                           onClick={clearBanner}
                           className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 hover:text-red-400 transition-colors"
                         >
-                          <X className="w-3 h-3" /> Remove
+                          <CircleX className="w-3 h-3" /> Remove
                         </motion.button>
                       )}
                     </AnimatePresence>
@@ -444,7 +444,7 @@ export default function Onboarding() {
                                 transition={{ type: 'spring', bounce: 0.6, duration: 0.4 }}
                                 className="absolute top-2 right-2"
                               >
-                                <Check className="w-4 h-4 text-[#CDFF00]" />
+                                <CircleCheck className="w-4 h-4 text-[#CDFF00]" />
                               </motion.span>
                             )}
                           </AnimatePresence>
@@ -495,7 +495,7 @@ export default function Onboarding() {
             onClick={() => go(-1)}
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-400 hover:text-white transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" /> Back
+            <MoveLeft className="w-4 h-4" /> Back
           </button>
         )}
 
@@ -511,9 +511,9 @@ export default function Onboarding() {
               Creating…
             </>
           ) : isLast ? (
-            <>Create my shop <Sparkles className="w-4 h-4" /></>
+            <>Create my shop <WandSparkles className="w-4 h-4" /></>
           ) : (
-            <>Continue <ArrowRight className="w-4 h-4" /></>
+            <>Continue <MoveRight className="w-4 h-4" /></>
           )}
         </motion.button>
       </div>

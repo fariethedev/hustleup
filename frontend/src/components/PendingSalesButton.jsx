@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, X, Package, ChevronRight, Loader2 } from 'lucide-react';
+import { Timer, CircleX, Box, CircleChevronRight, Loader } from 'lucide-react';
 import { bookingsApi } from '../api/client';
 import { formatPrice } from '../utils/constants';
 
@@ -73,7 +73,7 @@ export default function PendingSalesButton({ compact = false }) {
           border-amber-400/30 bg-amber-400/10 text-amber-400 hover:bg-amber-400/20
           ${compact ? 'w-[46px] h-[46px]' : 'w-9 h-9'}`}
       >
-        <Clock className={compact ? 'w-[22px] h-[22px]' : 'w-4 h-4'} />
+        <Timer className={compact ? 'w-[22px] h-[22px]' : 'w-4 h-4'} />
         <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[17px] h-[17px] px-1 rounded-full bg-amber-400 text-black text-[9px] font-black ring-2 ring-[#0a0a0a] tabular-nums">
           {count > 9 ? '9+' : count}
         </span>
@@ -96,7 +96,7 @@ export default function PendingSalesButton({ compact = false }) {
             >
               <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
                 <h2 className="text-base font-black text-white tracking-tight flex items-center gap-2.5">
-                  <Clock className="w-4 h-4 text-amber-400" />
+                  <Timer className="w-4 h-4 text-amber-400" />
                   Pending sales
                   <span className="px-2 py-0.5 rounded-full bg-amber-400 text-black text-[10px] font-black tabular-nums">
                     {count}
@@ -106,7 +106,7 @@ export default function PendingSalesButton({ compact = false }) {
                   onClick={() => setOpen(false)}
                   className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all"
                 >
-                  <X className="w-5 h-5" />
+                  <CircleX className="w-5 h-5" />
                 </button>
               </div>
 
@@ -121,7 +121,7 @@ export default function PendingSalesButton({ compact = false }) {
                     <div className="w-11 h-11 rounded-xl bg-black/40 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
                       {s.listingImage
                         ? <img src={s.listingImage} alt="" className="w-full h-full object-cover" />
-                        : <Package className="w-5 h-5 text-gray-600" />}
+                        : <Box className="w-5 h-5 text-gray-600" />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-black text-white truncate">{s.listingTitle || 'Listing'}</p>
@@ -134,7 +134,7 @@ export default function PendingSalesButton({ compact = false }) {
                       <p className="text-sm font-black text-[#CDFF00]">
                         {formatPrice(s.agreedPrice ?? s.offeredPrice, s.currency)}
                       </p>
-                      <ChevronRight className="w-4 h-4 text-gray-600 ml-auto mt-1" />
+                      <CircleChevronRight className="w-4 h-4 text-gray-600 ml-auto mt-1" />
                     </div>
                   </Link>
                 ))}
@@ -146,7 +146,7 @@ export default function PendingSalesButton({ compact = false }) {
                   onClick={() => setOpen(false)}
                   className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:brightness-110 transition-all flex items-center justify-center gap-2"
                 >
-                  Manage in dashboard <ChevronRight className="w-4 h-4" />
+                  Manage in dashboard <CircleChevronRight className="w-4 h-4" />
                 </Link>
               </div>
             </motion.div>
