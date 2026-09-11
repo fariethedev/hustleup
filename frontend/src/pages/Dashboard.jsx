@@ -5,7 +5,7 @@ import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated, selectIsSeller } from '../store/authSlice';
 import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, feedbackApi, dispatchToast } from '../api/client';
 import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constants';
-import { Cog, CirclePlus, Archive, ClipboardCheck, CircleCheck, CircleX, MessagesSquare, ListChecks, Boxes, BellDot, ChartLine, CalendarRange, SquarePen, Building2, Eraser, CircleSlash, Building, WalletCards, ShieldPlus, ShieldX, TicketCheck, QrCode, MoveRight, Sparkle, Forklift, Box, Speech, CircleUser } from 'lucide-react';
+import { ChevronDown, Cog, CirclePlus, Archive, ClipboardCheck, CircleCheck, CircleX, MessagesSquare, ListChecks, Boxes, BellDot, ChartLine, CalendarRange, SquarePen, Building2, Eraser, CircleSlash, Building, WalletCards, ShieldPlus, ShieldX, TicketCheck, QrCode, MoveRight, Sparkle, Forklift, Box, Speech, CircleUser } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
 import ShopManager from '../components/ShopManager';
 import ReviewModal from '../components/ReviewModal';
@@ -47,6 +47,27 @@ export default function Dashboard() {
   // Booking whose review dialog is open — either the seller completing it, or a buyer
   // clearing a review they still owe.
   const [reviewing, setReviewing] = useState(null);
+
+  /**
+   * Whether the outstanding-ratings prompts are expanded.
+   *
+   * Remembered, because someone who collapsed them yesterday did not mean "just this once".
+   * Read through a try/catch: a browser with site data blocked throws on access rather than
+   * returning null, and the dashboard should not fail to render over a panel preference.
+   */
+  const [ratingsOpen, setRatingsOpen] = useState(() => {
+    try { return localStorage.getItem('hustleup_dash_ratings') !== 'closed'; }
+    catch { return true; }
+  });
+
+  const toggleRatingsOpen = () => {
+    setRatingsOpen((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('hustleup_dash_ratings', next ? 'open' : 'closed'); }
+      catch { /* preference only — not worth failing over */ }
+      return next;
+    });
+  };
   // The booking a seller has just completed, while we ask them how the platform is doing.
   const [feedbackFor, setFeedbackFor] = useState(null);
   const [shopOrders, setShopOrders] = useState([]);   // storefront purchases the user made
@@ -268,7 +289,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen text-white">
-      <HeroBrief title="Hustle Dash" />
+      <HeroBrief title="Dashboard" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-10">
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
@@ -366,10 +387,29 @@ export default function Dashboard() {
           {/* Points at the Shop tab rather than onboarding — that's where a storefront is
               actually created and edited now. */}
           {/* Outstanding reviews sit above everything else: a rating is only useful if it is
-              actually left, and a completed transaction is the moment someone can give one. */}
+              actually left, and a completed transaction is the moment someone can give one.
+              That is also why they can be collapsed rather than dismissed — three cards at the
+              top of every visit is a lot to scroll past, but a prompt you can permanently kill
+              is one nobody ever acts on. Collapsed it keeps the count, so what is waiting stays
+              visible and the reminder survives. */}
           {awaitingReview.length > 0 && (
             <div className="mb-5 space-y-2">
-              {awaitingReview.slice(0, 3).map((b) => (
+              <button
+                onClick={toggleRatingsOpen}
+                aria-expanded={ratingsOpen}
+                className="w-full flex items-center justify-between gap-3 px-1 text-left group"
+              >
+                <span className="text-[10px] font-black tracking-widest text-[#CDFF00]">
+                  {awaitingReview.length} {awaitingReview.length === 1 ? 'rating' : 'ratings'} to leave
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 text-gray-500 group-hover:text-white transition-all ${
+                    ratingsOpen ? '' : '-rotate-90'
+                  }`}
+                />
+              </button>
+
+              {ratingsOpen && awaitingReview.slice(0, 3).map((b) => (
                 <button
                   key={b.id}
                   onClick={() => setReviewing({ booking: b, mode: 'review' })}
