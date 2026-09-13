@@ -230,5 +230,11 @@ public class AuthDtos {
         // The avatar image URL — allows the client to display the user's picture
         // in the navbar immediately after login.
         private String avatarUrl;
+
+        // False for any account that hasn't confirmed its email address. Login no longer
+        // blocks on this — it lets the client show a non-blocking "verify your email" prompt
+        // instead, and gate the buy/sell actions that actually need it (see
+        // EmailVerificationGuard on the marketplace side).
+        private boolean emailVerified;
     }
 }

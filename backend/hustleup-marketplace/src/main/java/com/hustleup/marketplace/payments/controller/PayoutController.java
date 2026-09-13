@@ -12,6 +12,7 @@ import com.hustleup.marketplace.payments.repository.SellerPayoutAccountRepositor
 import com.hustleup.marketplace.payments.service.StripeConnectService;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
+import com.hustleup.common.security.EmailVerificationGuard;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
@@ -42,6 +43,7 @@ public class PayoutController {
     /** Opens the delivery track and tells buyer and seller once a charge actually clears. */
     private final com.hustleup.marketplace.shipping.ShipmentService shipmentService;
     private final com.hustleup.marketplace.booking.service.BookingService bookingService;
+    private final EmailVerificationGuard emailVerificationGuard;
 
     @Value("${app.stripe.connect-webhook-secret}")
     private String webhookSecret;
@@ -53,7 +55,8 @@ public class PayoutController {
                              com.hustleup.marketplace.shop.repository.ShopOrderRepository shopOrderRepository,
                              com.hustleup.marketplace.listing.repository.ListingRepository listingRepository,
                              com.hustleup.marketplace.shipping.ShipmentService shipmentService,
-                             com.hustleup.marketplace.booking.service.BookingService bookingService) {
+                             com.hustleup.marketplace.booking.service.BookingService bookingService,
+                             EmailVerificationGuard emailVerificationGuard) {
         this.stripeConnectService = stripeConnectService;
         this.payoutAccountRepository = payoutAccountRepository;
         this.userRepository = userRepository;
@@ -62,6 +65,7 @@ public class PayoutController {
         this.listingRepository = listingRepository;
         this.shipmentService = shipmentService;
         this.bookingService = bookingService;
+        this.emailVerificationGuard = emailVerificationGuard;
     }
 
     private User currentUser() {
@@ -80,6 +84,10 @@ public class PayoutController {
     public ResponseEntity<?> connect() {
         try {
             User seller = currentUser();
+            // Starting onboarding is the point selling needs a reachable address — Stripe
+            // will email this seller about their own payout account, and status() below
+            // stays ungated so an unverified seller can still check where onboarding left off.
+            emailVerificationGuard.require(seller, "set up payouts");
             String url = stripeConnectService.createOnboardingLink(seller.getId());
             return ResponseEntity.ok(Map.of("url", url));
         } catch (StripeException e) {

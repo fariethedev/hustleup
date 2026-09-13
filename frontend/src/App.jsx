@@ -49,6 +49,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import CrispChat from './components/CrispChat';
 import BookingAlertListener from './components/BookingAlertListener';
+import VerifyEmailPrompt from './components/VerifyEmailPrompt';
 
 import ScrollToTop from './components/ScrollToTop';
 
@@ -65,6 +66,7 @@ export default function App() {
       <ScrollToTop />
       <CrispChat />
       <BookingAlertListener />
+      <VerifyEmailPrompt />
       <Navbar />
       <CartDrawer />
       <main className={`flex-1 ${location.pathname === '/' ? 'pt-0 pb-0' : noFooter ? 'pt-14 md:pt-16 pb-0' : 'pt-14 md:pt-16 pb-16 md:pb-0'}`}>

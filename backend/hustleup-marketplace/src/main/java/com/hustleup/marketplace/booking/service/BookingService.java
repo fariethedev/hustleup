@@ -54,6 +54,7 @@ import com.hustleup.common.model.Notification;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
+import com.hustleup.common.security.EmailVerificationGuard;
 import com.stripe.exception.StripeException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -117,6 +118,8 @@ public class BookingService {
     private final ReviewRepository reviewRepository; // completing a booking records the completer's review in the same step
     /** Consulted before every payout: an open buyer claim freezes the money where it is. */
     private final ProtectionClaimService protectionClaimService;
+    /** Refuses an unconfirmed account at the one point buying actually commits money. */
+    private final EmailVerificationGuard emailVerificationGuard;
 
     /**
      * Constructor injection: Spring automatically resolves and injects these beans.
@@ -133,7 +136,8 @@ public class BookingService {
                           TicketService ticketService, NotificationRepository notificationRepository,
                           ReviewRepository reviewRepository, ShipmentService shipmentService,
                           EventAvailabilityService eventAvailabilityService,
-                          ProtectionClaimService protectionClaimService) {
+                          ProtectionClaimService protectionClaimService,
+                          EmailVerificationGuard emailVerificationGuard) {
         this.protectionClaimService = protectionClaimService;
         this.bookingRepository = bookingRepository;
         this.listingRepository = listingRepository;
@@ -148,6 +152,7 @@ public class BookingService {
         this.notificationRepository = notificationRepository;
         this.shipmentService = shipmentService;
         this.eventAvailabilityService = eventAvailabilityService;
+        this.emailVerificationGuard = emailVerificationGuard;
     }
 
     /**
@@ -280,6 +285,11 @@ public class BookingService {
     public BookingDto create(UUID listingId, BigDecimal offeredPrice, LocalDateTime scheduledAt,
                               UUID availabilitySlotId, Integer quantity, boolean joinRequest) {
         User buyer = getCurrentUser(); // resolve authenticated buyer from Spring Security context
+        // A booking is a real charge (or a request that becomes one), so it is the actual
+        // moment buying needs a reachable address, not the moment of registering. Checked
+        // here rather than blocked at login: this is what lets an already-registered account
+        // sign in and browse freely, and only asks for verification when it tries to spend.
+        emailVerificationGuard.require(buyer, "buy");
         Listing listing = listingRepository.findById(listingId)
                 .orElseThrow(() -> new RuntimeException("Listing not found"));
 

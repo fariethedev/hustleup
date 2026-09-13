@@ -160,6 +160,17 @@ public class UserDto {
     private boolean idVerified;
 
     /**
+     * Whether the user has confirmed their email address.
+     *
+     * <p>Used by the frontend to show a non-blocking "verify your email" prompt for an
+     * already-logged-in account — see {@code EmailVerificationGuard} in hustleup-common,
+     * which enforces this at the moment a buy or sell action is attempted rather than at
+     * login. Was excluded from this DTO entirely until the frontend had a use for it; now
+     * that it drives that prompt, {@code fromEntity} below must set it.
+     */
+    private boolean emailVerified;
+
+    /**
      * Whether the user has completed the post-registration onboarding flow.
      *
      * <p>The frontend checks this on login to decide whether to redirect the user to the
@@ -208,8 +219,10 @@ public class UserDto {
      * <ul>
      *   <li>{@code password} — BCrypt hash must never leave the server.</li>
      *   <li>{@code idDocumentUrl} — sensitive KYC document URL; only for admin access.</li>
-     *   <li>{@code emailVerified}, {@code phoneVerified} — verification status flags not
-     *       currently needed by the consuming frontend views (can be added if needed).</li>
+     *   <li>{@code phoneVerified} — verification status flag not currently needed by the
+     *       consuming frontend views (can be added if needed). {@code emailVerified} used
+     *       to be excluded for the same reason, but is now included — see its field
+     *       javadoc.</li>
      *   <li>{@code createdAt}, {@code updatedAt}, {@code lastActive} — temporal metadata
      *       not currently required by the API consumers.</li>
      * </ul>
@@ -237,6 +250,7 @@ public class UserDto {
                 .website(user.getWebsite())
                 .phone(user.getPhone())
                 .idVerified(user.isIdVerified())         // boolean primitive — false if not verified
+                .emailVerified(user.isEmailVerified())
                 .onboardingCompleted(user.getOnboardingCompleted()) // Boolean — may be null for legacy accounts
                 .vouchCount(user.getVouchCount())
                 .latitude(roundForPrivacy(user.getLatitude()))

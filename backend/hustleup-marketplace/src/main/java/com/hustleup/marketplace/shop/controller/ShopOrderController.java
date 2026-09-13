@@ -3,6 +3,7 @@ package com.hustleup.marketplace.shop.controller;
 import com.hustleup.common.model.Role;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
+import com.hustleup.common.security.EmailVerificationGuard;
 import com.hustleup.marketplace.payments.service.StripeConnectService;
 import com.hustleup.marketplace.shipping.Fulfilment;
 import com.hustleup.marketplace.shipping.FulfilmentStatus;
@@ -50,6 +51,7 @@ public class ShopOrderController {
     private final StripeConnectService stripeConnectService;
     private final ShipmentService shipmentService;
     private final OrderPayoutService orderPayoutService;
+    private final EmailVerificationGuard emailVerificationGuard;
 
     /** Platform default — {@link ShopProduct} carries a price with no currency of its own. */
     private static final String CURRENCY = "PLN";
@@ -75,6 +77,9 @@ public class ShopOrderController {
     public ResponseEntity<?> checkout(@PathVariable String idOrSlug, @RequestBody Map<String, Object> body) {
         User buyer = currentUser();
         if (buyer == null) return ResponseEntity.status(401).body(Map.of("error", "Sign in to place an order"));
+        // Same reasoning as BookingService#create: a storefront order is a real charge, so
+        // this is the point buying needs a reachable address, not registration.
+        emailVerificationGuard.require(buyer, "buy");
 
         Shop shop = resolveShop(idOrSlug);
         if (shop == null) return ResponseEntity.status(404).body(Map.of("error", "Shop not found"));

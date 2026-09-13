@@ -16,6 +16,7 @@ import com.hustleup.common.model.User;
 import com.hustleup.common.model.Notification;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.common.repository.NotificationRepository;
+import com.hustleup.common.security.EmailVerificationGuard;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -48,12 +49,14 @@ public class ListingService {
     private final ListingMediaLibrary mediaLibrary;
     /** Capacity and sales window for EVENT listings — see enrichDto. */
     private final EventAvailabilityService eventAvailabilityService;
+    private final EmailVerificationGuard emailVerificationGuard;
 
     public ListingService(ListingRepository listingRepository, UserRepository userRepository,
                           ReviewRepository reviewRepository, FileStorageService fileStorageService,
                           NotificationRepository notificationRepository, JdbcTemplate jdbcTemplate,
                           AlgoliaIndexService algoliaIndexService, ListingMediaLibrary mediaLibrary,
-                          EventAvailabilityService eventAvailabilityService) {
+                          EventAvailabilityService eventAvailabilityService,
+                          EmailVerificationGuard emailVerificationGuard) {
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
         this.reviewRepository = reviewRepository;
@@ -63,6 +66,7 @@ public class ListingService {
         this.algoliaIndexService = algoliaIndexService;
         this.mediaLibrary = mediaLibrary;
         this.eventAvailabilityService = eventAvailabilityService;
+        this.emailVerificationGuard = emailVerificationGuard;
     }
 
     public List<ListingDto> getAll(String q, ListingType type, String city, BigDecimal maxPrice, Boolean negotiable) {
@@ -127,6 +131,10 @@ public class ListingService {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        // Posting a new listing is what puts the seller in front of buyers, so this is the
+        // point selling needs a reachable address — not registration, and not every later
+        // read/update of listings already posted while verified.
+        emailVerificationGuard.require(seller, "list an item");
 
         String mediaUrlsCsv = "";
         if (images != null && !images.isEmpty()) {

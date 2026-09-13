@@ -15,6 +15,7 @@ import com.hustleup.marketplace.listing.model.Listing;
 import com.hustleup.marketplace.listing.repository.ListingRepository;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
+import com.hustleup.common.security.EmailVerificationGuard;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,13 +34,16 @@ public class AvailabilityController {
     private final AvailabilityRepository availabilityRepository;
     private final ListingRepository listingRepository;
     private final UserRepository userRepository;
+    private final EmailVerificationGuard emailVerificationGuard;
 
     public AvailabilityController(AvailabilityRepository availabilityRepository,
                                    ListingRepository listingRepository,
-                                   UserRepository userRepository) {
+                                   UserRepository userRepository,
+                                   EmailVerificationGuard emailVerificationGuard) {
         this.availabilityRepository = availabilityRepository;
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
+        this.emailVerificationGuard = emailVerificationGuard;
     }
 
     private User currentUser() {
@@ -57,6 +61,11 @@ public class AvailabilityController {
     @PreAuthorize("@premiumAccess.canSell(authentication)")
     public ResponseEntity<AvailabilityDto> create(@RequestBody Map<String, String> body) {
         User seller = currentUser();
+        // Opening a new slot invites a buyer to book it, so this is the point selling needs
+        // a reachable address — not registration, and not every later read of this seller's
+        // own calendar (see `my` and `delete` below, which stay ungated: an existing seller
+        // must keep being able to see and tidy up their own slots while unverified).
+        emailVerificationGuard.require(seller, "add availability");
         UUID listingId = UUID.fromString(body.get("listingId"));
         Listing listing = listingRepository.findById(listingId)
                 .orElseThrow(() -> new RuntimeException("Listing not found"));
