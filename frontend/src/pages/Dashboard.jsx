@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
-import { selectUser, selectIsAuthenticated, selectIsSeller } from '../store/authSlice';
+import { selectUser, selectIsAuthenticated } from '../store/authSlice';
+import { useSellerAccess } from '../hooks/useSellerAccess';
+import SellerUpgrade, { SellerUpgradeButton } from '../components/SellerUpgrade';
 import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, feedbackApi, dispatchToast } from '../api/client';
 import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constants';
-import { ChevronDown, Cog, CirclePlus, Archive, ClipboardCheck, CircleCheck, CircleX, MessagesSquare, ListChecks, Boxes, BellDot, ChartLine, CalendarRange, SquarePen, Building2, Eraser, CircleSlash, Building, WalletCards, ShieldPlus, ShieldX, TicketCheck, QrCode, MoveRight, Sparkle, Forklift, Box, Speech, CircleUser } from 'lucide-react';
+import { ChevronDown, Cog, CirclePlus, Archive, ClipboardCheck, CircleCheck, CircleX, MessagesSquare, ListChecks, Boxes, BellDot, ChartLine, CalendarRange, SquarePen, Building2, Eraser, CircleSlash, Building, WalletCards, ShieldPlus, ShieldX, TicketCheck, QrCode, MoveRight, Sparkle, Forklift, Box, Speech, CircleUser, Store } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
 import ShopManager from '../components/ShopManager';
 import ReviewModal from '../components/ReviewModal';
@@ -23,7 +25,10 @@ const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
 export default function Dashboard() {
   const user = useSelector(selectUser);
   const isAuthenticated = useSelector(selectIsAuthenticated);
-  const isSeller = useSelector(selectIsSeller);
+  // The server's rule, not the account's role: a subscriber gets the selling tabs, and a
+  // grandfathered SELLER keeps them. Gating on the role alone hid Listings, Shop, Sales,
+  // Availability and Payouts from everyone who had paid for exactly those things.
+  const { canSell: isSeller, loading: checkingAccess } = useSellerAccess();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -77,15 +82,23 @@ export default function Dashboard() {
   // The order a buyer is reporting a problem with, or null. Holds the whole descriptor
   // rather than an id, because the dialog names the order back to them.
   const [claiming, setClaiming] = useState(null);
+  // Whether the selling pitch is expanded to its full panel. Collapsed by default: this is
+  // an offer on someone else's dashboard, not the thing they came here to do.
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const hasServiceListing = listings.some((l) => SERVICE_TYPES.includes(l.listingType));
   const hasEventListing = listings.some((l) => l.listingType === 'EVENT');
   const eventListings = listings.filter((l) => l.listingType === 'EVENT');
 
+  // Held until the selling question is answered, because `loadData` branches on it: firing
+  // on mount would run the whole load as a non-seller and never fetch a subscriber's
+  // listings, payouts or shop sales, since nothing re-runs it when the answer arrives.
   useEffect(() => {
     if (!isAuthenticated) { navigate('/login'); return; }
+    if (checkingAccess) return;
     loadData();
-  }, [isAuthenticated, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, navigate, isSeller, checkingAccess]);
 
   // Stripe sends the buyer back here after paying for a single booking. The webhook is the
   // authority on payment, but it is not something this page can wait for — locally it never
@@ -297,6 +310,32 @@ export default function Dashboard() {
               two numbers that actually need acting on — unanswered requests, and whether
               payouts are even set up — were not shown anywhere. A dashboard should answer
               "what needs me?" before it offers navigation. */}
+          {/* The way into selling, for accounts that cannot yet. Held back until the
+              subscription lookup has answered, so it never appears for a second in front of
+              a seller who is already paying for the tabs it is offering to unlock. */}
+          {!isSeller && !checkingAccess && (
+            <div className="mb-5">
+              {showUpgrade ? (
+                <div className="flex justify-center">
+                  <SellerUpgrade onCancel={() => setShowUpgrade(false)} cancelLabel="Maybe later" />
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-[#CDFF00]/25 bg-[#CDFF00]/[0.06] p-4 flex items-center gap-3 flex-wrap">
+                  <div className="w-10 h-10 rounded-xl bg-[#CDFF00] flex items-center justify-center shrink-0">
+                    <Store className="w-5 h-5 text-black" strokeWidth={2.5} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black text-white leading-tight">Want to sell on HustleSpace?</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+                      Premium turns this account into a shop — list items, take bookings and get paid out.
+                    </p>
+                  </div>
+                  <SellerUpgradeButton onClick={() => setShowUpgrade(true)} label="See plans" />
+                </div>
+              )}
+            </div>
+          )}
+
           {isSeller && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
               <button onClick={() => setTab('sales')} className="text-left rounded-2xl border border-[#CDFF00]/25 bg-[#CDFF00]/[0.06] p-3.5 hover:bg-[#CDFF00]/10 transition-colors">

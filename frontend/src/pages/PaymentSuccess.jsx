@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Gem, Loader, BadgeCheck, CircleAlert, MoveRight } from 'lucide-react';
 import { subscriptionsApi } from '../api/client';
+import { invalidateSellerAccess } from '../hooks/useSellerAccess';
 
 /**
  * Where Stripe sends the buyer after a successful Premium checkout.
@@ -32,6 +33,10 @@ export default function PaymentSuccess() {
     let cancelled = false;
     subscriptionsApi.confirm(sessionId)
       .then((r) => {
+        // Whatever this page then shows, the account's subscription has just changed, so the
+        // cached "can this account sell" answer is stale. Dropping it here is what stops the
+        // dashboard they are about to open from offering to sell them what they just bought.
+        invalidateSellerAccess();
         if (cancelled) return;
         setState(r.data?.premiumActive
           ? { status: 'active', message: r.data.message }
@@ -58,7 +63,7 @@ export default function PaymentSuccess() {
     active: {
       icon: <Gem className="w-8 h-8 text-black" />,
       title: 'Premium is active',
-      body: 'Bond, priority placement and the rest of the paid features are unlocked on your account.',
+      body: 'Selling, Bond and the rest of the paid features are unlocked on your account. Set your shop up from the dashboard whenever you are ready.',
     },
     pending: {
       icon: <BadgeCheck className="w-8 h-8 text-black" />,

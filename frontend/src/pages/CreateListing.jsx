@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSelector, useDispatch } from 'react-redux';
-import { selectIsAuthenticated, selectIsSeller, logout } from '../store/authSlice';
+import { useSelector } from 'react-redux';
+import { selectIsAuthenticated } from '../store/authSlice';
 import { listingsApi } from '../api/client';
 import { LISTING_TYPES, CURRENCIES, POLISH_CITIES, formatPrice } from '../utils/constants';
 import { SHIPPING_METHODS, defaultMethodFor, getMethod } from '../utils/shipping';
-import { LockKeyhole, Images as ImageIcon, CircleCheck, CircleX, MoveRight, MoveLeft, CirclePlay, CalendarRange, Building2, DoorOpen, Forklift, Grid2x2, PiggyBank, ClipboardCheck } from 'lucide-react';
+import { useSellerAccess } from '../hooks/useSellerAccess';
+import SellerUpgrade from '../components/SellerUpgrade';
+import { LockKeyhole, Images as ImageIcon, CircleCheck, CircleX, MoveRight, MoveLeft, CirclePlay, CalendarRange, Forklift, Grid2x2, PiggyBank, ClipboardCheck } from 'lucide-react';
 import { isVideoUrl } from '../utils/media';
 
 /**
@@ -38,9 +40,11 @@ const slide = {
 
 export default function CreateListing() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
-  const isSeller = useSelector(selectIsSeller);
+  // Mirrors the server's own `canSell` rule rather than the account's role — see
+  // useSellerAccess. Gating on the role here is what refused the form to subscribers the
+  // API would have accepted a listing from.
+  const { canSell, loading: checkingAccess } = useSellerAccess();
   const navigate = useNavigate();
-  const dispatch = useDispatch();
 
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1); // 1 = forward, -1 = back
@@ -65,57 +69,33 @@ export default function CreateListing() {
   const [error, setError] = useState('');
 
   if (!isAuthenticated) { navigate('/login'); return null; }
-  if (!isSeller) {
-    /**
-     * Buyer accounts cannot list, and an account's role is fixed at registration — there is
-     * no upgrade path, so selling means a second account.
-     *
-     * The old version of this screen said "Become a Seller" and dropped the user on
-     * /register while still signed in as a buyer, which reads as though it will convert the
-     * account they already have. It says what actually has to happen now, and signs them
-     * out on the way so registration starts from a clean session instead of landing on a
-     * page that still shows them logged in.
-     */
-    const startSellerAccount = () => {
-      dispatch(logout());
-      navigate('/register');
-    };
-
+  // Still asking whether this account can sell. Rendering the upgrade panel during the
+  // lookup would flash a paywall over the screen of someone who already pays for Premium.
+  if (checkingAccess) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="glass rounded-3xl p-8 max-w-md border border-white/5">
-          <div className="w-14 h-14 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-5">
-            <Building2 className="w-7 h-7 text-[#CDFF00]" />
-          </div>
-          <h2 className="text-xl font-black text-white tracking-wider mb-2 text-center">
-            You need a seller account
-          </h2>
-          <p className="text-gray-400 text-sm leading-relaxed mb-5 text-center">
-            You're signed in as a <b className="text-white">buyer</b>. Buying and selling are
-            separate accounts on HustleSpace, so listing requires signing up again as a seller —
-            you can use a different email and switch between the two whenever you like.
-          </p>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <span className="w-6 h-6 border-2 border-white/20 border-t-[#CDFF00] rounded-full animate-spin" />
+      </div>
+    );
+  }
 
-          <div className="rounded-xl bg-white/5 border border-white/10 p-3.5 mb-5">
-            <p className="text-[11px] text-gray-400 leading-relaxed">
-              <b className="text-gray-200">Keeping this account?</b> Nothing is lost — your
-              buyer account, orders and saved items stay exactly as they are.
-            </p>
-          </div>
-
-          <button
-            onClick={startSellerAccount}
-            className="w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black tracking-widest hover:bg-[#E0FF4D] transition-all flex items-center justify-center gap-2"
-          >
-            <DoorOpen className="w-4 h-4" /> Sign out &amp; create seller account
-          </button>
-          <button
-            onClick={() => navigate(-1)}
-            className="w-full mt-2.5 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-sm hover:bg-white/10 transition-colors"
-          >
-            Not now
-          </button>
-        </div>
+  /**
+   * No selling rights yet, so this offers the subscription that grants them.
+   *
+   * This screen used to say buying and selling were separate accounts and offer to sign the
+   * user out so they could register again on another email — and it did sign them out. That
+   * was already untrue: the server grants selling to any active subscriber and stopped
+   * assigning the SELLER role to new accounts, so the advice cost people their session and
+   * sent them to build a duplicate account they did not need.
+   */
+  if (!canSell) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-4 py-10">
+        <SellerUpgrade
+          title="Listing needs Premium"
+          blurb="Posting a listing is part of Premium. It upgrades the account you are already signed in to — your orders, saved items and messages stay exactly where they are."
+          onCancel={() => navigate(-1)}
+        />
       </div>
     );
   }

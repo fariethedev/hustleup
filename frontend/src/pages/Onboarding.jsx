@@ -6,6 +6,8 @@ import { selectUser, loadUserProfile } from '../store/authSlice';
 import { usersApi, shopsApi, dispatchToast } from '../api/client';
 import { LISTING_TYPES, POLISH_CITIES } from '../utils/constants';
 import { invalidateShops } from '../hooks/useShops';
+import { useSellerAccess } from '../hooks/useSellerAccess';
+import SellerUpgrade from '../components/SellerUpgrade';
 import { Aperture, CircleCheck, MoveRight, MoveLeft, Building2, Navigation, WandSparkles, CircleX } from 'lucide-react';
 
 /**
@@ -41,6 +43,9 @@ const CATEGORY_NOTES = {
 
 export default function Onboarding() {
   const user = useSelector(selectUser);
+  // The server's selling rule, not the account's role — a subscriber has a shop to set up
+  // even though new accounts are never given the SELLER role.
+  const { canSell, loading: checkingAccess } = useSellerAccess();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
@@ -130,26 +135,33 @@ export default function Onboarding() {
     setBannerPreview('');
   };
 
-  if (user?.role !== 'SELLER') {
+  // Waiting on the selling lookup. The two branches below go to opposite places, so
+  // rendering either one early would be a guess shown to the person it is wrong for.
+  if (checkingAccess) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
-        <motion.div
-          initial={reduceMotion ? false : { opacity: 0, scale: 0.94 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', bounce: 0.35, duration: 0.6 }}
-        >
-          <div className="w-16 h-16 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-5">
-            <WandSparkles className="w-8 h-8 text-[#CDFF00]" />
-          </div>
-          <h1 className="text-2xl font-black text-white mb-2">You're all set!</h1>
-          <p className="text-gray-400 text-sm mb-6">Jump in and start exploring HustleSpace.</p>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="px-8 py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-95 transition-all"
-          >
-            Go to Dashboard
-          </button>
-        </motion.div>
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <span className="w-6 h-6 border-2 border-white/20 border-t-[#CDFF00] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  /**
+   * No selling rights, so shop setup has nothing to configure yet.
+   *
+   * This used to be an unconditional "You're all set!" for anyone without the SELLER role —
+   * which, once selling moved to subscriptions, included every new subscriber. They were
+   * congratulated and sent to the dashboard on the one screen that exists to set their shop
+   * up, with no way back to it and nothing saying what was missing.
+   */
+  if (!canSell) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4 py-10">
+        <SellerUpgrade
+          title="Set up a shop"
+          blurb="Shop setup comes with Premium. Subscribe and you can name your shop, pick your city and choose a category — on this same account."
+          onCancel={() => navigate('/dashboard')}
+          cancelLabel="Go to Dashboard"
+        />
       </div>
     );
   }

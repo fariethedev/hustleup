@@ -232,6 +232,15 @@ export const selectUser = (state) => state.auth.user;
 /** Per-field rejection messages from the last failed auth call, or null. */
 export const selectFieldErrors = (state) => state.auth.fieldErrors;
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
+/**
+ * The legacy SELLER role, and only that.
+ *
+ * NOT the answer to "may this account sell" — use `useSellerAccess` for that. Selling is
+ * granted by an active subscription (`PremiumAccess.canSell`), and new accounts are never
+ * assigned this role, so this returns false for every seller who signed up after the change.
+ * Reading it as a capability is what let subscribers be charged and then refused the
+ * listing form, their shop setup and their own payouts screen.
+ */
 export const selectIsSeller = (state) => state.auth.user?.role === 'SELLER';
 export const selectHasCompletedOnboarding = () => true;
 

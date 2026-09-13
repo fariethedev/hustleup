@@ -123,13 +123,13 @@ export default function Profile() {
       setPosts(feedRes.status === 'fulfilled' ? (feedRes.value.data || []) : []);
       if (relRes.status === 'fulfilled') setRel(relRes.value.data);
 
-      if (p.role === 'SELLER') {
-        listingsApi.browse({}).then((r) => {
-          setListings(r.data.filter((l) => l.sellerId === id));
-        }).catch(() => {});
-      } else {
-        setListings([]);
-      }
+      // Asked for on every profile rather than only those carrying the SELLER role. Selling
+      // is granted by subscription now and new accounts are never given that role, so the
+      // role test hid a paying seller's own listings from their profile while the same
+      // listings stayed visible on Explore. Someone who has never sold simply matches none.
+      listingsApi.browse({}).then((r) => {
+        setListings((r.data || []).filter((l) => l.sellerId === id));
+      }).catch(() => setListings([]));
     }).catch(() => {}).finally(() => setLoading(false));
   };
 

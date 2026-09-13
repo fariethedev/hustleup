@@ -9,6 +9,8 @@ import { useTheme } from '../context/ThemeContext';
 import { POLISH_CITIES } from '../utils/constants';
 import SmartImage from '../components/SmartImage';
 import HeroBrief from '../components/HeroBrief';
+import SellerUpgrade, { SellerUpgradeButton } from '../components/SellerUpgrade';
+import { useSellerAccess } from '../hooks/useSellerAccess';
 
 /**
  * Settings, as a real screen rather than a modal on a profile page.
@@ -325,6 +327,8 @@ function ProfilePanel({ user, onSaved }) {
 function AccountPanel({ user, onSignOut }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const { canSell, premium, loading: checkingAccess } = useSellerAccess();
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   /**
    * Password changes go through the same emailed reset link as "forgot password".
@@ -380,10 +384,34 @@ function AccountPanel({ user, onSignOut }) {
         </div>
       </Section>
 
-      <Section title="Account type" description="What you signed up as. Sellers get listings, a storefront and payouts.">
-        <p className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white font-bold">
-          {user.role === 'SELLER' ? 'Seller' : user.role === 'ADMIN' ? 'Admin' : 'Buyer'}
-        </p>
+      {/* Reports what the account can actually do, not what it was registered as. Reading
+          the role alone labelled every subscriber "Buyer" on the one screen that exists to
+          tell them what their account is — while the API was letting them sell. */}
+      <Section title="Account type" description="What this account can do. Selling covers listings, a storefront and payouts.">
+        {checkingAccess ? (
+          <p className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-gray-500 font-bold">
+            Checking…
+          </p>
+        ) : canSell ? (
+          <p className="px-4 py-2.5 rounded-xl bg-[#CDFF00]/[0.07] border border-[#CDFF00]/25 text-sm text-[#CDFF00] font-bold">
+            {user.role === 'ADMIN' ? 'Admin' : 'Seller'}
+            <span className="block text-[11px] text-gray-400 font-medium mt-0.5">
+              {premium ? 'Selling is on through Premium.' : 'Selling is on for this account.'}
+            </span>
+          </p>
+        ) : showUpgrade ? (
+          <SellerUpgrade onCancel={() => setShowUpgrade(false)} cancelLabel="Close" />
+        ) : (
+          <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3 flex-wrap">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-white font-bold">Buyer</p>
+              <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+                Premium adds selling to this account — no second account needed.
+              </p>
+            </div>
+            <SellerUpgradeButton onClick={() => setShowUpgrade(true)} label="See plans" />
+          </div>
+        )}
       </Section>
 
       <Section title="Session" description="Signs you out on this device only.">
