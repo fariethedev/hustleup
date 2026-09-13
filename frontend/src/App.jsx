@@ -43,7 +43,8 @@ import TicketDetail from './pages/TicketDetail';
 import EventDoor from './pages/EventDoor';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancelled from './pages/PaymentCancelled';
-import { selectIsAuthenticated } from './store/authSlice';
+import { selectIsAuthenticated, selectUser } from './store/authSlice';
+import { landingRoute } from './utils/landing';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -143,11 +144,13 @@ export default function App() {
 
 function GuestOnlyRoute() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
+  const user = useSelector(selectUser);
 
   if (!isAuthenticated) return <Outlet />;
-  // Same destination as a fresh sign-in (see Login.jsx#landingRoute) — an already
-  // signed-in visitor opening /login should land where logging in would have put them.
-  return <Navigate to="/feed" replace />;
+  // Same destination as a fresh sign-in — an already signed-in visitor opening /login
+  // should land where logging in would have put them, admins on the console included.
+  // This used to be a hardcoded /feed, which is how the two rules drifted apart.
+  return <Navigate to={landingRoute(user)} replace />;
 }
 
 function ProtectedRoute() {
