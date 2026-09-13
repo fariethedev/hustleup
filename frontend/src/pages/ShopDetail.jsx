@@ -190,7 +190,7 @@ export default function ShopDetail() {
   return (
     <div className="min-h-screen text-white">
       {/* Immersive Shop Banner & Header */}
-      <section className="relative h-[260px] sm:h-[320px] overflow-hidden">
+      <section className="relative h-[260px] sm:h-[320px] overflow-hidden media-overlay">
         <motion.div
           initial={{ scale: 1.1 }}
           animate={{ scale: 1 }}

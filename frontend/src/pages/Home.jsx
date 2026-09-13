@@ -294,7 +294,7 @@ export default function Home() {
           Two layouts in one section. On mobile the photograph gets a block of its own at the
           top, uninterrupted, and the copy sits beneath it on the page background. From md up
           it returns to the full-bleed frame with the copy laid over the lower third. */}
-      <section className="relative w-full overflow-hidden md:h-[100svh] md:min-h-[560px] md:flex md:items-end">
+      <section className="relative w-full overflow-hidden md:h-[100svh] md:min-h-[560px] md:flex md:items-end media-overlay">
         {/* 100svh (not 100vh) so mobile browser chrome appearing and disappearing doesn't make
             the section jump height mid-scroll. */}
         <div className="relative h-[54svh] min-h-[300px] w-full md:absolute md:inset-0 md:h-full">

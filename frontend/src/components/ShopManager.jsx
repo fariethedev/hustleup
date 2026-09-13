@@ -186,7 +186,7 @@ export default function ShopManager({ user }) {
     <div className="space-y-4">
       {/* ── Live preview of the card buyers see, so edits have an obvious target ── */}
       <div className="glass rounded-2xl border border-white/5 overflow-hidden">
-        <div className="relative h-32 bg-black">
+        <div className="relative h-32 bg-black media-overlay">
           <SmartImage
             src={uploadUrl(form.bannerUrl)}
             alt=""

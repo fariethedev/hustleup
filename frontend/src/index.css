@@ -239,13 +239,26 @@
   [data-theme="light"] .bg-\[\#050505\],
   [data-theme="light"] .bg-\[\#0A0A0A\],
   [data-theme="light"] .bg-\[\#0a0a0a\],
+  [data-theme="light"] .bg-\[\#0E0E0E\],
+  [data-theme="light"] .bg-\[\#111\],
   [data-theme="light"] .bg-\[\#111111\],
+  [data-theme="light"] .bg-\[\#121212\],
   [data-theme="light"] .bg-\[\#141414\],
-  [data-theme="light"] .bg-\[\#0E0E0E\] { background-color: #FFFFFF; }
+  [data-theme="light"] .bg-\[\#1E1E1E\] { background-color: #FFFFFF; }
 
   [data-theme="light"] .bg-black\/40,
   [data-theme="light"] .bg-black\/50,
   [data-theme="light"] .bg-black\/60 { background-color: rgba(255, 255, 255, 0.72); }
+
+  /* The same three near-black tokens as above, reused as Tailwind's own gray-700/800/900
+     rather than an arbitrary hex — a handful of image-placeholder tiles and status chips
+     (an order's "Awaiting payment" pill, say) use the class instead of the literal colour.
+     Same fix, same reasoning: left alone they stay solid black squares and turn "chip
+     background solid black, chip text forced dark by the rule above" into unreadable
+     text on a chip nobody meant to keep black. */
+  [data-theme="light"] .bg-gray-700,
+  [data-theme="light"] .bg-gray-800,
+  [data-theme="light"] .bg-gray-900 { background-color: rgba(14, 14, 16, 0.06); }
 
   /* White-alpha fills are how every raised surface in the app is drawn. On light
      they have to become dark-alpha or they vanish into the page entirely. */
@@ -285,3 +298,28 @@
   /* Placeholders need to be quieter than body text but still readable. */
   [data-theme="light"] .placeholder-gray-500::placeholder,
   [data-theme="light"] .placeholder-gray-600::placeholder { color: #9A9AA2; }
+
+  /* ── Photo scrims ───────────────────────────────────────────────────────
+     A handful of banners (a shop's cover photo, the homepage hero, a shop's own header)
+     lay a dark gradient over an image so the copy on top of it stays legible against
+     whatever the photo happens to be — that gradient has nothing to do with the site's
+     own background and must stay dark in both themes, the same way the photo itself
+     does not get lighter. Its `from-`/`via-`/`to-` stops are never touched above, so it
+     never changed — but the white text sitting on it was still being darkened to
+     near-black by the `.text-white` rule up top, which turned "banner copy" into
+     near-invisible dark-on-dark. `.media-overlay`, put on the container that holds the
+     image, its scrim and everything laid over it, opts that content back out: inside
+     it, colours stay exactly what they were before this file ran at all. */
+  [data-theme="light"] .media-overlay .text-white  { color: #FFFFFF; }
+  [data-theme="light"] .media-overlay .text-gray-300 { color: #D1D5DB; }
+  [data-theme="light"] .media-overlay .text-gray-400 { color: #9CA3AF; }
+  [data-theme="light"] .media-overlay .text-gray-500 { color: #6B7280; }
+  [data-theme="light"] .media-overlay .bg-black\/30 { background-color: rgba(0, 0, 0, 0.3); }
+  [data-theme="light"] .media-overlay .bg-black\/40 { background-color: rgba(0, 0, 0, 0.4); }
+  [data-theme="light"] .media-overlay .bg-black\/50 { background-color: rgba(0, 0, 0, 0.5); }
+  [data-theme="light"] .media-overlay .bg-black\/60 { background-color: rgba(0, 0, 0, 0.6); }
+  [data-theme="light"] .media-overlay .bg-black\/70 { background-color: rgba(0, 0, 0, 0.7); }
+  [data-theme="light"] .media-overlay .bg-black\/75 { background-color: rgba(0, 0, 0, 0.75); }
+  [data-theme="light"] .media-overlay .border-white\/15,
+  [data-theme="light"] .media-overlay .border-white\/20,
+  [data-theme="light"] .media-overlay .border-white\/25 { border-color: rgba(255, 255, 255, 0.2); }

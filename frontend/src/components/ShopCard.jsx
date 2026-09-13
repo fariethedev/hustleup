@@ -36,7 +36,7 @@ export default function ShopCard({ shop, index = 0 }) {
         />
 
         {/* ── Cover ── */}
-        <div className="relative h-44 shrink-0 overflow-hidden bg-black">
+        <div className="relative h-44 shrink-0 overflow-hidden bg-black media-overlay">
           <SmartImage
             src={uploadUrl(shop.bannerUrl)}
             alt={shop.name}
