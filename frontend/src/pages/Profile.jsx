@@ -11,7 +11,7 @@ import { displayName } from '../utils/displayName';
 import DistanceBadge from '../components/DistanceBadge';
 import { timeAgo } from '../utils/time';
 import { uploadUrl } from '../config';
-import { Navigation, ShieldCheck, CircleUser, MessageCircleMore, Cog, Aperture, Images as ImageIcon, CircleCheck, CircleX, Hash, Earth, LayoutPanelLeft, Sparkle, ThumbsUp, Ellipsis, CircleSlash, Milestone, ShieldBan, FileType, CirclePlus } from 'lucide-react';
+import { Navigation, ShieldCheck, CircleUser, MessageCircleMore, Cog, Aperture, Images as ImageIcon, CircleCheck, CircleX, Hash, Earth, LayoutPanelLeft, Sparkle, Flame, Ellipsis, CircleSlash, Milestone, ShieldBan, FileType, CirclePlus } from 'lucide-react';
 
 export default function Profile() {
   const { id } = useParams();
@@ -249,7 +249,7 @@ export default function Profile() {
     { key: 'listings', label: 'Listings', icon: LayoutPanelLeft, count: listings.length },
     { key: 'posts', label: 'Posts', icon: ImageIcon, count: posts.length },
     { key: 'reviews', label: 'Reviews', icon: Sparkle, count: reviews.length },
-    ...(isOwn ? [{ key: 'likes', label: 'Likes', icon: ThumbsUp, count: null }] : []),
+    ...(isOwn ? [{ key: 'likes', label: 'Likes', icon: Flame, count: null }] : []),
   ];
 
   return (
@@ -503,7 +503,7 @@ export default function Profile() {
                 {likedPosts.map((post) => <PostTile key={post.id} post={post} showAuthor onOpen={setViewingPost} />)}
               </div>
             </>
-          ) : <EmptyTab icon={ThumbsUp} text="Posts you like will appear here" />
+          ) : <EmptyTab icon={Flame} text="Posts you like will appear here" />
         )}
       </div>
 
@@ -576,7 +576,7 @@ export default function Profile() {
                     viewingPost.likedByCurrentUser ? 'text-[#FF00FF]' : 'hover:text-white'
                   }`}
                 >
-                  <ThumbsUp className={`w-4 h-4 ${viewingPost.likedByCurrentUser ? 'fill-[#FF00FF]' : ''}`} />
+                  <Flame className={`w-4 h-4 ${viewingPost.likedByCurrentUser ? 'fill-[#FF00FF]' : ''}`} />
                   {viewingPost.likesCount || 0}
                 </button>
 
@@ -792,7 +792,7 @@ function PostTile({ post, showAuthor = false, onOpen }) {
       {/* Hover overlay with like/comment counts */}
       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5">
         <div className="flex items-center gap-4 text-white text-sm font-bold">
-          <span className="flex items-center gap-1.5"><ThumbsUp className="w-4 h-4 fill-white" /> {post.likesCount || 0}</span>
+          <span className="flex items-center gap-1.5"><Flame className="w-4 h-4 fill-white" /> {post.likesCount || 0}</span>
           <span className="flex items-center gap-1.5"><MessageCircleMore className="w-4 h-4 fill-white" /> {post.commentsCount || 0}</span>
         </div>
         {showAuthor && post.authorName && (

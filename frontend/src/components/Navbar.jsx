@@ -9,7 +9,7 @@ import GlobalSearch from './GlobalSearch';
 import { timeAgo } from '../utils/time';
 import { displayName } from '../utils/displayName';
 import PendingSalesButton from './PendingSalesButton';
-import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, Bell, CheckCheck, MoreHorizontal, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
+import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, BellRing, CheckCheck, MoreHorizontal, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { uploadUrl } from '../config';
 
@@ -180,7 +180,7 @@ export default function Navbar() {
           </div>
         ) : notifications.length === 0 ? (
           <div className="py-10 text-center">
-            <Bell className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+            <BellRing className="w-8 h-8 text-gray-700 mx-auto mb-2" />
             <p className="text-xs text-gray-500 font-semibold">No notifications yet</p>
           </div>
         ) : (
@@ -334,7 +334,7 @@ export default function Navbar() {
                       notifOpen ? 'text-[#CDFF00] bg-white/5' : 'text-gray-500 hover:text-[#CDFF00] hover:bg-white/5'
                     }`}
                   >
-                    <Bell className="w-4 h-4" />
+                    <BellRing className="w-4 h-4" />
                     {unread > 0 && (
                       <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-0.5 text-[8px] font-black text-black bg-[#FF00FF] rounded-full ring-2 ring-black">
                         {unread > 9 ? '9+' : unread}
@@ -429,7 +429,7 @@ export default function Navbar() {
                       notifOpen ? 'text-[#CDFF00] bg-[#CDFF00]/10' : 'text-gray-400 hover:text-[#CDFF00] hover:bg-white/5'
                     }`}
                   >
-                    <Bell className="w-4.5 h-4.5" />
+                    <BellRing className="w-4.5 h-4.5" />
                     {unread > 0 && (
                       <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[14px] h-[14px] px-0.5 text-[8px] font-black text-white bg-[#FF00FF] rounded-full ring-2 ring-black shadow-[0_0_8px_rgba(255,0,255,0.6)]">
                         {unread > 9 ? '9+' : unread}

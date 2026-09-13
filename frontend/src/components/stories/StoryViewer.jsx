@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CircleX, Volume1, VolumeOff, CircleChevronLeft, CircleChevronRight, ThumbsUp, Share2, CirclePlay, CirclePause, Rewind, FastForward, SendHorizontal, CircleUserRound, ShieldCheck, Eraser, ScanEye } from 'lucide-react';
+import { CircleX, Volume1, VolumeOff, CircleChevronLeft, CircleChevronRight, Flame, Share2, CirclePlay, CirclePause, Rewind, FastForward, SendHorizontal, CircleUserRound, ShieldCheck, Eraser, ScanEye } from 'lucide-react';
 import ShareModal from '../ShareModal';
 import { lockBodyScroll } from '../../utils/lockBodyScroll';
 import { storiesApi, dispatchToast } from '../../api/client';
@@ -365,7 +365,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
               onClick={toggleLike}
               className={`w-12 h-12 rounded-full backdrop-blur-xl border border-white/10 flex items-center justify-center transition-all ${currentStory.likedByCurrentUser ? 'bg-red-500/20 border-red-500/40 text-red-500' : 'bg-black/40 text-white hover:bg-white/10'}`}
             >
-              <ThumbsUp className={`w-5 h-5 ${currentStory.likedByCurrentUser ? 'fill-current' : ''}`} />
+              <Flame className={`w-5 h-5 ${currentStory.likedByCurrentUser ? 'fill-current' : ''}`} />
             </button>
 
             <button

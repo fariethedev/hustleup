@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { feedApi, listingsApi, subscriptionsApi, communitiesApi, dispatchToast } from '../api/client';
 import { isPremiumActive, isPremiumRequiredError, PLAN_IDS } from '../utils/premium';
-import { ThumbsUp, MessageCircleMore, SendHorizontal, BookmarkCheck, Images as ImageIcon, ShoppingBasket, ShieldCheck, CircleX, Clapperboard, Sparkle, UserRound, Building2, WandSparkles, Box, Drama, LockKeyhole, Gem, Frame, Ellipsis, SquarePen, Eraser, IterationCw, UserCog } from 'lucide-react';
+import { Flame, MessageCircleMore, SendHorizontal, BookmarkCheck, Images as ImageIcon, ShoppingBasket, ShieldCheck, CircleX, Clapperboard, Sparkle, UserRound, Building2, WandSparkles, Box, Drama, LockKeyhole, Gem, Frame, Ellipsis, SquarePen, Eraser, IterationCw, UserCog } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { formatPrice } from '../utils/constants';
 import { useShops } from '../hooks/useShops';
@@ -83,7 +83,7 @@ function CommentRow({ comment, isReply = false, isAuthenticated, onToggleLike, o
               liked ? 'text-red-500' : 'text-gray-500 hover:text-white'
             }`}
           >
-            <ThumbsUp className={`w-3.5 h-3.5 ${liked ? 'fill-red-500' : ''}`} />
+            <Flame className={`w-3.5 h-3.5 ${liked ? 'fill-red-500' : ''}`} />
             {/* Hidden at zero rather than showing "0", which reads as a judgement on the
                 comment instead of an absence of votes. */}
             {count > 0 && <span>{count}</span>}
@@ -115,7 +115,7 @@ function HeartBurst({ show }) {
           transition={{ duration: 0.45 }}
           className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
         >
-          <ThumbsUp className="w-24 h-24 text-white fill-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.5)]" />
+          <Flame className="w-24 h-24 text-white fill-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.5)]" />
         </motion.div>
       )}
     </AnimatePresence>
@@ -233,7 +233,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
         disabled={likeInProgress[post.id]}
         className={`transition-all hover:scale-110 ${post.likedByCurrentUser ? 'text-red-500' : 'text-gray-400 hover:text-white'}`}
       >
-        <ThumbsUp className={`w-6 h-6 ${post.likedByCurrentUser ? 'fill-current' : ''}`} />
+        <Flame className={`w-6 h-6 ${post.likedByCurrentUser ? 'fill-current' : ''}`} />
       </button>
       <button onClick={() => onOpenComments(post)} className="text-gray-400 hover:text-white transition-all hover:scale-110">
         <MessageCircleMore className="w-6 h-6" />
@@ -1711,7 +1711,7 @@ export default function Feed() {
               >
                 <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
                   <h3 className="text-white font-bold text-sm flex items-center gap-2">
-                    <ThumbsUp className="w-4 h-4 text-red-500 fill-red-500" />
+                    <Flame className="w-4 h-4 text-red-500 fill-red-500" />
                     Likes · {likersPost.likesCount || likers.length}
                   </h3>
                   <button onClick={() => setLikersPost(null)} className="p-1.5 rounded-full hover:bg-white/10 text-gray-500 hover:text-white transition-colors">
