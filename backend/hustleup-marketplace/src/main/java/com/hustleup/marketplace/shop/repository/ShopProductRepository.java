@@ -14,7 +14,16 @@ public interface ShopProductRepository extends JpaRepository<ShopProduct, UUID> 
     /** Bulk load for the browse endpoint, so listing N shops doesn't fire N queries. */
     List<ShopProduct> findByShopIdIn(List<UUID> shopIds);
 
-    /** Used when a seller deletes their whole storefront. */
+    /**
+     * Used when a seller deletes their whole storefront.
+     *
+     * <p>{@code @Transactional} here for defense-in-depth, matching every other derived
+     * delete in this codebase, even though the one caller ({@code ShopController#delete})
+     * already carries its own {@code @Transactional} that covers this today. Not depending
+     * on that is the point: {@code RefreshTokenRepository}'s sibling method went unnoticed
+     * for exactly this reason until it broke password resets in production.
+     */
+    @org.springframework.transaction.annotation.Transactional
     void deleteByShopId(UUID shopId);
 
     long countByShopId(UUID shopId);

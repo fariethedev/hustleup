@@ -2,6 +2,7 @@ package com.hustleup.common.repository;
 
 import com.hustleup.common.model.ProfileView;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 /**
@@ -90,9 +91,16 @@ public interface ProfileViewRepository extends JpaRepository<ProfileView, String
      * from a profile owner.
      *
      * <p><b>Important — requires {@code @Transactional}:</b><br>
-     * Spring Data DELETE methods must be called from within a transaction. The calling
-     * service method must be annotated with {@code @Transactional}, or Spring will throw
-     * a {@code TransactionRequiredException} at runtime.
+     * Spring Data DELETE methods must be called from within a transaction. This javadoc
+     * used to describe that as the calling method's responsibility rather than putting
+     * {@code @Transactional} on the repository method itself — and the one caller,
+     * {@code UserController#getProfile}, has no transaction of its own, so this threw
+     * {@code TransactionRequiredException} on every repeat profile view. The exception
+     * landed inside a bare try/catch there and was swallowed rather than surfaced, so the
+     * failure was invisible: the previous view record was never cleared, meaning a viewer
+     * looking at the same profile twice could accumulate rows instead of refreshing one.
+     * Putting {@code @Transactional} on the method itself, as below, means it no longer
+     * depends on the caller remembering to.
      *
      * <p><b>Derived query translation:</b><br>
      * {@code deleteByProfileIdAndViewerId} →
@@ -101,5 +109,6 @@ public interface ProfileViewRepository extends JpaRepository<ProfileView, String
      * @param profileId the profile owner's user ID
      * @param viewerId  the viewing user's ID
      */
+    @Transactional
     void deleteByProfileIdAndViewerId(String profileId, String viewerId);
 }

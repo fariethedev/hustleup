@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MailOpen, Loader, MoveRight, Undo, BadgeCheck } from 'lucide-react';
 import { authApi, dispatchToast } from '../api/client';
@@ -190,6 +190,16 @@ export default function VerifyCode() {
               Confirm email <MoveRight className="w-4 h-4" />
             </button>
 
+            {/* "Skip for now" used to sit here, linking to /dashboard. It was never a real
+                escape hatch — registration withholds the session until the address is
+                confirmed (see the comment on `submit` above), so a token-less visitor
+                clicking it just bounced off ProtectedRoute back to /register. What it
+                actually did was suggest confirmation was optional, right above the one
+                screen whose entire job is to make sure it isn't. Removed rather than fixed,
+                because there is no legitimate case for a signed-up account that never
+                confirms its address: verification is what proves the email can receive
+                mail at all, which every later password reset and every seller payout
+                notice depends on. */}
             <div className="mt-5 flex flex-col items-center gap-2">
               <button
                 onClick={resend}
@@ -199,9 +209,6 @@ export default function VerifyCode() {
                 <Undo className="w-3.5 h-3.5" />
                 {cooldown > 0 ? `Resend in ${cooldown}s` : 'Send a new code'}
               </button>
-              <Link to="/dashboard" className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors">
-                Skip for now
-              </Link>
             </div>
           </>
         )}
