@@ -76,7 +76,7 @@ public class PayoutController {
      * <p><b>POST /api/v1/payouts/connect</b>
      */
     @PostMapping("/connect")
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("@premiumAccess.canSell(authentication)")
     public ResponseEntity<?> connect() {
         try {
             User seller = currentUser();
@@ -101,7 +101,7 @@ public class PayoutController {
      * <p><b>GET /api/v1/payouts/status</b>
      */
     @GetMapping("/status")
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("@premiumAccess.canSell(authentication)")
     public ResponseEntity<?> status() {
         User seller = currentUser();
         Optional<SellerPayoutAccount> account = payoutAccountRepository.findBySellerId(seller.getId());

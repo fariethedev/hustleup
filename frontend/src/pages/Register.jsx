@@ -11,7 +11,7 @@ import FacebookLoginRaw from '@greatsumini/react-facebook-login';
 const FacebookLogin = FacebookLoginRaw.default || FacebookLoginRaw;
 import { Turnstile } from '@marsidev/react-turnstile';
 import { registerUser, googleLogin, facebookLogin, clearError, selectFieldErrors } from '../store/authSlice';
-import { CircleX, BriefcaseBusiness, ShoppingBasket, Hash, CircleCheck, Loader, ScanEye, EyeClosed, Navigation, MoveRight, MoveLeft, LockKeyhole, CircleUser, PhoneCall, WandSparkles } from 'lucide-react';
+import { CircleX, ShoppingBasket, Hash, CircleCheck, Loader, ScanEye, EyeClosed, Navigation, MoveRight, MoveLeft, LockKeyhole, CircleUser, PhoneCall, WandSparkles } from 'lucide-react';
 import { POLISH_CITIES } from '../utils/constants';
 import { authApi } from '../api/client';
 import PasswordStrength from '../components/PasswordStrength';
@@ -20,11 +20,6 @@ import { isValidPassword, passwordError } from '../utils/password';
 const GoogleIcon = (props) => <svg viewBox="0 0 24 24" {...props}><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>;
 const AppleIcon = (props) => <svg viewBox="0 0 24 24" {...props}><path fill="currentColor" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.1 1 1.12-.42 2.15-1.12 3.63-.97 1.94.12 3.41 1.02 4.13 2.62-3.83 2-3.03 7.33.69 8.65a7.18 7.18 0 0 1-3.5 1.67zm-3.16-15.01c-.13-2.68 2.24-4.8 4.67-5.27.35 2.89-2.5 5.25-4.67 5.27z"/></svg>;
 const FacebookIcon = (props) => <svg viewBox="0 0 24 24" {...props}><path fill="currentColor" d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg>;
-
-const roles = [
-  { value: 'BUYER', label: 'Buyer', hint: 'I want to shop & hire', icon: ShoppingBasket },
-  { value: 'SELLER', label: 'Seller', hint: 'I want to sell & earn', icon: BriefcaseBusiness },
-];
 
 /**
  * The three steps, in order.
@@ -450,28 +445,18 @@ export default function Register() {
                   transition={{ duration: 0.2 }}
                   className="space-y-3.5"
                 >
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-300 mb-1.5">I want to join as</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {roles.map((role) => (
-                        <button
-                          key={role.value}
-                          type="button"
-                          onClick={() => set('role', role.value)}
-                          className={`p-3 rounded-xl border text-left transition-all flex items-center gap-2.5 outline-none min-w-0 ${
-                            form.role === role.value
-                              ? 'border-[#CDFF00] bg-[#CDFF00]/10 text-white'
-                              : 'border-white/10 bg-white/5 text-gray-400 hover:border-white/25'
-                          }`}
-                        >
-                          <role.icon className={`w-5 h-5 shrink-0 ${form.role === role.value ? 'text-[#CDFF00]' : 'text-gray-500'}`} />
-                          <span className="min-w-0">
-                            <span className="block text-sm font-bold leading-tight">{role.label}</span>
-                            <span className="block text-[11px] text-gray-500 leading-tight">{role.hint}</span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                  {/* The buyer/seller choice used to live here. It forced a decision nobody
+                      could make yet — and because an account was one or the other, anyone who
+                      wanted to do both needed a second account, which means a second email
+                      address. One account now does both; selling switches on with a
+                      subscription, so there is nothing to pick at signup. */}
+                  <div className="flex items-start gap-2.5 p-3 rounded-xl border border-[#CDFF00]/25 bg-[#CDFF00]/[0.06]">
+                    <ShoppingBasket className="w-4 h-4 text-[#CDFF00] shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-gray-300 leading-relaxed min-w-0">
+                      <span className="font-bold text-white">One account does everything.</span>{' '}
+                      Buy, hire and browse straight away. When you want to sell, open a shop or
+                      use Bond, turn it on from Settings — no second account, no second email.
+                    </p>
                   </div>
 
                   <div>
@@ -595,7 +580,7 @@ export default function Register() {
                       { label: 'Email', value: form.email },
                       { label: 'Name', value: form.fullName },
                       { label: 'Username', value: form.username ? `@${form.username}` : '' },
-                      { label: 'Joining as', value: form.role === 'SELLER' ? 'Seller' : 'Buyer' },
+                      // "Joining as" is gone with the picker — there is only one kind of account.
                       { label: 'City', value: form.city || 'Not set' },
                       { label: 'Phone', value: form.phone || 'Not set' },
                     ].map((row) => (

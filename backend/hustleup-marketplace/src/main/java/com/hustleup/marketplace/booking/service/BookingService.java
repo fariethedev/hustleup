@@ -213,6 +213,43 @@ public class BookingService {
     }
 
     /**
+     * Everything at once: in-app, email and push.
+     *
+     * <p>Sale events used to be in-app only, which meant a seller heard about a new order
+     * exactly when they next opened the site. That is the wrong medium for the one class of
+     * notification that costs money to miss — a buyer waiting on an unanswered booking request
+     * goes elsewhere, and an unshipped paid order becomes a refund. Payment-received already
+     * went out by email through ShipmentService; the rest did not, and the split was an
+     * accident of which code path happened to be written first rather than a decision about
+     * which events matter.
+     *
+     * <p>Each channel is independently best-effort, so a bounced address cannot stop the
+     * in-app record being written, and none of them can fail the booking that triggered them.
+     *
+     * @param type drives the frontend's negotiation popup — see {@link #notifyInApp}
+     */
+    private void notifyEverywhere(UUID userId, String title, String message, String type, UUID referenceId) {
+        notifyInApp(userId, title, message, type, referenceId);
+        notifyByEmail(userId, title,
+                "<p>" + escapeHtml(message) + "</p>"
+                        + "<p>Open your HustleSpace dashboard to act on it.</p>");
+        notifyByPush(userId, title, message);
+    }
+
+    /**
+     * Escapes a message before it goes into an HTML mail body.
+     *
+     * <p>These strings carry user-supplied text — listing titles and display names — so
+     * without this a listing called {@code <b>} would arrive as markup, and a hostile one
+     * could inject a link into an email sent under your own domain.
+     */
+    private static String escapeHtml(String text) {
+        return text == null ? "" : text
+                .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;");
+    }
+
+    /**
      * Creates a new booking request from the authenticated buyer for a specific listing.
      *
      * <p><b>Validation rules:</b>
@@ -350,7 +387,7 @@ public class BookingService {
                     .status(BookingStatus.BOOKED)
                     .build();
             Booking saved = bookingRepository.save(booking);
-            notifyInApp(listing.getSellerId(),
+            notifyEverywhere(listing.getSellerId(),
                     "New order: " + listing.getTitle(),
                     "You have a new order to fulfil — payment is being taken now.",
                     "BOOKING_REQUEST", saved.getId());
@@ -380,7 +417,7 @@ public class BookingService {
         // (accept/decline/counter) hinges on them seeing it, so it's the one booking event that
         // gets a dedicated notification type the frontend's real-time popup polls for.
         String buyerName = buyer.displayName();
-        notifyInApp(listing.getSellerId(),
+        notifyEverywhere(listing.getSellerId(),
                 buyerName + " wants to book " + listing.getTitle(),
                 buyerName + " offered " + offer + " " + listing.getCurrency() + " for \"" + listing.getTitle() + "\".",
                 "BOOKING_REQUEST", saved.getId());
@@ -558,7 +595,7 @@ public class BookingService {
         String listingTitle = listingRepository.findById(booking.getListingId())
                 .map(Listing::getTitle).orElse("your booking");
         String sellerName = seller.displayName();
-        notifyInApp(booking.getBuyerId(),
+        notifyEverywhere(booking.getBuyerId(),
                 sellerName + " countered on " + listingTitle,
                 sellerName + " proposed " + counterPrice + " " + booking.getCurrency() + " for \"" + listingTitle + "\".",
                 "BOOKING_COUNTER", saved.getId());
@@ -641,7 +678,7 @@ public class BookingService {
             // Let whichever party didn't just click "accept" know their offer/counter went
             // through — closes the loop on the negotiation popup for both sides.
             UUID otherParty = user.getId().equals(booking.getBuyerId()) ? booking.getSellerId() : booking.getBuyerId();
-            notifyInApp(otherParty, "Booking confirmed: " + listingTitle,
+            notifyEverywhere(otherParty, "Booking confirmed: " + listingTitle,
                     listingTitle + " is confirmed at " + agreed + " " + booking.getCurrency() + ".",
                     "BOOKING_ACCEPTED", saved.getId());
 

@@ -258,7 +258,12 @@ public class AuthController {
                 // grouping by city would otherwise split the same absence into two buckets.
                 .city(request.getCity() == null || request.getCity().isBlank()
                         ? null : request.getCity().trim())
-                .role(Role.valueOf(request.getRole())) // convert "BUYER"/"SELLER" string to enum
+                // Everyone starts the same. The role no longer decides what you may do —
+                // selling is granted by an active subscription (PremiumAccess.canSell), so a
+                // single account both buys and sells and nobody needs a second email address.
+                // Whatever the client sent is ignored; a client asking for SELLER would
+                // otherwise hand out selling for free.
+                .role(Role.BUYER)
                 .termsAcceptedAt(Instant.now().atZone(java.time.ZoneOffset.UTC).toLocalDateTime())
                 .build();
 

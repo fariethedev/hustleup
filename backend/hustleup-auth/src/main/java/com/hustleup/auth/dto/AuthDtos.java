@@ -122,9 +122,21 @@ public class AuthDtos {
 
         // @Pattern restricts the value to a specific regex. This ensures the client
         // cannot create an account with an unsupported role (e.g., "ADMIN").
-        @NotBlank(message = "Role is required")
-        @Pattern(regexp = "BUYER|SELLER", message = "Role must be BUYER or SELLER")
-        private String role; // account type: "BUYER" or "SELLER" — stored as enum in the DB
+        /**
+         * Ignored. Accepted only so already-deployed clients that still send it keep working.
+         *
+         * <p>There used to be one account per role, so anyone who wanted to both buy and sell
+         * needed two of them — and, because email is the unique key, two email addresses.
+         * Most people have one. Everybody now gets the same account, and selling is unlocked
+         * by subscribing rather than chosen at signup; see
+         * {@code PremiumAccess.canSell}.
+         *
+         * <p>Deliberately still a field rather than a removed one: dropping it outright would
+         * have made every request from the live web build fail validation the moment this
+         * deployed, which is the same mistake the username field already made here once.
+         */
+        @Pattern(regexp = "^$|BUYER|SELLER", message = "Role must be BUYER or SELLER")
+        private String role;
 
         // Cloudflare Turnstile response token from the frontend widget. Optional at the
         // DTO level — TurnstileService only enforces it once TURNSTILE_SECRET_KEY is set,

@@ -54,7 +54,7 @@ public class AvailabilityController {
      * (both times ISO-8601 local datetime). Seller must own the listing.
      */
     @PostMapping
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("@premiumAccess.canSell(authentication)")
     public ResponseEntity<AvailabilityDto> create(@RequestBody Map<String, String> body) {
         User seller = currentUser();
         UUID listingId = UUID.fromString(body.get("listingId"));
@@ -93,7 +93,7 @@ public class AvailabilityController {
      * <p><b>GET /api/v1/availability/my</b>
      */
     @GetMapping("/my")
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("@premiumAccess.canSell(authentication)")
     public ResponseEntity<List<AvailabilityDto>> my() {
         User seller = currentUser();
         List<Availability> slots = availabilityRepository.findBySellerIdOrderByStartTimeAsc(seller.getId());
@@ -118,7 +118,7 @@ public class AvailabilityController {
      * <p><b>DELETE /api/v1/availability/{id}</b>
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("@premiumAccess.canSell(authentication)")
     public ResponseEntity<?> delete(@PathVariable UUID id) {
         User seller = currentUser();
         Availability slot = availabilityRepository.findById(id)

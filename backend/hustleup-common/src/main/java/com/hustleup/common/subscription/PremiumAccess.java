@@ -1,7 +1,11 @@
 package com.hustleup.common.subscription;
 
+import com.hustleup.common.model.Role;
 import com.hustleup.common.model.Subscription;
+import com.hustleup.common.model.User;
 import com.hustleup.common.repository.SubscriptionRepository;
+import com.hustleup.common.repository.UserRepository;
+import org.springframework.security.core.Authentication;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -46,6 +50,7 @@ public class PremiumAccess {
     public static final String PREMIUM_PLAN = "VERIFIED";
 
     private final SubscriptionRepository subscriptionRepository;
+    private final UserRepository userRepository;
 
     /**
      * Whether this account can use Premium-only features right now.
@@ -99,6 +104,38 @@ public class PremiumAccess {
      * The plan rule itself, split out so it can be unit-tested without a database and reused
      * anywhere a {@link Subscription} is already in hand.
      */
+    /**
+     * Whether the caller may sell: list items, set availability and take payouts.
+     *
+     * <p>Referenced from {@code @PreAuthorize("@premiumAccess.canSell(authentication)")}, which
+     * replaced {@code hasRole('SELLER')}. Selling used to be a property of the account you
+     * chose at signup, so anyone who wanted to both buy and sell needed two accounts and
+     * therefore two email addresses. There is now one kind of account, and selling is
+     * something you switch on by subscribing.
+     *
+     * <h3>The legacy clause is deliberate</h3>
+     * Fourteen accounts carried the SELLER role before this changed and only two of them had a
+     * subscription, while nine had live listings. Gating purely on payment would have locked
+     * twelve people out of their own shops overnight, including out of the payout screen where
+     * money they had already earned was waiting. So an existing SELLER role still counts.
+     *
+     * <p>That clause is temporary by intent, not an accident: it only ever matches accounts
+     * that predate this change, because new accounts are never assigned the role. Delete the
+     * {@code Role.SELLER} branch once those sellers have been asked to subscribe, and the rule
+     * becomes simply "subscribers sell".
+     *
+     * @param auth the Spring Security authentication; its name is the user's email
+     * @return true when the caller may sell
+     */
+    public boolean canSell(Authentication auth) {
+        if (auth == null || auth.getName() == null) return false;
+        User user = userRepository.findByEmail(auth.getName()).orElse(null);
+        if (user == null) return false;
+        // Grandfathered accounts, and admins, who need to be able to act on anything.
+        if (user.getRole() == Role.SELLER || user.getRole() == Role.ADMIN) return true;
+        return isPremium(user.getId());
+    }
+
     public static boolean isActivePremium(Subscription sub) {
         if (sub == null) return false;
         if (!PREMIUM_PLAN.equalsIgnoreCase(sub.getPlan())) return false;
