@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image as ImageIcon } from 'lucide-react';
+import { Images as ImageIcon } from 'lucide-react';
 import { uploadUrl } from '../config';
 
 /**
@@ -48,7 +48,7 @@ export default function SmartImage({
       <div
         role="img"
         aria-label={alt}
-        className={`flex items-center justify-center bg-gradient-to-br from-white/[0.06] to-white/[0.02] ${className} ${fallbackClassName}`}
+        className={`flex items-center justify-center bg-white/[0.04] ${className} ${fallbackClassName}`}
       >
         <FallbackIcon className="w-1/4 h-1/4 max-w-10 max-h-10 min-w-4 min-h-4 text-white/15" />
       </div>

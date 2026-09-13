@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Globe, Camera, MessageCircle, Code, ChevronDown } from 'lucide-react';
+import { Earth, Aperture, MessageCircleMore, Braces, CircleChevronDown } from 'lucide-react';
 import { LISTING_TYPES } from '../utils/constants';
 
 export default function Footer() {
@@ -17,7 +17,7 @@ export default function Footer() {
   return (
     <footer className="py-10 md:py-24 bg-black border-t border-white/5 relative overflow-hidden">
       {/* Background Glows */}
-      <div className="ambient-glow ambient-glow-purple bottom-[-10%] right-[-10%] opacity-10" />
+      <div className="ambient-glow ambient-glow-lime bottom-[-10%] right-[-10%] opacity-10" />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         {/* Mobile toggle. Hidden from md up, where the footer is simply always open. */}
@@ -33,7 +33,7 @@ export default function Footer() {
           </span>
           <span className="flex items-center gap-1.5 text-[10px] font-black tracking-widest text-gray-500">
             {open ? 'Hide' : 'More'}
-            <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+            <CircleChevronDown className={`w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
           </span>
         </button>
 
@@ -51,7 +51,7 @@ export default function Footer() {
               The all-in-one platform where students buy, sell, find gigs and grow their hustle — built by students, for students.
             </p>
             <div className="flex gap-5">
-              {[Globe, Camera, MessageCircle, Code].map((Icon, i) => (
+              {[Earth, Aperture, MessageCircleMore, Braces].map((Icon, i) => (
                 <motion.div key={i} className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-gray-400 hover:text-[#D3FF37] hover:border-[#D3FF37] transition-all cursor-pointer group">
                   <Icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </motion.div>

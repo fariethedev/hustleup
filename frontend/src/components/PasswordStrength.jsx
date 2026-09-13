@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X } from 'lucide-react';
+import { CircleCheck, CircleX } from 'lucide-react';
 import { PASSWORD_RULES, checkRules, passwordStrength } from '../utils/password';
 
 /**
@@ -101,8 +101,8 @@ export default function PasswordStrength({ value = '', visible = true }) {
                       className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 border border-white/10"
                     >
                       {ok
-                        ? <Check className="w-2.5 h-2.5 text-[#CDFF00]" strokeWidth={4} />
-                        : <X className="w-2.5 h-2.5 text-gray-600" strokeWidth={3} />}
+                        ? <CircleCheck className="w-2.5 h-2.5 text-[#CDFF00]" strokeWidth={4} />
+                        : <CircleX className="w-2.5 h-2.5 text-gray-600" strokeWidth={3} />}
                     </motion.span>
                     <span className={ok ? 'text-gray-300 font-semibold' : 'text-gray-500'}>
                       {rule.label}

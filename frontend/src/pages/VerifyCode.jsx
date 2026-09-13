@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MailCheck, Loader2, ArrowRight, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { MailOpen, Loader, MoveRight, Undo, BadgeCheck } from 'lucide-react';
 import { authApi, dispatchToast } from '../api/client';
-import { useDispatch } from 'react-redux';
-import { sessionRestored } from '../store/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { sessionRestored, selectIsAuthenticated, selectUser } from '../store/authSlice';
 
 const LENGTH = 6;
 const RESEND_COOLDOWN = 30; // seconds
@@ -18,16 +18,25 @@ const RESEND_COOLDOWN = 30; // seconds
  *
  * The address is carried in router state from registration, and falls back to a query
  * param so the screen still works if the email is opened on a different device.
+ *
+ * Also reached mid-session by an already-logged-in, unverified account: login no longer
+ * blocks on verification, so VerifyEmailPrompt sends someone here from the exact buy/sell
+ * action that needed it, with `returnTo` so they land back where they were instead of at
+ * onboarding (see `submit` below, which branches on whether a session already existed).
  */
 export default function VerifyCode() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { state } = useLocation();
+  const wasAuthenticated = useSelector(selectIsAuthenticated);
+  const existingUser = useSelector(selectUser);
 
   const email = useMemo(() => {
     if (state?.email) return state.email;
     return new URLSearchParams(window.location.search).get('email') || '';
   }, [state]);
+
+  const returnTo = state?.returnTo || null;
 
   const [digits, setDigits] = useState(Array(LENGTH).fill(''));
   const [submitting, setSubmitting] = useState(false);
@@ -78,21 +87,28 @@ export default function VerifyCode() {
     try {
       const res = await authApi.verifyCode(email, value);
 
-      // Verifying is now what creates the session — registration deliberately withholds it
-      // until the address is confirmed — so the tokens arrive here and have to be stored, or
-      // the person lands on /onboarding signed out and is bounced to the login form.
+      // Verifying issues a fresh session either way, but what to do with it differs:
+      //   - Fresh registration: there was no session yet — registration withholds it until
+      //     the address is confirmed — so this IS the moment the session begins.
+      //   - An already-logged-in account sent here mid-session by VerifyEmailPrompt: replacing
+      //     the stored user with this endpoint's bare {id, email, fullName, role} would drop
+      //     everything else already loaded (avatar, city, ...). Patch just the verified flag
+      //     onto the existing profile instead.
       const { accessToken, refreshToken, role, fullName, userId } = res.data || {};
       if (accessToken) {
         localStorage.setItem('hustleup_token', accessToken);
         if (refreshToken) localStorage.setItem('hustleup_refresh', refreshToken);
-        const userData = { id: userId, email, fullName, role, onboardingCompleted: true };
+        const userData = wasAuthenticated && existingUser
+          ? { ...existingUser, emailVerified: true }
+          : { id: userId, email, fullName, role, onboardingCompleted: true, emailVerified: true };
         localStorage.setItem('hustleup_user', JSON.stringify(userData));
         dispatch(sessionRestored(userData));
       }
 
       setVerified(true);
       dispatchToast(res.data?.alreadyVerified ? 'Already verified' : 'Email confirmed', 'success');
-      setTimeout(() => navigate(accessToken ? '/onboarding' : '/login'), 1200);
+      const dest = !accessToken ? '/login' : wasAuthenticated ? (returnTo || '/dashboard') : '/onboarding';
+      setTimeout(() => navigate(dest), 1200);
     } catch (e) {
       setError(e.response?.data?.error || 'That code is invalid or has expired');
       setDigits(Array(LENGTH).fill(''));
@@ -130,8 +146,8 @@ export default function VerifyCode() {
       >
         <div className="w-14 h-14 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/25 flex items-center justify-center mx-auto mb-5">
           {verified
-            ? <CheckCircle2 className="w-7 h-7 text-[#CDFF00]" />
-            : <MailCheck className="w-7 h-7 text-[#CDFF00]" />}
+            ? <BadgeCheck className="w-7 h-7 text-[#CDFF00]" />
+            : <MailOpen className="w-7 h-7 text-[#CDFF00]" />}
         </div>
 
         <h1 className="text-2xl font-black text-white tracking-tight mb-2">
@@ -174,7 +190,7 @@ export default function VerifyCode() {
             <div className="h-6 mb-3">
               {submitting && (
                 <span className="inline-flex items-center gap-2 text-xs text-gray-400 font-bold">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Checking…
+                  <Loader className="w-3.5 h-3.5 animate-spin" /> Checking…
                 </span>
               )}
               {error && !submitting && (
@@ -187,21 +203,28 @@ export default function VerifyCode() {
               disabled={code.length !== LENGTH || submitting}
               className="w-full py-3.5 rounded-2xl bg-[#CDFF00] text-black font-black text-xs tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all"
             >
-              Confirm email <ArrowRight className="w-4 h-4" />
+              Confirm email <MoveRight className="w-4 h-4" />
             </button>
 
+            {/* "Skip for now" used to sit here, linking to /dashboard. It was never a real
+                escape hatch — registration withholds the session until the address is
+                confirmed (see the comment on `submit` above), so a token-less visitor
+                clicking it just bounced off ProtectedRoute back to /register. What it
+                actually did was suggest confirmation was optional, right above the one
+                screen whose entire job is to make sure it isn't. Removed rather than fixed,
+                because there is no legitimate case for a signed-up account that never
+                confirms its address: verification is what proves the email can receive
+                mail at all, which every later password reset and every seller payout
+                notice depends on. */}
             <div className="mt-5 flex flex-col items-center gap-2">
               <button
                 onClick={resend}
                 disabled={cooldown > 0}
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <Undo className="w-3.5 h-3.5" />
                 {cooldown > 0 ? `Resend in ${cooldown}s` : 'Send a new code'}
               </button>
-              <Link to="/dashboard" className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors">
-                Skip for now
-              </Link>
             </div>
           </>
         )}

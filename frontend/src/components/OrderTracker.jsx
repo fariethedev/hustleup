@@ -1,4 +1,4 @@
-import { Check, Copy, ExternalLink, MapPin, CalendarClock, Truck, Ban } from 'lucide-react';
+import { CircleCheck, ClipboardCopy, SquareArrowOutUpRight, Navigation, CalendarRange, Forklift, CircleSlash } from 'lucide-react';
 import { useState } from 'react';
 import {
   getMethod, stepsFor, stepLabel, stepIndex, isComplete, trackingLink,
@@ -30,7 +30,7 @@ export default function OrderTracker({ fulfilment, compact = false }) {
   if (status === 'CANCELLED') {
     return (
       <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-2 text-[10px] font-black tracking-widest text-red-400">
-        <Ban className="w-3.5 h-3.5" /> Delivery cancelled
+        <CircleSlash className="w-3.5 h-3.5" /> Delivery cancelled
       </div>
     );
   }
@@ -53,7 +53,7 @@ export default function OrderTracker({ fulfilment, compact = false }) {
     <div className="mt-3 pt-3 border-t border-white/5">
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-1.5 text-[9px] font-black tracking-[0.2em] text-gray-500">
-          {meta?.icon ? <meta.icon className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
+          {meta?.icon ? <meta.icon className="w-3.5 h-3.5" /> : <Forklift className="w-3.5 h-3.5" />}
           {meta?.label || 'Delivery'}
         </div>
         <span className={`text-[9px] font-black tracking-[0.2em] ${done ? 'text-emerald-400' : 'text-[#CDFF00]'}`}>
@@ -77,7 +77,7 @@ export default function OrderTracker({ fulfilment, compact = false }) {
                       : 'bg-transparent border-white/15'
                   }`}
                 >
-                  {reached && <Check className="w-2.5 h-2.5 text-black" strokeWidth={4} />}
+                  {reached && <CircleCheck className="w-2.5 h-2.5 text-black" strokeWidth={4} />}
                 </div>
                 {!isLast && (
                   <div className={`flex-1 h-0.5 transition-colors ${i < current ? 'bg-[#CDFF00]' : 'bg-white/10'}`} />
@@ -110,7 +110,7 @@ export default function OrderTracker({ fulfilment, compact = false }) {
               title="Copy tracking number"
               className="p-1 rounded hover:bg-white/10 text-gray-500 hover:text-white transition-colors"
             >
-              {copied ? <Check className="w-3 h-3 text-[#CDFF00]" /> : <Copy className="w-3 h-3" />}
+              {copied ? <CircleCheck className="w-3 h-3 text-[#CDFF00]" /> : <ClipboardCopy className="w-3 h-3" />}
             </button>
             {/* Only ever a link we can build with confidence — sending someone to a guessed
                 carrier's 404 is worse than showing them a number they can paste themselves. */}
@@ -121,7 +121,7 @@ export default function OrderTracker({ fulfilment, compact = false }) {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-[#CDFF00] hover:underline"
               >
-                Track <ExternalLink className="w-3 h-3" />
+                Track <SquareArrowOutUpRight className="w-3 h-3" />
               </a>
             )}
           </span>
@@ -129,14 +129,14 @@ export default function OrderTracker({ fulfilment, compact = false }) {
 
         {fulfilment.dropoffPoint && (
           <span className="flex items-center gap-1.5 min-w-0">
-            <MapPin className="w-3 h-3 text-gray-600 shrink-0" />
+            <Navigation className="w-3 h-3 text-gray-600 shrink-0" />
             <span className="text-gray-300 truncate">{fulfilment.dropoffPoint}</span>
           </span>
         )}
 
         {fulfilment.estimatedDelivery && !done && (
           <span className="flex items-center gap-1.5">
-            <CalendarClock className="w-3 h-3 text-gray-600" />
+            <CalendarRange className="w-3 h-3 text-gray-600" />
             <span className="text-gray-300">
               Expected {new Date(fulfilment.estimatedDelivery).toLocaleDateString()}
             </span>

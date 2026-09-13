@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldX } from 'lucide-react';
 
 /**
  * Renders a ticket's QR code as an inline SVG.
@@ -55,7 +55,7 @@ export default function TicketQr({ value, size = 220, dimmed = false }) {
         style={{ width: size, height: size }}
         className="rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center gap-2 px-4 text-center"
       >
-        <ShieldAlert className="w-6 h-6 text-gray-500" />
+        <ShieldX className="w-6 h-6 text-gray-500" />
         <p className="text-[10px] font-bold text-gray-500 leading-snug">
           Couldn't draw the QR code — read out the ticket code below instead.
         </p>

@@ -258,7 +258,12 @@ public class AuthController {
                 // grouping by city would otherwise split the same absence into two buckets.
                 .city(request.getCity() == null || request.getCity().isBlank()
                         ? null : request.getCity().trim())
-                .role(Role.valueOf(request.getRole())) // convert "BUYER"/"SELLER" string to enum
+                // Everyone starts the same. The role no longer decides what you may do —
+                // selling is granted by an active subscription (PremiumAccess.canSell), so a
+                // single account both buys and sells and nobody needs a second email address.
+                // Whatever the client sent is ignored; a client asking for SELLER would
+                // otherwise hand out selling for free.
+                .role(Role.BUYER)
                 .termsAcceptedAt(Instant.now().atZone(java.time.ZoneOffset.UTC).toLocalDateTime())
                 .build();
 
@@ -332,25 +337,14 @@ public class AuthController {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Checked after the password, deliberately: answering "verify your email" to an
-        // unauthenticated guess would confirm the address has an account here.
-        //
-        // The response names the address and sets a flag rather than just refusing, so the
-        // client can send the person to the code screen instead of leaving them at a login
-        // form that will keep rejecting a password they know is right. Accounts that predate
-        // verification, and OAuth accounts (verified by the provider), are unaffected.
-        if (!user.isEmailVerified() && emailService.isDeliverable()) {
-            try {
-                issueVerificationCode(user);
-            } catch (Exception e) {
-                log.warn("Could not re-issue a verification code for {}: {}", user.getEmail(), e.getMessage());
-            }
-            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).body(Map.of(
-                    "error", "Confirm your email address to finish signing up. We've sent you a new code.",
-                    "verificationRequired", true,
-                    "email", user.getEmail()));
-        }
-
+        // Login itself no longer blocks on this. It used to refuse any unverified account at
+        // the door — but every account created before verification existed also has
+        // emailVerified = false, since there was nothing to backfill it from, so that check
+        // was locking out the entire pre-existing user base the moment mail delivery went
+        // live, not just people mid-signup. The flag now rides in the response instead: the
+        // client can show a non-blocking prompt, and the buy/sell actions that actually need
+        // a reachable address enforce it themselves at the moment they're used (see
+        // EmailVerificationGuard on the marketplace side).
         return buildAuthResponse(auth, user);
     }
 
@@ -855,6 +849,7 @@ public class AuthController {
                 .fullName(user.getFullName())
                 .userId(user.getId().toString())  // UUID as string for JSON compatibility
                 .avatarUrl(user.getAvatarUrl())
+                .emailVerified(user.isEmailVerified())
                 .build());
     }
 }

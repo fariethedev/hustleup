@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Mail, Receipt, ShieldCheck } from 'lucide-react';
+import { BadgeCheck, AtSign, ScrollText, ShieldPlus } from 'lucide-react';
 import { formatPrice } from '../utils/constants';
 import { useShopProduct } from '../hooks/useShops';
 
@@ -45,7 +45,7 @@ export default function ShopConfirmation() {
       <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="rounded-[2.5rem] border border-white/10 bg-[#111111] p-8 sm:p-10">
         <div className="text-center mb-10">
           <div className="w-20 h-20 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 text-[#CDFF00] flex items-center justify-center mx-auto mb-5">
-            <CheckCircle2 className="w-10 h-10" />
+            <BadgeCheck className="w-10 h-10" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-heading font-extrabold text-white">Order Ready For Payment Integration</h1>
           <p className="text-gray-400 mt-3 max-w-2xl mx-auto">
@@ -76,19 +76,19 @@ export default function ShopConfirmation() {
 
           <div className="rounded-[1.75rem] border border-white/10 bg-black/50 p-6">
             <div className="flex items-center gap-2 text-[#CDFF00] text-sm font-black tracking-[0.22em]">
-              <Receipt className="w-4 h-4" /> Next integrations
+              <ScrollText className="w-4 h-4" /> Next integrations
             </div>
             <div className="mt-5 space-y-4 text-sm text-gray-400">
               <div className="flex items-start gap-3">
-                <ShieldCheck className="w-4 h-4 text-[#CDFF00] mt-0.5 shrink-0" />
+                <ShieldPlus className="w-4 h-4 text-[#CDFF00] mt-0.5 shrink-0" />
                 <span>Hook PayPal checkout sessions or payment intents into the final submit action.</span>
               </div>
               <div className="flex items-start gap-3">
-                <ShieldCheck className="w-4 h-4 text-[#CDFF00] mt-0.5 shrink-0" />
+                <ShieldPlus className="w-4 h-4 text-[#CDFF00] mt-0.5 shrink-0" />
                 <span>Add BLIK, Apple Pay, and direct card availability inside the payment-method layer.</span>
               </div>
               <div className="flex items-start gap-3">
-                <Mail className="w-4 h-4 text-[#CDFF00] mt-0.5 shrink-0" />
+                <AtSign className="w-4 h-4 text-[#CDFF00] mt-0.5 shrink-0" />
                 <span>Trigger confirmation emails for buyer and seller after successful payment or negotiation approval.</span>
               </div>
             </div>

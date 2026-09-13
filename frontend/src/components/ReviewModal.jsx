@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Star, X, Loader2 } from 'lucide-react';
+import { Sparkle, CircleX, Loader } from 'lucide-react';
 
 /**
  * The rating dialog shown when a transaction is finished.
@@ -68,7 +68,7 @@ export default function ReviewModal({
             aria-label="Close"
             className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-500 hover:bg-white/10 hover:text-white transition-colors"
           >
-            <X className="w-4 h-4" />
+            <CircleX className="w-4 h-4" />
           </button>
         )}
 
@@ -89,7 +89,7 @@ export default function ReviewModal({
               aria-label={`${n} star${n === 1 ? '' : 's'}`}
               className="p-1 transition-transform hover:scale-110 active:scale-95"
             >
-              <Star
+              <Sparkle
                 className={`w-8 h-8 transition-colors ${
                   n <= shown ? 'fill-[#CDFF00] text-[#CDFF00]' : 'text-white/20'
                 }`}
@@ -118,7 +118,7 @@ export default function ReviewModal({
           disabled={busy}
           className="w-full mt-4 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {busy ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : submitLabel}
+          {busy ? <><Loader className="w-4 h-4 animate-spin" /> Saving…</> : submitLabel}
         </button>
       </motion.div>
     </div>

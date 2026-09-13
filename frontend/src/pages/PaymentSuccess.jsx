@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Crown, Loader2, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Gem, Loader, BadgeCheck, CircleAlert, MoveRight } from 'lucide-react';
 import { subscriptionsApi } from '../api/client';
 
 /**
@@ -51,22 +51,22 @@ export default function PaymentSuccess() {
 
   const view = {
     confirming: {
-      icon: <Loader2 className="w-8 h-8 text-black animate-spin" />,
+      icon: <Loader className="w-8 h-8 text-black animate-spin" />,
       title: 'Confirming your payment',
       body: 'One moment while we activate your account.',
     },
     active: {
-      icon: <Crown className="w-8 h-8 text-black" />,
+      icon: <Gem className="w-8 h-8 text-black" />,
       title: 'Premium is active',
       body: 'Bond, priority placement and the rest of the paid features are unlocked on your account.',
     },
     pending: {
-      icon: <CheckCircle2 className="w-8 h-8 text-black" />,
+      icon: <BadgeCheck className="w-8 h-8 text-black" />,
       title: 'Payment received',
       body: 'Your payment is still clearing with the bank. Premium switches on automatically the moment it settles — nothing else for you to do.',
     },
     error: {
-      icon: <AlertCircle className="w-8 h-8 text-black" />,
+      icon: <CircleAlert className="w-8 h-8 text-black" />,
       title: 'We could not confirm this yet',
       body: 'If you were charged, your Premium will still be applied. Contact us if it has not appeared shortly.',
     },
@@ -95,7 +95,7 @@ export default function PaymentSuccess() {
             to="/dashboard"
             className="flex-1 px-6 py-3 rounded-full bg-[#CDFF00] text-black text-sm font-bold hover:brightness-110 active:scale-95 transition-all inline-flex items-center justify-center gap-2"
           >
-            Go to dashboard <ArrowRight className="w-4 h-4" />
+            Go to dashboard <MoveRight className="w-4 h-4" />
           </Link>
           <Link
             to="/explore"

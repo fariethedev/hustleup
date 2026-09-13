@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link as LinkIcon, X, Check, Send, Search } from 'lucide-react';
+import { Link2Off as LinkIcon, CircleX, CircleCheck, SendHorizontal, ScanSearch } from 'lucide-react';
 import { directMessagesApi, usersApi } from '../api/client';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../store/authSlice';
@@ -129,7 +129,7 @@ export default function ShareModal({ type, item, onClose }) {
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
           <h2 className="text-base font-bold text-white">{heading}</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
-            <X className="w-5 h-5" />
+            <CircleX className="w-5 h-5" />
           </button>
         </div>
 
@@ -159,7 +159,7 @@ export default function ShareModal({ type, item, onClose }) {
               onClick={handleCopyLink}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-sm font-semibold text-white"
             >
-              {linkCopied ? <Check className="w-4 h-4 text-[#CDFF00]" /> : <LinkIcon className="w-4 h-4 text-gray-400" />}
+              {linkCopied ? <CircleCheck className="w-4 h-4 text-[#CDFF00]" /> : <LinkIcon className="w-4 h-4 text-gray-400" />}
               {linkCopied ? 'Link copied' : 'Copy link'}
             </button>
           </div>
@@ -168,7 +168,7 @@ export default function ShareModal({ type, item, onClose }) {
         {/* Search */}
         <div className="px-5 pt-4 shrink-0">
           <div className="relative">
-            <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <ScanSearch className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
@@ -209,7 +209,7 @@ export default function ShareModal({ type, item, onClose }) {
                       sent ? 'bg-white/10 text-gray-400' : 'bg-[#CDFF00] text-black hover:brightness-110 active:scale-95 disabled:opacity-60'
                     }`}
                   >
-                    {sent ? <><Check className="w-3.5 h-3.5" /> Sent</> : busy ? 'Sending…' : <><Send className="w-3.5 h-3.5" /> Send</>}
+                    {sent ? <><CircleCheck className="w-3.5 h-3.5" /> Sent</> : busy ? 'Sending…' : <><SendHorizontal className="w-3.5 h-3.5" /> Send</>}
                   </button>
                 </div>
               );

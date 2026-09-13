@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, HandCoins, MessageSquareText, ShoppingBag } from 'lucide-react';
+import { MoveLeft, MoveRight, BadgeDollarSign, MessageSquareDashed, ShoppingBasket } from 'lucide-react';
 import SmartImage from '../components/SmartImage';
 import { formatPrice } from '../utils/constants';
 import { useShopProduct, accentWash } from '../hooks/useShops';
@@ -68,7 +68,7 @@ export default function ShopNegotiation() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
         <Link to={`/shop/${shop.slug || shop.id}`} className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white transition-colors mb-3">
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to {shop.name}
+          <MoveLeft className="w-3.5 h-3.5" /> Back to {shop.name}
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
@@ -78,7 +78,7 @@ export default function ShopNegotiation() {
               <SmartImage
                 src={uploadUrl(product.imageUrl)}
                 alt={product.name}
-                fallbackIcon={ShoppingBag}
+                fallbackIcon={ShoppingBasket}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -89,7 +89,7 @@ export default function ShopNegotiation() {
                     className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black tracking-[0.2em] text-black"
                     style={{ background: shop.accentColor || '#CDFF00' }}
                   >
-                    <ShoppingBag className="w-3 h-3" /> {product.category}
+                    <ShoppingBasket className="w-3 h-3" /> {product.category}
                   </span>
                 )}
                 <span className="ml-auto text-[9px] font-black tracking-widest text-gray-500">{shop.name}</span>
@@ -109,7 +109,7 @@ export default function ShopNegotiation() {
           <div className="rounded-2xl border border-white/10 bg-[#111111] p-4">
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-9 h-9 rounded-xl bg-[#CDFF00] text-black flex items-center justify-center shrink-0">
-                <HandCoins className="w-4.5 h-4.5" />
+                <BadgeDollarSign className="w-4.5 h-4.5" />
               </div>
               <div>
                 <h2 className="text-base font-heading font-extrabold text-white leading-tight">Negotiate Order</h2>
@@ -156,7 +156,7 @@ export default function ShopNegotiation() {
 
               <div className="rounded-xl border border-white/10 bg-black/50 px-4 py-3">
                 <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black tracking-[0.2em] mb-2">
-                  <MessageSquareText className="w-3.5 h-3.5" /> Summary
+                  <MessageSquareDashed className="w-3.5 h-3.5" /> Summary
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-400">
                   <span>Listed total</span>
@@ -175,7 +175,7 @@ export default function ShopNegotiation() {
                 onClick={continueToCheckout}
                 className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#CDFF00] px-5 py-3 text-xs font-black tracking-[0.2em] text-black hover:bg-[#dcff58] active:scale-[0.99] transition-all"
               >
-                Continue To Checkout <ArrowRight className="w-4 h-4" />
+                Continue To Checkout <MoveRight className="w-4 h-4" />
               </button>
             </div>
           </div>

@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  Briefcase, Newspaper, BadgeCheck, Loader2, AlertCircle, Upload, Clock,
-  CheckCircle2, XCircle, ShieldAlert, ArrowLeft
-} from 'lucide-react';
+import { BriefcaseBusiness, BookOpenText, ShieldCheck, Loader, CircleAlert, CloudUpload, Timer, BadgeCheck, OctagonX, ShieldX, MoveLeft } from 'lucide-react';
 import { publishersApi, dispatchToast } from '../api/client';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
@@ -13,22 +10,22 @@ const TYPES = [
   {
     id: 'HIRING_COMPANY',
     name: 'Hiring company',
-    icon: Briefcase,
+    icon: BriefcaseBusiness,
     blurb: 'Post jobs and gigs, and receive applications from the HustleSpace community.',
   },
   {
     id: 'NEWS_OUTLET',
     name: 'News outlet',
-    icon: Newspaper,
+    icon: BookOpenText,
     blurb: 'Publish articles to the News desk under your masthead.',
   },
 ];
 
 const STATUS_UI = {
-  PENDING:   { icon: Clock,       tone: 'text-amber-400 bg-amber-400/10 border-amber-400/20', label: 'Under review' },
-  APPROVED:  { icon: CheckCircle2, tone: 'text-[#CDFF00] bg-[#CDFF00]/10 border-[#CDFF00]/20', label: 'Verified' },
-  REJECTED:  { icon: XCircle,     tone: 'text-red-400 bg-red-400/10 border-red-400/20',       label: 'Not approved' },
-  SUSPENDED: { icon: ShieldAlert, tone: 'text-red-400 bg-red-400/10 border-red-400/20',       label: 'Suspended' },
+  PENDING:   { icon: Timer,       tone: 'text-amber-400 bg-amber-400/10 border-amber-400/20', label: 'Under review' },
+  APPROVED:  { icon: BadgeCheck, tone: 'text-[#CDFF00] bg-[#CDFF00]/10 border-[#CDFF00]/20', label: 'Verified' },
+  REJECTED:  { icon: OctagonX,     tone: 'text-red-400 bg-red-400/10 border-red-400/20',       label: 'Not approved' },
+  SUSPENDED: { icon: ShieldX, tone: 'text-red-400 bg-red-400/10 border-red-400/20',       label: 'Suspended' },
 };
 
 /**
@@ -121,7 +118,7 @@ export default function PublisherApply() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-[#CDFF00]" />
+        <Loader className="w-6 h-6 animate-spin text-[#CDFF00]" />
       </div>
     );
   }
@@ -132,11 +129,11 @@ export default function PublisherApply() {
   return (
     <div className="min-h-screen text-white max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
       <Link to="/jobs" className="inline-flex items-center gap-2 text-[10px] font-black tracking-widest text-gray-500 hover:text-white transition-colors mb-6">
-        <ArrowLeft className="w-4 h-4" /> Back
+        <MoveLeft className="w-4 h-4" /> Back
       </Link>
 
       <div className="flex items-center gap-3 mb-2">
-        <BadgeCheck className="w-7 h-7 text-[#CDFF00]" />
+        <ShieldCheck className="w-7 h-7 text-[#CDFF00]" />
         <h1 className="text-2xl font-black tracking-tight">Get verified</h1>
       </div>
       <p className="text-sm text-gray-500 mb-8">
@@ -249,7 +246,7 @@ export default function PublisherApply() {
                 {logoPreview
                   ? <img src={logoPreview} alt="" className="w-full h-full object-contain p-2" />
                   : <span className="flex flex-col items-center gap-1.5 text-gray-500 group-hover:text-[#CDFF00] transition-colors">
-                      <Upload className="w-4 h-4" />
+                      <CloudUpload className="w-4 h-4" />
                       <span className="text-[9px] font-bold tracking-widest">Upload logo</span>
                     </span>}
               </button>
@@ -260,7 +257,7 @@ export default function PublisherApply() {
               <button onClick={() => docRef.current?.click()}
                       className="w-full h-24 rounded-xl border-2 border-dashed border-white/15 hover:border-[#CDFF00]/50 flex items-center justify-center px-3 text-center transition-colors group">
                 <span className="flex flex-col items-center gap-1.5 text-gray-500 group-hover:text-[#CDFF00] transition-colors">
-                  <Upload className="w-4 h-4" />
+                  <CloudUpload className="w-4 h-4" />
                   <span className="text-[9px] font-bold tracking-widest truncate max-w-full">
                     {document ? document.name : 'Registration / credential'}
                   </span>
@@ -275,7 +272,7 @@ export default function PublisherApply() {
 
           {error && (
             <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+              <CircleAlert className="w-4 h-4 shrink-0" />
               <span className="text-xs font-medium">{error}</span>
             </div>
           )}
@@ -286,8 +283,8 @@ export default function PublisherApply() {
             className="w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {submitting
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>
-              : <><BadgeCheck className="w-4 h-4" /> {current ? 'Resubmit application' : 'Submit application'}</>}
+              ? <><Loader className="w-4 h-4 animate-spin" /> Submitting…</>
+              : <><ShieldCheck className="w-4 h-4" /> {current ? 'Resubmit application' : 'Submit application'}</>}
           </motion.button>
         </div>
       )}

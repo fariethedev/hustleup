@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Volume2, VolumeX, Play, Pause, ChevronLeft, ChevronRight, VideoOff, RotateCcw } from 'lucide-react';
+import { Volume1, VolumeOff, CirclePlay, CirclePause, CircleChevronLeft, CircleChevronRight, CameraOff, Undo } from 'lucide-react';
 
 /**
  * Video in the feed.
@@ -205,7 +205,7 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive }) {
     return (
       <div className="relative w-full h-full bg-black flex items-center justify-center px-6">
         <div className="text-center">
-          <VideoOff className="w-10 h-10 text-white/25 mx-auto mb-3" />
+          <CameraOff className="w-10 h-10 text-white/25 mx-auto mb-3" />
           <p className="text-white/70 text-sm font-bold">This video won&apos;t play</p>
           <p className="text-white/35 text-xs mt-1">It may have been removed, or the upload didn&apos;t finish.</p>
           <button
@@ -218,7 +218,7 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive }) {
             }}
             className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white/10 border border-white/15 text-white text-[11px] font-bold hover:bg-white/15 transition-colors"
           >
-            <RotateCcw className="w-3.5 h-3.5" /> Try again
+            <Undo className="w-3.5 h-3.5" /> Try again
           </button>
         </div>
       </div>
@@ -289,8 +289,8 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive }) {
                   className="w-16 h-16 rounded-full bg-black/45 backdrop-blur-md border border-white/20 flex items-center justify-center"
                 >
                   {isPlaying
-                    ? <Pause className="w-7 h-7 text-white fill-white" />
-                    : <Play className="w-7 h-7 text-white fill-white ml-0.5" />}
+                    ? <CirclePause className="w-7 h-7 text-white fill-white" />
+                    : <CirclePlay className="w-7 h-7 text-white fill-white ml-0.5" />}
                 </motion.span>
               </div>
             )}
@@ -311,7 +311,7 @@ function VideoPlayer({ src, isMuted, onMuteToggle, isActive }) {
         aria-label={isMuted ? 'Unmute' : 'Mute'}
         className="absolute bottom-5 right-4 z-30 w-9 h-9 rounded-full bg-black/50 backdrop-blur-md border border-white/15 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
       >
-        {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+        {isMuted ? <VolumeOff className="w-4 h-4" /> : <Volume1 className="w-4 h-4" />}
       </button>
 
       {/* ── Persistent: progress. A hairline normally, thicker while pointed at or dragged.
@@ -422,7 +422,7 @@ export default function PostMediaGallery({ media = [], className = '' }) {
             aria-label="Previous"
             className="absolute left-4 top-1/2 -translate-y-1/2 z-40 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-2xl hover:bg-white hover:text-black transition-all"
           >
-            <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
+            <CircleChevronLeft className="w-6 h-6 stroke-[2.5]" />
           </button>
         )}
         {media.length > 1 && current < media.length - 1 && (
@@ -431,7 +431,7 @@ export default function PostMediaGallery({ media = [], className = '' }) {
             aria-label="Next"
             className="absolute right-4 top-1/2 -translate-y-1/2 z-40 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-2xl hover:bg-white hover:text-black transition-all"
           >
-            <ChevronRight className="w-6 h-6 stroke-[2.5]" />
+            <CircleChevronRight className="w-6 h-6 stroke-[2.5]" />
           </button>
         )}
 

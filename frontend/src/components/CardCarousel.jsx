@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { CircleChevronLeft, CircleChevronRight, CirclePlay } from 'lucide-react';
 import SmartImage from './SmartImage';
 import { isVideoUrl } from '../utils/media';
 
@@ -152,7 +152,7 @@ export default function CardCarousel({
                 />
                 <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <span className="w-10 h-10 rounded-full bg-black/60 backdrop-blur flex items-center justify-center">
-                    <Play className="w-4 h-4 text-white fill-white" />
+                    <CirclePlay className="w-4 h-4 text-white fill-white" />
                   </span>
                 </span>
               </>
@@ -179,7 +179,7 @@ export default function CardCarousel({
           aria-label="Previous image"
           className="absolute left-1.5 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-black/60 backdrop-blur border border-white/15 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[#CDFF00] hover:text-black transition-all active:scale-90"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <CircleChevronLeft className="w-4 h-4" />
         </button>
       )}
       {active < media.length - 1 && (
@@ -189,7 +189,7 @@ export default function CardCarousel({
           aria-label="Next image"
           className="absolute right-1.5 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-black/60 backdrop-blur border border-white/15 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[#CDFF00] hover:text-black transition-all active:scale-90"
         >
-          <ChevronRight className="w-4 h-4" />
+          <CircleChevronRight className="w-4 h-4" />
         </button>
       )}
 

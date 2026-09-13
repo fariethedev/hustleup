@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, ShieldCheck, Lock, User, Mail, Phone, Loader2, AlertCircle, CreditCard } from 'lucide-react';
+import { MoveLeft, MoveRight, ShieldPlus, LockKeyhole, CircleUserRound, AtSign, PhoneCall, Loader, CircleAlert, WalletCards } from 'lucide-react';
 import { formatPrice } from '../utils/constants';
 import { getMethod } from '../utils/shipping';
 import { useShopProduct } from '../hooks/useShops';
@@ -128,7 +128,7 @@ export default function ShopCheckout() {
           to={`/shop/${shop.slug || shop.id}/product/${product.id}/negotiate`}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white transition-colors mb-4"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to negotiation
+          <MoveLeft className="w-3.5 h-3.5" /> Back to negotiation
         </Link>
 
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
@@ -157,9 +157,9 @@ export default function ShopCheckout() {
                 <h2 className="text-xs font-black text-white tracking-widest mb-1">Your details</h2>
                 <p className="text-[11px] text-gray-500 mb-4">So {shop.name} knows who to deliver to.</p>
                 <div className="space-y-2.5">
-                  {field('fullName', 'Full name', 'text', User)}
-                  {field('email', 'Email address', 'email', Mail)}
-                  {field('phone', 'Phone number (optional)', 'tel', Phone)}
+                  {field('fullName', 'Full name', 'text', CircleUserRound)}
+                  {field('email', 'Email address', 'email', AtSign)}
+                  {field('phone', 'Phone number (optional)', 'tel', PhoneCall)}
                 </div>
               </section>
 
@@ -168,7 +168,7 @@ export default function ShopCheckout() {
               <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
                 <div className="flex items-start gap-3">
                   <span className="w-9 h-9 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/25 flex items-center justify-center shrink-0">
-                    <CreditCard className="w-4 h-4 text-[#CDFF00]" />
+                    <WalletCards className="w-4 h-4 text-[#CDFF00]" />
                   </span>
                   <div className="min-w-0">
                     <h2 className="text-xs font-black text-white tracking-widest">Payment</h2>
@@ -246,7 +246,7 @@ export default function ShopCheckout() {
 
               {error && (
                 <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2 text-red-400">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <CircleAlert className="w-4 h-4 shrink-0 mt-0.5" />
                   <span className="text-xs font-medium">{error}</span>
                 </div>
               )}
@@ -258,8 +258,8 @@ export default function ShopCheckout() {
                 className="mt-4 w-full py-3.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all shadow-[0_8px_24px_rgba(205,255,0,0.22)]"
               >
                 {submitting
-                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Taking you to Stripe…</>
-                  : <>Continue to payment <ArrowRight className="w-3.5 h-3.5" /></>}
+                  ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Taking you to Stripe…</>
+                  : <>Continue to payment <MoveRight className="w-3.5 h-3.5" /></>}
               </button>
 
               {/* This flow now really does charge, so the copy says so. It previously read
@@ -267,7 +267,7 @@ export default function ShopCheckout() {
                   leaving that wording in place would be a lie in the opposite direction. */}
               <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/5">
                 <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black tracking-widest">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Secure checkout
+                  <ShieldPlus className="w-3.5 h-3.5" /> Secure checkout
                 </div>
                 <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
                   Payment is handled by Stripe. Your card details never touch HustleSpace.
@@ -275,7 +275,7 @@ export default function ShopCheckout() {
               </div>
 
               <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-500">
-                <Lock className="w-3 h-3" /> Encrypted checkout powered by Stripe
+                <LockKeyhole className="w-3 h-3" /> Encrypted checkout powered by Stripe
               </div>
             </aside>
           </div>

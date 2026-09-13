@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { notificationsApi, bookingsApi } from '../api/client';
 import { useToast } from '../context/ToastContext';
-import { Handshake, Check, X, PenLine, Loader2 } from 'lucide-react';
+import { HeartHandshake, CircleCheck, CircleX, Signature, Loader } from 'lucide-react';
 
 const ACTIONABLE_TYPES = ['BOOKING_REQUEST', 'BOOKING_COUNTER'];
 const POLL_MS = 8000; // matches the DM partner-list poll interval elsewhere in the app
@@ -172,7 +172,7 @@ export default function BookingAlertListener() {
           >
             <div className="flex items-start gap-3 mb-4">
               <div className="w-11 h-11 rounded-2xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center shrink-0">
-                <Handshake className="w-5 h-5 text-[#CDFF00]" />
+                <HeartHandshake className="w-5 h-5 text-[#CDFF00]" />
               </div>
               <div className="flex-1 min-w-0 pt-0.5">
                 <p className="text-[10px] font-bold text-[#CDFF00] tracking-widest mb-1">
@@ -181,7 +181,7 @@ export default function BookingAlertListener() {
                 <h3 className="text-white font-bold text-sm leading-snug">{alert.title}</h3>
               </div>
               <button onClick={dismiss} className="p-1 -mt-1 -mr-1 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors shrink-0">
-                <X className="w-4 h-4" />
+                <CircleX className="w-4 h-4" />
               </button>
             </div>
 
@@ -216,7 +216,7 @@ export default function BookingAlertListener() {
                     disabled={busy || !counterPrice}
                     className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black text-sm font-bold disabled:opacity-40 hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5"
                   >
-                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send'}
+                    {busy ? <Loader className="w-4 h-4 animate-spin" /> : 'Send'}
                   </button>
                 </div>
               </div>
@@ -227,7 +227,7 @@ export default function BookingAlertListener() {
                   disabled={busy}
                   className="flex-1 py-2.5 rounded-xl border border-white/10 text-gray-300 text-sm font-bold hover:bg-white/5 hover:text-red-400 hover:border-red-400/30 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40"
                 >
-                  <X className="w-4 h-4" /> Decline
+                  <CircleX className="w-4 h-4" /> Decline
                 </button>
                 {isRequest && (
                   <button
@@ -235,7 +235,7 @@ export default function BookingAlertListener() {
                     disabled={busy}
                     className="flex-1 py-2.5 rounded-xl border border-white/10 text-white text-sm font-bold hover:bg-white/5 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40"
                   >
-                    <PenLine className="w-4 h-4" /> Counter
+                    <Signature className="w-4 h-4" /> Counter
                   </button>
                 )}
                 <button
@@ -243,7 +243,7 @@ export default function BookingAlertListener() {
                   disabled={busy}
                   className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black text-sm font-bold disabled:opacity-40 hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5"
                 >
-                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Accept</>}
+                  {busy ? <Loader className="w-4 h-4 animate-spin" /> : <><CircleCheck className="w-4 h-4" /> Accept</>}
                 </button>
               </div>
             )}

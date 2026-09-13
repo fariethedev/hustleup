@@ -147,6 +147,23 @@ public class Listing {
     @Builder.Default
     private BigDecimal shippingPrice = BigDecimal.ZERO;
 
+    /**
+     * Things the seller needs from the buyer before they can fulfil an order, one per line.
+     *
+     * <p>Free text prompts in the seller's own words — "Your shoe size", "Name to print on
+     * the cake", "Gate code for delivery". The buyer answers each at checkout and the
+     * answers land on the booking.
+     *
+     * <p>Newline-separated rather than a child table: these are a handful of short prompts
+     * owned entirely by one listing, never queried across listings, and never joined to.
+     * A table would buy nothing and cost a migration plus a join on every listing read.
+     *
+     * <p>Null or blank means the seller needs nothing beyond the standard contact details,
+     * which is the case for most listings and is why this is not required.
+     */
+    @Column(name = "checkout_fields", columnDefinition = "TEXT")
+    private String checkoutFields;
+
     // --- EVENT-only fields ---
     // When the event actually starts. Null for every other listing type, and null for EVENT
     // listings posted before this field existed. Promoted to a real column rather than living

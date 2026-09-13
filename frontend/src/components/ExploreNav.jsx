@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Compass, LayoutGrid, ShoppingBag, Store, Users } from 'lucide-react';
+import { Map, Grid2x2, ShoppingBasket, Building2, UserRound } from 'lucide-react';
 
 /**
  * The tab bar shared by /explore and every /explore/* browse page.
@@ -10,10 +10,10 @@ import { Compass, LayoutGrid, ShoppingBag, Store, Users } from 'lucide-react';
  * you are and how to get to the other three.
  */
 const TABS = [
-  { to: '/explore', label: 'Overview', icon: LayoutGrid },
-  { to: '/explore/listings', label: 'Listings', icon: ShoppingBag },
-  { to: '/explore/shops', label: 'Shops', icon: Store },
-  { to: '/explore/creators', label: 'Creators', icon: Users },
+  { to: '/explore', label: 'Overview', icon: Grid2x2 },
+  { to: '/explore/listings', label: 'Listings', icon: ShoppingBasket },
+  { to: '/explore/shops', label: 'Shops', icon: Building2 },
+  { to: '/explore/creators', label: 'Creators', icon: UserRound },
 ];
 
 export default function ExploreNav() {
@@ -23,7 +23,7 @@ export default function ExploreNav() {
     <div className="sticky top-14 z-[90] bg-black/85 backdrop-blur-md border-b border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center gap-2 sm:gap-3">
         <span className="hidden sm:flex items-center gap-1.5 text-sm font-black text-white tracking-tighter shrink-0">
-          <Compass className="w-4 h-4 text-[#FF00FF]" /> Explore
+          <Map className="w-4 h-4 text-[#FF00FF]" /> Explore
         </span>
         <div className="hidden sm:block w-px h-5 bg-white/10 shrink-0" />
 

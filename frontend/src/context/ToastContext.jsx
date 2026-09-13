@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, CheckCircle, X } from 'lucide-react';
+import { CircleAlert, CircleCheckBig, CircleX } from 'lucide-react';
 
 const ToastContext = createContext(null);
 
@@ -102,9 +102,9 @@ const Toast = ({ toast, onRemove }) => {
     >
       <div className="shrink-0">
         {isError ? (
-          <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+          <CircleAlert className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         ) : (
-          <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-black" />
+          <CircleCheckBig className="w-5 h-5 sm:w-6 sm:h-6 text-black" />
         )}
       </div>
 
@@ -119,7 +119,7 @@ const Toast = ({ toast, onRemove }) => {
         aria-label="Dismiss notification"
         className={`shrink-0 p-1 rounded-full hover:bg-white/10 transition-colors ${isError ? 'text-white' : 'text-black'}`}
       >
-        <X className="w-4 h-4" />
+        <CircleX className="w-4 h-4" />
       </button>
     </motion.div>
   );

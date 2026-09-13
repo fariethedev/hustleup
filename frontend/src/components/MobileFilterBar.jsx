@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { ScanSearch, ListFilter, CircleX } from 'lucide-react';
 
 /**
  * Mobile-only search and filter controls, collapsed behind two icons.
@@ -51,7 +51,7 @@ export default function MobileFilterBar({
               : 'bg-white/5 border-white/10 text-gray-300'
           }`}
         >
-          <Search className="w-4 h-4" />
+          <ScanSearch className="w-4 h-4" />
         </button>
 
         <button
@@ -64,7 +64,7 @@ export default function MobileFilterBar({
               : 'bg-white/5 border-white/10 text-gray-300'
           }`}
         >
-          <SlidersHorizontal className="w-4 h-4" />
+          <ListFilter className="w-4 h-4" />
           {activeFilters > 0 && panel !== 'filters' && (
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#00FFFF] border border-black" />
           )}
@@ -82,7 +82,7 @@ export default function MobileFilterBar({
             className="overflow-hidden"
           >
             <div className="relative pt-2.5">
-              <Search className="absolute left-4 top-1/2 mt-1 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <ScanSearch className="absolute left-4 top-1/2 mt-1 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
                 type="search"
                 autoFocus
@@ -97,7 +97,7 @@ export default function MobileFilterBar({
                   aria-label="Clear search"
                   className="absolute right-3 top-1/2 mt-1 -translate-y-1/2 w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-gray-400"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <CircleX className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -125,7 +125,7 @@ export default function MobileFilterBar({
                       onClick={onClear}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest bg-white/5 border border-white/10 text-gray-300"
                     >
-                      <X className="w-3 h-3" /> Clear
+                      <CircleX className="w-3 h-3" /> Clear
                     </button>
                   )}
                 </div>

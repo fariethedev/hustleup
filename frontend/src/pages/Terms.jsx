@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 
 export default function Terms() {
   return (
@@ -8,7 +8,7 @@ export default function Terms() {
       <p className="text-gray-500 text-sm mb-8">Last updated: placeholder — set this when the real terms go live.</p>
 
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 mb-10">
-        <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
+        <TriangleAlert className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
         <p className="text-sm text-yellow-200/90 leading-relaxed">
           This is placeholder text, not a reviewed legal document. Generate the real version with{' '}
           <a href="https://termly.io" target="_blank" rel="noreferrer" className="underline">Termly</a> or{' '}

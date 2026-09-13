@@ -2,6 +2,7 @@ package com.hustleup.auth.repository;
 
 import com.hustleup.auth.model.RefreshToken;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -65,11 +66,20 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
      * Deleting all refresh tokens means any existing session cannot be refreshed,
      * forcing a fresh login on all devices.</p>
      *
-     * <p>Note: Spring Data wraps {@code deleteBy...} methods in a transaction
-     * automatically, so this is safe to call without a surrounding {@code @Transactional}
-     * in the calling code (though adding one there is good practice for larger operations).</p>
+     * <p><b>{@code @Transactional} is required, not decorative.</b> The claim this javadoc
+     * used to make here — that Spring Data wraps {@code deleteBy...} methods in a
+     * transaction automatically — is wrong, and it is exactly the assumption that let this
+     * method run in production for a while without one. A derived delete issues a bulk
+     * JPQL {@code DELETE}, and without a transaction bound to the calling thread Hibernate
+     * refuses it with {@code TransactionRequiredException: No EntityManager with actual
+     * transaction available for current thread}. The one caller of this method,
+     * {@code AuthController#resetPassword}, has no {@code @Transactional} of its own, so it
+     * hit that on every call: the password had already been saved by the time this line
+     * ran, so the reset silently succeeded in the database while the request came back as
+     * a 500. Same defect, same fix, as {@link AuthTokenRepository#deleteByUserIdAndPurpose}.
      *
      * @param userId the UUID of the user whose tokens should be deleted
      */
+    @Transactional
     void deleteByUserId(UUID userId);
 }

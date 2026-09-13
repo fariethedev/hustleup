@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
-import { ArrowLeft, ArrowRight, ShieldCheck, ShoppingBag, Lock, User, Mail, Phone, CreditCard, Clock } from 'lucide-react';
+import { MoveLeft, MoveRight, ShieldPlus, ShoppingBasket, LockKeyhole, CircleUserRound, AtSign, PhoneCall, WalletCards, Timer } from 'lucide-react';
 import { selectCartItems, removeFromCart } from '../store/cartSlice';
 import { bookingsApi } from '../api/client';
 import { formatPrice } from '../utils/constants';
@@ -51,17 +51,43 @@ export default function Checkout() {
   const shipping = bookableItems.reduce((acc, i) => acc + (Number(i.shippingPrice) || 0), 0);
   const total = subtotal + shipping;
 
-  const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '' });
+  const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '', address: '' });
+  // Answers to the sellers' own checkout questions, keyed listingId -> prompt -> answer.
+  // Keyed by listing because one basket can hold several sellers, each asking their own
+  // things — and each must only ever receive the answers to their own.
+  const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const currency = bookableItems[0]?.currency || items[0]?.currency || 'PLN';
 
+  // Every seller-set prompt across the basket, with the line that asked it. `checkoutFields`
+  // is newline-separated free text in the seller's own words.
+  const sellerQuestions = bookableItems.flatMap((item) => {
+    const prompts = String(item.checkoutFields || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    return prompts.map((prompt) => ({ listingId: item.listingId, title: item.title, prompt }));
+  });
+
+  const setAnswer = (listingId, prompt, value) =>
+    setAnswers((a) => ({ ...a, [listingId]: { ...(a[listingId] || {}), [prompt]: value } }));
+
+  // A seller asking for something needs an answer — a blank one is the same as not asking.
+  const unanswered = sellerQuestions.filter(
+    (q) => !String(answers[q.listingId]?.[q.prompt] || '').trim());
+
+  // Only asked for when something in the basket is actually being sent somewhere. A haircut
+  // and a collection order have no address, and demanding one costs the sale.
+  const needsAddress = bookableItems.some(
+    (item) => item.shippingMethod && !['PICKUP', 'DIGITAL', 'NONE'].includes(item.shippingMethod));
+
   if (items.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4">
-          <ShoppingBag className="w-16 h-16 mx-auto text-gray-700" />
+          <ShoppingBasket className="w-16 h-16 mx-auto text-gray-700" />
           <h2 className="text-2xl font-black text-white tracking-tight">Your cart is empty</h2>
           <Link to="/explore" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm tracking-widest inline-block">
             Browse Listings
@@ -86,7 +112,17 @@ export default function Checkout() {
         bookableItems.map((item) => ({
           listingId: item.listingId,
           quantity: item.quantity ?? 1,
-        }))
+        })),
+        // Carried onto every booking this creates. Without it the seller received an order
+        // with no way to contact anyone about it — this form asked for all of it and then
+        // threw it away.
+        {
+          name: customer.fullName,
+          email: customer.email,
+          phone: customer.phone,
+          address: customer.address,
+          answers,
+        },
       );
 
       // The bookings now exist, so those lines have done their job — dropping them here
@@ -116,12 +152,21 @@ export default function Checkout() {
     }
   };
 
-  const canSubmit = !loading && customer.fullName && customer.email;
+  const canSubmit = !loading
+    && customer.fullName
+    && customer.email
+    && (!needsAddress || customer.address.trim())
+    && unanswered.length === 0;
+
   // Names the specific blocker so a disabled pay button is never a mystery.
   const missing = [
     !customer.fullName && 'name',
     !customer.email && 'email address',
-  ].filter(Boolean).join(' and ');
+    needsAddress && !customer.address.trim() && 'delivery address',
+    unanswered.length > 0 && (unanswered.length === 1
+      ? `an answer to "${unanswered[0].prompt}"`
+      : `answers to ${unanswered.length} seller questions`),
+  ].filter(Boolean).join(', ');
 
   const field = (key, placeholder, type, Icon, autoComplete) => (
     <div className="relative">
@@ -144,7 +189,7 @@ export default function Checkout() {
           to="/explore"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white transition-colors mb-4"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Explore
+          <MoveLeft className="w-3.5 h-3.5" /> Back to Explore
         </Link>
 
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
@@ -193,20 +238,85 @@ export default function Checkout() {
             <div className="space-y-4">
               <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
                 <h2 className="text-xs font-black text-white tracking-widest mb-1">Your details</h2>
-                <p className="text-[11px] text-gray-500 mb-4">So the seller knows who to deliver to.</p>
+                <p className="text-[11px] text-gray-500 mb-4">
+                  Sent to the seller so they can fulfil and contact you about the order.
+                </p>
                 <div className="space-y-2.5">
-                  {field('fullName', 'Full name', 'text', User, 'name')}
-                  {field('email', 'Email address', 'email', Mail, 'email')}
-                  {field('phone', 'Phone number (optional)', 'tel', Phone, 'tel')}
+                  {field('fullName', 'Full name', 'text', CircleUserRound, 'name')}
+                  {field('email', 'Email address', 'email', AtSign, 'email')}
+                  {/* No longer optional. A seller with only an email has no way to reach
+                      someone about a delivery happening today, which is exactly when it
+                      matters — and a courier needs a number for the label. */}
+                  {field('phone', 'Phone number', 'tel', PhoneCall, 'tel')}
                 </div>
               </section>
+
+              {/* Asked for only when something in the basket is actually being sent. A
+                  haircut and a collection order have no address, and demanding one there
+                  costs the sale for nothing. */}
+              {needsAddress && (
+                <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
+                  <h2 className="text-xs font-black text-white tracking-widest mb-1">Delivery address</h2>
+                  <p className="text-[11px] text-gray-500 mb-4">Where the courier should take it.</p>
+                  <textarea
+                    rows={3}
+                    value={customer.address}
+                    onChange={(e) => setCustomer((c) => ({ ...c, address: e.target.value }))}
+                    autoComplete="street-address"
+                    placeholder={'Street and number\nPostcode and city'}
+                    className="w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-[#CDFF00]/60 focus:bg-black/60 transition-colors resize-none"
+                  />
+                </section>
+              )}
+
+              {/* What the sellers themselves said they need. Grouped by the line that asked,
+                  because in a multi-seller basket "what size?" is meaningless without knowing
+                  which item it is about. */}
+              {sellerQuestions.length > 0 && (
+                <section className="rounded-2xl border border-[#CDFF00]/25 bg-[#CDFF00]/[0.04] p-5">
+                  <h2 className="text-xs font-black text-white tracking-widest mb-1">
+                    The seller needs to know
+                  </h2>
+                  <p className="text-[11px] text-gray-500 mb-4">
+                    Asked here so your order can be started straight away, rather than waiting
+                    on a message after you've paid.
+                  </p>
+                  <div className="space-y-4">
+                    {bookableItems
+                      .filter((item) => sellerQuestions.some((q) => q.listingId === item.listingId))
+                      .map((item) => (
+                        <div key={item.listingId} className="space-y-2.5">
+                          <p className="text-[10px] font-black tracking-widest text-gray-500 truncate">
+                            For &ldquo;{item.title}&rdquo;
+                          </p>
+                          {sellerQuestions
+                            .filter((q) => q.listingId === item.listingId)
+                            .map((q) => (
+                              <div key={q.prompt}>
+                                <label className="block text-[11px] font-semibold text-gray-300 mb-1.5">
+                                  {q.prompt}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={answers[q.listingId]?.[q.prompt] || ''}
+                                  onChange={(e) => setAnswer(q.listingId, q.prompt, e.target.value)}
+                                  placeholder="Your answer"
+                                  className="w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none focus:border-[#CDFF00]/60 focus:bg-black/60 transition-colors"
+                                />
+                              </div>
+                            ))}
+                        </div>
+                      ))}
+                  </div>
+                </section>
+              )}
 
               {/* Where the payment picker used to be. It states what the next screen does
                   rather than asking for a choice this page cannot act on. */}
               <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
                 <div className="flex items-start gap-3">
                   <span className="w-9 h-9 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/25 flex items-center justify-center shrink-0">
-                    <CreditCard className="w-4 h-4 text-[#CDFF00]" />
+                    <WalletCards className="w-4 h-4 text-[#CDFF00]" />
                   </span>
                   <div className="min-w-0">
                     <h2 className="text-xs font-black text-white tracking-widest">Payment</h2>
@@ -229,7 +339,7 @@ export default function Checkout() {
                   accepts). Saying so here stops a part-charged order looking like a fault. */}
               <section className="rounded-2xl border border-white/10 bg-black/30 p-4">
                 <div className="flex items-start gap-2.5">
-                  <Clock className="w-3.5 h-3.5 text-gray-500 shrink-0 mt-0.5" />
+                  <Timer className="w-3.5 h-3.5 text-gray-500 shrink-0 mt-0.5" />
                   <p className="text-[11px] text-gray-500 leading-relaxed">
                     Goods are paid for now. Anything that needs the seller to accept first
                     isn&apos;t charged yet — you&apos;ll be notified when it&apos;s approved,
@@ -263,7 +373,7 @@ export default function Checkout() {
                           <SmartImage
                             src={item.image}
                             alt={item.title}
-                            fallbackIcon={ShoppingBag}
+                            fallbackIcon={ShoppingBasket}
                             className="w-full h-full object-cover"
                           />
                         )}
@@ -328,17 +438,17 @@ export default function Checkout() {
                     Taking you to Stripe…
                   </>
                 ) : (
-                  <>Continue to payment <ArrowRight className="w-3.5 h-3.5" /></>
+                  <>Continue to payment <MoveRight className="w-3.5 h-3.5" /></>
                 )}
               </button>
 
               <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-500">
-                <Lock className="w-3 h-3" /> Encrypted checkout powered by Stripe
+                <LockKeyhole className="w-3 h-3" /> Encrypted checkout powered by Stripe
               </div>
 
               <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/5">
                 <div className="flex items-center gap-1.5 text-[#CDFF00] text-[10px] font-black tracking-widest">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Buyer protection
+                  <ShieldPlus className="w-3.5 h-3.5" /> Buyer protection
                 </div>
                 <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
                   Money is held by HustleSpace and only released to the seller once your order

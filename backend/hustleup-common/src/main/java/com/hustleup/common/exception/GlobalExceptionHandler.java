@@ -9,6 +9,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import com.hustleup.common.security.EmailVerificationGuard;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -279,6 +280,30 @@ public class GlobalExceptionHandler {
         log.error("Database error: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Something went wrong on our end. Please try again in a moment."));
+    }
+
+    /**
+     * Handles {@link EmailVerificationGuard.EmailNotVerifiedException} — an account trying
+     * to buy or sell before confirming its address.
+     *
+     * <p>A named exception with its own handler rather than a bare {@code RuntimeException},
+     * because the frontend needs to tell this apart from every other 403 in the app: the
+     * right response to it is a "verify your email" prompt, not a generic error toast. The
+     * response shape — {@code error}, {@code emailVerificationRequired: true}, {@code email}
+     * — mirrors what {@code AuthController#login} already returns for the same underlying
+     * condition, so the client has one flag to check regardless of which endpoint sent it.
+     *
+     * @param ex carries the blocked account's email and the action it was attempting
+     * @return 403 with the reason and the address to resend a code to
+     */
+    @ExceptionHandler(EmailVerificationGuard.EmailNotVerifiedException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailNotVerified(
+            EmailVerificationGuard.EmailNotVerifiedException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", ex.getMessage());
+        body.put("emailVerificationRequired", true);
+        body.put("email", ex.getEmail());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
     /**

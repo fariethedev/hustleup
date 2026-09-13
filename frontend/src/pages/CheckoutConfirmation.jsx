@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle, ShoppingBag, MessageSquare, ArrowRight, Loader2, ClipboardList, AlertCircle } from 'lucide-react';
+import { CircleCheckBig, ShoppingBasket, MessagesSquare, MoveRight, Loader, ClipboardCheck, CircleAlert } from 'lucide-react';
 import { formatPrice } from '../utils/constants';
 import { bookingsApi } from '../api/client';
 import SmartImage from '../components/SmartImage';
@@ -61,8 +61,8 @@ export default function CheckoutConfirmation() {
           className="w-20 h-20 rounded-full bg-[#CDFF00] text-black flex items-center justify-center mx-auto shadow-[0_0_60px_rgba(205,255,0,0.4)]"
         >
           {confirming === 'working'
-            ? <Loader2 className="w-9 h-9 animate-spin" />
-            : <CheckCircle className="w-10 h-10" />}
+            ? <Loader className="w-9 h-9 animate-spin" />
+            : <CircleCheckBig className="w-10 h-10" />}
         </motion.div>
 
         <div>
@@ -83,7 +83,7 @@ export default function CheckoutConfirmation() {
             left. Say what is actually known and point at where the truth will show up. */}
         {confirming === 'failed' && (
           <div className="flex items-start gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-left">
-            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <CircleAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <p className="text-xs text-amber-200/90 leading-relaxed">
               We couldn&apos;t confirm the payment just now. If it went through, your order updates
               shortly on its own — check <span className="font-bold">Dashboard → Bookings</span> before
@@ -99,7 +99,7 @@ export default function CheckoutConfirmation() {
               <div key={item.listingId} className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-800 shrink-0">
-                    <SmartImage src={item.image} alt={item.title} fallbackIcon={ShoppingBag} className="w-full h-full object-cover" />
+                    <SmartImage src={item.image} alt={item.title} fallbackIcon={ShoppingBasket} className="w-full h-full object-cover" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-white font-black text-sm truncate">{item.title}</p>
@@ -143,19 +143,19 @@ export default function CheckoutConfirmation() {
             to="/dashboard"
             className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:bg-[#d9ff33] transition-colors"
           >
-            <ClipboardList className="w-4 h-4" /> Track order
+            <ClipboardCheck className="w-4 h-4" /> Track order
           </Link>
           <Link
             to="/dm"
             className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white font-black text-[11px] tracking-widest hover:bg-white/10 transition-colors"
           >
-            <MessageSquare className="w-4 h-4" /> Message seller
+            <MessagesSquare className="w-4 h-4" /> Message seller
           </Link>
           <Link
             to="/explore"
             className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-white/10 bg-white/5 text-white font-black text-[11px] tracking-widest hover:bg-white/10 transition-colors"
           >
-            Keep shopping <ArrowRight className="w-4 h-4" />
+            Keep shopping <MoveRight className="w-4 h-4" />
           </Link>
         </div>
       </motion.div>

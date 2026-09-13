@@ -6,10 +6,7 @@ import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { ticketsApi } from '../api/client';
 import { formatPrice } from '../utils/constants';
 import { useToast } from '../context/ToastContext';
-import {
-  ArrowLeft, CalendarClock, MapPin, Ticket as TicketIcon, CheckCircle2,
-  XCircle, User as UserIcon, ScanLine, DoorOpen,
-} from 'lucide-react';
+import { MoveLeft, CalendarRange, Navigation, TicketCheck as TicketIcon, BadgeCheck, OctagonX, CircleUserRound as UserIcon, QrCode, DoorClosed } from 'lucide-react';
 import SmartImage from '../components/SmartImage';
 import TicketQr from '../components/TicketQr';
 import { TicketStatusChip } from './Tickets';
@@ -93,7 +90,7 @@ export default function TicketDetail() {
             to="/tickets"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest hover:text-[#CDFF00] transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Tickets
+            <MoveLeft className="w-3.5 h-3.5" /> Tickets
           </Link>
           <TicketStatusChip status={ticket.status} />
         </div>
@@ -112,7 +109,7 @@ export default function TicketDetail() {
               // payload from the API, so there is nothing to draw here — and nothing they
               // could accidentally hand to someone else.
               <div className="w-[230px] h-[230px] rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center gap-2 px-6 text-center">
-                <ScanLine className="w-7 h-7 text-gray-600" />
+                <QrCode className="w-7 h-7 text-gray-600" />
                 <p className="text-[10px] font-bold text-gray-500 leading-snug">
                   Only the ticket holder can display the QR code. Scan it from their device at the door.
                 </p>
@@ -171,14 +168,14 @@ export default function TicketDetail() {
 
             <dl className="grid grid-cols-1 gap-2.5 pt-1">
               <DetailRow
-                icon={CalendarClock}
+                icon={CalendarRange}
                 label="When"
                 value={startsAt
                   ? `${startsAt.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} · ${startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                   : 'To be announced'}
               />
               <DetailRow
-                icon={MapPin}
+                icon={Navigation}
                 label="Where"
                 value={ticket.eventVenue || ticket.eventCity || 'To be announced'}
               />
@@ -205,21 +202,21 @@ export default function TicketDetail() {
               >
                 {checkingIn
                   ? <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                  : <DoorOpen className="w-4 h-4" />}
+                  : <DoorClosed className="w-4 h-4" />}
                 Join the event
               </button>
             )}
 
             {isOwner && ticket.status === 'CHECKED_IN' && (
               <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <BadgeCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <p className="text-xs font-bold text-emerald-400">You're in. Have a good one.</p>
               </div>
             )}
 
             {ticket.status === 'CANCELLED' && (
               <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/25">
-                <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                <OctagonX className="w-4 h-4 text-red-400 shrink-0" />
                 <p className="text-xs font-bold text-red-400">
                   This ticket is void. If that's wrong, message the organiser.
                 </p>
@@ -231,7 +228,7 @@ export default function TicketDetail() {
                 to={`/events/${ticket.listingId}/door`}
                 className="w-full py-3 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#CDFF00]/10 transition-all"
               >
-                <ScanLine className="w-4 h-4" /> Open door scanner
+                <QrCode className="w-4 h-4" /> Open door scanner
               </Link>
             )}
 

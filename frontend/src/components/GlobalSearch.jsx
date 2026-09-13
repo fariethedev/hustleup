@@ -6,7 +6,7 @@ import { useShops } from '../hooks/useShops';
 import { formatPrice } from '../utils/constants';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 import { algoliaEnabled, searchListings } from '../utils/algolia';
-import { Search, X, ShoppingBag, Store, User, MapPin, SearchX } from 'lucide-react';
+import { ScanSearch, CircleX, ShoppingBasket, Building2, CircleUserRound, Navigation, FileSearch } from 'lucide-react';
 import SmartImage from './SmartImage';
 import { uploadUrl } from '../config';
 
@@ -107,7 +107,7 @@ export default function GlobalSearch({ open, onClose }) {
           >
             {/* Input row */}
             <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10 shrink-0">
-              <Search className="w-5 h-5 text-[#CDFF00] shrink-0" />
+              <ScanSearch className="w-5 h-5 text-[#CDFF00] shrink-0" />
               <input
                 ref={inputRef}
                 value={query}
@@ -118,7 +118,7 @@ export default function GlobalSearch({ open, onClose }) {
                 className="flex-1 bg-transparent text-white text-base placeholder-gray-500 outline-none"
               />
               <button onClick={onClose} className="p-1.5 rounded-full hover:bg-white/10 text-gray-500 hover:text-white transition-colors">
-                <X className="w-4 h-4" />
+                <CircleX className="w-4 h-4" />
               </button>
             </div>
 
@@ -133,7 +133,7 @@ export default function GlobalSearch({ open, onClose }) {
                 </div>
               ) : total === 0 ? (
                 <div className="py-14 text-center">
-                  <SearchX className="w-10 h-10 mx-auto text-gray-700 mb-3" />
+                  <FileSearch className="w-10 h-10 mx-auto text-gray-700 mb-3" />
                   <p className="text-xs font-bold text-gray-500 tracking-widest">No results for "{query}"</p>
                 </div>
               ) : (
@@ -147,7 +147,7 @@ export default function GlobalSearch({ open, onClose }) {
                           <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-800 shrink-0 flex items-center justify-center">
                             {l.mediaUrls?.[0]
                               ? <img src={uploadUrl(l.mediaUrls[0])} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
-                              : <ShoppingBag className="w-4 h-4 text-gray-600" />}
+                              : <ShoppingBasket className="w-4 h-4 text-gray-600" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-white truncate">{l.title}</p>
@@ -166,13 +166,13 @@ export default function GlobalSearch({ open, onClose }) {
                         <button key={s.id} onClick={() => go(`/shop/${s.slug || s.id}`)}
                           className="w-full px-5 py-2.5 flex items-center gap-3 hover:bg-white/5 transition-colors text-left">
                           <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-800 shrink-0">
-                            <SmartImage src={s.bannerUrl} alt={s.name} fallbackIcon={Store} className="w-full h-full object-cover" />
+                            <SmartImage src={s.bannerUrl} alt={s.name} fallbackIcon={Building2} className="w-full h-full object-cover" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-white truncate">{s.name}</p>
                             <p className="text-xs text-gray-500 truncate">{[s.category, s.city].filter(Boolean).join(' · ')}</p>
                           </div>
-                          <Store className="w-4 h-4 text-gray-600 shrink-0" />
+                          <Building2 className="w-4 h-4 text-gray-600 shrink-0" />
                         </button>
                       ))}
                     </section>
@@ -187,12 +187,12 @@ export default function GlobalSearch({ open, onClose }) {
                           <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-800 shrink-0 flex items-center justify-center">
                             {u.avatarUrl
                               ? <img src={uploadUrl(u.avatarUrl)} className="w-full h-full object-cover" />
-                              : <span className="text-[#CDFF00] font-black text-sm">{u.fullName?.[0] || <User className="w-4 h-4" />}</span>}
+                              : <span className="text-[#CDFF00] font-black text-sm">{u.fullName?.[0] || <CircleUserRound className="w-4 h-4" />}</span>}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-white truncate">{u.fullName || u.username}</p>
                             <p className="text-xs text-gray-500 truncate flex items-center gap-1">
-                              {u.role?.toLowerCase()}{u.city ? <> · <MapPin className="w-3 h-3 inline" /> {u.city}</> : null}
+                              {u.role?.toLowerCase()}{u.city ? <> · <Navigation className="w-3 h-3 inline" /> {u.city}</> : null}
                             </p>
                           </div>
                         </button>

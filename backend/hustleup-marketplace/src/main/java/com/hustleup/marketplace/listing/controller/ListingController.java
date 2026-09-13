@@ -71,7 +71,12 @@ public class ListingController {
     }
 
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
+    // Creating a listing IS selling, so it takes the same gate as editing, deleting and
+    // payouts. It was only `isAuthenticated()` — an oversight that mattered little while the
+    // SELLER role was handed out at signup, and matters now that selling is what a
+    // subscription buys: without this, anyone could list for free and only discover the gate
+    // when they tried to edit or get paid.
+    @PreAuthorize("@premiumAccess.canSell(authentication)")
     public ResponseEntity<ListingDto> create(
             @RequestParam String title,
             @RequestParam(required = false) String description,
@@ -99,12 +104,14 @@ public class ListingController {
             @RequestParam(required = false) String eventCapacity,
             @RequestParam(required = false) String salesOpenAt,
             @RequestParam(required = false) String salesCloseAt,
+            // Newline-separated prompts the buyer answers at checkout, in the seller's words.
+            @RequestParam(required = false) String checkoutFields,
             @RequestParam(required = false) String meta,
             @RequestParam(required = false) List<MultipartFile> images) {
         return ResponseEntity.ok(listingService.create(title, description, listingType,
                 price, currency, negotiable, city, agentFee, swapEnabled,
                 shippingMethod, shippingPrice, eventStartsAt, eventVenue,
-                eventCapacity, salesOpenAt, salesCloseAt, meta, images));
+                eventCapacity, salesOpenAt, salesCloseAt, checkoutFields, meta, images));
     }
 
     // JSON body (not @RequestParam/form fields) — matches how the dashboard's price/negotiable
@@ -112,7 +119,7 @@ public class ListingController {
     // actually send data. Only include the keys you want to change; "negotiable" always applies
     // since it's a primitive on the entity (mirrors ListingService.update's existing contract).
     @PatchMapping("/{id}")
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("@premiumAccess.canSell(authentication)")
     public ResponseEntity<ListingDto> update(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
         String title = (String) body.get("title");
         String description = (String) body.get("description");
@@ -139,7 +146,7 @@ public class ListingController {
         String salesCloseAt = (String) body.get("salesCloseAt");
         return ResponseEntity.ok(listingService.update(id, title, description, price, negotiable, city,
                 meta, status, swapEnabled, shippingMethod, shippingPrice,
-                eventCapacity, salesOpenAt, salesCloseAt));
+                eventCapacity, salesOpenAt, salesCloseAt, (String) body.get("checkoutFields")));
     }
 
     @GetMapping("/user/{userId}")
@@ -148,13 +155,13 @@ public class ListingController {
     }
 
     @GetMapping("/my")
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("@premiumAccess.canSell(authentication)")
     public ResponseEntity<List<ListingDto>> myListings() {
         return ResponseEntity.ok(listingService.getMyListings());
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("@premiumAccess.canSell(authentication)")
     public ResponseEntity<?> delete(@PathVariable UUID id) {
         listingService.delete(id);
         return ResponseEntity.ok().build();

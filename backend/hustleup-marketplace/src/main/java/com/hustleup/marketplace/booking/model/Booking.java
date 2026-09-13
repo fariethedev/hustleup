@@ -126,6 +126,43 @@ public class Booking {
     @Builder.Default
     private Integer quantity = 1;
 
+    // --- Who to contact, and where it goes ---------------------------------
+    // Captured at checkout and snapshotted onto the booking rather than read back through
+    // buyerId. The checkout form asked for all three and then threw them away: only the
+    // listingId and quantity were ever sent, so a seller received an order with no phone
+    // number, no email and no address, and no way to reach anyone about it.
+    //
+    // Snapshotted because an order is a record of what was agreed at the time. Someone who
+    // moves house after ordering must not have last month's delivery silently re-addressed.
+
+    @Column(name = "customer_name")
+    private String customerName;
+
+    @Column(name = "customer_email")
+    private String customerEmail;
+
+    @Column(name = "customer_phone")
+    private String customerPhone;
+
+    /** Delivery address, for anything being shipped. Null for collection and for services. */
+    @Column(name = "delivery_address", columnDefinition = "TEXT")
+    private String deliveryAddress;
+
+    /**
+     * The buyer's answers to whatever the seller said they needed, as JSON.
+     *
+     * <p>Sellers ask for things the platform cannot know in advance — a shoe size, a name to
+     * print on a cake, a gate code, a preferred collection time. Those used to be negotiated
+     * in DMs after the fact, which meant the seller could not start the order until the buyer
+     * happened to reply. Asking at checkout is the only moment both people are present.
+     *
+     * <p>Stored as a JSON object of prompt → answer rather than as columns, because the
+     * prompts are the seller's own words and differ per listing. Free text on both sides, so
+     * it is displayed and never interpreted.
+     */
+    @Column(name = "checkout_answers", columnDefinition = "TEXT")
+    private String checkoutAnswers;
+
     // --- Stripe Connect payment tracking ---
     // Populated once the buyer starts paying via the Stripe Checkout Session created for
     // this booking (see StripeConnectService#createPaymentCheckoutSession). Null until then.

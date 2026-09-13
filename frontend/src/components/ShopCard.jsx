@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Star, MapPin, ArrowUpRight, ShieldCheck, Package, ClipboardList } from 'lucide-react';
+import { Sparkle, Navigation, MoveUpRight, ShieldPlus, Box, ClipboardCheck } from 'lucide-react';
 import { displayCity } from '../utils/constants';
 import SmartImage from './SmartImage';
 import { uploadUrl } from '../config';
@@ -40,7 +40,7 @@ export default function ShopCard({ shop, index = 0 }) {
           <SmartImage
             src={uploadUrl(shop.bannerUrl)}
             alt={shop.name}
-            fallbackIcon={Package}
+            fallbackIcon={Box}
             className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-700 ease-out"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/25 to-transparent" />
@@ -54,14 +54,14 @@ export default function ShopCard({ shop, index = 0 }) {
             )}
             {shop.rating >= 4.8 && (
               <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest bg-[#CDFF00] text-black">
-                <ShieldCheck className="w-3 h-3" /> Top rated
+                <ShieldPlus className="w-3 h-3" /> Top rated
               </span>
             )}
           </div>
 
           {/* Hover affordance — tells you the whole card is a link */}
           <div className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-[#CDFF00] text-black flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-            <ArrowUpRight className="w-5 h-5" />
+            <MoveUpRight className="w-5 h-5" />
           </div>
 
           {/* Name sits on the image so the body below is all substance */}
@@ -78,18 +78,18 @@ export default function ShopCard({ shop, index = 0 }) {
               seller-written copy isn't. */}
           <div className="flex items-center gap-3 mb-3 text-[10px] font-bold tracking-wider text-gray-400">
             <span className="flex items-center gap-1 text-white">
-              <Star className="w-3.5 h-3.5 fill-[#CDFF00] text-[#CDFF00]" />
+              <Sparkle className="w-3.5 h-3.5 fill-[#CDFF00] text-[#CDFF00]" />
               {shop.rating > 0 ? shop.rating.toFixed(1) : 'New'}
             </span>
             <span className="w-px h-3 bg-white/10" />
             <span className="flex items-center gap-1">
-              <Package className="w-3.5 h-3.5 text-[#FF00FF]" /> {shop.productCount ?? products.length}
+              <Box className="w-3.5 h-3.5 text-[#FF00FF]" /> {shop.productCount ?? products.length}
             </span>
             {shop.listingCount > 0 && (
               <>
                 <span className="w-px h-3 bg-white/10" />
                 <span className="flex items-center gap-1">
-                  <ClipboardList className="w-3.5 h-3.5 text-[#00FFFF]" /> {shop.listingCount}
+                  <ClipboardCheck className="w-3.5 h-3.5 text-[#00FFFF]" /> {shop.listingCount}
                 </span>
               </>
             )}
@@ -102,7 +102,7 @@ export default function ShopCard({ shop, index = 0 }) {
           {/* Product preview strip + city, pinned to the bottom so cards align in a grid */}
           <div className="mt-auto flex items-center justify-between gap-3 pt-3 border-t border-white/5">
             <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-gray-400 min-w-0">
-              <MapPin className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />
+              <Navigation className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />
               <span className="truncate">{displayCity(shop.city)}</span>
             </span>
 
@@ -113,7 +113,7 @@ export default function ShopCard({ shop, index = 0 }) {
                   className="w-8 h-8 rounded-full overflow-hidden border-2 border-[#0A0A0A] bg-black group-hover:-space-x-1 transition-all"
                   title={p.name}
                 >
-                  <SmartImage src={p.imageUrl} alt={p.name} fallbackIcon={Package} className="w-full h-full object-cover" />
+                  <SmartImage src={p.imageUrl} alt={p.name} fallbackIcon={Box} className="w-full h-full object-cover" />
                 </div>
               ))}
               {remaining > 0 && (

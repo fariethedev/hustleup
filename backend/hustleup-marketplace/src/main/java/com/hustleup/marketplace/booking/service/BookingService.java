@@ -54,6 +54,7 @@ import com.hustleup.common.model.Notification;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
+import com.hustleup.common.security.EmailVerificationGuard;
 import com.stripe.exception.StripeException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -117,6 +118,8 @@ public class BookingService {
     private final ReviewRepository reviewRepository; // completing a booking records the completer's review in the same step
     /** Consulted before every payout: an open buyer claim freezes the money where it is. */
     private final ProtectionClaimService protectionClaimService;
+    /** Refuses an unconfirmed account at the one point buying actually commits money. */
+    private final EmailVerificationGuard emailVerificationGuard;
 
     /**
      * Constructor injection: Spring automatically resolves and injects these beans.
@@ -133,7 +136,8 @@ public class BookingService {
                           TicketService ticketService, NotificationRepository notificationRepository,
                           ReviewRepository reviewRepository, ShipmentService shipmentService,
                           EventAvailabilityService eventAvailabilityService,
-                          ProtectionClaimService protectionClaimService) {
+                          ProtectionClaimService protectionClaimService,
+                          EmailVerificationGuard emailVerificationGuard) {
         this.protectionClaimService = protectionClaimService;
         this.bookingRepository = bookingRepository;
         this.listingRepository = listingRepository;
@@ -148,6 +152,7 @@ public class BookingService {
         this.notificationRepository = notificationRepository;
         this.shipmentService = shipmentService;
         this.eventAvailabilityService = eventAvailabilityService;
+        this.emailVerificationGuard = emailVerificationGuard;
     }
 
     /**
@@ -213,6 +218,43 @@ public class BookingService {
     }
 
     /**
+     * Everything at once: in-app, email and push.
+     *
+     * <p>Sale events used to be in-app only, which meant a seller heard about a new order
+     * exactly when they next opened the site. That is the wrong medium for the one class of
+     * notification that costs money to miss — a buyer waiting on an unanswered booking request
+     * goes elsewhere, and an unshipped paid order becomes a refund. Payment-received already
+     * went out by email through ShipmentService; the rest did not, and the split was an
+     * accident of which code path happened to be written first rather than a decision about
+     * which events matter.
+     *
+     * <p>Each channel is independently best-effort, so a bounced address cannot stop the
+     * in-app record being written, and none of them can fail the booking that triggered them.
+     *
+     * @param type drives the frontend's negotiation popup — see {@link #notifyInApp}
+     */
+    private void notifyEverywhere(UUID userId, String title, String message, String type, UUID referenceId) {
+        notifyInApp(userId, title, message, type, referenceId);
+        notifyByEmail(userId, title,
+                "<p>" + escapeHtml(message) + "</p>"
+                        + "<p>Open your HustleSpace dashboard to act on it.</p>");
+        notifyByPush(userId, title, message);
+    }
+
+    /**
+     * Escapes a message before it goes into an HTML mail body.
+     *
+     * <p>These strings carry user-supplied text — listing titles and display names — so
+     * without this a listing called {@code <b>} would arrive as markup, and a hostile one
+     * could inject a link into an email sent under your own domain.
+     */
+    private static String escapeHtml(String text) {
+        return text == null ? "" : text
+                .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;");
+    }
+
+    /**
      * Creates a new booking request from the authenticated buyer for a specific listing.
      *
      * <p><b>Validation rules:</b>
@@ -243,6 +285,11 @@ public class BookingService {
     public BookingDto create(UUID listingId, BigDecimal offeredPrice, LocalDateTime scheduledAt,
                               UUID availabilitySlotId, Integer quantity, boolean joinRequest) {
         User buyer = getCurrentUser(); // resolve authenticated buyer from Spring Security context
+        // A booking is a real charge (or a request that becomes one), so it is the actual
+        // moment buying needs a reachable address, not the moment of registering. Checked
+        // here rather than blocked at login: this is what lets an already-registered account
+        // sign in and browse freely, and only asks for verification when it tries to spend.
+        emailVerificationGuard.require(buyer, "buy");
         Listing listing = listingRepository.findById(listingId)
                 .orElseThrow(() -> new RuntimeException("Listing not found"));
 
@@ -350,7 +397,7 @@ public class BookingService {
                     .status(BookingStatus.BOOKED)
                     .build();
             Booking saved = bookingRepository.save(booking);
-            notifyInApp(listing.getSellerId(),
+            notifyEverywhere(listing.getSellerId(),
                     "New order: " + listing.getTitle(),
                     "You have a new order to fulfil — payment is being taken now.",
                     "BOOKING_REQUEST", saved.getId());
@@ -380,7 +427,7 @@ public class BookingService {
         // (accept/decline/counter) hinges on them seeing it, so it's the one booking event that
         // gets a dedicated notification type the frontend's real-time popup polls for.
         String buyerName = buyer.displayName();
-        notifyInApp(listing.getSellerId(),
+        notifyEverywhere(listing.getSellerId(),
                 buyerName + " wants to book " + listing.getTitle(),
                 buyerName + " offered " + offer + " " + listing.getCurrency() + " for \"" + listing.getTitle() + "\".",
                 "BOOKING_REQUEST", saved.getId());
@@ -406,6 +453,18 @@ public class BookingService {
      */
     @Transactional
     public CartCheckout createCartCheckout(List<Map<String, Object>> items) throws StripeException {
+        return createCartCheckout(items, null);
+    }
+
+    /**
+     * Cart checkout, carrying the buyer's contact details onto every booking it creates.
+     *
+     * @param customer {@code {name, email, phone, address, answers: {listingId: {prompt: answer}}}},
+     *                 or null from a client that does not send them yet
+     */
+    @Transactional
+    public CartCheckout createCartCheckout(List<Map<String, Object>> items,
+                                           Map<String, Object> customer) throws StripeException {
         if (items == null || items.isEmpty()) {
             throw new RuntimeException("Your cart is empty");
         }
@@ -427,6 +486,12 @@ public class BookingService {
             BookingDto dto = create(listingId, null, when, null, qty, false);
             Booking booking = bookingRepository.findById(dto.getId())
                     .orElseThrow(() -> new RuntimeException("Booking vanished mid-checkout"));
+
+            // Stamp the buyer's details onto every line. Written here rather than inside
+            // create() because create() is also reached from the listing page and the
+            // request-to-join flow, where no checkout form has been filled in yet.
+            applyCustomerDetails(booking, customer, listingId);
+            booking = bookingRepository.save(booking);
 
             if (booking.getStatus() == BookingStatus.BOOKED) {
                 payable.add(booking);
@@ -540,7 +605,7 @@ public class BookingService {
         String listingTitle = listingRepository.findById(booking.getListingId())
                 .map(Listing::getTitle).orElse("your booking");
         String sellerName = seller.displayName();
-        notifyInApp(booking.getBuyerId(),
+        notifyEverywhere(booking.getBuyerId(),
                 sellerName + " countered on " + listingTitle,
                 sellerName + " proposed " + counterPrice + " " + booking.getCurrency() + " for \"" + listingTitle + "\".",
                 "BOOKING_COUNTER", saved.getId());
@@ -623,7 +688,7 @@ public class BookingService {
             // Let whichever party didn't just click "accept" know their offer/counter went
             // through — closes the loop on the negotiation popup for both sides.
             UUID otherParty = user.getId().equals(booking.getBuyerId()) ? booking.getSellerId() : booking.getBuyerId();
-            notifyInApp(otherParty, "Booking confirmed: " + listingTitle,
+            notifyEverywhere(otherParty, "Booking confirmed: " + listingTitle,
                     listingTitle + " is confirmed at " + agreed + " " + booking.getCurrency() + ".",
                     "BOOKING_ACCEPTED", saved.getId());
 
@@ -911,11 +976,42 @@ public class BookingService {
             return;
         }
 
-        payoutAccountRepository.findBySellerId(booking.getSellerId())
-                .filter(SellerPayoutAccount::isPayoutsEnabled)
-                .ifPresent(payoutAccount -> {
+        // Was: findBySellerId(...).filter(isPayoutsEnabled).ifPresent(...) — which skipped
+        // silently on both misses. A seller with no account and a seller whose cached flag was
+        // stale produced the same outcome as a successful payout: nothing in the log, nothing
+        // in Stripe, and no way to tell the three apart from the outside.
+        SellerPayoutAccount payoutAccount = payoutAccountRepository
+                .findBySellerId(booking.getSellerId()).orElse(null);
+        if (payoutAccount == null) {
+            log.info("Booking {} is due but seller {} has no payout account — holding",
+                    booking.getId(), booking.getSellerId());
+            return;
+        }
+
+        // The local flag is a cache of Stripe's answer, kept current by the account.updated
+        // webhook and by the seller opening the payouts page. Neither is guaranteed to have
+        // happened — a test-mode platform frequently has no webhook configured at all — so a
+        // false flag is re-checked at source before it is allowed to block real money.
+        if (!payoutAccount.isPayoutsEnabled()) {
+            try {
+                payoutAccount = stripeConnectService.refreshAccountStatus(payoutAccount);
+            } catch (StripeException e) {
+                log.warn("Could not refresh payout account for seller {}: {}",
+                        booking.getSellerId(), e.getMessage());
+            }
+        }
+        if (!payoutAccount.isPayoutsEnabled()) {
+            log.info("Booking {} is due but seller {} has not finished Connect onboarding "
+                     + "(charges={}, details={}) — holding",
+                    booking.getId(), booking.getSellerId(),
+                    payoutAccount.isChargesEnabled(), payoutAccount.isDetailsSubmitted());
+            return;
+        }
+
+        java.util.Optional.of(payoutAccount)
+                .ifPresent(account -> {
                     try {
-                        String transferId = stripeConnectService.transferToSeller(booking, payoutAccount.getStripeAccountId());
+                        String transferId = stripeConnectService.transferToSeller(booking, account.getStripeAccountId());
                         booking.setTransferId(transferId);
                         booking.setPaymentStatus("TRANSFERRED");
 
@@ -925,6 +1021,9 @@ public class BookingService {
                                 "<p>You've been paid out for <b>" + title + "</b>.</p>");
                         notifyByPush(booking.getSellerId(), "Payout sent", "You've been paid out for " + title + ".");
                     } catch (StripeException e) {
+                        // Left PAID on purpose: recording a transfer that did not happen would
+                        // erase, from the platform's own books, money it still owes. The sweep
+                        // picks it up again.
                         log.error("Payout failed for booking {} — left held: {}", booking.getId(), e.getMessage());
                     }
                 });
@@ -991,6 +1090,49 @@ public class BookingService {
                 .filter(b -> outstanding.contains(b.getStatus()))
                 .map(b -> enrichDto(b, user.getId()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Copies the checkout form onto a booking.
+     *
+     * <p>Falls back to the account's own name and email when the form left them blank: a
+     * seller with no way to contact a buyer is the thing this exists to prevent, and the
+     * account details are better than nothing. The phone and address have no fallback —
+     * inventing either would be worse than leaving them empty.
+     */
+    private void applyCustomerDetails(Booking booking, Map<String, Object> customer, UUID listingId) {
+        User buyer = userRepository.findById(booking.getBuyerId()).orElse(null);
+
+        String name = customer == null ? null : str(customer.get("name"));
+        String email = customer == null ? null : str(customer.get("email"));
+
+        booking.setCustomerName(name != null ? name : (buyer != null ? buyer.displayName() : null));
+        booking.setCustomerEmail(email != null ? email : (buyer != null ? buyer.getEmail() : null));
+        booking.setCustomerPhone(customer == null ? null : str(customer.get("phone")));
+        booking.setDeliveryAddress(customer == null ? null : str(customer.get("address")));
+
+        // Answers arrive keyed by listing id, because one cart can hold several listings and
+        // each seller asked their own questions. Only this line's answers belong on this
+        // booking — handing a seller another seller's questions would leak both.
+        if (customer != null && customer.get("answers") instanceof Map<?, ?> allAnswers) {
+            Object mine = allAnswers.get(listingId.toString());
+            if (mine instanceof Map<?, ?> answers && !answers.isEmpty()) {
+                try {
+                    booking.setCheckoutAnswers(new com.fasterxml.jackson.databind.ObjectMapper()
+                            .writeValueAsString(answers));
+                } catch (Exception ignored) {
+                    // Unserialisable answers are dropped rather than failing the purchase.
+                    // Losing an optional note is recoverable; losing the sale is not.
+                }
+            }
+        }
+    }
+
+    /** Trims a loosely-typed body value, treating blank as absent. */
+    private String str(Object value) {
+        if (value == null) return null;
+        String text = String.valueOf(value).trim();
+        return text.isEmpty() ? null : text;
     }
 
     /**

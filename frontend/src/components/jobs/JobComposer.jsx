@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, Plus, Loader2, AlertCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { CircleX, CirclePlus, Loader, CircleAlert, Images as ImageIcon, Eraser } from 'lucide-react';
 import { jobsApi } from '../../api/client';
 import { lockBodyScroll } from '../../utils/lockBodyScroll';
 
@@ -98,7 +98,7 @@ export default function JobComposer({ categories = [], onClose, onPosted }) {
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
           <h2 className="text-base font-black text-white tracking-tight">Post a job</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
-            <X className="w-5 h-5" />
+            <CircleX className="w-5 h-5" />
           </button>
         </div>
 
@@ -127,7 +127,7 @@ export default function JobComposer({ categories = [], onClose, onPosted }) {
                     : <img src={p.url} alt="" className="w-full h-full object-cover" />}
                   <button onClick={() => removeAt(i)}
                           className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <Trash2 className="w-4 h-4 text-red-400" />
+                    <Eraser className="w-4 h-4 text-red-400" />
                   </button>
                 </div>
               ))}
@@ -204,7 +204,7 @@ export default function JobComposer({ categories = [], onClose, onPosted }) {
 
           {error && (
             <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+              <CircleAlert className="w-4 h-4 shrink-0" />
               <span className="text-xs font-medium">{error}</span>
             </div>
           )}
@@ -214,8 +214,8 @@ export default function JobComposer({ categories = [], onClose, onPosted }) {
           <button onClick={submit} disabled={submitting}
                   className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
             {submitting
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Posting…</>
-              : <><Plus className="w-4 h-4" /> Publish advert</>}
+              ? <><Loader className="w-4 h-4 animate-spin" /> Posting…</>
+              : <><CirclePlus className="w-4 h-4" /> Publish advert</>}
           </button>
         </div>
       </motion.div>

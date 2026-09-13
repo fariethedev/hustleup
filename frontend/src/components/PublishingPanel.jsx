@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import {
-  Newspaper, Briefcase, Plus, BadgeCheck, ExternalLink, Eye, Users, ShieldCheck, Loader2,
-} from 'lucide-react';
+import { BookOpenText, BriefcaseBusiness, CirclePlus, ShieldCheck, SquareArrowOutUpRight, ScanEye, UserRound, ShieldPlus, Loader } from 'lucide-react';
 import { newsApi, jobsApi, publishersApi, dispatchToast } from '../api/client';
 import ArticleComposer from './news/ArticleComposer';
 import JobComposer from './jobs/JobComposer';
@@ -62,7 +60,7 @@ export default function PublishingPanel() {
   return (
     <div className="space-y-4">
       <Section
-        icon={Newspaper}
+        icon={BookOpenText}
         title="News"
         blurb="Publish a story to the news desk. It appears on /news and in every reader's section filters."
         canPost={canPostNews}
@@ -83,7 +81,7 @@ export default function PublishingPanel() {
       />
 
       <Section
-        icon={Briefcase}
+        icon={BriefcaseBusiness}
         title="Jobs"
         blurb="Post a vacancy to the jobs board. Candidates apply through HustleSpace and their applications land here."
         canPost={canPostJobs}
@@ -99,7 +97,7 @@ export default function PublishingPanel() {
             title={j.title}
             meta={[j.category, j.status, `${j.applicationsCount || 0} applicants`]}
             to="/jobs"
-            icon={Users}
+            icon={UserRound}
           />
         )}
       />
@@ -147,7 +145,7 @@ function Section({
           <div className="min-w-0">
             <h3 className="text-sm font-black text-white tracking-tight flex items-center gap-1.5">
               {title}
-              {canPost && <BadgeCheck className="w-3.5 h-3.5 text-[#CDFF00]" title="Verified publisher" />}
+              {canPost && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00]" title="Verified publisher" />}
             </h3>
             <p className="text-[11px] text-gray-500 leading-relaxed mt-0.5">{blurb}</p>
           </div>
@@ -159,7 +157,7 @@ function Section({
             onClick={onCompose}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#E0FF4D] transition-colors shrink-0"
           >
-            <Plus className="w-3 h-3" /> {composeLabel}
+            <CirclePlus className="w-3 h-3" /> {composeLabel}
           </button>
         ) : (
           /* Not approved yet. The link is the honest offer — a greyed-out compose button
@@ -168,7 +166,7 @@ function Section({
             to={applyTo}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-[10px] font-black tracking-widest hover:border-white/30 transition-colors shrink-0"
           >
-            <ShieldCheck className="w-3 h-3" /> {applyLabel}
+            <ShieldPlus className="w-3 h-3" /> {applyLabel}
           </Link>
         )}
       </div>
@@ -184,7 +182,7 @@ function Section({
   );
 }
 
-function PublishedRow({ title, meta, to, icon: Icon = Eye }) {
+function PublishedRow({ title, meta, to, icon: Icon = ScanEye }) {
   return (
     <Link
       to={to}

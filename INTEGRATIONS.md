@@ -211,7 +211,24 @@ Stripe Connect payouts (`hustleup-marketplace/.../payments/`) and subscription c
   - Endpoint `https://yourdomain.com/api/payments/webhook` → events `checkout.session.completed` (subscription flow, handled in `StripeController`).
   - Endpoint `https://yourdomain.com/api/v1/payouts/webhook` → events `account.updated`, `checkout.session.completed` (Connect flow, handled in `PayoutController`).
   - Copy the **signing secret** Stripe shows you for each into the two webhook-secret env vars above (they'll differ from your local test values).
-- [ ] Locally, use the [Stripe CLI](https://stripe.com/docs/stripe-cli) to forward webhooks instead of registering a public URL: `stripe listen --forward-to localhost:8000/api/payments/webhook` — it prints a `whsec_...` to use as your local `STRIPE_WEBHOOK_SECRET`.
+- [ ] Locally, use the [Stripe CLI](https://stripe.com/docs/stripe-cli) to forward webhooks instead of
+      registering a public URL. **Two listeners are needed, not one** — the two endpoints above are served
+      by different services, and a single `--forward-to` only ever reaches one of them:
+
+    ```sh
+    # Subscription events -> subscription service (8084 via the gateway)
+    stripe listen --forward-to localhost:8000/api/payments/webhook
+
+    # Connect + payout events -> marketplace (8083 via the gateway).
+    # --forward-connect-to is what carries account.updated from connected accounts;
+    # without it, seller onboarding never syncs back and payouts stay held.
+    stripe listen --forward-to localhost:8000/api/v1/payouts/webhook \
+                  --forward-connect-to localhost:8000/api/v1/payouts/webhook
+    ```
+
+      Each prints its own `whsec_...`: the first is `STRIPE_WEBHOOK_SECRET`, the second is
+      `STRIPE_CONNECT_WEBHOOK_SECRET`. They are different values and swapping them fails signature
+      verification silently from the app's side — Stripe records a 400 and the payment is never marked paid.
 - [ ] Test the full loop with [Stripe's test cards](https://stripe.com/docs/testing) (`4242 4242 4242 4242`, any future expiry/CVC): buyer checkout → booking `BOOKED` → seller connects payouts (`Dashboard.jsx` Payouts tab) → mark booking `COMPLETED` → confirm the `Transfer` shows in Stripe's Connect dashboard.
 - [ ] Set `app.stripe.platform-fee-percent` (`hustleup-marketplace/application.yml`, default `8`) to whatever cut HustleUp actually takes.
 - [ ] Only once test mode is fully verified: swap in live keys (`sk_live_...`) and re-register the webhooks against the live endpoint. Stripe keeps test/live data completely separate, so nothing from testing carries over.

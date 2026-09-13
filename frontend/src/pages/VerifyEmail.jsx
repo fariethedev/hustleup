@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { authApi } from '../api/client';
-import { Check, X } from 'lucide-react';
+import { CircleCheck, CircleX } from 'lucide-react';
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -29,7 +29,7 @@ export default function VerifyEmail() {
           {status === 'success' && (
             <>
               <div className="w-12 h-12 rounded-full bg-[#CDFF00]/10 flex items-center justify-center mx-auto mb-4">
-                <Check className="w-5 h-5 text-[#CDFF00]" />
+                <CircleCheck className="w-5 h-5 text-[#CDFF00]" />
               </div>
               <p className="text-white font-semibold mb-1">Email verified</p>
               <p className="text-gray-400 text-sm mb-5">Your account is fully set up.</p>
@@ -41,7 +41,7 @@ export default function VerifyEmail() {
           {status === 'error' && (
             <>
               <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-                <X className="w-5 h-5 text-red-400" />
+                <CircleX className="w-5 h-5 text-red-400" />
               </div>
               <p className="text-white font-semibold mb-1">Link invalid or expired</p>
               <p className="text-gray-400 text-sm">Ask for a new verification email from your profile settings.</p>

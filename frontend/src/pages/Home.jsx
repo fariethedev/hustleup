@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import {
-  ArrowRight, Store, ShoppingBag, MapPin, Ticket,
-  Star, ShieldCheck, Sparkles, HeartHandshake
-} from 'lucide-react';
+import { MoveRight, Building2, ShoppingBasket, Navigation, TicketCheck, Sparkle, ShieldPlus, WandSparkles, Handshake } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
@@ -108,7 +105,7 @@ function CarouselArrows({ edges, page, label }) {
           aria-label={`Previous ${label}`}
           className="hidden md:flex absolute -left-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-[#0A0A0A] border border-[#CDFF00]/40 items-center justify-center text-[#CDFF00] shadow-[0_4px_16px_rgba(0,0,0,0.7)] hover:bg-[#CDFF00] hover:text-black transition-colors"
         >
-          <ArrowRight className="w-5 h-5 rotate-180" />
+          <MoveRight className="w-5 h-5 rotate-180" />
         </motion.button>
       )}
       {!edges.end && (
@@ -119,7 +116,7 @@ function CarouselArrows({ edges, page, label }) {
           aria-label={`More ${label}`}
           className="hidden md:flex absolute -right-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-[#0A0A0A] border border-[#CDFF00]/40 items-center justify-center text-[#CDFF00] shadow-[0_4px_16px_rgba(0,0,0,0.7)] hover:bg-[#CDFF00] hover:text-black transition-colors"
         >
-          <ArrowRight className="w-5 h-5" />
+          <MoveRight className="w-5 h-5" />
         </motion.button>
       )}
     </>
@@ -164,7 +161,7 @@ function FeatureCarousel() {
               <h3 className="text-white font-heading font-bold text-lg mb-3">{feature.title}</h3>
               <p className="text-gray-400 text-sm leading-relaxed mb-5 flex-1">{feature.desc}</p>
               <span className="inline-flex items-center gap-1.5 text-[#CDFF00] text-sm font-bold">
-                {feature.cta} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                {feature.cta} <MoveRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
             </Link>
           </motion.div>
@@ -246,14 +243,14 @@ function EventCarousel({ events }) {
                     <p className="text-xs text-gray-400 leading-relaxed line-clamp-2 mb-2.5">{event.description}</p>
                   )}
                   <p className="text-xs text-gray-500 mb-3 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-[#CDFF00] shrink-0" />
+                    <Navigation className="w-3 h-3 text-[#CDFF00] shrink-0" />
                     <span className="truncate">{event.eventVenue || displayCity(event.locationCity)}</span>
                   </p>
                   <Link
                     to={`/listing/${event.id}`}
                     className="mt-auto w-full py-2.5 rounded-xl bg-[#CDFF00] text-black text-xs font-bold hover:brightness-110 active:scale-95 transition-all inline-flex items-center justify-center gap-1.5"
                   >
-                    <Ticket className="w-3.5 h-3.5" /> Get tickets
+                    <TicketCheck className="w-3.5 h-3.5" /> Get tickets
                   </Link>
                 </div>
               </div>
@@ -339,7 +336,7 @@ export default function Home() {
                 to={isAuthenticated ? '/dashboard' : '/register'}
                 className="hidden md:inline-flex px-7 py-3.5 rounded-full bg-[#CDFF00] text-black font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(205,255,0,0.25)] items-center gap-2"
               >
-                Join the community <ArrowRight className="w-4 h-4" />
+                Join the community <MoveRight className="w-4 h-4" />
               </Link>
               <Link
                 to="/explore"
@@ -397,7 +394,7 @@ export default function Home() {
                     style={{ background: `linear-gradient(135deg, ${shop.accentColor || '#CDFF00'}, ${shop.accentColor || '#CDFF00'}4D)` }}
                   >
                     <div className="w-full h-full rounded-full overflow-hidden border-2 border-[#050505] bg-black">
-                      <SmartImage src={shop.bannerUrl} alt={shop.name} fallbackIcon={Store} className="w-full h-full object-cover" />
+                      <SmartImage src={shop.bannerUrl} alt={shop.name} fallbackIcon={Building2} className="w-full h-full object-cover" />
                     </div>
                   </div>
                   <span className="mt-2.5 text-sm font-bold text-white leading-tight line-clamp-1 group-hover:text-[#CDFF00] transition-colors">
@@ -405,14 +402,14 @@ export default function Home() {
                   </span>
                   {shop.category && <span className="text-[11px] text-gray-500 line-clamp-1">{shop.category}</span>}
                   <span className="flex items-center gap-1 text-[11px] text-gray-500 line-clamp-1">
-                    <MapPin className="w-2.5 h-2.5 text-[#CDFF00] shrink-0" /> {displayCity(shop.city)}
+                    <Navigation className="w-2.5 h-2.5 text-[#CDFF00] shrink-0" /> {displayCity(shop.city)}
                   </span>
                   <div className="flex items-center gap-2.5 mt-1 text-xs text-gray-400">
                     <span className="flex items-center gap-1">
-                      <ShoppingBag className="w-3 h-3" /> {shop.productCount ?? 0}
+                      <ShoppingBasket className="w-3 h-3" /> {shop.productCount ?? 0}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Star className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" /> {shop.rating > 0 ? shop.rating.toFixed(1) : 'New'}
+                      <Sparkle className="w-3 h-3 fill-[#CDFF00] text-[#CDFF00]" /> {shop.rating > 0 ? shop.rating.toFixed(1) : 'New'}
                     </span>
                   </div>
                 </Link>
@@ -452,7 +449,7 @@ export default function Home() {
               to="/explore"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/15 text-white text-sm font-bold hover:bg-white/5 hover:border-white/30 transition-all"
             >
-              View all <ArrowRight className="w-4 h-4" />
+              View all <MoveRight className="w-4 h-4" />
             </Link>
           </div>
 
@@ -502,7 +499,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="text-center py-20 rounded-3xl bg-white/[0.02] border border-dashed border-white/10">
-              <Store className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+              <Building2 className="w-12 h-12 mx-auto text-gray-600 mb-4" />
               <p className="text-white font-bold mb-2">No listings yet</p>
               <p className="text-gray-500 text-sm mb-6">Be the first to put something on the marketplace.</p>
               <Link to="/create" className="inline-block px-6 py-3 rounded-full bg-[#CDFF00] text-black text-sm font-bold hover:brightness-110 transition-all">
@@ -592,9 +589,9 @@ export default function Home() {
 
             <div className="space-y-4">
               {[
-                { icon: HeartHandshake, title: 'Community first', desc: 'Every feature is built to help students support students.' },
-                { icon: ShieldCheck, title: 'Safe & secure', desc: 'Verified profiles, secure checkout and in-app messaging keep your deals protected.' },
-                { icon: Sparkles, title: 'Made for your grind', desc: 'Flexible selling, negotiable pricing and gigs that fit around your timetable.' },
+                { icon: Handshake, title: 'Community first', desc: 'Every feature is built to help students support students.' },
+                { icon: ShieldPlus, title: 'Safe & secure', desc: 'Verified profiles, secure checkout and in-app messaging keep your deals protected.' },
+                { icon: WandSparkles, title: 'Made for your grind', desc: 'Flexible selling, negotiable pricing and gigs that fit around your timetable.' },
               ].map((item) => (
                 <div key={item.title} className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20 flex items-center justify-center shrink-0">
@@ -635,7 +632,7 @@ export default function Home() {
                   to="/register"
                   className="px-8 py-4 rounded-full bg-black text-white font-bold text-sm hover:scale-105 active:scale-95 transition-transform inline-flex items-center gap-2"
                 >
-                  Create your account <ArrowRight className="w-4 h-4" />
+                  Create your account <MoveRight className="w-4 h-4" />
                 </Link>
               )}
               <Link

@@ -1,7 +1,4 @@
-import {
-  Factory, Baby, GraduationCap, Stethoscope, UtensilsCrossed, Store, PackageSearch,
-  Bike, Code2, Headset, Languages, Sparkles, Palette, MoreHorizontal, Briefcase,
-} from 'lucide-react';
+import { Warehouse, Rabbit, BookOpen, HeartPulse, CookingPot, Building2, Boxes, Car, FileCode, Headphones, Globe, WandSparkles, Paintbrush, Ellipsis, BriefcaseBusiness } from 'lucide-react';
 
 /**
  * The section and category lists behind the news desk and the jobs board.
@@ -60,19 +57,19 @@ export const SECTIONS = [
  * fetched jobs and posted jobs share one filter bar.
  */
 export const JOB_CATEGORIES = [
-  { id: 'hospitality', name: 'Hospitality & Food', icon: UtensilsCrossed },
-  { id: 'retail', name: 'Retail & Sales', icon: Store },
-  { id: 'warehouse', name: 'Warehouse & Logistics', icon: PackageSearch },
-  { id: 'factory', name: 'Industrial & Factory', icon: Factory },
-  { id: 'delivery', name: 'Delivery & Driving', icon: Bike },
-  { id: 'it', name: 'IT & Development', icon: Code2 },
-  { id: 'office', name: 'Office & Admin', icon: Briefcase },
-  { id: 'support', name: 'Customer Support', icon: Headset },
-  { id: 'language', name: 'Languages & Translation', icon: Languages },
-  { id: 'teaching', name: 'Education & Tutoring', icon: GraduationCap },
-  { id: 'babysitting', name: 'Family & Childcare', icon: Baby },
-  { id: 'cleaning', name: 'Cleaning & Facilities', icon: Sparkles },
-  { id: 'healthcare', name: 'Healthcare & Nursing', icon: Stethoscope },
-  { id: 'creative', name: 'Creative & Media', icon: Palette },
-  { id: 'other', name: 'Everything else', icon: MoreHorizontal },
+  { id: 'hospitality', name: 'Hospitality & Food', icon: CookingPot },
+  { id: 'retail', name: 'Retail & Sales', icon: Building2 },
+  { id: 'warehouse', name: 'Warehouse & Logistics', icon: Boxes },
+  { id: 'factory', name: 'Industrial & Factory', icon: Warehouse },
+  { id: 'delivery', name: 'Delivery & Driving', icon: Car },
+  { id: 'it', name: 'IT & Development', icon: FileCode },
+  { id: 'office', name: 'Office & Admin', icon: BriefcaseBusiness },
+  { id: 'support', name: 'Customer Support', icon: Headphones },
+  { id: 'language', name: 'Languages & Translation', icon: Globe },
+  { id: 'teaching', name: 'Education & Tutoring', icon: BookOpen },
+  { id: 'babysitting', name: 'Family & Childcare', icon: Rabbit },
+  { id: 'cleaning', name: 'Cleaning & Facilities', icon: WandSparkles },
+  { id: 'healthcare', name: 'Healthcare & Nursing', icon: HeartPulse },
+  { id: 'creative', name: 'Creative & Media', icon: Paintbrush },
+  { id: 'other', name: 'Everything else', icon: Ellipsis },
 ];

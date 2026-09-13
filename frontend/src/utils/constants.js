@@ -1,12 +1,16 @@
-import { Scissors, Utensils, PartyPopper, Shirt, Package, Wrench } from 'lucide-react';
+import { Slice, ChefHat, Cake, Footprints, Box, Hammer } from 'lucide-react';
 
+// `color` is a solid Tailwind bg-* class, one per category — not a gradient. Each still
+// gets its own hue so a category is still recognisable at a glance (a listing-type fallback
+// tile or an Onboarding preview card in category colour is wayfinding, not decoration), but
+// consumers apply the class directly rather than wrapping it in bg-gradient-to-*.
 export const LISTING_TYPES = [
-  { value: 'HAIR_BEAUTY', label: 'Hair & Beauty', icon: Scissors, color: 'from-pink-500 to-rose-500' },
-  { value: 'FOOD', label: 'Food & Catering', icon: Utensils, color: 'from-orange-500 to-amber-500' },
-  { value: 'EVENT', label: 'Events & Entertainment', icon: PartyPopper, color: 'from-purple-500 to-indigo-500' },
-  { value: 'FASHION', label: 'Fashion & Clothing', icon: Shirt, color: 'from-fuchsia-500 to-pink-500' },
-  { value: 'GOODS', label: 'Goods & Products', icon: Package, color: 'from-blue-500 to-cyan-500' },
-  { value: 'SKILL', label: 'Skills & Services', icon: Wrench, color: 'from-emerald-500 to-teal-500' },
+  { value: 'HAIR_BEAUTY', label: 'Hair & Beauty', icon: Slice, color: 'bg-pink-500' },
+  { value: 'FOOD', label: 'Food & Catering', icon: ChefHat, color: 'bg-orange-500' },
+  { value: 'EVENT', label: 'Events & Entertainment', icon: Cake, color: 'bg-purple-500' },
+  { value: 'FASHION', label: 'Fashion & Clothing', icon: Footprints, color: 'bg-fuchsia-500' },
+  { value: 'GOODS', label: 'Goods & Products', icon: Box, color: 'bg-blue-500' },
+  { value: 'SKILL', label: 'Skills & Services', icon: Hammer, color: 'bg-emerald-500' },
 ];
 
 export const BOOKING_STATUS_MAP = {

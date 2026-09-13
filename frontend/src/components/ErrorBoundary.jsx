@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { TriangleAlert, RefreshCcw } from 'lucide-react';
 import * as Sentry from '@sentry/react';
 
 class ErrorBoundary extends React.Component {
@@ -22,7 +22,7 @@ class ErrorBoundary extends React.Component {
       return (
         <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center glass bg-black/40 border border-white/10 rounded-3xl m-4">
           <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
-            <AlertTriangle className="w-8 h-8 text-red-500" />
+            <TriangleAlert className="w-8 h-8 text-red-500" />
           </div>
           <h2 className="text-2xl font-black text-white tracking-tight mb-2">Something went wrong</h2>
           <p className="text-gray-400 font-medium mb-8 max-w-md">
@@ -32,7 +32,7 @@ class ErrorBoundary extends React.Component {
             onClick={() => window.location.reload()}
             className="flex items-center gap-2 px-6 py-3 bg-[#CDFF00] text-black font-black tracking-widest text-xs rounded-xl hover:scale-105 transition-transform shadow-lg shadow-[#CDFF00]/20"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCcw className="w-4 h-4" />
             Reload Page
           </button>
           {process.env.NODE_ENV === 'development' && (

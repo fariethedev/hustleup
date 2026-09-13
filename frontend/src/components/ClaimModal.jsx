@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, X, Loader2 } from 'lucide-react';
+import { ShieldX, CircleX, Loader } from 'lucide-react';
 import { claimsApi, dispatchToast } from '../api/client';
 
 /**
@@ -55,14 +55,14 @@ export default function ClaimModal({ claim, onClose, onRaised }) {
         >
           <div className="flex items-start gap-3 mb-4">
             <div className="w-9 h-9 rounded-xl bg-[#CDFF00] text-black flex items-center justify-center shrink-0">
-              <ShieldAlert className="w-4.5 h-4.5" />
+              <ShieldX className="w-4.5 h-4.5" />
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-base font-black text-white leading-tight">Report a problem</h3>
               <p className="text-[11px] text-gray-500 truncate">{claim.title || 'This order'}</p>
             </div>
             <button onClick={onClose} className="text-gray-500 hover:text-white shrink-0" aria-label="Close">
-              <X className="w-4 h-4" />
+              <CircleX className="w-4 h-4" />
             </button>
           </div>
 
@@ -109,7 +109,7 @@ export default function ClaimModal({ claim, onClose, onRaised }) {
               disabled={busy}
               className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[10px] tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
             >
-              {busy ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending…</> : 'Open claim'}
+              {busy ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Sending…</> : 'Open claim'}
             </button>
           </div>
         </motion.div>

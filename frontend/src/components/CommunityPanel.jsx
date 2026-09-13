@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UsersRound, Plus, Check, MapPin, X, Loader2, ImagePlus } from 'lucide-react';
+import { UserCog, CirclePlus, CircleCheck, Navigation, CircleX, Loader, ImageUp } from 'lucide-react';
 import { communitiesApi, dispatchToast } from '../api/client';
 import SmartImage from './SmartImage';
 
@@ -64,14 +64,14 @@ export default function CommunityPanel({ onChanged }) {
     <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
       <div className="flex items-center justify-between gap-3 mb-3">
         <h3 className="flex items-center gap-2 text-[11px] font-black tracking-[0.2em] text-gray-400">
-          <UsersRound className="w-3.5 h-3.5" /> Communities
+          <UserCog className="w-3.5 h-3.5" /> Communities
         </h3>
         <button
           type="button"
           onClick={() => setCreating(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#E0FF4D] transition-colors"
         >
-          <Plus className="w-3 h-3" /> New
+          <CirclePlus className="w-3 h-3" /> New
         </button>
       </div>
 
@@ -97,7 +97,7 @@ export default function CommunityPanel({ onChanged }) {
                   <SmartImage
                     src={community.imageUrl}
                     alt=""
-                    fallbackIcon={UsersRound}
+                    fallbackIcon={UserCog}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -106,7 +106,7 @@ export default function CommunityPanel({ onChanged }) {
                   <p className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500 truncate">
                     {community.city && (
                       <span className="flex items-center gap-0.5 truncate">
-                        <MapPin className="w-3 h-3 shrink-0" /> {community.city}
+                        <Navigation className="w-3 h-3 shrink-0" /> {community.city}
                       </span>
                     )}
                     <span className="shrink-0">
@@ -132,8 +132,8 @@ export default function CommunityPanel({ onChanged }) {
                     }`}
                   >
                     {busyId === community.id
-                      ? <Loader2 className="w-3 h-3 animate-spin" />
-                      : community.joinedByCurrentUser && <Check className="w-3 h-3" />}
+                      ? <Loader className="w-3 h-3 animate-spin" />
+                      : community.joinedByCurrentUser && <CircleCheck className="w-3 h-3" />}
                     {community.joinedByCurrentUser ? 'Joined' : 'Join'}
                   </button>
                 )}
@@ -208,7 +208,7 @@ function CreateCommunityModal({ onClose, onCreated }) {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-black text-white tracking-tight">New community</h3>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-gray-500 hover:bg-white/10">
-            <X className="w-4 h-4" />
+            <CircleX className="w-4 h-4" />
           </button>
         </div>
 
@@ -245,12 +245,12 @@ function CreateCommunityModal({ onClose, onCreated }) {
                 <SmartImage
                   src={image ? URL.createObjectURL(image) : null}
                   alt=""
-                  fallbackIcon={UsersRound}
+                  fallbackIcon={UserCog}
                   className="w-full h-full object-cover"
                 />
               </div>
               <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold hover:border-white/30 transition-colors cursor-pointer">
-                <ImagePlus className="w-4 h-4" />
+                <ImageUp className="w-4 h-4" />
                 {image ? 'Change' : 'Upload'}
                 <input
                   type="file"
@@ -276,7 +276,7 @@ function CreateCommunityModal({ onClose, onCreated }) {
             disabled={saving}
             className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-black tracking-widest text-[10px] hover:bg-[#E0FF4D] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {saving && <Loader className="w-3.5 h-3.5 animate-spin" />}
             {saving ? 'Creating' : 'Create'}
           </button>
         </div>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
-import { Star, MessageSquareQuote, Loader2, PenLine, ChevronDown } from 'lucide-react';
+import { Sparkle, Quote, Loader, Signature, CircleChevronDown } from 'lucide-react';
 import { reviewsApi, shopsApi } from '../api/client';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 
@@ -10,7 +10,7 @@ function Stars({ rating, className = 'w-3.5 h-3.5' }) {
   return (
     <span className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((n) => (
-        <Star
+        <Sparkle
           key={n}
           className={`${className} ${n <= Math.round(rating) ? 'fill-[#CDFF00] text-[#CDFF00]' : 'text-white/20'}`}
         />
@@ -132,7 +132,7 @@ export default function ShopReviews({ shopId, ownerId, ownerName, rating = 0, re
   if (reviews.length === 0) {
     return (
       <div className="mb-8 flex items-center gap-3 p-4 rounded-2xl bg-white/[0.02] border border-white/10 border-dashed">
-        <MessageSquareQuote className="w-5 h-5 text-white/25 shrink-0" />
+        <Quote className="w-5 h-5 text-white/25 shrink-0" />
         <p className="text-xs text-gray-500">
           No reviews yet — {ownerName || 'this seller'} hasn&apos;t completed a transaction on
           HustleSpace so far. Ratings appear here automatically once they do.
@@ -168,7 +168,7 @@ export default function ShopReviews({ shopId, ownerId, ownerName, rating = 0, re
             Review your order
           </span>
         )}
-        <ChevronDown
+        <CircleChevronDown
           className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''} ${reviewable.length > 0 ? '' : 'ml-auto'}`}
         />
       </button>
@@ -194,7 +194,7 @@ export default function ShopReviews({ shopId, ownerId, ownerName, rating = 0, re
               return (
                 <div key={star} className="flex items-center gap-2">
                   <span className="text-[10px] font-black text-gray-500 w-3 shrink-0">{star}</span>
-                  <Star className="w-3 h-3 text-white/25 shrink-0" />
+                  <Sparkle className="w-3 h-3 text-white/25 shrink-0" />
                   <span className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
                     <motion.span
                       initial={{ width: 0 }}
@@ -246,7 +246,7 @@ export default function ShopReviews({ shopId, ownerId, ownerName, rating = 0, re
         {reviewable.length > 0 && (
           <form onSubmit={submitReview} className="mt-6 p-4 rounded-2xl bg-white/[0.03] border border-white/10">
             <div className="flex items-center gap-2 mb-3">
-              <PenLine className="w-3.5 h-3.5 text-[#CDFF00]" />
+              <Signature className="w-3.5 h-3.5 text-[#CDFF00]" />
               <p className="text-[10px] font-black tracking-widest text-gray-300">
                 Review your order
               </p>
@@ -267,7 +267,7 @@ export default function ShopReviews({ shopId, ownerId, ownerName, rating = 0, re
                   aria-pressed={draft.rating === n}
                   className="p-0.5 transition-transform hover:scale-110 active:scale-95"
                 >
-                  <Star
+                  <Sparkle
                     className={`w-6 h-6 ${
                       n <= (hoverRating || draft.rating)
                         ? 'fill-[#CDFF00] text-[#CDFF00]'
@@ -294,7 +294,7 @@ export default function ShopReviews({ shopId, ownerId, ownerName, rating = 0, re
               disabled={submitting || !draft.rating}
               className="mt-3 w-full py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 inline-flex items-center justify-center gap-2"
             >
-              {submitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Posting…</> : 'Post review'}
+              {submitting ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Posting…</> : 'Post review'}
             </button>
           </form>
         )}

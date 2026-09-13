@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MoveRight, CircleChevronLeft, CircleChevronRight } from 'lucide-react';
 
 /**
  * One horizontally-scrolling shelf on the Explore page.
@@ -93,7 +93,7 @@ export default function ExploreRow({
             >
               View all
               {total > 0 && <span className="opacity-60 group-hover:opacity-80">({total})</span>}
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              <MoveRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </Link>
           )}
         </div>
@@ -113,7 +113,7 @@ export default function ExploreRow({
                 className="hidden sm:flex absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-[#0A0A0A] border items-center justify-center shadow-[0_4px_16px_rgba(0,0,0,0.7)] hover:scale-110 active:scale-95 transition-transform"
                 style={{ borderColor: `${accentColor}66` }}
               >
-                <ChevronLeft className="w-5 h-5" style={{ color: accentColor }} />
+                <CircleChevronLeft className="w-5 h-5" style={{ color: accentColor }} />
               </motion.button>
             )}
             {!edges.end && (
@@ -125,7 +125,7 @@ export default function ExploreRow({
                 className="hidden sm:flex absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-[#0A0A0A] border items-center justify-center shadow-[0_4px_16px_rgba(0,0,0,0.7)] hover:scale-110 active:scale-95 transition-transform"
                 style={{ borderColor: `${accentColor}66` }}
               >
-                <ChevronRight className="w-5 h-5" style={{ color: accentColor }} />
+                <CircleChevronRight className="w-5 h-5" style={{ color: accentColor }} />
               </motion.button>
             )}
 

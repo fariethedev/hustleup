@@ -5,11 +5,7 @@ import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated, selectIsSeller } from '../store/authSlice';
 import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, feedbackApi, dispatchToast } from '../api/client';
 import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constants';
-import {
-  Settings2, Plus, Inbox, ClipboardList, Check, X, MessageSquare, ListTodo, PackageSearch,
-  BellRing, TrendingUp, CalendarClock, Pencil, Store, Trash2, Ban, Landmark, CreditCard, ShieldCheck, ShieldAlert,
-  Ticket, ScanLine, ArrowRight, Star, Truck, Package, Megaphone
-} from 'lucide-react';
+import { ChevronDown, Cog, CirclePlus, Archive, ClipboardCheck, CircleCheck, CircleX, MessagesSquare, ListChecks, Boxes, BellDot, ChartLine, CalendarRange, SquarePen, Building2, Eraser, CircleSlash, Building, WalletCards, ShieldPlus, ShieldX, TicketCheck, QrCode, MoveRight, Sparkle, Forklift, Box, Speech, CircleUser } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
 import ShopManager from '../components/ShopManager';
 import ReviewModal from '../components/ReviewModal';
@@ -51,6 +47,27 @@ export default function Dashboard() {
   // Booking whose review dialog is open — either the seller completing it, or a buyer
   // clearing a review they still owe.
   const [reviewing, setReviewing] = useState(null);
+
+  /**
+   * Whether the outstanding-ratings prompts are expanded.
+   *
+   * Remembered, because someone who collapsed them yesterday did not mean "just this once".
+   * Read through a try/catch: a browser with site data blocked throws on access rather than
+   * returning null, and the dashboard should not fail to render over a panel preference.
+   */
+  const [ratingsOpen, setRatingsOpen] = useState(() => {
+    try { return localStorage.getItem('hustleup_dash_ratings') !== 'closed'; }
+    catch { return true; }
+  });
+
+  const toggleRatingsOpen = () => {
+    setRatingsOpen((prev) => {
+      const next = !prev;
+      try { localStorage.setItem('hustleup_dash_ratings', next ? 'open' : 'closed'); }
+      catch { /* preference only — not worth failing over */ }
+      return next;
+    });
+  };
   // The booking a seller has just completed, while we ask them how the platform is doing.
   const [feedbackFor, setFeedbackFor] = useState(null);
   const [shopOrders, setShopOrders] = useState([]);   // storefront purchases the user made
@@ -227,26 +244,26 @@ export default function Dashboard() {
       key: 'selling',
       label: 'Selling',
       tabs: [
-        { id: 'listings', label: 'Listings', icon: ClipboardList, count: listings.length },
-        { id: 'shop', label: 'Shop', icon: Store, count: 0 },
-        { id: 'sales', label: 'Sales', icon: TrendingUp, count: salesBookings.length },
-        ...(hasServiceListing ? [{ id: 'availability', label: 'Availability', icon: CalendarClock, count: slots.length }] : []),
-        ...(hasEventListing ? [{ id: 'door', label: 'Door', icon: ScanLine, count: eventListings.length }] : []),
+        { id: 'listings', label: 'Listings', icon: ClipboardCheck, count: listings.length },
+        { id: 'shop', label: 'Shop', icon: Building2, count: 0 },
+        { id: 'sales', label: 'Sales', icon: ChartLine, count: salesBookings.length },
+        ...(hasServiceListing ? [{ id: 'availability', label: 'Availability', icon: CalendarRange, count: slots.length }] : []),
+        ...(hasEventListing ? [{ id: 'door', label: 'Door', icon: QrCode, count: eventListings.length }] : []),
       ],
     }] : []),
     {
       key: 'activity',
       label: isSeller ? 'Orders' : 'Your activity',
       tabs: [
-        { id: 'bookings', label: 'Bookings', icon: ListTodo, count: bookings.length },
+        { id: 'bookings', label: 'Bookings', icon: ListChecks, count: bookings.length },
         // Storefront orders are a separate entity from bookings, so they get their own tab
         // rather than being merged into one list of two different shapes. Hidden until
         // there is one, on the same reasoning as Tickets below.
         ...(shopOrders.length > 0 || shopSales.length > 0
-          ? [{ id: 'orders', label: 'Shop orders', icon: Package, count: openShopOrders }]
+          ? [{ id: 'orders', label: 'Shop orders', icon: Box, count: openShopOrders }]
           : []),
         // Only surfaced once there's something in the wallet — an empty tab is noise.
-        ...(tickets.length > 0 ? [{ id: 'tickets', label: 'Tickets', icon: Ticket, count: tickets.filter((t) => t.status === 'VALID').length }] : []),
+        ...(tickets.length > 0 ? [{ id: 'tickets', label: 'Tickets', icon: TicketCheck, count: tickets.filter((t) => t.status === 'VALID').length }] : []),
       ],
     },
     {
@@ -257,22 +274,22 @@ export default function Dashboard() {
       // approved would mean the only people who can see the route are the ones who no
       // longer need it.
       tabs: [
-        { id: 'publishing', label: 'News & Jobs', icon: Megaphone, count: 0 },
+        { id: 'publishing', label: 'News & Jobs', icon: Speech, count: 0 },
       ],
     },
     {
       key: 'account',
       label: 'Account',
       tabs: [
-        ...(isSeller ? [{ id: 'payouts', label: 'Payouts', icon: Landmark, count: payoutStatus?.payoutsEnabled ? 0 : 1 }] : []),
-        { id: 'notifications', label: 'Alerts', icon: BellRing, count: notifications.filter((n) => !n.read).length },
+        ...(isSeller ? [{ id: 'payouts', label: 'Payouts', icon: Building, count: payoutStatus?.payoutsEnabled ? 0 : 1 }] : []),
+        { id: 'notifications', label: 'Alerts', icon: BellDot, count: notifications.filter((n) => !n.read).length },
       ],
     },
   ];
 
   return (
     <div className="min-h-screen text-white">
-      <HeroBrief title="Hustle Dash" />
+      <HeroBrief title="Dashboard" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-10">
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
@@ -359,21 +376,40 @@ export default function Dashboard() {
             <div className="w-px h-5 bg-white/10 mx-1.5 shrink-0" />
             {isSeller && (
               <Link to="/create" className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#CDFF00] text-black font-black tracking-widest text-[9px] hover:bg-[#E0FF4D] transition-all">
-                <Plus className="w-3.5 h-3.5" /> Post New
+                <CirclePlus className="w-3.5 h-3.5" /> Post New
               </Link>
             )}
             <Link to={`/profile/${user?.id}`} className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg glass border border-white/10 text-white font-bold tracking-widest text-[9px] hover:bg-white/5 transition-all">
-              <Settings2 className="w-3.5 h-3.5" /> Settings
+              <Cog className="w-3.5 h-3.5" /> Settings
             </Link>
           </div>
 
           {/* Points at the Shop tab rather than onboarding — that's where a storefront is
               actually created and edited now. */}
           {/* Outstanding reviews sit above everything else: a rating is only useful if it is
-              actually left, and a completed transaction is the moment someone can give one. */}
+              actually left, and a completed transaction is the moment someone can give one.
+              That is also why they can be collapsed rather than dismissed — three cards at the
+              top of every visit is a lot to scroll past, but a prompt you can permanently kill
+              is one nobody ever acts on. Collapsed it keeps the count, so what is waiting stays
+              visible and the reminder survives. */}
           {awaitingReview.length > 0 && (
             <div className="mb-5 space-y-2">
-              {awaitingReview.slice(0, 3).map((b) => (
+              <button
+                onClick={toggleRatingsOpen}
+                aria-expanded={ratingsOpen}
+                className="w-full flex items-center justify-between gap-3 px-1 text-left group"
+              >
+                <span className="text-[10px] font-black tracking-widest text-[#CDFF00]">
+                  {awaitingReview.length} {awaitingReview.length === 1 ? 'rating' : 'ratings'} to leave
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 text-gray-500 group-hover:text-white transition-all ${
+                    ratingsOpen ? '' : '-rotate-90'
+                  }`}
+                />
+              </button>
+
+              {ratingsOpen && awaitingReview.slice(0, 3).map((b) => (
                 <button
                   key={b.id}
                   onClick={() => setReviewing({ booking: b, mode: 'review' })}
@@ -381,7 +417,7 @@ export default function Dashboard() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-full bg-[#CDFF00]/15 flex items-center justify-center shrink-0">
-                      <Star className="w-4.5 h-4.5 text-[#CDFF00]" />
+                      <Sparkle className="w-4.5 h-4.5 text-[#CDFF00]" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-white truncate">
@@ -405,7 +441,7 @@ export default function Dashboard() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-[#CDFF00]/15 flex items-center justify-center shrink-0">
-                  <Store className="w-4.5 h-4.5 text-[#CDFF00]" />
+                  <Building2 className="w-4.5 h-4.5 text-[#CDFF00]" />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-white">Your shop</p>
@@ -431,7 +467,7 @@ export default function Dashboard() {
               {tab === 'bookings' && (
                 <div className="space-y-2.5">
                   {bookings.length === 0 ? (
-                    <EmptyState icon={Inbox} title="No Active Orders" desc="Your active purchasing or service bookings will appear here." />
+                    <EmptyState icon={Archive} title="No Active Orders" desc="Your active purchasing or service bookings will appear here." />
                   ) : (
                     bookings.map((booking) => {
                       const status = BOOKING_STATUS_MAP[booking.status] || { label: booking.status, color: 'bg-gray-800 text-gray-400' };
@@ -483,19 +519,19 @@ export default function Dashboard() {
                               way to reach the hidden ones. */}
                           <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                             <Link to={`/dm/${isBuyer ? booking.sellerId : booking.buyerId}`} className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5">
-                              <MessageSquare className="w-3 h-3" /> DM
+                              <MessagesSquare className="w-3 h-3" /> DM
                             </Link>
 
                             {booking.status === 'INQUIRED' && !isBuyer && (
                               <>
                                 <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
-                                  <Check className="w-3 h-3" /> Approve
+                                  <CircleCheck className="w-3 h-3" /> Approve
                                 </button>
                                 <button
                                   onClick={() => { setCounteringId(counteringId === booking.id ? null : booking.id); setCounterValue(''); }}
                                   className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1"
                                 >
-                                  <Pencil className="w-3 h-3" /> Counter
+                                  <SquarePen className="w-3 h-3" /> Counter
                                 </button>
                               </>
                             )}
@@ -503,7 +539,7 @@ export default function Dashboard() {
                             {/* Buyer accepting the seller's counter-offer */}
                             {booking.status === 'NEGOTIATING' && isBuyer && (
                               <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
-                                <Check className="w-3 h-3" /> Accept {formatPrice(booking.counterPrice, booking.currency)}
+                                <CircleCheck className="w-3 h-3" /> Accept {formatPrice(booking.counterPrice, booking.currency)}
                               </button>
                             )}
 
@@ -513,7 +549,7 @@ export default function Dashboard() {
                                 disabled={payingBookingId === booking.id}
                                 className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1 disabled:opacity-60"
                               >
-                                <CreditCard className="w-3 h-3" /> {payingBookingId === booking.id ? 'Redirecting…' : 'Pay Now'}
+                                <WalletCards className="w-3 h-3" /> {payingBookingId === booking.id ? 'Redirecting…' : 'Pay Now'}
                               </button>
                             )}
 
@@ -531,7 +567,7 @@ export default function Dashboard() {
                                 onClick={() => { if (confirm('Confirm you received this? It releases the seller\'s payment.')) handleBookingAction(booking.id, 'received'); }}
                                 className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1"
                               >
-                                <ShieldCheck className="w-3 h-3" /> Confirm received
+                                <ShieldPlus className="w-3 h-3" /> Confirm received
                               </button>
                             )}
 
@@ -546,7 +582,7 @@ export default function Dashboard() {
                                 onClick={() => setClaiming({ orderType: 'BOOKING', orderId: booking.id, title: booking.listingTitle })}
                                 className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 font-black text-[9px] tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center gap-1.5"
                               >
-                                <ShieldAlert className="w-3 h-3" /> Report a problem
+                                <ShieldX className="w-3 h-3" /> Report a problem
                               </button>
                             )}
 
@@ -558,7 +594,7 @@ export default function Dashboard() {
                                 onClick={() => setTracking({ order: booking, kind: 'booking', title: booking.listingTitle })}
                                 className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5"
                               >
-                                <Truck className="w-3 h-3" /> Delivery
+                                <Forklift className="w-3 h-3" /> Delivery
                               </button>
                             )}
 
@@ -580,7 +616,7 @@ export default function Dashboard() {
                                 }}
                                 className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1"
                               >
-                                <Check className="w-3 h-3" /> Complete
+                                <CircleCheck className="w-3 h-3" /> Complete
                               </button>
                             )}
 
@@ -594,12 +630,17 @@ export default function Dashboard() {
                                   onClick={() => { if (confirm(isPendingRequest ? 'Decline this request?' : 'Cancel this booking?')) handleBookingAction(booking.id, 'cancel'); }}
                                   className="px-3.5 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 font-black text-[9px] tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-1"
                                 >
-                                  <Ban className="w-3 h-3" /> {isPendingRequest ? 'Decline' : 'Cancel'}
+                                  <CircleSlash className="w-3 h-3" /> {isPendingRequest ? 'Decline' : 'Cancel'}
                                 </button>
                               );
                             })()}
                           </div>
                         </div>
+
+                        {/* Who to contact and what they told you. Shown to the seller, who
+                            is the one who has to act on it — and to the buyer, because a typo
+                            in a delivery address is only findable if it is shown back. */}
+                        <BuyerDetails booking={booking} />
 
                         {/* Renders itself away for anything with no delivery track — an
                             unpaid order, or a service that was never going to be shipped. */}
@@ -628,7 +669,7 @@ export default function Dashboard() {
                               onClick={() => { setCounteringId(null); setCounterValue(''); }}
                               className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
                             >
-                              <X className="w-3.5 h-3.5" />
+                              <CircleX className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         )}
@@ -680,7 +721,7 @@ export default function Dashboard() {
                   )}
 
                   {shopOrders.length === 0 && shopSales.length === 0 && (
-                    <EmptyState icon={Package} title="No Shop Orders" desc="Storefront purchases and the orders placed with your shop will appear here." />
+                    <EmptyState icon={Box} title="No Shop Orders" desc="Storefront purchases and the orders placed with your shop will appear here." />
                   )}
                 </div>
               )}
@@ -711,7 +752,7 @@ export default function Dashboard() {
                         }`}>
                           {t.status === 'CHECKED_IN' ? 'Checked in' : t.status === 'CANCELLED' ? 'Void' : 'Valid'}
                         </span>
-                        <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-[#CDFF00] transition-colors" />
+                        <MoveRight className="w-4 h-4 text-gray-600 group-hover:text-[#CDFF00] transition-colors" />
                       </div>
                     </Link>
                   ))}
@@ -746,7 +787,7 @@ export default function Dashboard() {
                         </p>
                       </div>
                       <span className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[9px] font-black tracking-widest">
-                        <ScanLine className="w-3 h-3" /> Open door
+                        <QrCode className="w-3 h-3" /> Open door
                       </span>
                     </Link>
                   ))}
@@ -772,7 +813,7 @@ export default function Dashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                   {listings.length === 0 ? (
                     <div className="col-span-full">
-                      <EmptyState icon={PackageSearch} title="Inventory Empty" desc="You don't have any active drops right now." cta={{ label: 'New Drop', to: '/create' }} />
+                      <EmptyState icon={Boxes} title="Inventory Empty" desc="You don't have any active drops right now." cta={{ label: 'New Drop', to: '/create' }} />
                     </div>
                   ) : (
                     listings.map((listing) => {
@@ -794,7 +835,7 @@ export default function Dashboard() {
                             onClick={() => setEditingListing(listing)}
                             className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-white/20 transition-all shrink-0"
                           >
-                            <Pencil className="w-3.5 h-3.5" />
+                            <SquarePen className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       );
@@ -820,7 +861,7 @@ export default function Dashboard() {
 
                   <div className="space-y-2.5">
                     {salesBookings.length === 0 ? (
-                      <EmptyState icon={TrendingUp} title="No Sales Yet" desc="Completed bookings will show up here as sales once you mark them complete." />
+                      <EmptyState icon={ChartLine} title="No Sales Yet" desc="Completed bookings will show up here as sales once you mark them complete." />
                     ) : (
                       salesBookings.map((b) => (
                         <div key={b.id} className="glass rounded-2xl p-4 border border-white/5 flex items-center justify-between gap-3">
@@ -852,7 +893,7 @@ export default function Dashboard() {
                   <div className="glass rounded-2xl p-5 border border-white/5">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-10 h-10 rounded-xl bg-[#CDFF00]/10 flex items-center justify-center shrink-0">
-                        <Landmark className="w-5 h-5 text-[#CDFF00]" />
+                        <Building className="w-5 h-5 text-[#CDFF00]" />
                       </div>
                       <div>
                         <p className="text-sm font-bold text-white">Bank account</p>
@@ -862,7 +903,7 @@ export default function Dashboard() {
 
                     {payoutStatus?.payoutsEnabled ? (
                       <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20">
-                        <ShieldCheck className="w-4 h-4 text-[#CDFF00] shrink-0" />
+                        <ShieldPlus className="w-4 h-4 text-[#CDFF00] shrink-0" />
                         <p className="text-xs font-bold text-[#CDFF00]">Connected — you'll be paid out automatically when bookings are completed.</p>
                       </div>
                     ) : (
@@ -900,7 +941,7 @@ export default function Dashboard() {
               {tab === 'notifications' && (
                 <div className="max-w-3xl mx-auto space-y-2.5">
                   {notifications.length === 0 ? (
-                    <EmptyState icon={BellRing} title="Node Silent" desc="You have no unread alerts at the moment." />
+                    <EmptyState icon={BellDot} title="Node Silent" desc="You have no unread alerts at the moment." />
                   ) : (
                     notifications.map((notif) => (
                       <div
@@ -1014,7 +1055,7 @@ function EditPriceModal({ listing, onClose, onSaved }) {
       <div className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-white truncate pr-2">{listing.title}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 shrink-0"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 shrink-0"><CircleX className="w-4 h-4" /></button>
         </div>
         <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1.5 block">Price ({listing.currency})</label>
         <input
@@ -1096,14 +1137,14 @@ function AvailabilityTab({ listings, slots, onChange }) {
           onClick={addSlot} disabled={saving}
           className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-xs hover:bg-[#d9ff33] active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
         >
-          <Plus className="w-4 h-4" /> Add slot
+          <CirclePlus className="w-4 h-4" /> Add slot
         </button>
       </div>
 
       {/* Slot list */}
       <div className="space-y-2.5">
         {slots.length === 0 ? (
-          <EmptyState icon={CalendarClock} title="No Slots Yet" desc="Open a slot above so buyers can book a specific appointment time." />
+          <EmptyState icon={CalendarRange} title="No Slots Yet" desc="Open a slot above so buyers can book a specific appointment time." />
         ) : (
           slots.map((s) => (
             <div key={s.id} className="glass rounded-2xl p-4 border border-white/5 flex items-center justify-between gap-3">
@@ -1119,7 +1160,7 @@ function AvailabilityTab({ listings, slots, onChange }) {
                 </span>
                 {!s.booked && (
                   <button onClick={() => removeSlot(s.id)} className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all">
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Eraser className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
@@ -1147,7 +1188,7 @@ function ShopOrderCard({ order, onTrack }) {
     <div className="glass rounded-2xl p-4 border border-white/5 hover:border-[#CDFF00]/20 transition-all">
       <div className="flex items-start gap-3">
         <div className="w-12 h-12 rounded-lg overflow-hidden bg-black border border-white/10 shrink-0">
-          <SmartImage src={order.productImageUrl} alt="" fallbackIcon={Package} className="w-full h-full object-cover" />
+          <SmartImage src={order.productImageUrl} alt="" fallbackIcon={Box} className="w-full h-full object-cover" />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -1180,7 +1221,7 @@ function ShopOrderCard({ order, onTrack }) {
             onClick={onTrack}
             className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5 shrink-0"
           >
-            <Truck className="w-3 h-3" /> Delivery
+            <Forklift className="w-3 h-3" /> Delivery
           </button>
         )}
       </div>
@@ -1198,6 +1239,88 @@ const SHOP_ORDER_STATES = {
   CANCELLED: { label: 'Cancelled', color: 'bg-red-500/15 text-red-400' },
   REFUNDED: { label: 'Refunded', color: 'bg-amber-500/15 text-amber-400' },
 };
+
+/**
+ * The buyer's contact details and their answers to the seller's checkout questions.
+ *
+ * <p>Collapsed behind a summary line rather than always open: on a seller's list of twenty
+ * bookings, twenty address blocks is a wall. It opens on the one they are working on.
+ *
+ * <p>Renders nothing at all for bookings placed before any of this was captured — an empty
+ * panel headed "Buyer details" says the details are missing rather than that the feature is
+ * newer than the order.
+ */
+function BuyerDetails({ booking }) {
+  const [open, setOpen] = useState(false);
+
+  const rows = [
+    { label: 'Name', value: booking.customerName },
+    { label: 'Email', value: booking.customerEmail },
+    { label: 'Phone', value: booking.customerPhone },
+    { label: 'Address', value: booking.deliveryAddress },
+  ].filter((r) => r.value);
+
+  // Free text on both sides — the prompts are the seller's own words and the answers are
+  // the buyer's, so this is displayed and never interpreted.
+  let answers = [];
+  try {
+    const parsed = booking.checkoutAnswers ? JSON.parse(booking.checkoutAnswers) : null;
+    if (parsed && typeof parsed === 'object') answers = Object.entries(parsed);
+  } catch {
+    // Malformed JSON costs the answers, not the card.
+  }
+
+  if (rows.length === 0 && answers.length === 0) return null;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-white/5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-[9px] font-black tracking-[0.2em] text-gray-500 hover:text-white transition-colors"
+      >
+        <CircleUser className="w-3.5 h-3.5" />
+        Buyer details
+        {answers.length > 0 && (
+          <span className="text-[#CDFF00]">· {answers.length} answered</span>
+        )}
+        <span className="text-gray-600">{open ? '−' : '+'}</span>
+      </button>
+
+      {open && (
+        <div className="mt-2.5 space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+            {rows.map((r) => (
+              <div key={r.label} className="min-w-0">
+                <span className="block text-[9px] font-black tracking-widest text-gray-600">{r.label}</span>
+                {/* Tappable on a phone: a seller reading an order wants to call or mail the
+                    buyer from here, not copy the value out by hand. */}
+                {r.label === 'Email' ? (
+                  <a href={`mailto:${r.value}`} className="text-xs text-[#CDFF00] hover:underline break-all">{r.value}</a>
+                ) : r.label === 'Phone' ? (
+                  <a href={`tel:${r.value}`} className="text-xs text-[#CDFF00] hover:underline">{r.value}</a>
+                ) : (
+                  <span className="text-xs text-gray-300 whitespace-pre-wrap break-words">{r.value}</span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {answers.length > 0 && (
+            <div className="pt-2 mt-1 border-t border-white/5 space-y-1.5">
+              {answers.map(([prompt, answer]) => (
+                <div key={prompt} className="min-w-0">
+                  <span className="block text-[9px] font-black tracking-widest text-gray-600">{prompt}</span>
+                  <span className="text-xs text-gray-300 break-words">{String(answer)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function EmptyState({ icon: Icon, title, desc, cta }) {
   return (

@@ -110,7 +110,20 @@ public class OrderPayoutService {
             return false;
         }
 
-        var account = payoutAccountRepository.findBySellerId(order.getSellerId())
+        var stored = payoutAccountRepository.findBySellerId(order.getSellerId()).orElse(null);
+        // The stored payoutsEnabled is a cache of Stripe's answer, kept current by the
+        // account.updated webhook and by the seller opening the payouts page. A test-mode
+        // platform often has no webhook at all, so a false flag is re-checked at source
+        // before it is allowed to hold real money back.
+        if (stored != null && !stored.isPayoutsEnabled()) {
+            try {
+                stored = stripeConnectService.refreshAccountStatus(stored);
+            } catch (StripeException e) {
+                log.warn("Could not refresh payout account for seller {}: {}",
+                        order.getSellerId(), e.getMessage());
+            }
+        }
+        var account = java.util.Optional.ofNullable(stored)
                 .filter(SellerPayoutAccount::isPayoutsEnabled);
         if (account.isEmpty()) {
             // Not a failure: a seller who has not finished onboarding has nowhere to receive

@@ -1,12 +1,12 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { motion, useMotionValue, useTransform, useAnimationControls } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform, useAnimationControls } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { datingApi, subscriptionsApi, dispatchToast } from '../api/client';
 import { isPremiumActive } from '../utils/premium';
 import {
-  Heart, X, Sparkles, MessageCircle, User, Camera, Crown, Users, Zap,
-  Star, RotateCcw,
+  ThumbsUp, CircleX, WandSparkles, MessageCircleMore, CircleUserRound, Aperture, Gem, UserRound,
+  Rocket, Sparkle, Undo, Timer, BadgeInfo, ChartLine, CircleCheck, MoveLeft, MoveRight,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import BondCard from '../components/BondCard';
@@ -57,7 +57,7 @@ function MatchCelebrationModal({ currentUser, matchedProfile, superLike, onClose
             className="absolute"
             style={{ left: `${8 + i * 10}%` }}
           >
-            <Heart className="w-5 h-5" style={{ color: accent, fill: accent, opacity: 0.5 }} />
+            <ThumbsUp className="w-5 h-5" style={{ color: accent, fill: accent, opacity: 0.5 }} />
           </motion.div>
         ))}
       </div>
@@ -74,12 +74,12 @@ function MatchCelebrationModal({ currentUser, matchedProfile, superLike, onClose
           transition={{ delay: 0.15, type: 'spring', bounce: 0.6 }}
         >
           {superLike ? (
-            <Star
+            <Sparkle
               className="w-14 h-14 mx-auto mb-3"
               style={{ color: accent, fill: accent, filter: `drop-shadow(0 0 20px ${accent}66)` }}
             />
           ) : (
-            <Heart
+            <ThumbsUp
               className="w-14 h-14 mx-auto mb-3"
               style={{ color: accent, fill: accent, filter: `drop-shadow(0 0 20px ${accent}66)` }}
             />
@@ -125,7 +125,7 @@ function MatchCelebrationModal({ currentUser, matchedProfile, superLike, onClose
           className="w-full py-3.5 rounded-xl text-black font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all mb-3 flex items-center justify-center gap-2"
           style={{ backgroundColor: accent }}
         >
-          <MessageCircle className="w-4 h-4" /> Send a message
+          <MessageCircleMore className="w-4 h-4" /> Send a message
         </button>
         <button
           onClick={onClose}
@@ -175,7 +175,22 @@ function Chip({ label, selected, onClick, disabled }) {
   );
 }
 
-function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
+// Three short steps rather than one long form — the same step-rail convention Register.jsx
+// already established, so "animated setup" reads as a pattern the app already uses rather
+// than a new one invented just for Bond.
+const SETUP_STEPS = [
+  { id: 1, label: 'Photo', icon: Aperture, blurb: 'A face for the deck' },
+  { id: 2, label: 'About you', icon: BadgeInfo, blurb: 'The basics' },
+  { id: 3, label: 'Vibe', icon: WandSparkles, blurb: "What you're into" },
+];
+
+/**
+ * @param {boolean} mandatory  true for the first-run gate: no close button, and nothing
+ *   underneath it can be reached until a profile is saved. false when opened to edit an
+ *   existing one, where it behaves like the ordinary dismissible dialog it always was.
+ */
+function ProfileSetupModal({ currentUser, existing, mandatory = false, onClose, onSaved }) {
+  const [step, setStep] = useState(1);
   const [bio, setBio] = useState(existing?.bio || '');
   const [age, setAge] = useState(existing?.age || '');
   const [location, setLocation] = useState(existing?.location || '');
@@ -205,12 +220,22 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
     );
   };
 
-  // Required by the server too, which refuses the save — this is so the button explains
-  // itself before the round trip rather than after it.
+  // Required by the server too, which refuses the save — checked on step 1 so it explains
+  // itself before the round trip rather than after it, same reasoning as before the wizard.
   const genderMissing = !gender;
+
+  const next = () => {
+    if (step === 1 && genderMissing) {
+      dispatchToast('Choose Male or Female — Bond matches on it', 'error');
+      return;
+    }
+    setStep((s) => Math.min(SETUP_STEPS.length, s + 1));
+  };
+  const back = () => setStep((s) => Math.max(1, s - 1));
 
   const handleSave = async () => {
     if (genderMissing) {
+      setStep(1);
       dispatchToast('Choose Male or Female — Bond matches on it', 'error');
       return;
     }
@@ -227,7 +252,7 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
       fd.append('interests', interests.join(','));
       if (imageFile) fd.append('image', imageFile);
       await datingApi.saveProfile(fd);
-      dispatchToast('Profile saved!', 'success');
+      dispatchToast(mandatory ? "You're in — welcome to Bond!" : 'Profile saved!', 'success');
       onSaved();
       onClose();
     } catch (e) {
@@ -239,6 +264,9 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
     }
   };
 
+  const current = SETUP_STEPS[step - 1];
+  const onFinalStep = step === SETUP_STEPS.length;
+
   return (
     <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
       <motion.div
@@ -246,112 +274,231 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
         animate={{ scale: 1, opacity: 1 }}
         className="w-full max-w-md bg-[#0A0A0A] border border-white/10 rounded-2xl p-6 overflow-y-auto max-h-[90vh]"
       >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-white">Your Bond profile</h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors">
-            <X className="w-4.5 h-4.5" />
+        <div className="flex items-start justify-between mb-1">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-white">
+              {mandatory ? 'Set up your Bond profile' : 'Your Bond profile'}
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">{current.blurb}</p>
+          </div>
+          {/* No way out while it's mandatory — that is the entire point of the gate. Only
+              editing an already-saved profile is dismissible, since that path is never
+              onboarding and closing it loses nothing the deck depends on. */}
+          {!mandatory && (
+            <button onClick={onClose} className="p-2 -mt-1 -mr-1 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors shrink-0">
+              <CircleX className="w-4.5 h-4.5" />
+            </button>
+          )}
+        </div>
+
+        {/* ── Step rail ──────────────────────────────────────────────────────
+            Identical mechanic to account creation's: a completed step is tappable, so
+            fixing an earlier answer never means starting over. */}
+        <div className="flex items-center gap-2 my-5">
+          {SETUP_STEPS.map((s, i) => {
+            const done = step > s.id;
+            const active = step === s.id;
+            const Icon = s.icon;
+            return (
+              <div key={s.id} className="flex items-center gap-2 flex-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => done && setStep(s.id)}
+                  disabled={!done && !active}
+                  aria-current={active ? 'step' : undefined}
+                  className={`flex items-center gap-1.5 min-w-0 transition-opacity ${
+                    done ? 'cursor-pointer hover:opacity-80' : 'cursor-default'
+                  } ${!done && !active ? 'opacity-40' : ''}`}
+                >
+                  <motion.span
+                    initial={false}
+                    animate={{ scale: active ? 1.08 : 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                      done
+                        ? 'bg-[#CDFF00] border-[#CDFF00] text-black'
+                        : active
+                          ? 'bg-[#CDFF00]/15 border-[#CDFF00]/50 text-[#CDFF00]'
+                          : 'bg-white/5 border-white/10 text-gray-500'
+                    }`}
+                  >
+                    {done ? <CircleCheck className="w-3.5 h-3.5" strokeWidth={3} /> : <Icon className="w-3.5 h-3.5" />}
+                  </motion.span>
+                  <span className={`text-[10px] font-black tracking-widest truncate hidden sm:block ${
+                    active ? 'text-white' : 'text-gray-500'
+                  }`}>
+                    {s.label}
+                  </span>
+                </button>
+                {i < SETUP_STEPS.length - 1 && (
+                  <div className="flex-1 h-0.5 rounded-full bg-white/10 overflow-hidden">
+                    <motion.div
+                      initial={false}
+                      animate={{ scaleX: step > s.id ? 1 : 0 }}
+                      style={{ originX: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="h-full w-full bg-[#CDFF00]"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Steps slide rather than cut, so it reads as one form moving along instead of three
+            unrelated screens — same treatment, same timing, as account creation. */}
+        <AnimatePresence mode="wait" initial={false}>
+          {step === 1 && (
+            <motion.div
+              key="step-1"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-5"
+            >
+              <div className="flex justify-center">
+                <div className="relative w-28 h-28 rounded-full overflow-hidden border-2 border-white/10 bg-black">
+                  <img
+                    src={imagePreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.id}`}
+                    className="w-full h-full object-cover"
+                    alt=""
+                  />
+                  <button onClick={() => fileRef.current?.click()} className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <Aperture className="w-5 h-5 text-[#CDFF00] mb-1" />
+                    <span className="text-[9px] font-bold text-[#CDFF00]">Upload</span>
+                  </button>
+                </div>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">
+                  I am <span className="text-[#FF4E8E]">*</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {GENDER_OPTIONS.map((o) => (
+                    <Chip key={o} label={o} selected={gender === o} onClick={() => setGender(o)} />
+                  ))}
+                </div>
+                {/* Says why rather than just refusing. A required field on a dating profile
+                    reads as nosy unless it is clear what it is for. */}
+                <p className={`mt-2 text-[11px] leading-relaxed ${genderMissing ? 'text-[#FF4E8E]' : 'text-gray-500'}`}>
+                  {genderMissing
+                    ? 'Pick one to continue — Bond builds your deck from it.'
+                    : 'Bond matches on this, and pairs it with your "Show me" preference on the last step.'}
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 2 && (
+            <motion.div
+              key="step-2"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-5"
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">Age</label>
+                  <input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="e.g. 25" className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">City</label>
+                  <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Warszawa" className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">Looking for</label>
+                <div className="flex flex-wrap gap-2">
+                  {LOOKING_FOR_OPTIONS.map((o) => (
+                    <Chip key={o} label={o} selected={lookingFor === o} onClick={() => setLookingFor(o)} />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">Bio</label>
+                <textarea
+                  value={bio}
+                  onChange={e => setBio(e.target.value)}
+                  placeholder="Tell people what you do..."
+                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none h-20 focus:outline-none focus:border-[#CDFF00] transition-colors"
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {step === 3 && (
+            <motion.div
+              key="step-3"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-5"
+            >
+              <div>
+                <div className="flex items-baseline justify-between mb-2">
+                  <label className="text-[11px] font-bold text-gray-400 tracking-widest">Interests</label>
+                  <span className="text-[10px] text-gray-500">{interests.length}/{MAX_INTERESTS}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {INTEREST_OPTIONS.map((o) => {
+                    const selected = interests.includes(o);
+                    return (
+                      <Chip
+                        key={o}
+                        label={o}
+                        selected={selected}
+                        disabled={!selected && interests.length >= MAX_INTERESTS}
+                        onClick={() => toggleInterest(o)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">Show me</label>
+                <div className="flex flex-wrap gap-2">
+                  {SHOW_ME_OPTIONS.map((o) => (
+                    <Chip key={o} label={o} selected={showMe === o} onClick={() => setShowMe(o)} />
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Navigation ─────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-3 mt-7">
+          {step > 1 && (
+            <button
+              type="button"
+              onClick={back}
+              className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm hover:bg-white/10 transition-colors flex items-center gap-1.5 shrink-0"
+            >
+              <MoveLeft className="w-4 h-4" /> Back
+            </button>
+          )}
+          <button
+            onClick={onFinalStep ? handleSave : next}
+            disabled={saving || (step === 1 && genderMissing)}
+            className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2"
+          >
+            {saving
+              ? 'Saving…'
+              : onFinalStep
+                ? (mandatory ? 'Start swiping' : 'Save profile')
+                : <>Continue <MoveRight className="w-4 h-4" /></>}
           </button>
         </div>
-
-        {/* Avatar */}
-        <div className="flex justify-center mb-7">
-          <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white/10 bg-black">
-            <img src={imagePreview || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.id}`} className="w-full h-full object-cover" alt="" />
-            <button onClick={() => fileRef.current?.click()} className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-              <Camera className="w-5 h-5 text-[#CDFF00] mb-1" />
-              <span className="text-[9px] font-bold text-[#CDFF00]">Upload</span>
-            </button>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
-        </div>
-
-        <div className="space-y-5">
-          <div>
-            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">Bio</label>
-            <textarea
-              value={bio}
-              onChange={e => setBio(e.target.value)}
-              placeholder="Tell people what you do..."
-              className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-white text-sm resize-none h-24 focus:outline-none focus:border-[#CDFF00] transition-colors"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">Age</label>
-              <input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="e.g. 25" className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors" />
-            </div>
-            <div>
-              <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-1.5 block">City</label>
-              <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Warszawa" className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#CDFF00] transition-colors" />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">Looking for</label>
-            <div className="flex flex-wrap gap-2">
-              {LOOKING_FOR_OPTIONS.map((o) => (
-                <Chip key={o} label={o} selected={lookingFor === o} onClick={() => setLookingFor(o)} />
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-baseline justify-between mb-2">
-              <label className="text-[11px] font-bold text-gray-400 tracking-widest">Interests</label>
-              <span className="text-[10px] text-gray-500">{interests.length}/{MAX_INTERESTS}</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {INTEREST_OPTIONS.map((o) => {
-                const selected = interests.includes(o);
-                return (
-                  <Chip
-                    key={o}
-                    label={o}
-                    selected={selected}
-                    disabled={!selected && interests.length >= MAX_INTERESTS}
-                    onClick={() => toggleInterest(o)}
-                  />
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">
-              I am <span className="text-[#FF4E8E]">*</span>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {GENDER_OPTIONS.map((o) => (
-                <Chip key={o} label={o} selected={gender === o} onClick={() => setGender(o)} />
-              ))}
-            </div>
-            {/* Says why rather than just refusing. A required field on a dating profile reads
-                as nosy unless it is clear what it is for. */}
-            <p className={`mt-2 text-[11px] leading-relaxed ${genderMissing ? 'text-[#FF4E8E]' : 'text-gray-500'}`}>
-              {genderMissing
-                ? 'Pick one to continue — Bond builds your deck from it.'
-                : 'Bond matches on this, and pairs it with your "Show me" preference below.'}
-            </p>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-gray-400 tracking-widest mb-2 block">Show me</label>
-            <div className="flex flex-wrap gap-2">
-              {SHOW_ME_OPTIONS.map((o) => (
-                <Chip key={o} label={o} selected={showMe === o} onClick={() => setShowMe(o)} />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={handleSave}
-          disabled={saving || genderMissing}
-          className="w-full mt-7 py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
-        >
-          {saving ? 'Saving…' : 'Save profile'}
-        </button>
       </motion.div>
     </div>
   );
@@ -365,9 +512,9 @@ function ProfileSetupModal({ currentUser, existing, onClose, onSaved }) {
  */
 function PremiumPaywall({ onUpgrade, upgrading, plans }) {
   const perks = [
-    { icon: Heart, text: 'Unlimited swipes on creatives near you' },
-    { icon: Users, text: 'See mutual matches and message instantly' },
-    { icon: Zap, text: 'Priority placement in other members’ stacks' },
+    { icon: ThumbsUp, text: 'Unlimited swipes on creatives near you' },
+    { icon: UserRound, text: 'See mutual matches and message instantly' },
+    { icon: Rocket, text: 'Priority placement in other members’ stacks' },
   ];
 
   // The longest term is the best per-month value, so it is worth pointing at. Derived
@@ -380,7 +527,7 @@ function PremiumPaywall({ onUpgrade, upgrading, plans }) {
     <div className="w-full max-w-sm mx-auto px-4">
       <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-center">
         <div className="w-11 h-11 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-3">
-          <Crown className="w-5 h-5 text-[#CDFF00]" />
+          <Gem className="w-5 h-5 text-[#CDFF00]" />
         </div>
         <h2 className="text-base font-bold text-white mb-1">Bond is a Premium feature</h2>
         <p className="text-xs text-gray-400 leading-relaxed mb-4">
@@ -524,6 +671,348 @@ function ActionButton({ icon: Icon, label, onClick, disabled, color, glow, large
   );
 }
 
+// ── Speed Round ──────────────────────────────────────────────────────────────
+// A short, timed batch of the same deck, played as its own game rather than the ordinary
+// browse. Nothing here is a new kind of decision — every card still resolves through
+// datingApi.like/pass, so a match made in a round is exactly as real as one made outside it,
+// and the server's own dedupe (see getProfiles) means nobody swiped in a round can reappear
+// afterward without a separate action on the parent's part.
+
+const SPEED_ROUND_SIZE = 8;
+const SPEED_CARD_MS = 6000; // 6s to decide, or the card counts as a pass
+
+/** In place, so calling it twice on the same array never hands back the same order. */
+function shuffled(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * @param {object[]} initialDeck  the parent's current deck; a shuffled slice becomes the round
+ * @param {object}   currentUser  for refetching a fresh batch on "Play again"
+ * @param {Function} onFinish     called once, when leaving the game for good — the parent
+ *                                closes the overlay and reloads its own deck, which by then
+ *                                already excludes everyone this round decided on
+ */
+function SpeedDateGame({ initialDeck, currentUser, onFinish }) {
+  const navigate = useNavigate();
+
+  const [roundDeck, setRoundDeck] = useState(() => shuffled(initialDeck).slice(0, SPEED_ROUND_SIZE));
+  const [index, setIndex] = useState(0);
+  const [progress, setProgress] = useState(0); // 0-100 within the current card's time budget
+  const [streak, setStreak] = useState(0);     // consecutive cards decided before time ran out
+  const [bestStreak, setBestStreak] = useState(0);
+  const [stats, setStats] = useState({ decisions: 0, likes: 0, matches: 0, timeouts: 0 });
+  const [matchesWon, setMatchesWon] = useState([]);
+  const [matchFlash, setMatchFlash] = useState(null); // the profile just matched, or null
+  const [expanded, setExpanded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const controls = useAnimationControls();
+
+  const top = roundDeck[index];
+  const nextProfile = roundDeck[index + 1];
+  const finished = index >= roundDeck.length;
+  const score = stats.decisions * 10 + stats.matches * 100 + bestStreak * 15;
+
+  const advance = useCallback(() => {
+    x.set(0);
+    y.set(0);
+    setBusy(false);
+    setIndex((i) => i + 1);
+  }, [x, y]);
+
+  /**
+   * The one thing every decision funnels through, timeout included — a card that runs out
+   * the clock is scored exactly like a deliberate pass, because that is what it is: the
+   * player was shown someone and, in the time given, did not choose them.
+   */
+  const commit = useCallback((action) => {
+    if (busy || !top) return;
+    setBusy(true);
+
+    if (action === 'timeout') {
+      buzz(6);
+      setStreak(0);
+      setStats((s) => ({ ...s, timeouts: s.timeouts + 1 }));
+      datingApi.pass(top.id).catch(() => {});
+      advance();
+      return;
+    }
+
+    buzz(action === 'pass' ? 8 : [12, 40, 12]);
+    const offX = (typeof window !== 'undefined' ? window.innerWidth : 900) + 240;
+    const offY = (typeof window !== 'undefined' ? window.innerHeight : 900) + 240;
+    const flight =
+      action === 'like' ? { x: offX, y: -60 }
+        : action === 'pass' ? { x: -offX, y: -60 }
+          : { x: 0, y: -offY };
+
+    controls.start({ ...flight, transition: { duration: 0.28, ease: [0.32, 0, 0.67, 0] } }).then(() => {
+      setStreak((s) => {
+        const nextStreak = s + 1;
+        setBestStreak((b) => Math.max(b, nextStreak));
+        return nextStreak;
+      });
+
+      if (action === 'pass') {
+        setStats((s) => ({ ...s, decisions: s.decisions + 1 }));
+        datingApi.pass(top.id).catch(() => {});
+        advance();
+        return;
+      }
+
+      const superLike = action === 'superlike';
+      setStats((s) => ({ ...s, decisions: s.decisions + 1, likes: s.likes + 1 }));
+      datingApi.like(top.id, superLike)
+        .then((res) => {
+          if (res.data?.matched) {
+            setStats((s) => ({ ...s, matches: s.matches + 1 }));
+            setMatchesWon((m) => [...m, top]);
+            setMatchFlash(top); // advance() runs once the flash dismisses itself, below
+          } else {
+            advance();
+          }
+        })
+        .catch(() => {
+          dispatchToast("That one didn't save — moving on", 'error');
+          advance();
+        });
+    });
+  }, [busy, top, controls, advance]);
+
+  /** Rules on a released drag — identical thresholds to the main deck, so the gesture that
+   *  works out there works the same way in here. */
+  const handleDragEnd = (_event, info) => {
+    const { offset, velocity } = info;
+    const verticalGesture = Math.abs(offset.y) > Math.abs(offset.x);
+    if (verticalGesture && (offset.y < -SUPER_DISTANCE || (offset.y < -MIN_TRAVEL && velocity.y < -SUPER_VELOCITY))) {
+      commit('superlike'); return;
+    }
+    if (offset.x > SWIPE_DISTANCE || (offset.x > MIN_TRAVEL && velocity.x > SWIPE_VELOCITY)) {
+      commit('like'); return;
+    }
+    if (offset.x < -SWIPE_DISTANCE || (offset.x < -MIN_TRAVEL && velocity.x < -SWIPE_VELOCITY)) {
+      commit('pass'); return;
+    }
+    controls.start({ x: 0, y: 0, transition: { type: 'spring', stiffness: 400, damping: 32 } });
+  };
+
+  // The per-card clock. Elapsed time rather than a fixed per-tick increment, so an
+  // occasionally-late interval callback (a busy tab, a slow device) never drifts the
+  // deadline itself — only how often the bar is redrawn moving toward it.
+  useEffect(() => {
+    setProgress(0);
+    if (expanded || matchFlash || finished || !top) return undefined;
+    const started = Date.now();
+    const id = setInterval(() => {
+      const pct = Math.min(100, ((Date.now() - started) / SPEED_CARD_MS) * 100);
+      setProgress(pct);
+      if (pct >= 100) {
+        clearInterval(id);
+        commit('timeout');
+      }
+    }, 100);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, expanded, matchFlash, finished]);
+
+  // The celebration is a pause, not a checkpoint — it clears itself and the round carries on
+  // without anyone having to tap through it, which is the whole point of playing this fast.
+  useEffect(() => {
+    if (!matchFlash) return undefined;
+    const t = setTimeout(() => { setMatchFlash(null); advance(); }, 1200);
+    return () => clearTimeout(t);
+  }, [matchFlash, advance]);
+
+  // Arrow keys mirror the gesture here too, same as the main deck — just without the undo,
+  // which has no meaning scoped to a round that is itself disposable.
+  useEffect(() => {
+    if (expanded || matchFlash || finished) return undefined;
+    const onKey = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); commit('pass'); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); commit('like'); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); commit('superlike'); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [expanded, matchFlash, finished, commit]);
+
+  /** A fresh batch from the server, so "Play again" never replays someone just swiped on —
+   *  the round that just ended has already told the server about every one of them. */
+  const playAgain = async () => {
+    setRefreshing(true);
+    try {
+      const res = await datingApi.getProfiles();
+      const fresh = (res.data || []).filter((p) => p && String(p.id) !== String(currentUser?.id));
+      if (fresh.length === 0) {
+        dispatchToast('No one new left right now — check back later', 'info');
+        return;
+      }
+      setRoundDeck(shuffled(fresh).slice(0, SPEED_ROUND_SIZE));
+      setIndex(0);
+      setStreak(0);
+      setBestStreak(0);
+      setStats({ decisions: 0, likes: 0, matches: 0, timeouts: 0 });
+      setMatchesWon([]);
+      x.set(0);
+      y.set(0);
+    } catch {
+      dispatchToast('Could not start another round', 'error');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[250] bg-black flex flex-col">
+      <div className="shrink-0 px-4 pt-4 pb-3 flex items-center justify-between max-w-sm w-full mx-auto">
+        <button
+          onClick={onFinish}
+          aria-label="Exit speed round"
+          className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+        >
+          <CircleX className="w-4 h-4" />
+        </button>
+        <div className="flex flex-col items-center">
+          <div className="flex items-center gap-1.5 text-xs font-black tracking-widest text-white">
+            <Timer className="w-3.5 h-3.5 text-[#CDFF00]" /> Speed Round
+          </div>
+          {!finished && (
+            <span className="text-[10px] text-gray-500 font-bold mt-0.5">{index + 1} / {roundDeck.length}</span>
+          )}
+        </div>
+        <div className={`flex items-center gap-1 text-xs font-black ${streak > 1 ? 'text-[#CDFF00]' : 'text-gray-500'}`}>
+          <ChartLine className="w-3.5 h-3.5" /> {streak}
+        </div>
+      </div>
+
+      {!finished ? (
+        <>
+          <div className="flex-1 min-h-0 max-w-sm w-full mx-auto px-4 flex flex-col">
+            {/* Same live-progress technique as the Stories viewer's per-story bar. */}
+            <div className="shrink-0 h-1 rounded-full bg-white/10 overflow-hidden mb-3">
+              <div
+                className={`h-full rounded-full transition-[width] duration-100 ease-linear ${progress > 70 ? 'bg-[#FF4458]' : 'bg-[#CDFF00]'}`}
+                style={{ width: top && !matchFlash ? `${progress}%` : '0%' }}
+              />
+            </div>
+
+            <div className="relative flex-1 min-h-0">
+              {nextProfile && (
+                <StackCard profile={nextProfile} style={{ scale: 0.94, y: 16, opacity: 0.6 }} />
+              )}
+              {top && (
+                <BondCard
+                  key={top.id}
+                  profile={top}
+                  x={x}
+                  y={y}
+                  controls={controls}
+                  interactive={!busy && !matchFlash}
+                  onDragEnd={handleDragEnd}
+                  onExpandChange={setExpanded}
+                />
+              )}
+              {matchFlash && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.92 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="absolute inset-0 rounded-3xl bg-black/92 backdrop-blur-md border-2 border-[#CDFF00] flex flex-col items-center justify-center text-center p-6"
+                >
+                  <Sparkle className="w-10 h-10 text-[#CDFF00] mb-3" style={{ filter: 'drop-shadow(0 0 16px rgba(205,255,0,0.6))' }} />
+                  <p className="text-xl font-heading font-black text-white">It's a match!</p>
+                  <p className="text-xs text-gray-400 mt-1">{firstName(matchFlash)} — saved for after the round</p>
+                </motion.div>
+              )}
+            </div>
+          </div>
+
+          <div className="shrink-0 py-5 flex justify-center items-center gap-4">
+            <ActionButton icon={CircleX} label="Skip" color="#FF4458" onClick={() => commit('pass')} disabled={!top || busy || !!matchFlash} large />
+            <ActionButton icon={Sparkle} label="Super like" color="#00E0FF" onClick={() => commit('superlike')} disabled={!top || busy || !!matchFlash} fill />
+            <ActionButton icon={ThumbsUp} label="Like" color="#CDFF00" onClick={() => commit('like')} disabled={!top || busy || !!matchFlash} large fill />
+          </div>
+        </>
+      ) : (
+        <div className="flex-1 min-h-0 overflow-y-auto max-w-sm w-full mx-auto px-4 pb-6">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="pt-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-4">
+              <Timer className="w-7 h-7 text-[#CDFF00]" />
+            </div>
+            <h2 className="text-2xl font-heading font-black text-white">Round complete</h2>
+            <p className="text-sm text-gray-400 mt-1">{stats.decisions} of {roundDeck.length} decided in time</p>
+
+            <div className="mt-6 p-5 rounded-2xl bg-white/[0.03] border border-white/10">
+              <p className="text-[10px] font-black tracking-widest text-gray-500">Score</p>
+              <p className="text-4xl font-heading font-black text-[#CDFF00] mt-1">{score}</p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 mt-4">
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                <p className="text-lg font-black text-white">{stats.likes}</p>
+                <p className="text-[9px] font-bold tracking-widest text-gray-500 mt-0.5">Liked</p>
+              </div>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                <p className="text-lg font-black text-white">{stats.matches}</p>
+                <p className="text-[9px] font-bold tracking-widest text-gray-500 mt-0.5">Matches</p>
+              </div>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                <p className="text-lg font-black text-white">{bestStreak}</p>
+                <p className="text-[9px] font-bold tracking-widest text-gray-500 mt-0.5">Best streak</p>
+              </div>
+            </div>
+
+            {matchesWon.length > 0 && (
+              <div className="mt-5 text-left">
+                <p className="text-[10px] font-black tracking-widest text-gray-500 mb-2">New matches</p>
+                <div className="space-y-2">
+                  {matchesWon.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => navigate(`/dm/${m.id}`)}
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-white/[0.03] border border-white/10 hover:border-[#CDFF00]/40 transition-colors"
+                    >
+                      <img src={getAvatar(m)} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
+                      <span className="text-sm font-bold text-white flex-1 text-left truncate">{m.fullName}</span>
+                      <MessageCircleMore className="w-4 h-4 text-[#CDFF00] shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={onFinish}
+                className="flex-1 py-3 rounded-xl border border-white/15 text-white font-bold text-sm hover:bg-white/5 transition-colors"
+              >
+                Back to Bond
+              </button>
+              <button
+                onClick={playAgain}
+                disabled={refreshing}
+                className="flex-1 py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50"
+              >
+                {refreshing ? 'Loading…' : 'Play again'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Bond Component ─────────────────────────────────────────────────────
 export default function Dating() {
   const user = useSelector(selectUser);
@@ -540,10 +1029,16 @@ export default function Dating() {
   const [plans, setPlans] = useState(null);
 
   const [deck, setDeck] = useState([]);
-  const [myProfile, setMyProfile] = useState(null);
+  // undefined = not resolved yet; null = the server has confirmed there is none; an object =
+  // the saved profile. The gate below only ever fires on the strict `null`, so a fetch that
+  // merely failed (a network blip, a 500) can never lock an existing member out of Bond
+  // behind a wizard they have already completed.
+  const [myProfile, setMyProfile] = useState(undefined);
   const [loading, setLoading] = useState(true);
   const [showSetup, setShowSetup] = useState(false);
   const [match, setMatch] = useState(null); // { profile, superLike } | null
+  // A timed, gamified batch of the same deck — see SpeedDateGame.
+  const [speedMode, setSpeedMode] = useState(false);
 
   // The live gesture. Owned here rather than inside the card so the buttons, the card
   // underneath, and the card being dragged can all read the same values without re-rendering.
@@ -626,7 +1121,9 @@ export default function Dating() {
     try {
       const [profilesRes, myRes] = await Promise.all([
         datingApi.getProfiles(),
-        datingApi.getMyProfile().catch(() => ({ data: null })),
+        // undefined, not null, on failure — see the state comment above. A genuine "no
+        // profile" response from the server is `{ data: null }`, which this never produces.
+        datingApi.getMyProfile().catch(() => ({ data: undefined })),
       ]);
       const all = profilesRes.data || [];
       setDeck(all.filter(p => p && String(p.id) !== String(user?.id)));
@@ -638,6 +1135,14 @@ export default function Dating() {
       setLoading(false);
     }
   };
+
+  /**
+   * Bond only ever shows a deck to someone with a profile of their own. Swiping on other
+   * people before you are swipeable yourself is exactly the free-riding the premium gate
+   * above already exists to stop — this is that same idea one step earlier, since a profile
+   * costs nothing and premium alone was never what made someone worth matching with.
+   */
+  const needsSetup = premium && !loading && myProfile === null;
 
   // Decode the next couple of photos while the current card is still being looked at, so a
   // fast swiper never sees the card underneath pop in.
@@ -738,7 +1243,7 @@ export default function Dating() {
   // Arrow keys mirror the gesture for anyone on a desktop or using a keyboard, and 'z' is the
   // usual undo. Bound to the window rather than the card so they work without focusing it.
   useEffect(() => {
-    if (!premium || showSetup || match || cardExpanded) return;
+    if (!premium || showSetup || needsSetup || match || cardExpanded || speedMode) return;
 
     const onKey = (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -754,7 +1259,7 @@ export default function Dating() {
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [premium, showSetup, match, cardExpanded, decide, rewind]);
+  }, [premium, showSetup, needsSetup, match, cardExpanded, speedMode, decide, rewind]);
 
   const top = deck[0];
   const second = deck[1];
@@ -790,12 +1295,12 @@ export default function Dating() {
             onError={(e) => { e.target.onerror = null; e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`; }}
           />
           <span className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <User className="w-4 h-4 text-[#CDFF00]" />
+            <CircleUserRound className="w-4 h-4 text-[#CDFF00]" />
           </span>
         </button>
 
         <h1 className="flex items-center gap-2 text-lg sm:text-xl font-heading font-black text-white tracking-tight">
-          <Heart className="w-4 h-4 text-[#CDFF00] fill-[#CDFF00]" />
+          <ThumbsUp className="w-4 h-4 text-[#CDFF00] fill-[#CDFF00]" />
           Bond
         </h1>
 
@@ -804,7 +1309,7 @@ export default function Dating() {
           aria-label="Messages"
           className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-[#CDFF00] hover:border-[#CDFF00]/40 transition-colors"
         >
-          <MessageCircle className="w-4 h-4" />
+          <MessageCircleMore className="w-4 h-4" />
         </Link>
       </header>
 
@@ -818,16 +1323,17 @@ export default function Dating() {
         </div>
       ) : (
         <div className="flex-1 min-h-0 flex flex-col w-full max-w-sm mx-auto px-4 pb-2">
-          {/* Nudge to set up a profile — you are discoverable either way, but a card with a
-              photo and a bio is the difference between being swiped on and being skipped. */}
-          {!myProfile && (
+          {/* A profile is no longer optional to reach here at all — see needsSetup below —
+              so the old nudge banner has nothing left to nudge. This is its replacement: a
+              faster, gamified way through the same deck, for whenever the slow one drags. */}
+          {deck.length > 0 && (
             <button
-              onClick={() => setShowSetup(true)}
+              onClick={() => setSpeedMode(true)}
               className="shrink-0 mb-2.5 w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#CDFF00]/[0.07] border border-[#CDFF00]/25 hover:border-[#CDFF00]/50 transition-all text-left"
             >
-              <Sparkles className="w-4 h-4 text-[#CDFF00] shrink-0" />
-              <span className="text-xs font-bold text-white">Finish your profile</span>
-              <span className="text-[10px] text-gray-400 ml-auto">You'll get swiped on more</span>
+              <Timer className="w-4 h-4 text-[#CDFF00] shrink-0" />
+              <span className="text-xs font-bold text-white">Speed Round</span>
+              <span className="text-[10px] text-gray-400 ml-auto">{Math.min(SPEED_ROUND_SIZE, deck.length)} faces, 6s each</span>
             </button>
           )}
 
@@ -836,7 +1342,7 @@ export default function Dating() {
             {deck.length === 0 ? (
               <div className="w-full h-full flex flex-col items-center justify-center bg-white/[0.02] border border-dashed border-white/10 rounded-3xl p-6 text-center">
                 <div className="w-14 h-14 rounded-full bg-white/[0.04] flex items-center justify-center mb-4">
-                  <Sparkles className="w-6 h-6 text-gray-600" />
+                  <WandSparkles className="w-6 h-6 text-gray-600" />
                 </div>
                 <h3 className="text-sm font-bold text-white mb-1">You're all caught up</h3>
                 <p className="text-xs text-gray-500 mb-5 max-w-[15rem] leading-relaxed">
@@ -847,7 +1353,7 @@ export default function Dating() {
                   onClick={() => setShowSetup(true)}
                   className="px-4 py-2 rounded-xl bg-[#CDFF00] text-black text-xs font-bold hover:bg-[#d9ff33] active:scale-95 transition-all"
                 >
-                  {myProfile ? 'Preferences' : 'Create profile'}
+                  Preferences
                 </button>
               </div>
             ) : (
@@ -880,14 +1386,14 @@ export default function Dating() {
           {/* ── Controls ──────────────────────────────────────────────────── */}
           <div className="shrink-0 pt-4 flex justify-center items-center gap-3.5">
             <ActionButton
-              icon={RotateCcw}
+              icon={Undo}
               label="Undo last swipe"
               color="#FFB800"
               onClick={rewind}
               disabled={rewinding || busy}
             />
             <ActionButton
-              icon={X}
+              icon={CircleX}
               label="Nope"
               color="#FF4458"
               glow={nopeGlow}
@@ -896,7 +1402,7 @@ export default function Dating() {
               large
             />
             <ActionButton
-              icon={Star}
+              icon={Sparkle}
               label="Super like"
               color="#00E0FF"
               glow={superGlow}
@@ -905,7 +1411,7 @@ export default function Dating() {
               fill
             />
             <ActionButton
-              icon={Heart}
+              icon={ThumbsUp}
               label="Like"
               color="#CDFF00"
               glow={likeGlow}
@@ -918,12 +1424,21 @@ export default function Dating() {
         </div>
       )}
 
-      {showSetup && (
+      {(showSetup || needsSetup) && (
         <ProfileSetupModal
           currentUser={user}
           existing={myProfile}
+          mandatory={needsSetup}
           onClose={() => setShowSetup(false)}
           onSaved={loadData}
+        />
+      )}
+
+      {speedMode && (
+        <SpeedDateGame
+          initialDeck={deck}
+          currentUser={user}
+          onFinish={() => { setSpeedMode(false); loadData(); }}
         />
       )}
 

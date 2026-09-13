@@ -13,6 +13,15 @@ export const dispatchToast = (message, type = 'error') => {
   window.dispatchEvent(event);
 };
 
+// Fired whenever the backend answers a buy/sell action with
+// `emailVerificationRequired: true` (see EmailVerificationGuard, hustleup-common) — a real,
+// logged-in account that just hasn't confirmed its address yet. VerifyEmailPrompt listens
+// for this globally and shows an actionable prompt instead of the generic error toast that
+// data.error would otherwise produce.
+export const dispatchVerifyEmailRequired = (email, message) => {
+  window.dispatchEvent(new CustomEvent('hustleup-verify-email-required', { detail: { email, message } }));
+};
+
 // Attach JWT token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('hustleup_token');
@@ -51,6 +60,16 @@ api.interceptors.response.use(
     if (data && typeof data === 'object') {
       if ('error' in data) data.error = asMessage(data.error);
       if ('message' in data) data.message = asMessage(data.message);
+    }
+
+    // A buy/sell action blocked by EmailVerificationGuard — same shape from every gated
+    // endpoint (booking, cart/shop checkout, new listing, new availability slot, payout
+    // onboarding), so handling it once here covers all of them, including ones added later,
+    // rather than needing every call site to remember to check this flag itself. The call
+    // still rejects normally below, so each page's own error toast still fires too — this
+    // adds the actionable "verify now" prompt on top of it.
+    if (status === 403 && data?.emailVerificationRequired) {
+      dispatchVerifyEmailRequired(data.email, data.error);
     }
 
     // Skip toast for auth errors — they'll be handled by redirect/refresh
@@ -217,7 +236,9 @@ export const bookingsApi = {
    * → { url, paidBookingIds, awaitingApproval }
    * `url` is null when every item needs seller approval first.
    */
-  cartCheckout: (items) => api.post('/bookings/checkout', { items }),
+  // `customer` carries the buyer's contact details and their answers to the sellers'
+  // own checkout questions onto every booking created. Optional on the wire.
+  cartCheckout: (items, customer) => api.post('/bookings/checkout', { items, customer }),
   // Seller's outstanding sales (INQUIRED / NEGOTIATING / BOOKED) — powers the pending
   // badge and panel. Seller side only; a seller's own purchases are not included.
   pendingSales: () => api.get('/bookings/pending-sales'),

@@ -4,10 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { ticketsApi, listingsApi } from '../api/client';
-import {
-  ArrowLeft, ScanLine, CheckCircle2, XCircle, Camera, CameraOff,
-  Search, Users, DoorOpen, RefreshCw, AlertTriangle,
-} from 'lucide-react';
+import { MoveLeft, QrCode, BadgeCheck, OctagonX, Aperture, ImageOff, ScanSearch, UserRound, DoorClosed, RefreshCcw, TriangleAlert } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
 
 /**
@@ -176,7 +173,7 @@ export default function EventDoor() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-sm">
-          <AlertTriangle className="w-14 h-14 mx-auto text-gray-700" />
+          <TriangleAlert className="w-14 h-14 mx-auto text-gray-700" />
           <h2 className="text-xl font-black text-white tracking-tight">{denied}</h2>
           <p className="text-xs text-gray-500">Only the organiser who posted an event can work its door.</p>
           <Link to="/dashboard" className="px-8 py-3 rounded-2xl bg-[#CDFF00] text-black font-black text-sm tracking-widest inline-block">
@@ -203,13 +200,13 @@ export default function EventDoor() {
             to={`/listing/${listingId}`}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest hover:text-[#CDFF00] transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Event
+            <MoveLeft className="w-3.5 h-3.5" /> Event
           </Link>
           <button
             onClick={loadDoor}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest text-gray-400 hover:text-white transition-colors"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <RefreshCcw className="w-3.5 h-3.5" /> Refresh
           </button>
         </div>
 
@@ -227,7 +224,7 @@ export default function EventDoor() {
         {/* Scanner */}
         <div className="glass rounded-2xl p-4 border border-white/5 mb-5">
           <h3 className="text-[10px] font-black tracking-widest text-gray-500 mb-3 flex items-center gap-1.5">
-            <ScanLine className="w-3.5 h-3.5 text-[#CDFF00]" /> Admit a guest
+            <QrCode className="w-3.5 h-3.5 text-[#CDFF00]" /> Admit a guest
           </h3>
 
           {cameraOn && (
@@ -259,7 +256,7 @@ export default function EventDoor() {
               disabled={scanning || !manualCode.trim()}
               className="px-5 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] hover:scale-[1.01] active:scale-95 transition-transform disabled:opacity-40 disabled:hover:scale-100 flex items-center justify-center gap-2"
             >
-              <DoorOpen className="w-4 h-4" /> Admit
+              <DoorClosed className="w-4 h-4" /> Admit
             </button>
             {cameraSupported && (
               <button
@@ -270,7 +267,7 @@ export default function EventDoor() {
                     : 'border-[#CDFF00]/40 text-[#CDFF00] hover:bg-[#CDFF00]/10'
                 }`}
               >
-                {cameraOn ? <><CameraOff className="w-4 h-4" /> Stop</> : <><Camera className="w-4 h-4" /> Scan</>}
+                {cameraOn ? <><ImageOff className="w-4 h-4" /> Stop</> : <><Aperture className="w-4 h-4" /> Scan</>}
               </button>
             )}
           </div>
@@ -297,8 +294,8 @@ export default function EventDoor() {
                 }`}
               >
                 {lastResult.admitted
-                  ? <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
-                  : <XCircle className="w-6 h-6 text-red-400 shrink-0" />}
+                  ? <BadgeCheck className="w-6 h-6 text-emerald-400 shrink-0" />
+                  : <OctagonX className="w-6 h-6 text-red-400 shrink-0" />}
                 <div className="min-w-0">
                   <p className={`text-sm font-black tracking-tight ${lastResult.admitted ? 'text-emerald-400' : 'text-red-400'}`}>
                     {lastResult.ticket?.ownerName || lastResult.reason}
@@ -317,10 +314,10 @@ export default function EventDoor() {
         <div className="glass rounded-2xl p-4 border border-white/5">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h3 className="text-[10px] font-black tracking-widest text-gray-500 flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-[#CDFF00]" /> Guest list
+              <UserRound className="w-3.5 h-3.5 text-[#CDFF00]" /> Guest list
             </h3>
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-gray-600 absolute left-3 top-1/2 -translate-y-1/2" />
+              <ScanSearch className="w-3.5 h-3.5 text-gray-600 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}

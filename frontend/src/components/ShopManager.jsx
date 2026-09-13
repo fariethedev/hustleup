@@ -7,10 +7,7 @@ import { invalidateShops } from '../hooks/useShops';
 import { POLISH_CITIES, CURRENCIES, formatPrice } from '../utils/constants';
 import SmartImage from './SmartImage';
 import { uploadUrl } from '../config';
-import {
-  Store, ImagePlus, Plus, Pencil, Trash2, X, Check, Eye, EyeOff,
-  Package, ExternalLink, Palette, Loader2,
-} from 'lucide-react';
+import { Building2, ImageUp, CirclePlus, SquarePen, Eraser, CircleX, CircleCheck, ScanEye, EyeClosed, Box, SquareArrowOutUpRight, Paintbrush, Loader } from 'lucide-react';
 
 /* Seller-facing palette. Any hex is accepted by the API — these are just one-tap presets. */
 const ACCENT_PRESETS = ['#CDFF00', '#00FFFF', '#FF00FF', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#3B82F6'];
@@ -157,7 +154,7 @@ export default function ShopManager({ user }) {
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto">
         <div className="glass rounded-2xl p-6 border border-white/5 text-center">
           <div className="w-12 h-12 rounded-full bg-[#CDFF00]/10 flex items-center justify-center mx-auto mb-3">
-            <Store className="w-6 h-6 text-[#CDFF00]" />
+            <Building2 className="w-6 h-6 text-[#CDFF00]" />
           </div>
           <h3 className="text-lg font-black text-white tracking-tight mb-1.5">Open your shop</h3>
           <p className="text-xs text-gray-500 mb-5 leading-relaxed">
@@ -176,7 +173,7 @@ export default function ShopManager({ user }) {
             disabled={saving || !form.name.trim()}
             className="w-full mt-5 py-3 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
           >
-            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : <><Plus className="w-4 h-4" /> Create shop</>}
+            {saving ? <><Loader className="w-4 h-4 animate-spin" /> Creating…</> : <><CirclePlus className="w-4 h-4" /> Create shop</>}
           </button>
         </div>
       </motion.div>
@@ -193,7 +190,7 @@ export default function ShopManager({ user }) {
           <SmartImage
             src={uploadUrl(form.bannerUrl)}
             alt=""
-            fallbackIcon={Store}
+            fallbackIcon={Building2}
             className="w-full h-full object-cover opacity-80"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] to-transparent" />
@@ -214,7 +211,7 @@ export default function ShopManager({ user }) {
               to={`/shop/${shop.slug || shop.id}`}
               className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 border border-white/20 text-[9px] font-black tracking-widest text-white hover:border-white/40 transition-colors"
             >
-              <ExternalLink className="w-3 h-3" /> View
+              <SquareArrowOutUpRight className="w-3 h-3" /> View
             </Link>
           </div>
         </div>
@@ -226,7 +223,7 @@ export default function ShopManager({ user }) {
           <span>{products.length} products</span>
           <span>{shop.listingCount} listings</span>
           <span className={`ml-auto flex items-center gap-1 ${form.published ? 'text-[#CDFF00]' : 'text-gray-500'}`}>
-            {form.published ? <><Eye className="w-3 h-3" /> Live</> : <><EyeOff className="w-3 h-3" /> Hidden</>}
+            {form.published ? <><ScanEye className="w-3 h-3" /> Live</> : <><EyeClosed className="w-3 h-3" /> Hidden</>}
           </span>
         </div>
       </div>
@@ -265,7 +262,7 @@ export default function ShopManager({ user }) {
               disabled={uploadingBanner}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold hover:border-white/30 transition-colors disabled:opacity-60"
             >
-              {uploadingBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+              {uploadingBanner ? <Loader className="w-4 h-4 animate-spin" /> : <ImageUp className="w-4 h-4" />}
               {uploadingBanner ? 'Uploading…' : 'Upload image'}
             </button>
             {form.bannerUrl && (
@@ -289,7 +286,7 @@ export default function ShopManager({ user }) {
         {/* Accent colour */}
         <div>
           <label className="flex items-center gap-1.5 text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
-            <Palette className="w-3 h-3" /> Accent colour
+            <Paintbrush className="w-3 h-3" /> Accent colour
           </label>
           <div className="flex flex-wrap items-center gap-2">
             {ACCENT_PRESETS.map((c) => (
@@ -333,13 +330,13 @@ export default function ShopManager({ user }) {
             disabled={saving || !dirty}
             className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
           >
-            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : dirty ? <><Check className="w-4 h-4" /> Save changes</> : 'Saved'}
+            {saving ? <><Loader className="w-4 h-4 animate-spin" /> Saving…</> : dirty ? <><CircleCheck className="w-4 h-4" /> Save changes</> : 'Saved'}
           </button>
           <button
             onClick={deleteShop}
             className="px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-black tracking-widest hover:bg-red-500/20 transition-colors"
           >
-            <Trash2 className="w-4 h-4" />
+            <Eraser className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -354,13 +351,13 @@ export default function ShopManager({ user }) {
             onClick={() => setEditingProduct('new')}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black text-[9px] font-black tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
           >
-            <Plus className="w-3.5 h-3.5" /> Add product
+            <CirclePlus className="w-3.5 h-3.5" /> Add product
           </button>
         </div>
 
         {products.length === 0 ? (
           <div className="text-center py-8 rounded-xl border border-dashed border-white/10">
-            <Package className="w-8 h-8 mx-auto text-white/15 mb-2" />
+            <Box className="w-8 h-8 mx-auto text-white/15 mb-2" />
             <p className="text-xs text-gray-500">Nothing on the shelf yet. Add your first product.</p>
           </div>
         ) : (
@@ -376,7 +373,7 @@ export default function ShopManager({ user }) {
                   className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/15 transition-colors"
                 >
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-black shrink-0">
-                    <SmartImage src={p.imageUrl} alt={p.name} fallbackIcon={Package} className="w-full h-full object-cover" />
+                    <SmartImage src={p.imageUrl} alt={p.name} fallbackIcon={Box} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-white truncate">{p.name}</p>
@@ -389,14 +386,14 @@ export default function ShopManager({ user }) {
                     className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors shrink-0"
                     aria-label={`Edit ${p.name}`}
                   >
-                    <Pencil className="w-3.5 h-3.5" />
+                    <SquarePen className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => deleteProduct(p.id)}
                     className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-colors shrink-0"
                     aria-label={`Delete ${p.name}`}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Eraser className="w-3.5 h-3.5" />
                   </button>
                 </motion.div>
               ))}
@@ -481,7 +478,7 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
             {isNew ? 'Add product' : 'Edit product'}
           </h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500">
-            <X className="w-4 h-4" />
+            <CircleX className="w-4 h-4" />
           </button>
         </div>
 
@@ -561,14 +558,14 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
             <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">Photo</label>
             <div className="flex items-center gap-2.5">
               <div className="w-14 h-14 rounded-lg overflow-hidden bg-black border border-white/10 shrink-0">
-                <SmartImage src={form.imageUrl} alt="" fallbackIcon={Package} className="w-full h-full object-cover" />
+                <SmartImage src={form.imageUrl} alt="" fallbackIcon={Box} className="w-full h-full object-cover" />
               </div>
               <button
                 onClick={() => fileInput.current?.click()}
                 disabled={uploading}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold hover:border-white/30 transition-colors disabled:opacity-60"
               >
-                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                {uploading ? <Loader className="w-4 h-4 animate-spin" /> : <ImageUp className="w-4 h-4" />}
                 {uploading ? 'Uploading…' : 'Upload'}
               </button>
               <input
@@ -584,7 +581,7 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
           disabled={saving}
           className="w-full mt-5 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
         >
-          {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Check className="w-4 h-4" /> {isNew ? 'Add to shop' : 'Save changes'}</>}
+          {saving ? <><Loader className="w-4 h-4 animate-spin" /> Saving…</> : <><CircleCheck className="w-4 h-4" /> {isNew ? 'Add to shop' : 'Save changes'}</>}
         </button>
       </motion.div>
     </div>
