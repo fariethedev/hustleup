@@ -1,15 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldPlus, UserRound, BriefcaseBusiness, BookOpenText, Box, ScanSearch, Loader, BadgeCheck, OctagonX, ShieldX, Timer, SquareArrowOutUpRight, ShieldCheck, RefreshCcw, CircleAlert, FileType, PanelsTopLeft, Hammer } from 'lucide-react';
+import { ShieldPlus, UserRound, BriefcaseBusiness, BookOpenText, Box, ScanSearch, Loader, BadgeCheck, OctagonX, ShieldX, Timer, SquareArrowOutUpRight, ShieldCheck, RefreshCcw, CircleAlert, FileType, PanelsTopLeft, Hammer, ChartLine, ShieldBan, LifeBuoy } from 'lucide-react';
 import { adminApi, publishersApi, dispatchToast } from '../api/client';
 import { labelize } from '../utils/constants';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { uploadUrl } from '../config';
+import SalesTab from '../components/admin/SalesTab';
+import ReportsTab from '../components/admin/ReportsTab';
+import SupportTab from '../components/admin/SupportTab';
+import { Skeleton, Empty } from '../components/admin/shared';
 
 const TABS = [
   { id: 'dashboard', name: 'Dashboard', icon: PanelsTopLeft },
+  { id: 'sales', name: 'Sales', icon: ChartLine },
+  // The two queues people are actually waiting in. Reports sat unread for the life of the
+  // feature because nothing could read the table; disputes freeze a payout while they wait.
+  { id: 'reports', name: 'Reports', icon: ShieldBan },
+  { id: 'support', name: 'Support', icon: LifeBuoy },
   { id: 'publishers', name: 'Verification', icon: ShieldCheck },
   { id: 'orders', name: 'Orders', icon: Box },
   { id: 'users', name: 'Users', icon: UserRound },
@@ -63,7 +72,7 @@ export default function Admin() {
         <ShieldPlus className="w-7 h-7 text-[#CDFF00]" />
         <h1 className="text-2xl font-black tracking-tight">Admin console</h1>
       </div>
-      <p className="text-sm text-gray-500 mb-7">Review verifications, track orders, and fix accounts.</p>
+      <p className="text-sm text-gray-500 mb-7">Sales, reports, disputes, verifications and accounts.</p>
 
       <div className="flex flex-wrap gap-2 mb-7">
         {TABS.map((t) => (
@@ -90,6 +99,9 @@ export default function Admin() {
           transition={{ duration: 0.18 }}
         >
           {tab === 'dashboard' && <DashboardTab onJump={setTab} />}
+          {tab === 'sales' && <SalesTab />}
+          {tab === 'reports' && <ReportsTab />}
+          {tab === 'support' && <SupportTab />}
           {tab === 'publishers' && <PublishersTab />}
           {tab === 'orders' && <OrdersTab />}
           {tab === 'users' && <UsersTab />}
@@ -105,15 +117,28 @@ export default function Admin() {
 function DashboardTab({ onJump }) {
   const [stats, setStats] = useState(null);
   const [market, setMarket] = useState(null);
+  // The two queues with people waiting in them. Counted here so the console opens on
+  // "what needs me" rather than on six totals that are the same as they were yesterday.
+  // A failed count reads as 0 and simply shows no badge — it must never block the page.
+  const [queues, setQueues] = useState({ reports: 0, claims: 0 });
 
   useEffect(() => {
     adminApi.stats().then((r) => setStats(r.data)).catch(() => setStats({}));
     adminApi.marketplaceStats().then((r) => setMarket(r.data)).catch(() => setMarket({}));
+    adminApi.reports('OPEN')
+      .then((r) => setQueues((q) => ({ ...q, reports: r.data?.openCount ?? 0 })))
+      .catch(() => {});
+    adminApi.claims('OPEN')
+      .then((r) => setQueues((q) => ({ ...q, claims: r.data?.openCount ?? 0 })))
+      .catch(() => {});
   }, []);
 
   if (!stats || !market) return <Skeleton rows={2} />;
 
   const cards = [
+    // Queues first: these are the cards that can be someone waiting on a person.
+    { label: 'Open reports', value: queues.reports, icon: ShieldBan, jump: 'reports', hot: queues.reports > 0 },
+    { label: 'Open disputes', value: queues.claims, icon: LifeBuoy, jump: 'support', hot: queues.claims > 0 },
     { label: 'Awaiting review', value: stats.pendingPublishers ?? 0, icon: Timer, jump: 'publishers', hot: (stats.pendingPublishers ?? 0) > 0 },
     { label: 'Verified publishers', value: stats.approvedPublishers ?? 0, icon: ShieldCheck },
     { label: 'Total users', value: stats.totalUsers ?? 0, icon: UserRound, jump: 'users' },
@@ -584,28 +609,7 @@ function JobsTab() {
   );
 }
 
-/* ── Shared bits ───────────────────────────────────────────────────────────── */
-
-function Skeleton({ rows = 3 }) {
-  return (
-    <div className="space-y-3">
-      {[...Array(rows)].map((_, i) => (
-        <div key={i} className="h-24 rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse" />
-      ))}
-    </div>
-  );
-}
-
-function Empty({ icon: Icon, title, hint }) {
-  return (
-    <div className="py-16 text-center flex flex-col items-center gap-3 bg-white/[0.02] border border-white/10 rounded-2xl">
-      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-        <Icon className="w-5 h-5 text-gray-600" />
-      </div>
-      <div>
-        <h3 className="text-sm font-black tracking-tight">{title}</h3>
-        <p className="text-[10px] text-gray-500 font-bold tracking-widest mt-1">{hint}</p>
-      </div>
-    </div>
-  );
-}
+/* ── Shared bits ───────────────────────────────────────────────────────────────
+   Skeleton and Empty now live in components/admin/shared.jsx, so the tabs that were
+   split out of this file can use them without importing from the page that renders
+   them — which would be a cycle. Imported at the top. */

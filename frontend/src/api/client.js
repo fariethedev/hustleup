@@ -698,6 +698,29 @@ export const adminApi = {
   orders: (params = {}) => api.get('/admin/orders', { params }),
   fixOrder: (id, patch) => api.patch(`/admin/orders/${id}`, patch),
   jobs: () => api.get('/admin/jobs'),
+
+  /**
+   * Everything sold, over a window of days.
+   *
+   * Returns GMV (bookings + storefront orders) and platform revenue (subscriptions) as
+   * separate objects — the platform takes no commission, so adding them together would
+   * report other people's money as income. Every total is keyed by currency; there is no
+   * conversion on the server.
+   */
+  sales: (days = 30) => api.get('/admin/sales', { params: { days } }),
+
+  /** Safety reports. status: 'OPEN' | 'ACTIONED' | 'DISMISSED' | 'ALL'. */
+  reports: (status = 'OPEN') => api.get('/admin/reports', { params: { status } }),
+  /** @param {'OPEN'|'ACTIONED'|'DISMISSED'} status */
+  resolveReport: (id, status, note = '') => api.patch(`/admin/reports/${id}`, { status, note }),
+
+  /**
+   * Buyer protection claims with both accounts and the disputed order attached.
+   *
+   * Read-only. Resolving one goes through `claimsApi.resolve`, which is the path that
+   * actually refunds and unfreezes the payout.
+   */
+  claims: (status = 'OPEN') => api.get('/admin/claims', { params: { status } }),
 };
 
 export default api;

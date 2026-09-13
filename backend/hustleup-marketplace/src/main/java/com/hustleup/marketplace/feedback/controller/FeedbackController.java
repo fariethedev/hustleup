@@ -112,6 +112,9 @@ public class FeedbackController {
             m.put("bookingId", f.getBookingId() == null ? null : f.getBookingId().toString());
             m.put("createdAt", f.getCreatedAt() == null ? null : f.getCreatedAt().toString());
             // Named so an admin can follow up, which is the whole point of reading these.
+            // The id comes too: following up means opening a conversation with them, and the
+            // console can only link to one it can address.
+            m.put("userId", f.getUserId() == null ? null : f.getUserId().toString());
             userRepository.findById(f.getUserId()).ifPresent(u -> {
                 m.put("userName", u.displayName());
                 m.put("userEmail", u.getEmail());

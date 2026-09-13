@@ -113,16 +113,23 @@ spring:
             - Path=/api/v1/jobs/**,/api/v1/jobs
 
         # ── Admin console ────────────────────────────────────────────────────
-        # The admin API is split across two services by where the data actually lives:
-        # users and publisher review in auth, orders and job moderation in marketplace.
-        # These two routes stitch it back into one /api/v1/admin/** surface for the
-        # console. The MORE SPECIFIC marketplace paths must be declared BEFORE the
-        # catch-all auth route below — Spring Cloud Gateway matches routes in order, so
-        # a leading /api/v1/admin/** would otherwise swallow /admin/orders.
+        # The admin API is split across three services by where the data actually lives:
+        # users and publisher review in auth, orders/jobs/sales in marketplace, and the
+        # safety report queue in social. These routes stitch it back into one
+        # /api/v1/admin/** surface for the console. The MORE SPECIFIC paths must be
+        # declared BEFORE the catch-all auth route below — Spring Cloud Gateway matches
+        # routes in order, so a leading /api/v1/admin/** would otherwise swallow them.
         - id: admin-marketplace
           uri: ${MARKETPLACE_URI:http://localhost:8083}
           predicates:
-            - Path=/api/v1/admin/orders/**,/api/v1/admin/orders,/api/v1/admin/jobs,/api/v1/admin/marketplace-stats
+            - Path=/api/v1/admin/orders/**,/api/v1/admin/orders,/api/v1/admin/jobs,/api/v1/admin/marketplace-stats,/api/v1/admin/sales,/api/v1/admin/claims
+
+        # Safety reports. In social because user_reports is that service's table, written
+        # by FollowController when somebody reports an account.
+        - id: admin-social
+          uri: ${SOCIAL_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/admin/reports/**,/api/v1/admin/reports
 
         - id: admin-auth
           uri: ${AUTH_URI:http://localhost:8081}
