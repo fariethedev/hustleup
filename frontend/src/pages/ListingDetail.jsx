@@ -603,7 +603,7 @@ export default function ListingDetail() {
                     {listing.swapEnabled && (
                       <button
                         onClick={() => (currentUser ? setSwapOpen(true) : navigate('/login'))}
-                        className="w-full py-2.5 rounded-xl border border-[#FF00FF]/40 text-white font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF00FF]/10 to-[#00FFFF]/10 hover:from-[#FF00FF]/20 hover:to-[#00FFFF]/20 transition-all"
+                        className="w-full py-2.5 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 bg-[#CDFF00]/10 hover:bg-[#CDFF00]/20 transition-all"
                       >
                         <Recycle className="w-4 h-4" /> Offer a swap
                       </button>

@@ -20,19 +20,24 @@ const WINDOWS = [
   { key: 'week',  label: 'Week' },
 ];
 
+// Solid, not gradient — the tier itself is a strict order (Rookie < Grinder < Hustler <
+// Operator < Mogul), so the progression is carried by how much brand lime a badge has, not
+// by cycling through unrelated hues the way this used to (magenta and cyan for the top two).
 const TIER_COLORS = {
-  Mogul:    'from-[#FF00FF] to-[#00FFFF]',
-  Operator: 'from-[#CDFF00] to-[#00FFFF]',
-  Hustler:  'from-[#CDFF00] to-[#CDFF00]',
-  Grinder:  'from-white/40 to-white/20',
-  Rookie:   'from-white/20 to-white/10',
+  Mogul:    'bg-[#CDFF00]',
+  Operator: 'bg-[#CDFF00]/70',
+  Hustler:  'bg-[#CDFF00]/40',
+  Grinder:  'bg-white/20',
+  Rookie:   'bg-white/10',
 };
 
-/** Medal tint for the top three; everyone else gets a plain number. */
+/** Medal tint for the top three; everyone else gets a plain number. Solid gold/silver/bronze
+ *  rather than a gradient of them — the two-tone version added nothing the flat colour
+ *  doesn't already say just as clearly. */
 const rankStyle = (rank) => {
-  if (rank === 1) return 'bg-gradient-to-br from-[#FFD700] to-[#FFA500] text-black';
-  if (rank === 2) return 'bg-gradient-to-br from-gray-300 to-gray-500 text-black';
-  if (rank === 3) return 'bg-gradient-to-br from-[#CD7F32] to-[#8B4513] text-white';
+  if (rank === 1) return 'bg-[#FFD700] text-black';
+  if (rank === 2) return 'bg-gray-400 text-black';
+  if (rank === 3) return 'bg-[#CD7F32] text-white';
   return 'bg-white/10 text-gray-400';
 };
 
@@ -74,7 +79,7 @@ export default function Leaderboard() {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#CDFF00] to-[#00FFFF] flex items-center justify-center">
+          <div className="w-11 h-11 rounded-2xl bg-[#CDFF00] flex items-center justify-center">
             <Medal className="w-5 h-5 text-black" strokeWidth={3} />
           </div>
           <div>
@@ -91,7 +96,7 @@ export default function Leaderboard() {
           >
             <div className="flex items-center justify-between mb-3">
               <p className="text-[10px] font-black tracking-[0.2em] text-gray-500">Your hustle score</p>
-              <span className={`px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest bg-gradient-to-r ${TIER_COLORS[myScore.tier] || TIER_COLORS.Rookie} text-black`}>
+              <span className={`px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest ${TIER_COLORS[myScore.tier] || TIER_COLORS.Rookie} text-black`}>
                 {myScore.tier}
               </span>
             </div>

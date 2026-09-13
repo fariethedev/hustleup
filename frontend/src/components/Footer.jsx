@@ -17,7 +17,7 @@ export default function Footer() {
   return (
     <footer className="py-10 md:py-24 bg-black border-t border-white/5 relative overflow-hidden">
       {/* Background Glows */}
-      <div className="ambient-glow ambient-glow-purple bottom-[-10%] right-[-10%] opacity-10" />
+      <div className="ambient-glow ambient-glow-lime bottom-[-10%] right-[-10%] opacity-10" />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         {/* Mobile toggle. Hidden from md up, where the footer is simply always open. */}

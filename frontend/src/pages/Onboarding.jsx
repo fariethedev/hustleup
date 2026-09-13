@@ -269,7 +269,7 @@ export default function Onboarding() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.4 }}
-                className={`absolute inset-0 bg-gradient-to-br ${selected?.color || 'from-white/10 to-white/5'}`}
+                className={`absolute inset-0 ${selected?.color || 'bg-white/10'}`}
               />
             )}
           </AnimatePresence>

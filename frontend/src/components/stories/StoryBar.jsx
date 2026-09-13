@@ -160,7 +160,7 @@ export default function StoryBar() {
             }
             className={`w-full h-full rounded-full p-[2px] transition-transform active:scale-95 ${
               hasUnseenStories
-                ? 'bg-gradient-to-tr from-[#FF00FF] to-[#00FFFF]'
+                ? 'bg-[#CDFF00]'
                 : hasStories
                   ? 'bg-white/15'
                   : 'bg-white/5'

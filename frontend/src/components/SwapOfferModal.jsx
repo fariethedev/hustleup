@@ -98,7 +98,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-[#0A0A0A]/95 backdrop-blur-xl border-b border-white/5">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF00FF] to-[#00FFFF] flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-[#CDFF00] flex items-center justify-center">
               <Recycle className="w-4 h-4 text-black" strokeWidth={3} />
             </div>
             <div>
@@ -270,7 +270,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
           <button
             onClick={submit}
             disabled={!canSubmit}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF00FF] to-[#00FFFF] text-black font-black text-xs tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all"
+            className="w-full py-3.5 rounded-2xl bg-[#CDFF00] text-black font-black text-xs tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-95 transition-all"
           >
             {submitting ? <Loader className="w-4 h-4 animate-spin" /> : <Recycle className="w-4 h-4" strokeWidth={3} />}
             Send swap offer

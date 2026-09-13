@@ -10,10 +10,11 @@
   --color-brand-black: #000000;
   --color-brand-white: #FFFFFF;
 
-  /* Custom Gradients & Glows */
-  --gradient-brand: linear-gradient(135deg, #7D39EB 0%, #D3FF37 100%);
+  /* Custom Glows. The violet gradient recipe this used to also carry (--gradient-brand,
+     consumed only by the unused .text-gradient-brand utility, plus --glow-purple for a
+     single background blob in the footer) is gone — the site's actual identity is lime on
+     black, not the violet accent an earlier pass left behind. */
   --glow-lime: radial-gradient(circle at center, rgba(211, 255, 55, 0.15) 0%, transparent 70%);
-  --glow-purple: radial-gradient(circle at center, rgba(125, 57, 235, 0.2) 0%, transparent 70%);
 
   --color-gray-900: #0A0A0A;
   --color-gray-800: #121212;
@@ -23,11 +24,13 @@
 @layer base {
   body {
     font-family: var(--font-body);
-    /* Brand dotted backdrop — page roots stay transparent so it shows through. */
+    /* Brand dotted backdrop — page roots stay transparent so it shows through. Both dots
+       are the brand lime at two strengths, not the magenta/cyan pairing this used to be:
+       the texture is the point, not a second colour scheme nobody else on the page uses. */
     background-color: #050505;
     background-image:
-      radial-gradient(circle at 10px 10px, rgba(255, 0, 255, 0.13) 2px, transparent 0),
-      radial-gradient(circle at 30px 30px, rgba(0, 255, 255, 0.11) 2px, transparent 0);
+      radial-gradient(circle at 10px 10px, rgba(211, 255, 55, 0.13) 2px, transparent 0),
+      radial-gradient(circle at 30px 30px, rgba(211, 255, 55, 0.07) 2px, transparent 0);
     background-size: 40px 40px;
     background-attachment: fixed;
     color: #FFFFFF;
@@ -74,13 +77,6 @@
   border: 1px solid rgba(211, 255, 55, 0.2);
 }
 
-@utility text-gradient-brand {
-  background: linear-gradient(135deg, #7D39EB 0%, #D3FF37 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
 @utility ambient-glow {
   position: absolute;
   width: 50vw;
@@ -94,10 +90,6 @@
 
 @utility ambient-glow-lime {
   background: var(--glow-lime);
-}
-
-@utility ambient-glow-purple {
-  background: var(--glow-purple);
 }
 
 @utility shadow-premium {
@@ -215,11 +207,12 @@
 
 [data-theme="light"] body {
     /* Same dotted backdrop, dialled down — at full strength on white it reads as
-       a printing fault rather than texture. */
+       a printing fault rather than texture. Same lime as the dark theme's dots, not the
+       purple/teal pairing this used to carry. */
     background-color: #F7F7F5;
     background-image:
-      radial-gradient(circle at 10px 10px, rgba(125, 57, 235, 0.07) 2px, transparent 0),
-      radial-gradient(circle at 30px 30px, rgba(0, 160, 190, 0.06) 2px, transparent 0);
+      radial-gradient(circle at 10px 10px, rgba(211, 255, 55, 0.10) 2px, transparent 0),
+      radial-gradient(circle at 30px 30px, rgba(211, 255, 55, 0.07) 2px, transparent 0);
     color: #0E0E10;
   }
 

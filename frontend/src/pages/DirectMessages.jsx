@@ -1407,7 +1407,7 @@ export default function DirectMessages() {
                                   <Link
                                     to={`/listing/${msg.sharedListingId}`}
                                     className={`flex items-center gap-3 p-2.5 rounded-2xl border transition-colors ${
-                                      isMe ? 'bg-gradient-to-br from-[#FF00FF]/25 to-[#7D39EB]/25 border-[#FF00FF]/30' : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
+                                      isMe ? 'bg-[#CDFF00]/15 border-[#CDFF00]/30' : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
                                     }`}
                                   >
                                     <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
@@ -1450,7 +1450,7 @@ export default function DirectMessages() {
                                   <Link
                                     to={msg.sharedPostAuthorId ? `/profile/${msg.sharedPostAuthorId}` : '#'}
                                     className={`flex items-center gap-3 p-2.5 rounded-2xl border transition-colors ${
-                                      isMe ? 'bg-gradient-to-br from-[#FF00FF]/25 to-[#7D39EB]/25 border-[#FF00FF]/30' : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
+                                      isMe ? 'bg-[#CDFF00]/15 border-[#CDFF00]/30' : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
                                     }`}
                                   >
                                     <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
@@ -1495,7 +1495,7 @@ export default function DirectMessages() {
                                   <Link
                                     to={msg.sharedStoryAuthorId ? `/profile/${msg.sharedStoryAuthorId}` : '#'}
                                     className={`flex items-center gap-3 p-2.5 rounded-2xl border transition-colors ${
-                                      isMe ? 'bg-gradient-to-br from-[#FF00FF]/25 to-[#7D39EB]/25 border-[#FF00FF]/30' : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
+                                      isMe ? 'bg-[#CDFF00]/15 border-[#CDFF00]/30' : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
                                     }`}
                                   >
                                     <div className="w-12 h-16 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
@@ -1561,7 +1561,7 @@ export default function DirectMessages() {
                             <div
                               className={`relative max-w-[75%] md:max-w-[65%] rounded-2xl text-[14.5px] leading-[19px] break-words border ${
                                 isMe
-                                  ? 'bg-gradient-to-br from-[#FF00FF]/25 to-[#7D39EB]/25 border-[#FF00FF]/30'
+                                  ? 'bg-[#CDFF00]/15 border-[#CDFF00]/30'
                                   : 'bg-white/[0.06] border-white/10'
                               } ${isImage ? 'p-1' : 'px-3 pt-1.5 pb-1'}`}
                             >

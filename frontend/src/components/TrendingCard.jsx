@@ -26,7 +26,7 @@ export default function TrendingCard({ item, index = 0 }) {
                className="w-full h-full object-cover opacity-70 group-hover:scale-110 transition-transform duration-1000 ease-out" 
              />
           ) : (
-             <div className="w-full h-full bg-gradient-to-br from-gray-800 to-black flex items-center justify-center">
+             <div className="w-full h-full bg-black flex items-center justify-center">
                 <Icon className="w-20 h-20 text-white/10" />
              </div>
           )}

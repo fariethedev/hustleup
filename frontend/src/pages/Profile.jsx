@@ -268,7 +268,7 @@ export default function Profile() {
         {profile.shopBannerUrl ? (
           <img src={uploadUrl(profile.shopBannerUrl)} alt="" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#CDFF00]/15 via-[#FF00FF]/10 to-[#00FFFF]/15" />
+          <div className="w-full h-full bg-[#CDFF00]/10" />
         )}
         {/* Fades the banner into the page so the avatar sits on darkness whatever the
             image behind it happens to be — a light photo would otherwise swallow the ring. */}
@@ -277,15 +277,15 @@ export default function Profile() {
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
         {/* ── AVATAR ───────────────────────────────────────────────────────
-            Overlapping the banner's lower edge and ringed in the brand gradient,
-            which is the one element on this page that should be unmissable. It was
-            a 36-unit circle with a 2px white/10 border, sitting in a row beside the
-            name and the buttons — the least prominent thing in its own header.
-            Larger, lifted out of the flow, and given a glow so it reads as the
-            subject of the page rather than an icon next to it. */}
+            Overlapping the banner's lower edge and ringed in solid brand lime, which is
+            the one element on this page that should be unmissable. It was a 36-unit
+            circle with a 2px white/10 border, sitting in a row beside the name and the
+            buttons — the least prominent thing in its own header. Larger, lifted out of
+            the flow, and given a glow so it reads as the subject of the page rather than
+            an icon next to it. */}
         <div className="relative -mt-14 sm:-mt-20 px-1">
           <div className="relative inline-block">
-            <div className="rounded-full p-[3px] bg-gradient-to-tr from-[#CDFF00] via-[#FF00FF] to-[#00FFFF] shadow-[0_0_36px_-4px_rgba(205,255,0,0.55)]">
+            <div className="rounded-full p-[3px] bg-[#CDFF00] shadow-[0_0_36px_-4px_rgba(205,255,0,0.55)]">
               <div className="w-28 h-28 sm:w-44 sm:h-44 rounded-full overflow-hidden bg-[#0A0A0A] ring-[4px] ring-[#050505] flex items-center justify-center">
                 {profile.avatarUrl
                   ? <img src={uploadUrl(profile.avatarUrl)} alt={displayName(profile)} className="w-full h-full object-cover" />

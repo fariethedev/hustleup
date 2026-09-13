@@ -81,7 +81,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
           <motion.div
             whileHover={{ scale: 1.06 }}
             transition={{ type: 'spring', stiffness: 320, damping: 18 }}
-            className="w-20 h-20 rounded-full p-[2px] bg-gradient-to-br from-[#00FFFF] via-[#FF00FF] to-[#CDFF00]"
+            className="w-20 h-20 rounded-full p-[2px] bg-[#CDFF00]"
           >
             <div className="w-full h-full rounded-full overflow-hidden bg-black border-2 border-[#0A0A0A] flex items-center justify-center">
               {u.avatarUrl
@@ -136,7 +136,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
         to={`/profile/${u.id}`}
         className="group flex flex-col items-center text-center h-full p-5 rounded-3xl bg-[#0A0A0A] border border-white/10 hover:border-[#00FFFF]/50 transition-colors duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.4)] hover:shadow-[0_12px_30px_rgba(0,255,255,0.12)]"
       >
-        <div className="w-20 h-20 rounded-full p-[2px] bg-gradient-to-br from-[#00FFFF] via-[#FF00FF] to-[#CDFF00] group-hover:scale-105 transition-transform duration-300">
+        <div className="w-20 h-20 rounded-full p-[2px] bg-[#CDFF00] group-hover:scale-105 transition-transform duration-300">
           <div className="w-full h-full rounded-full overflow-hidden bg-black border-2 border-[#0A0A0A] flex items-center justify-center">
             {u.avatarUrl
               ? <img src={uploadUrl(u.avatarUrl)} alt={u.fullName} className="w-full h-full object-cover" />

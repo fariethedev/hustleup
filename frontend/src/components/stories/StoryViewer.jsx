@@ -226,7 +226,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
         {(currentStory.mediaUrl || currentStory.media) ? (
           <img src={uploadUrl(currentStory.mediaUrl || currentStory.media)} alt="" className="w-full h-full object-cover scale-150" />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#7D39EB] to-[#FF00FF]" />
+          <div className="w-full h-full bg-[#CDFF00]" />
         )}
       </div>
 
@@ -254,7 +254,7 @@ export default function StoryViewer({ users, initialUserIndex, onClose, onCreate
             // it fell through to <img src={null}> and rendered an empty black card — the
             // author's words were never drawn. Type is deliberately not checked here: any
             // story without media is a text story as far as rendering is concerned.
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#7D39EB] via-[#FF00FF]/70 to-[#050505] p-8">
+            <div className="w-full h-full flex items-center justify-center bg-[#0E0E0E] border border-[#CDFF00]/20 p-8">
               <p className="text-white text-center font-black leading-snug break-words text-2xl sm:text-3xl drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
                 {currentStory.content}
               </p>

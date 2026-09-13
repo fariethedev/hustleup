@@ -32,7 +32,7 @@ export default function SwapChain({ limit = 8 }) {
   return (
     <div className="relative w-full border-b border-white/5 py-4">
       <div className="flex items-center gap-2 px-4 mb-3">
-        <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#FF00FF] to-[#00FFFF] flex items-center justify-center">
+        <div className="w-6 h-6 rounded-lg bg-[#CDFF00] flex items-center justify-center">
           <Recycle className="w-3 h-3 text-black" strokeWidth={3} />
         </div>
         <h2 className="text-[11px] font-black tracking-[0.2em] text-white">Swap chain</h2>
@@ -46,7 +46,7 @@ export default function SwapChain({ limit = 8 }) {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: Math.min(i * 0.05, 0.4) }}
-            className="shrink-0 w-[260px] p-3 rounded-2xl bg-gradient-to-br from-[#FF00FF]/10 to-[#00FFFF]/10 border border-white/10 backdrop-blur-xl"
+            className="shrink-0 w-[260px] p-3 rounded-2xl bg-[#CDFF00]/[0.07] border border-white/10 backdrop-blur-xl"
           >
             {/* Who traded with whom */}
             <div className="flex items-center gap-1.5 mb-2.5">

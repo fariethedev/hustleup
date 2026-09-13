@@ -77,7 +77,7 @@ export default function ListingCard({ listing, index = 0, onDelete }) {
               media={slides}
               title={listing.title}
               fallbackIcon={TypeIcon}
-              fallbackClassName={`bg-gradient-to-br ${typeInfo.color} opacity-30`}
+              fallbackClassName={`${typeInfo.color} opacity-30`}
               // The hover zoom is dropped once there is more than one slide: a scaled image
               // inside a snapping track drifts against its neighbours as you swipe.
               imageClassName={`w-full h-full object-cover ${

@@ -213,7 +213,7 @@ export default function Swaps() {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#FF00FF] to-[#00FFFF] flex items-center justify-center">
+          <div className="w-11 h-11 rounded-2xl bg-[#CDFF00] flex items-center justify-center">
             <Recycle className="w-5 h-5 text-black" strokeWidth={3} />
           </div>
           <div>
