@@ -14,7 +14,7 @@ import DistanceBadge from '../components/DistanceBadge';
 import ListingGallery from '../components/ListingGallery';
 import SmartImage from '../components/SmartImage';
 import { coverImage, mediaList } from '../utils/media';
-import { getMethod } from '../utils/shipping';
+import { describeMethod } from '../utils/shipping';
 import { uploadUrl } from '../config';
 
 const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
@@ -418,7 +418,9 @@ export default function ListingDetail() {
                     them out at checkout is finding them out too late. Hidden for listings
                     with nothing to send. */}
                 {(() => {
-                  const method = getMethod(listing.shippingMethod);
+                  // Described to whoever is reading it: the seller sees how they will send
+                  // it, everyone else sees how they will receive it.
+                  const method = describeMethod(listing.shippingMethod, !isSeller);
                   if (!method || listing.shippingMethod === 'NONE') return null;
                   const postage = Number(listing.shippingPrice) || 0;
                   const Icon = method.icon;

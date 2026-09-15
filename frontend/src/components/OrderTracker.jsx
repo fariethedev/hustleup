@@ -1,7 +1,7 @@
 import { CircleCheck, ClipboardCopy, SquareArrowOutUpRight, Navigation, CalendarRange, Forklift, CircleSlash } from 'lucide-react';
 import { useState } from 'react';
 import {
-  getMethod, stepsFor, stepLabel, stepIndex, isComplete, trackingLink,
+  describeMethod, stepsFor, stepLabel, stepIndex, isComplete, trackingLink,
 } from '../utils/shipping';
 import { dispatchToast } from '../api/client';
 
@@ -16,12 +16,13 @@ import { dispatchToast } from '../api/client';
  * shows "out for delivery". A buyer looking at steps that will never happen has no way to
  * tell a stalled order from one that was never going to have that step.
  */
-export default function OrderTracker({ fulfilment, compact = false }) {
+export default function OrderTracker({ fulfilment, compact = false, forBuyer = false }) {
   const [copied, setCopied] = useState(false);
 
   const status = fulfilment?.fulfilmentStatus;
   const method = fulfilment?.shippingMethod;
-  const meta = getMethod(method);
+  // Defaults to the seller's wording, which is what every existing caller was getting.
+  const meta = describeMethod(method, forBuyer);
   const steps = stepsFor(method);
 
   // Nothing to show before money arrives, or when the order was never shipped-anything.

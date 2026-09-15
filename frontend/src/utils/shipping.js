@@ -36,6 +36,8 @@ export const SHIPPING_METHODS = [
     value: 'PICKUP',
     label: 'Collection in person',
     hint: 'The buyer comes to you. No postage.',
+    buyerLabel: 'Collect in person',
+    buyerHint: 'You collect it from the seller. No postage.',
     icon: Building2,
     tracked: false,
     needsDropoff: true,
@@ -45,6 +47,8 @@ export const SHIPPING_METHODS = [
     value: 'PARCEL_LOCKER',
     label: 'Parcel locker',
     hint: 'InPost or similar — you drop it, they collect it.',
+    buyerLabel: 'Parcel locker',
+    buyerHint: 'InPost or similar — the seller sends it, you collect it.',
     icon: Box,
     tracked: true,
     needsDropoff: true,
@@ -54,6 +58,8 @@ export const SHIPPING_METHODS = [
     value: 'COURIER',
     label: 'Courier',
     hint: 'Tracked, delivered to the buyer’s door.',
+    buyerLabel: 'Courier',
+    buyerHint: 'Tracked, delivered to your door.',
     icon: Forklift,
     tracked: true,
     needsDropoff: false,
@@ -63,6 +69,8 @@ export const SHIPPING_METHODS = [
     value: 'POST',
     label: 'Post',
     hint: 'Poczta Polska or similar.',
+    buyerLabel: 'Post',
+    buyerHint: 'Poczta Polska or similar.',
     icon: AtSign,
     tracked: true,
     needsDropoff: false,
@@ -72,6 +80,8 @@ export const SHIPPING_METHODS = [
     value: 'SELLER_DELIVERY',
     label: 'You deliver it',
     hint: 'You take it to the buyer yourself.',
+    buyerLabel: 'Seller delivers it',
+    buyerHint: 'The seller brings it to you themselves.',
     icon: Car,
     tracked: false,
     needsDropoff: false,
@@ -81,6 +91,8 @@ export const SHIPPING_METHODS = [
     value: 'DIGITAL',
     label: 'Digital delivery',
     hint: 'Files, codes or links — nothing to post.',
+    buyerLabel: 'Digital delivery',
+    buyerHint: 'Files, codes or links — nothing gets posted.',
     icon: CloudDownload,
     tracked: false,
     needsDropoff: false,
@@ -90,6 +102,8 @@ export const SHIPPING_METHODS = [
     value: 'NONE',
     label: 'No shipping needed',
     hint: 'A service you perform in person — nothing gets sent.',
+    buyerLabel: 'Nothing to ship',
+    buyerHint: 'Performed in person — nothing gets sent.',
     icon: HeartHandshake,
     tracked: false,
     needsDropoff: false,
@@ -113,6 +127,32 @@ export function defaultMethodFor(listingType) {
 
 export function getMethod(value) {
   return SHIPPING_METHODS.find((m) => m.value === value) || null;
+}
+
+/**
+ * A delivery method described to the person reading it.
+ *
+ * <p>Every label and hint here was written for the seller filling in the listing form — "You
+ * deliver it", "The buyer comes to you", "you drop it, they collect it". Correct there, and
+ * wrong everywhere a buyer reads it: a checkout page was telling someone they would be
+ * delivering the thing they were buying.
+ *
+ * <p>Returns the same object with label and hint swapped for the buyer's wording, so callers
+ * keep using `.label` and `.hint` and only the audience has to be decided. Falls back to the
+ * seller wording for any method that has no buyer variant, which is how a method added later
+ * without one degrades rather than renders blank.
+ *
+ * @param {string} value  the stored method
+ * @param {boolean} forBuyer  true on a buyer-facing surface
+ */
+export function describeMethod(value, forBuyer) {
+  const method = getMethod(value);
+  if (!method || !forBuyer) return method;
+  return {
+    ...method,
+    label: method.buyerLabel || method.label,
+    hint: method.buyerHint || method.hint,
+  };
 }
 
 /**

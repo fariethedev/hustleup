@@ -683,7 +683,7 @@ export default function Dashboard() {
 
                         {/* Renders itself away for anything with no delivery track — an
                             unpaid order, or a service that was never going to be shipped. */}
-                        <OrderTracker fulfilment={booking.fulfilment} />
+                        <OrderTracker fulfilment={booking.fulfilment} forBuyer={booking.role !== 'seller'} />
 
                         {counteringId === booking.id && (
                           <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-2">
@@ -732,7 +732,7 @@ export default function Dashboard() {
                       </h3>
                       <div className="space-y-2.5">
                         {shopOrders.map((order) => (
-                          <ShopOrderCard key={order.id} order={order} />
+                          <ShopOrderCard key={order.id} order={order} forBuyer />
                         ))}
                       </div>
                     </div>
@@ -1218,7 +1218,7 @@ function AvailabilityTab({ listings, slots, onChange }) {
  * cost, and where it is. The only difference is the seller's update control, which is
  * passed in rather than decided here — the parent knows which orders are theirs to fulfil.
  */
-function ShopOrderCard({ order, onTrack }) {
+function ShopOrderCard({ order, onTrack, forBuyer = false }) {
   const shipping = Number(order.fulfilment?.shippingPrice) || 0;
   const goods = Number(order.totalPrice) || 0;
   const paidState = SHOP_ORDER_STATES[order.status] || { label: order.status, color: 'bg-gray-800 text-gray-400' };
@@ -1265,7 +1265,7 @@ function ShopOrderCard({ order, onTrack }) {
         )}
       </div>
 
-      <OrderTracker fulfilment={order.fulfilment} />
+      <OrderTracker fulfilment={order.fulfilment} forBuyer={forBuyer} />
     </div>
   );
 }

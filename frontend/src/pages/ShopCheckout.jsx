@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MoveLeft, MoveRight, ShieldPlus, LockKeyhole, CircleUserRound, AtSign, PhoneCall, Loader, CircleAlert, WalletCards } from 'lucide-react';
 import { formatPrice } from '../utils/constants';
-import { getMethod } from '../utils/shipping';
+import { describeMethod } from '../utils/shipping';
 import { useShopProduct } from '../hooks/useShops';
 import { shopsApi } from '../api/client';
 import SmartImage from '../components/SmartImage';
@@ -64,7 +64,8 @@ export default function ShopCheckout() {
   // Postage is charged once per order, not per unit — the server does the same arithmetic
   // when it builds the Stripe session, so the number here is the number that gets charged.
   const shipping = Number(product.shippingPrice) || 0;
-  const shippingMethod = getMethod(product.shippingMethod);
+  // Always the buyer here, so always the buyer's wording.
+  const shippingMethod = describeMethod(product.shippingMethod, true);
   const total = unitPrice * quantity + shipping;
 
   const canSubmit = !!(customer.fullName && customer.email) && !submitting;
