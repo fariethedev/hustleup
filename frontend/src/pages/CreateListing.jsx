@@ -8,7 +8,7 @@ import { LISTING_TYPES, CURRENCIES, POLISH_CITIES, formatPrice } from '../utils/
 import { SHIPPING_METHODS, defaultMethodFor, getMethod } from '../utils/shipping';
 import { useSellerAccess } from '../hooks/useSellerAccess';
 import SellerUpgrade from '../components/SellerUpgrade';
-import { LockKeyhole, Images as ImageIcon, CircleCheck, CircleX, MoveRight, MoveLeft, CirclePlay, CalendarRange, Forklift, Grid2x2, PiggyBank, ClipboardCheck } from 'lucide-react';
+import { LockKeyhole, Images as ImageIcon, CircleCheck, CircleX, MoveRight, MoveLeft, CirclePlay, CalendarRange, Forklift, Grid2x2, PiggyBank, ClipboardCheck, PartyPopper, UploadCloud } from 'lucide-react';
 import { isVideoUrl } from '../utils/media';
 
 /**
@@ -67,6 +67,11 @@ export default function CreateListing() {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Held true for a beat after the server confirms the listing, before the redirect fires —
+  // otherwise the publish reads as a plain page navigation instead of the thing it actually
+  // is, the end of a three-step form.
+  const [published, setPublished] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
   if (!isAuthenticated) { navigate('/login'); return null; }
   // Still asking whether this account can sell. Rendering the upgrade panel during the
@@ -135,10 +140,13 @@ export default function CreateListing() {
       images.forEach((img) => formData.append('images', img));
       
       const res = await listingsApi.create(formData);
-      navigate(`/listing/${res.data.id}`);
+      // The celebration is the point of this pause — navigating instantly would cut it off
+      // before it played at all. loading stays true for the same stretch so the button
+      // can't be hit again while the redirect is pending.
+      setPublished(true);
+      setTimeout(() => navigate(`/listing/${res.data.id}`), 1100);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create listing');
-    } finally {
       setLoading(false);
     }
   };
@@ -182,18 +190,48 @@ export default function CreateListing() {
     // once there is room. Vertically centring on a phone put the first field under the fold
     // whenever the keyboard opened, and py-10 on a 375px screen is a tenth of the viewport
     // spent on nothing.
-    <div className="min-h-[calc(100dvh-3.5rem)] flex items-start sm:items-center justify-center px-3 sm:px-4 pt-4 pb-10 sm:py-10">
+    <div className="relative min-h-[calc(100dvh-3.5rem)] flex items-start sm:items-center justify-center px-3 sm:px-4 pt-4 pb-10 sm:py-10 overflow-hidden">
+      {/* Two slow-drifting glows rather than a static page — fixed so they don't scroll
+          with a tall step 3, and pointer-events-none so they never steal a tap meant for
+          the form sitting on top of them. */}
+      <motion.div
+        aria-hidden="true"
+        className="fixed -z-10 top-[-10%] left-[-10%] w-[55vmax] h-[55vmax] rounded-full bg-[#CDFF00]/10 blur-3xl pointer-events-none"
+        animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
+        transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        aria-hidden="true"
+        className="fixed -z-10 bottom-[-15%] right-[-10%] w-[50vmax] h-[50vmax] rounded-full bg-[#7D39EB]/10 blur-3xl pointer-events-none"
+        animate={{ x: [0, -30, 0], y: [0, -40, 0] }}
+        transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-xl"
+        className="relative w-full max-w-xl"
       >
-        <h1 className="text-2xl sm:text-4xl font-heading font-extrabold text-white mb-1 sm:mb-2 tracking-wide text-center">
+        <motion.h1
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="text-2xl sm:text-4xl font-heading font-extrabold text-white mb-1 sm:mb-2 tracking-wide text-center"
+        >
           Post <span className="text-[#CDFF00]">Listing</span>
-        </h1>
-        <p className="text-gray-400 mb-5 sm:mb-8 font-bold tracking-wider text-xs sm:text-sm text-center">
-          {meta.blurb}
-        </p>
+        </motion.h1>
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={step}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="text-gray-400 mb-5 sm:mb-8 font-bold tracking-wider text-xs sm:text-sm text-center"
+          >
+            {meta.blurb}
+          </motion.p>
+        </AnimatePresence>
 
         {/* The same rail as sign-up: icon, label, and completed steps tappable so a
             correction does not mean walking forward through the whole form again. Labels
@@ -214,20 +252,42 @@ export default function CreateListing() {
                     !done && !active ? 'opacity-40' : ''
                   }`}
                 >
-                  <motion.span
-                    initial={false}
-                    animate={{ scale: active ? 1.08 : 1 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
-                      done
-                        ? 'bg-[#CDFF00] border-[#CDFF00] text-black'
-                        : active
-                          ? 'bg-[#CDFF00]/15 border-[#CDFF00]/50 text-[#CDFF00]'
-                          : 'bg-white/5 border-white/10 text-gray-500'
-                    }`}
-                  >
-                    {done ? <CircleCheck className="w-4 h-4" strokeWidth={3} /> : <Icon className="w-4 h-4" />}
-                  </motion.span>
+                  <span className="relative shrink-0">
+                    {/* A breathing ring behind the live step only — it's what makes "you are
+                        here" readable at a glance instead of just a colour difference. */}
+                    {active && (
+                      <motion.span
+                        aria-hidden="true"
+                        className="absolute inset-0 rounded-xl bg-[#CDFF00]/40"
+                        animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                      />
+                    )}
+                    <motion.span
+                      initial={false}
+                      animate={{ scale: active ? 1.08 : 1, rotate: done ? [0, -12, 0] : 0 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                      className={`relative w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                        done
+                          ? 'bg-[#CDFF00] border-[#CDFF00] text-black'
+                          : active
+                            ? 'bg-[#CDFF00]/15 border-[#CDFF00]/50 text-[#CDFF00]'
+                            : 'bg-white/5 border-white/10 text-gray-500'
+                      }`}
+                    >
+                      <AnimatePresence mode="wait" initial={false}>
+                        {done ? (
+                          <motion.span key="done" initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 20 }}>
+                            <CircleCheck className="w-4 h-4" strokeWidth={3} />
+                          </motion.span>
+                        ) : (
+                          <motion.span key="pending" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                            <Icon className="w-4 h-4" />
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </motion.span>
+                  </span>
                   <span className={`text-[11px] font-black tracking-widest truncate hidden sm:block ${
                     active ? 'text-white' : 'text-gray-500'
                   }`}>
@@ -250,7 +310,7 @@ export default function CreateListing() {
           })}
         </div>
 
-        <div className="glass rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-white/5 overflow-hidden">
+        <div className="relative glass rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-white/5 overflow-hidden">
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20 text-[#CDFF00] text-sm font-bold tracking-wider text-center flex items-center justify-center gap-2">
               <CircleX className="w-4 h-4" /> {error}
@@ -281,19 +341,51 @@ export default function CreateListing() {
                     const Icon = type.icon;
                     const isActive = form.listingType === type.value;
                     return (
-                      <button
+                      <motion.button
                         key={type.value}
                         type="button"
                         onClick={() => setCategory(type.value)}
-                        className={`p-4 rounded-xl border text-center transition-all flex flex-col items-center gap-2 ${
+                        whileHover={{ y: -2 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={`relative p-4 rounded-xl border text-center transition-colors flex flex-col items-center gap-2 overflow-hidden ${
                           isActive
-                            ? 'bg-[#CDFF00]/10 border-[#CDFF00] text-[#CDFF00]'
+                            ? 'border-[#CDFF00] text-[#CDFF00]'
                             : 'bg-black/50 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
                         }`}
                       >
-                        <Icon className="w-6 h-6" />
-                        <span className="text-[10px] font-bold tracking-widest">{type.label}</span>
-                      </button>
+                        {/* One shared fill that slides between cards rather than each one
+                            fading in and out on its own — a single element in motion reads
+                            as a choice moving, where independent fades on every card just
+                            reads as flicker. */}
+                        {isActive && (
+                          <motion.span
+                            layoutId="categoryHighlight"
+                            className="absolute inset-0 bg-[#CDFF00]/10"
+                            transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                          />
+                        )}
+                        <motion.span
+                          animate={isActive ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+                          transition={{ duration: 0.35 }}
+                          className="relative"
+                        >
+                          <Icon className="w-6 h-6" />
+                        </motion.span>
+                        <span className="relative text-[10px] font-bold tracking-widest">{type.label}</span>
+                        <AnimatePresence>
+                          {isActive && (
+                            <motion.span
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0, opacity: 0 }}
+                              transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                              className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#CDFF00] text-black flex items-center justify-center"
+                            >
+                              <CircleCheck className="w-3 h-3" strokeWidth={3} />
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </motion.button>
                     );
                   })}
                 </div>
@@ -338,7 +430,25 @@ export default function CreateListing() {
             >
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-xs font-black text-gray-500 tracking-widest mb-2">Price *</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-black text-gray-500 tracking-widest">Price *</label>
+                    {/* What the buyer actually sees, spelled out as you type — the field
+                        below takes a bare number, and this is the one place a seller can
+                        confirm "20" became twenty złoty and not twenty of the wrong thing. */}
+                    <AnimatePresence>
+                      {Number(form.price) > 0 && (
+                        <motion.span
+                          initial={{ opacity: 0, scale: 0.8, y: -4 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                          className="text-[11px] font-black text-[#CDFF00] tracking-wide"
+                        >
+                          {formatPrice(Number(form.price), form.currency)}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </div>
                   <input
                     type="number"
                     step="0.01"
@@ -361,39 +471,59 @@ export default function CreateListing() {
                 </div>
               </div>
 
-              <button
+              <motion.button
                 type="button"
+                whileTap={{ scale: 0.98 }}
                 onClick={() => set('negotiable', !form.negotiable)}
-                className={`w-full p-5 rounded-xl border text-left flex items-center gap-4 transition-all outline-none ${
+                className={`w-full p-5 rounded-xl border text-left flex items-center gap-4 transition-colors outline-none ${
                   form.negotiable ? 'bg-[#CDFF00]/10 border-[#CDFF00]' : 'bg-black/50 border-white/10 hover:border-white/30'
                 }`}
               >
-                <div className={`w-6 h-6 rounded flex items-center justify-center border shrink-0 ${form.negotiable ? 'bg-[#CDFF00] border-[#CDFF00]' : 'border-gray-600'}`}>
-                  {form.negotiable && <CircleCheck className="w-4 h-4 text-black" />}
-                </div>
+                <motion.div
+                  animate={{ backgroundColor: form.negotiable ? '#CDFF00' : 'rgba(0,0,0,0)', borderColor: form.negotiable ? '#CDFF00' : '#4B5563' }}
+                  className="w-6 h-6 rounded flex items-center justify-center border shrink-0"
+                >
+                  <AnimatePresence>
+                    {form.negotiable && (
+                      <motion.span initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
+                        <CircleCheck className="w-4 h-4 text-black" />
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
                 <div>
                   <span className={`block font-black tracking-widest text-sm mb-1 ${form.negotiable ? 'text-[#CDFF00]' : 'text-gray-400'}`}>Price Negotiable</span>
                   <p className="text-xs text-gray-500 font-medium">Allow buyers to submit counter-offers</p>
                 </div>
-              </button>
+              </motion.button>
 
               {/* Swap Mode opt-in — off by default, because a seller who only wants cash
                   shouldn't have to field trade offers. */}
-              <button
+              <motion.button
                 type="button"
+                whileTap={{ scale: 0.98 }}
                 onClick={() => set('swapEnabled', !form.swapEnabled)}
-                className={`w-full p-5 rounded-xl border text-left flex items-center gap-4 transition-all outline-none ${
+                className={`w-full p-5 rounded-xl border text-left flex items-center gap-4 transition-colors outline-none ${
                   form.swapEnabled ? 'bg-[#FF00FF]/10 border-[#FF00FF]' : 'bg-black/50 border-white/10 hover:border-white/30'
                 }`}
               >
-                <div className={`w-6 h-6 rounded flex items-center justify-center border shrink-0 ${form.swapEnabled ? 'bg-[#FF00FF] border-[#FF00FF]' : 'border-gray-600'}`}>
-                  {form.swapEnabled && <CircleCheck className="w-4 h-4 text-black" />}
-                </div>
+                <motion.div
+                  animate={{ backgroundColor: form.swapEnabled ? '#FF00FF' : 'rgba(0,0,0,0)', borderColor: form.swapEnabled ? '#FF00FF' : '#4B5563' }}
+                  className="w-6 h-6 rounded flex items-center justify-center border shrink-0"
+                >
+                  <AnimatePresence>
+                    {form.swapEnabled && (
+                      <motion.span initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
+                        <CircleCheck className="w-4 h-4 text-black" />
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
                 <div>
                   <span className={`block font-black tracking-widest text-sm mb-1 ${form.swapEnabled ? 'text-[#FF00FF]' : 'text-gray-400'}`}>Open to swaps</span>
                   <p className="text-xs text-gray-500 font-medium">Let people trade an item or a skill for this instead of cash</p>
                 </div>
-              </button>
+              </motion.button>
 
               {/* Delivery. Asked here, next to the price, because it is part of what the buyer
                   pays and part of what the seller is promising — not an afterthought to sort
@@ -408,22 +538,30 @@ export default function CreateListing() {
                     const Icon = m.icon;
                     const isActive = form.shippingMethod === m.value;
                     return (
-                      <button
+                      <motion.button
                         key={m.value}
                         type="button"
+                        whileTap={{ scale: 0.96 }}
                         onClick={() => set('shippingMethod', m.value)}
-                        className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-2.5 ${
+                        className={`relative overflow-hidden p-3.5 rounded-xl border text-left transition-colors flex items-start gap-2.5 ${
                           isActive
-                            ? 'bg-[#CDFF00]/10 border-[#CDFF00] text-[#CDFF00]'
+                            ? 'border-[#CDFF00] text-[#CDFF00]'
                             : 'bg-black/50 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
                         }`}
                       >
-                        <Icon className="w-4 h-4 mt-0.5 shrink-0" />
-                        <span className="min-w-0">
+                        {isActive && (
+                          <motion.span
+                            layoutId="shippingHighlight"
+                            className="absolute inset-0 bg-[#CDFF00]/10"
+                            transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                          />
+                        )}
+                        <Icon className="relative w-4 h-4 mt-0.5 shrink-0" />
+                        <span className="relative min-w-0">
                           <span className="block text-[10px] font-black tracking-widest leading-tight">{m.label}</span>
                           <span className="block text-[10px] text-gray-500 font-medium mt-1 leading-snug">{m.hint}</span>
                         </span>
-                      </button>
+                      </motion.button>
                     );
                   })}
                 </div>
@@ -621,13 +759,38 @@ export default function CreateListing() {
                   </span>
                 </div>
 
-                <label className={`block w-full p-10 rounded-xl border-2 border-dashed text-center transition-all outline-none ${
-                  images.length >= MAX_MEDIA
-                    ? 'border-white/10 opacity-40 cursor-not-allowed'
-                    : 'border-white/20 cursor-pointer hover:border-[#CDFF00]/50 hover:bg-[#CDFF00]/5'
-                }`}>
-                  <ImageIcon className="w-10 h-10 mx-auto text-gray-500 mb-3" />
-                  <p className="text-sm font-bold text-gray-300 tracking-widest mb-1">Upload Media</p>
+                <motion.label
+                  animate={{ scale: dragActive ? 1.015 : 1 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  onDragOver={(e) => { e.preventDefault(); if (images.length < MAX_MEDIA) setDragActive(true); }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragActive(false);
+                    if (images.length >= MAX_MEDIA) return;
+                    const dropped = Array.from(e.dataTransfer.files).filter((f) => /^(image|video)\//.test(f.type));
+                    if (dropped.length) setImages((prev) => [...prev, ...dropped].slice(0, MAX_MEDIA));
+                  }}
+                  className={`block w-full p-10 rounded-xl border-2 border-dashed text-center transition-colors outline-none ${
+                    images.length >= MAX_MEDIA
+                      ? 'border-white/10 opacity-40 cursor-not-allowed'
+                      : dragActive
+                        ? 'border-[#CDFF00] bg-[#CDFF00]/10'
+                        : 'border-white/20 cursor-pointer hover:border-[#CDFF00]/50 hover:bg-[#CDFF00]/5'
+                  }`}
+                >
+                  <motion.span
+                    className="block"
+                    animate={{ y: dragActive ? -4 : 0 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  >
+                    {dragActive
+                      ? <UploadCloud className="w-10 h-10 mx-auto text-[#CDFF00] mb-3" />
+                      : <ImageIcon className="w-10 h-10 mx-auto text-gray-500 mb-3" />}
+                  </motion.span>
+                  <p className="text-sm font-bold text-gray-300 tracking-widest mb-1">
+                    {dragActive ? 'Drop it here' : 'Upload Media'}
+                  </p>
                   <p className="text-xs text-gray-600 font-medium">
                     {images.length >= MAX_MEDIA
                       ? `Maximum ${MAX_MEDIA} items reached`
@@ -648,7 +811,7 @@ export default function CreateListing() {
                       e.target.value = '';
                     }}
                   />
-                </label>
+                </motion.label>
 
                 {/* Honest about what happens with a thin gallery, rather than blocking the
                     seller or quietly padding without telling them. */}
@@ -664,14 +827,16 @@ export default function CreateListing() {
 
                 {images.length > 0 && (
                   <div className="flex flex-wrap gap-3 mt-4">
-                    {images.map((file, i) => (
-                      <MediaThumb
-                        key={`${file.name}-${file.lastModified}-${i}`}
-                        file={file}
-                        isLead={i === 0}
-                        onRemove={() => setImages(images.filter((_, idx) => idx !== i))}
-                      />
-                    ))}
+                    <AnimatePresence>
+                      {images.map((file, i) => (
+                        <MediaThumb
+                          key={`${file.name}-${file.lastModified}-${i}`}
+                          file={file}
+                          isLead={i === 0}
+                          onRemove={() => setImages(images.filter((_, idx) => idx !== i))}
+                        />
+                      ))}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>
@@ -728,18 +893,77 @@ export default function CreateListing() {
                 <MoveLeft className="w-4 h-4" /> Back
               </button>
             )}
-            <button
+            <motion.button
+              whileTap={meta.canAdvance && !loading ? { scale: 0.97 } : {}}
               onClick={() => (isLast ? handleSubmit() : goTo(step + 1))}
               disabled={loading || !meta.canAdvance}
               className={`${step > 1 ? 'flex-[2]' : 'w-full'} py-4 rounded-xl bg-[#CDFF00] text-black font-black tracking-widest hover:bg-[#E0FF4D] shadow-lg hover:shadow-[#CDFF00]/20 transition-all flex items-center justify-center gap-2 outline-none disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed`}
             >
               {loading
-                ? 'Publishing…'
+                ? <><span className="w-4 h-4 border-2 border-black/25 border-t-black rounded-full animate-spin" /> Publishing…</>
                 : isLast
                   ? 'Publish Listing'
                   : <>Next <MoveRight className="w-5 h-5" /></>}
-            </button>
+            </motion.button>
           </div>
+
+          {/* The moment the whole form was building to — held on screen just long enough to
+              register before the redirect takes over, so publishing reads as an event rather
+              than a page load. A child of the card itself (not a sibling after it), so
+              `absolute inset-0` covers exactly the card's own rounded box. */}
+          <AnimatePresence>
+          {published && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 rounded-2xl sm:rounded-3xl bg-black/90 backdrop-blur-md flex flex-col items-center justify-center gap-4 z-20"
+            >
+              {/* A handful of specks thrown outward from behind the badge — cheap in code,
+                  reads as confetti. Randomised once via index rather than on every render, or
+                  the burst would silently reset itself on each of this overlay's re-renders. */}
+              {Array.from({ length: 14 }).map((_, i) => {
+                const angle = (i / 14) * Math.PI * 2;
+                const distance = 90 + (i % 3) * 30;
+                const colour = [ '#CDFF00', '#FF00FF', '#00FFFF' ][i % 3];
+                return (
+                  <motion.span
+                    key={i}
+                    initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                    animate={{ x: Math.cos(angle) * distance, y: Math.sin(angle) * distance, opacity: 0, scale: 0 }}
+                    transition={{ duration: 0.9, ease: 'easeOut' }}
+                    style={{ background: colour }}
+                    className="absolute w-2 h-2 rounded-full"
+                  />
+                );
+              })}
+              <motion.div
+                initial={{ scale: 0, rotate: -30 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.1 }}
+                className="w-16 h-16 rounded-full bg-[#CDFF00] flex items-center justify-center"
+              >
+                <PartyPopper className="w-8 h-8 text-black" />
+              </motion.div>
+              <motion.p
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="text-lg font-heading font-black text-white tracking-tight"
+              >
+                Listing published!
+              </motion.p>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.35 }}
+                className="text-xs text-gray-400 font-bold tracking-widest"
+              >
+                Taking you there now…
+              </motion.p>
+            </motion.div>
+          )}
+          </AnimatePresence>
         </div>
       </motion.div>
     </div>
@@ -766,7 +990,14 @@ function MediaThumb({ file, isLead, onRemove }) {
   }, [file]);
 
   return (
-    <div className="relative group">
+    <motion.div
+      layout
+      initial={{ scale: 0, rotate: -8, opacity: 0 }}
+      animate={{ scale: 1, rotate: 0, opacity: 1 }}
+      exit={{ scale: 0, rotate: 8, opacity: 0 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+      className="relative group"
+    >
       {isVideo ? (
         <video src={url} muted className="w-24 h-24 rounded-lg object-cover bg-black" />
       ) : (
@@ -782,9 +1013,14 @@ function MediaThumb({ file, isLead, onRemove }) {
       {/* The first item is the one that shows on browse cards and shares, so it's worth
           calling out which photo the seller is actually leading with. */}
       {isLead && (
-        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-[#CDFF00] text-[8px] font-black tracking-widest text-black">
+        <motion.span
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.1 }}
+          className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-[#CDFF00] text-[8px] font-black tracking-widest text-black"
+        >
           Cover
-        </span>
+        </motion.span>
       )}
 
       <button
@@ -795,6 +1031,6 @@ function MediaThumb({ file, isLead, onRemove }) {
       >
         <CircleX className="w-3 h-3" />
       </button>
-    </div>
+    </motion.div>
   );
 }
