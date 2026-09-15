@@ -8,6 +8,7 @@ import { Flame, MessageCircleMore, SendHorizontal, BookmarkCheck, Images as Imag
 import { Link, useLocation } from 'react-router-dom';
 import { formatPrice } from '../utils/constants';
 import { useShops } from '../hooks/useShops';
+import { useMediaAspect } from '../hooks/useMediaAspect';
 import PostMediaGallery from '../components/PostMediaGallery';
 import StoryBar from '../components/stories/StoryBar';
 import HeroBrief from '../components/HeroBrief';
@@ -187,6 +188,9 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
     : null;
   const hasMedia = post.media && post.media.length > 0;
   const singleImage = !hasMedia && (post.imageUrl || extractUrl(post.content));
+  // Called before the "no media at all" early return below, so it runs on every render of
+  // this component whether or not there is a picture — a hook cannot sit behind a branch.
+  const singleAspect = useMediaAspect(singleImage || undefined);
 
   // The server sends anonymous posts with authorId/authorName/avatar stripped. Rendering
   // them through the normal header would link to /profile/null, so the author block becomes
@@ -418,7 +422,9 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
           // gesture as liking an image, handled by onDoubleClick on the wrapper.
           <PostMediaGallery media={post.media} />
         ) : (
-          <div className="relative w-full aspect-square bg-black">
+          // Shaped by the picture instead of forced square. A square crop takes the top and
+          // bottom off every portrait photo posted from a phone, which is most of them.
+          <div className="relative w-full bg-black" style={{ aspectRatio: singleAspect }}>
             <img
               src={singleImage}
               alt="Post"
@@ -456,6 +462,12 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
 
 /** A listing interleaved into the feed — Instagram-Shopping-style promo card. */
 function ListingPromoCard({ listing, onSave, onShare }) {
+  // Same reasoning as a post's own picture: this sits in the single feed column, where a
+  // square crop buys no grid alignment and only costs the top and bottom of a portrait
+  // product shot. The quoted-post preview further up keeps its fixed 16:10 — that one is a
+  // thumbnail of another post and is meant to stay small rather than lead the card.
+  const cover = uploadUrl(listing.mediaUrls?.[0] || POST_FALLBACK_IMAGE);
+  const aspect = useMediaAspect(cover);
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -476,9 +488,13 @@ function ListingPromoCard({ listing, onSave, onShare }) {
         </Link>
       </div>
 
-      <Link to={`/listing/${listing.id}`} className="block relative aspect-square bg-black group overflow-hidden">
+      <Link
+        to={`/listing/${listing.id}`}
+        className="block relative bg-black group overflow-hidden"
+        style={{ aspectRatio: aspect }}
+      >
         <img
-          src={uploadUrl(listing.mediaUrls?.[0] || POST_FALLBACK_IMAGE)}
+          src={cover}
           alt={listing.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           onError={(e) => { e.target.onerror = null; e.target.src = POST_FALLBACK_IMAGE; }}

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useMediaAspect } from '../hooks/useMediaAspect';
 import { Volume1, VolumeOff, CirclePlay, CirclePause, CircleChevronLeft, CircleChevronRight, CameraOff, Undo } from 'lucide-react';
 
 /**
@@ -355,6 +356,13 @@ export default function PostMediaGallery({ media = [], className = '' }) {
   const dragStartX = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
 
+  // The card takes the shape of the FIRST item, and every slide then shares that height.
+  // Sizing each slide to itself would make the card grow and shrink as you swipe, moving
+  // the rest of the feed under your thumb mid-gesture — so a mixed-shape post crops its
+  // later slides, which is the lesser of the two problems.
+  const first = media[0];
+  const aspect = useMediaAspect(first?.url, first?.type === 'VIDEO');
+
   if (!media.length) return null;
 
   const prev = (e) => { e?.stopPropagation(); setCurrent((c) => Math.max(0, c - 1)); };
@@ -376,7 +384,13 @@ export default function PostMediaGallery({ media = [], className = '' }) {
   return (
     <div className={`relative bg-[#0a0a0a] overflow-hidden ${className}`}>
       <div
-        className="relative w-full aspect-[4/5] max-h-[600px] bg-black overflow-hidden"
+        // Shaped by the media rather than by a fixed 4:5 box with max-h-[600px]. That box
+        // cropped every post that was not already 4:5, and the 600px ceiling then squashed
+        // the ratio again on any screen wide enough to reach it — so on desktop even a
+        // genuinely 4:5 photo was being cut. The ratio is bounded in the hook instead, which
+        // caps the height without ever changing the shape.
+        className="relative w-full bg-black overflow-hidden"
+        style={{ aspectRatio: aspect }}
         onMouseDown={handleDragStart}
         onMouseUp={handleDragEnd}
         onTouchStart={handleDragStart}
