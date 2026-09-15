@@ -44,7 +44,8 @@ function CashStrip({ offer, viewerIsProposer }) {
   );
 }
 
-/** One half of a trade. `side.listingId` is null for free-text (skill/favour) offers. */
+/** One half of a trade. `side.listingId` is null for free-text offers — an unlisted item
+ *  (optionally with its own photo via `side.imageUrl`), or a skill/favour with neither. */
 function SideCard({ side, label }) {
   return (
     <div className="flex-1 min-w-0">
@@ -59,7 +60,7 @@ function SideCard({ side, label }) {
           <p className="text-xs font-bold text-white truncate">{side?.title || '—'}</p>
           {side?.price != null
             ? <p className="text-[10px] text-[#CDFF00] font-black">{formatPrice(side.price, side.currency)}</p>
-            : <p className="text-[10px] text-gray-500 font-bold tracking-wide">Skill / favour</p>}
+            : <p className="text-[10px] text-gray-500 font-bold tracking-wide">{side?.imageUrl ? 'Not listed' : 'Skill / favour'}</p>}
         </div>
       </div>
     </div>

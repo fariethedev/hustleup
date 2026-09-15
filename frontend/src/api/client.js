@@ -587,8 +587,21 @@ export const storiesApi = {
 // A swap is a negotiation whose counter-offer
 // is a listing (or a described skill) instead of a number.
 export const swapsApi = {
-  // { targetListingId, offeredListingId? | offeredText?, message? }
-  create: (data) => api.post('/swaps', data),
+  // data: { targetListingId, offeredListingId? | offeredText?, cashAmount?, cashDirection?,
+  // message? }. offeredImage: optional File — a photo of a text-offered item (ignored by the
+  // server when offeredListingId is set instead, since that side already has listing photos).
+  // Always multipart: the image travels alongside the same fields a listing-only offer sends,
+  // rather than needing a second request shape.
+  create: (data, offeredImage) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') formData.append(key, value);
+    });
+    if (offeredImage) formData.append('offeredImage', offeredImage);
+    return api.post('/swaps', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   incoming: () => api.get('/swaps/incoming'),
   outgoing: () => api.get('/swaps/outgoing'),
   forListing: (listingId) => api.get(`/swaps/listing/${listingId}`),

@@ -25,7 +25,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -44,49 +43,58 @@ public class SwapController {
     /**
      * Proposes a swap.
      *
-     * <p>Body: {@code { targetListingId, offeredListingId? , offeredText?, cashAmount?,
-     * cashDirection?, message? }} — exactly one of {@code offeredListingId} /
-     * {@code offeredText} is required.
+     * <p>Multipart rather than JSON: exactly one of {@code offeredListingId} /
+     * {@code offeredText} is required, and when it's {@code offeredText} an optional
+     * {@code offeredImage} can go with it — a physical item traded without ever being
+     * listed for sale otherwise has nothing to show the other side but its own description,
+     * while a listing offer already comes with real photos.
+     *
+     * <p>Fields: {@code targetListingId, offeredListingId?, offeredText?, offeredImage?,
+     * cashAmount?, cashDirection?, message?}.
      *
      * <p>{@code cashAmount} is money on top of the items and {@code cashDirection} is
      * "PROPOSER_PAYS" or "OWNER_PAYS". Both are optional, but an amount without a direction
      * is rejected rather than guessed — assuming who pays would be a coin flip on the one
      * detail the two of them will actually argue about.
      */
-    @PostMapping
-    public ResponseEntity<SwapOfferDto> create(@RequestBody Map<String, Object> body) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<SwapOfferDto> create(
+            @RequestParam String targetListingId,
+            @RequestParam(required = false) String offeredListingId,
+            @RequestParam(required = false) String offeredText,
+            @RequestParam(required = false) MultipartFile offeredImage,
+            @RequestParam(required = false) String cashAmount,
+            @RequestParam(required = false) String cashDirection,
+            @RequestParam(required = false) String message) {
         User me = requireCurrentUser();
 
-        UUID targetListingId = parseUuid(body.get("targetListingId"));
-        if (targetListingId == null) {
+        UUID targetListingUuid = parseUuid(targetListingId);
+        if (targetListingUuid == null) {
             throw new IllegalArgumentException("targetListingId is required");
         }
-        UUID offeredListingId = parseUuid(body.get("offeredListingId"));
-        String offeredText = body.get("offeredText") != null ? body.get("offeredText").toString() : null;
-        String message = body.get("message") != null ? body.get("message").toString() : null;
+        UUID offeredListingUuid = parseUuid(offeredListingId);
 
-        // Parsed from the raw body rather than bound to a typed request object, matching how
-        // the rest of this endpoint reads. A malformed number is a readable 400, not a 500.
-        BigDecimal cashAmount = null;
-        if (body.get("cashAmount") != null && !body.get("cashAmount").toString().isBlank()) {
+        // A malformed number is a readable 400, not a 500.
+        BigDecimal parsedCashAmount = null;
+        if (cashAmount != null && !cashAmount.isBlank()) {
             try {
-                cashAmount = new BigDecimal(body.get("cashAmount").toString().trim());
+                parsedCashAmount = new BigDecimal(cashAmount.trim());
             } catch (NumberFormatException e) {
                 throw new IllegalArgumentException("cashAmount must be a number");
             }
         }
 
-        CashDirection cashDirection = null;
-        if (body.get("cashDirection") != null && !body.get("cashDirection").toString().isBlank()) {
+        CashDirection parsedCashDirection = null;
+        if (cashDirection != null && !cashDirection.isBlank()) {
             try {
-                cashDirection = CashDirection.valueOf(body.get("cashDirection").toString().trim().toUpperCase());
+                parsedCashDirection = CashDirection.valueOf(cashDirection.trim().toUpperCase());
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("cashDirection must be PROPOSER_PAYS or OWNER_PAYS");
             }
         }
 
-        return ResponseEntity.ok(swapService.createOffer(targetListingId, offeredListingId, offeredText,
-                cashAmount, cashDirection, message, me));
+        return ResponseEntity.ok(swapService.createOffer(targetListingUuid, offeredListingUuid, offeredText,
+                offeredImage, parsedCashAmount, parsedCashDirection, message, me));
     }
 
     /** Offers waiting on me. */

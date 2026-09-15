@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { CircleX, Recycle, Box, WandSparkles, Loader, MoveUp, MoveDown, Banknote } from 'lucide-react';
+import { CircleX, Recycle, Box, WandSparkles, Loader, MoveUp, MoveDown, Banknote, Camera, X } from 'lucide-react';
 import { listingsApi, swapsApi, dispatchToast } from '../api/client';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 import { formatPrice } from '../utils/constants';
@@ -12,11 +12,13 @@ import { uploadUrl } from '../config';
  *
  * Two ways to offer, matching the backend's "exactly one of" contract:
  *   • pick one of your own active listings, or
- *   • describe what you're offering ("2hrs of calc tutoring")
+ *   • describe what you're offering — an item you own but never listed, a skill, a favour
  *
- * The mode toggle is the whole point of Swap Mode — students trade skills they'd never
- * bother creating a listing for, so the free-text path has to be a first-class option
- * rather than an afterthought.
+ * The mode toggle is the whole point of Swap Mode: nobody creates a listing for "2hrs of
+ * calc tutoring", and plenty of people own something worth trading that they'd never
+ * bother listing for sale either — a spare controller, a textbook from last term. The
+ * free-text path covers both, and can carry its own photo so an unlisted item isn't stuck
+ * trading on words alone while the listing side of the deal gets real photos.
  *
  * On top of either, an optional cash top-up in whichever direction the trade needs. Pure
  * barter only clears when both people value their items equally; an iPhone 12 for an
@@ -29,6 +31,8 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
   const [loadingMine, setLoadingMine] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [offeredText, setOfferedText] = useState('');
+  const [offeredImage, setOfferedImage] = useState(null); // File, or null
+  const [offeredImagePreview, setOfferedImagePreview] = useState(null);
   const [message, setMessage] = useState('');
   // Cash top-up. Direction defaults to "I add", the overwhelmingly common case — someone
   // trading up. Nothing is sent unless an amount is actually typed.
@@ -37,6 +41,15 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => lockBodyScroll(), []);
+
+  // Revoke the previous object URL whenever the picked file changes (including on unmount) —
+  // otherwise each reselect leaks the last preview's blob for the life of the tab.
+  useEffect(() => {
+    if (!offeredImage) { setOfferedImagePreview(null); return; }
+    const url = URL.createObjectURL(offeredImage);
+    setOfferedImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [offeredImage]);
 
   useEffect(() => {
     listingsApi.my()
@@ -73,7 +86,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
           ? { offeredListingId: selectedId }
           : { offeredText: offeredText.trim() }),
       };
-      const res = await swapsApi.create(payload);
+      const res = await swapsApi.create(payload, mode === 'text' ? offeredImage : null);
       dispatchToast('Swap offer sent', 'success');
       onSuccess?.(res.data);
       onClose();
@@ -147,7 +160,7 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
                   mode === 'text' ? 'bg-[#CDFF00] text-black' : 'text-gray-400 hover:text-white'
                 }`}
               >
-                A skill or favour
+                Something else
               </button>
             </div>
 
@@ -187,13 +200,49 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
                 </div>
               )
             ) : (
-              <input
-                value={offeredText}
-                onChange={(e) => setOfferedText(e.target.value)}
-                maxLength={280}
-                placeholder="e.g. 2hrs of calculus tutoring"
-                className="w-full bg-white/5 border border-white/10 focus:border-[#CDFF00]/50 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none transition-colors"
-              />
+              <div className="space-y-2.5">
+                <input
+                  value={offeredText}
+                  onChange={(e) => setOfferedText(e.target.value)}
+                  maxLength={280}
+                  placeholder="e.g. PS5 controller, barely used — or 2hrs of calculus tutoring"
+                  className="w-full bg-white/5 border border-white/10 focus:border-[#CDFF00]/50 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none transition-colors"
+                />
+
+                {/* A real item trading on nothing but its own description is at a real
+                    disadvantage against the listing side of the deal, which comes with
+                    photos built in — this is optional because a skill or favour genuinely
+                    has nothing to photograph. */}
+                {offeredImagePreview ? (
+                  <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10">
+                    <img src={offeredImagePreview} alt="" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setOfferedImage(null)}
+                      aria-label="Remove photo"
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 border border-white/20 flex items-center justify-center text-white"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      id="swap-offer-image"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => { setOfferedImage(e.target.files?.[0] || null); e.target.value = ''; }}
+                    />
+                    <label
+                      htmlFor="swap-offer-image"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-white/25 text-[11px] font-bold text-gray-400 hover:text-white cursor-pointer transition-colors"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> Add a photo <span className="text-gray-700">(optional)</span>
+                    </label>
+                  </>
+                )}
+              </div>
             )}
           </div>
 

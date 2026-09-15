@@ -75,6 +75,9 @@ public class SwapService {
      * @param targetListingId  the listing the proposer wants
      * @param offeredListingId a listing the proposer owns, or null for a text offer
      * @param offeredText      free-text offer, or null when offering a listing
+     * @param offeredImage     optional photo of the text-offered item; ignored when
+     *                         {@code offeredListingId} is set, since that side already has
+     *                         real listing photos
      * @param cashAmount       money on top of the items, or null/zero for a straight trade
      * @param cashDirection    who pays {@code cashAmount}; required when there is one
      * @param message          optional note
@@ -82,7 +85,8 @@ public class SwapService {
      */
     @Transactional
     public SwapOfferDto createOffer(UUID targetListingId, UUID offeredListingId,
-                                    String offeredText, BigDecimal cashAmount,
+                                    String offeredText, MultipartFile offeredImage,
+                                    BigDecimal cashAmount,
                                     CashDirection cashDirection, String message, User proposer) {
 
         Listing target = listingRepository.findById(targetListingId)
@@ -130,12 +134,20 @@ public class SwapService {
                     "You already have a pending offer on this listing");
         }
 
+        // Only meaningful on the text side — a listing offer already has real listing
+        // photos, so an image attached alongside one is silently dropped rather than stored
+        // somewhere nothing will ever read it back from.
+        String offeredImageUrl = (hasText && offeredImage != null && !offeredImage.isEmpty())
+                ? fileStorageService.store(offeredImage)
+                : null;
+
         SwapOffer offer = SwapOffer.builder()
                 .targetListingId(targetListingId)
                 .targetOwnerId(target.getSellerId())
                 .proposerId(proposer.getId())
                 .offeredListingId(hasListing ? offeredListingId : null)
                 .offeredText(hasText ? offeredText.trim() : null)
+                .offeredImageUrl(offeredImageUrl)
                 .cashAmount(cash)
                 .cashDirection(cashDirection)
                 .cashCurrency(cash == null ? null : cashCurrencyFor(target))
@@ -363,7 +375,10 @@ public class SwapService {
         b.wants(sideFromListing(offer.getTargetListingId()));
         b.gives(offer.getOfferedListingId() != null
                 ? sideFromListing(offer.getOfferedListingId())
-                : SwapOfferDto.Side.builder().title(offer.getOfferedText()).build());
+                : SwapOfferDto.Side.builder()
+                        .title(offer.getOfferedText())
+                        .imageUrl(refresh(offer.getOfferedImageUrl()))
+                        .build());
 
         return b.build();
     }

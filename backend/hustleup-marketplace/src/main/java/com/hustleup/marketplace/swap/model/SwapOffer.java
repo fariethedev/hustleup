@@ -12,8 +12,12 @@
  * <ul>
  *   <li>{@code offeredListingId} — a listing the proposer already owns. Preferred, because
  *       it gives the other side something concrete to inspect (photos, price, reviews).</li>
- *   <li>{@code offeredText} — free text such as "2hrs of calculus tutoring". The escape
- *       hatch for skills and favours that nobody would bother creating a listing for.</li>
+ *   <li>{@code offeredText} — free text such as "2hrs of calculus tutoring", or "PS5
+ *       controller, barely used". The escape hatch for anything the proposer has not made
+ *       (and may never make) a listing for — a skill, a favour, or just an item they own
+ *       that isn't for sale but is fair game to trade. Can optionally carry
+ *       {@link #offeredImageUrl} so an item, unlike a skill, does not have to trade on words
+ *       alone.</li>
  * </ul>
  * Exactly one is required; {@link com.hustleup.marketplace.swap.service.SwapService}
  * enforces that at write time rather than relying on a DB constraint, so the API can
@@ -96,6 +100,17 @@ public class SwapOffer {
     /** Free-text offer, e.g. "2hrs of calc tutoring". Null when a listing is offered. */
     @Column(name = "offered_text", length = 280)
     private String offeredText;
+
+    /**
+     * A photo of the free-text item, when the proposer has one to show. Optional even for a
+     * text offer — a skill or favour has nothing to photograph — but a physical item that
+     * simply hasn't been listed for sale otherwise trades on nothing but its own description,
+     * with no way to show it side by side with the listing photos on the other end of the
+     * deal. Meaningless (and left null) when {@link #offeredListingId} is set instead: that
+     * side already has real listing photos.
+     */
+    @Column(name = "offered_image_url", length = 1024)
+    private String offeredImageUrl;
 
     // ── Cash top-up ───────────────────────────────────────────────────────────
     // Optional money on top of the barter, in either direction. Null/zero is a pure swap,
