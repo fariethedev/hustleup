@@ -519,7 +519,18 @@ export const followsApi = {
 export const datingApi = {
   getProfiles: () => api.get('/dating/profiles'),
   getMyProfile: () => api.get('/dating/profile/me'),
-  saveProfile: (formData) => api.post('/dating/profile', formData),
+  /**
+   * Multipart, and the header has to say so.
+   *
+   * This instance defaults to Content-Type: application/json, and axios does not drop that
+   * for a FormData body — so the form went out labelled JSON, Spring could not parse it as
+   * multipart, and every @RequestParam on the endpoint arrived null. The visible result was
+   * "Choose Male or Female" on a form where a gender had been chosen: the server was not
+   * rejecting the value, it never received one. Every other multipart call in this file
+   * already sets this.
+   */
+  saveProfile: (formData) =>
+    api.post('/dating/profile', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   // A super like is the same right swipe with `superLike` set: it notifies the
   // recipient immediately instead of staying private until the like is mutual.
   like: (profileId, superLike = false) =>

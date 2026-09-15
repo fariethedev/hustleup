@@ -125,7 +125,16 @@ export default function CardCarousel({
         // carousel past its last image scrolled the page instead — on Explore, where every
         // card carries one of these, that is a list that lurches while you are looking at it.
         className="flex h-full w-full overflow-x-auto overflow-y-hidden overscroll-x-contain snap-x snap-mandatory scrollbar-hide"
-        style={{ touchAction: 'pan-x', scrollbarWidth: 'none' }}
+        // Both axes, not just pan-x. touch-action lists the gestures the browser may perform
+        // for a touch starting here, so pan-x alone permitted horizontal panning and silently
+        // forbade vertical — a swipe beginning on this track could not scroll the page at all.
+        // On Explore, where the card is mostly this carousel, that is most of the screen: you
+        // scroll, your thumb comes to rest over a card, and the next swipe does nothing until
+        // you find a gap between cards. Naming pan-y as well lets the browser do its own axis
+        // detection, which is what gives a mostly-horizontal swipe to the track and a
+        // mostly-vertical one to the page. overscroll-x-contain still stops a swipe that runs
+        // out of images from chaining into the page.
+        style={{ touchAction: 'pan-x pan-y', scrollbarWidth: 'none' }}
         // Without this a mouse drag inside the <a> starts a native link drag — the ghost
         // image follows the cursor and the track never scrolls.
         draggable={false}

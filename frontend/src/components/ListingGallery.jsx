@@ -98,9 +98,12 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
           aria-roledescription="carousel"
           aria-label={`${title} media, ${media.length} items`}
           className="flex h-full w-full overflow-x-auto overscroll-x-contain overflow-y-hidden snap-x snap-mandatory scrollbar-hide outline-none focus-visible:ring-2 focus-visible:ring-[#CDFF00]/60"
-          // `touch-action: pan-x` keeps vertical page scrolling working over the carousel —
-          // without it a slightly-diagonal swipe can trap the gesture and lock the page.
-          style={{ touchAction: 'pan-x', scrollbarWidth: 'none' }}
+          // Both axes. touch-action lists the gestures the browser may perform for a touch
+          // starting here, so pan-x alone permitted horizontal panning and forbade vertical,
+          // which is the opposite of keeping page scrolling working over the carousel. Naming
+          // pan-y too lets the browser pick the axis: a mostly-horizontal swipe moves the
+          // track, a mostly-vertical one scrolls the page.
+          style={{ touchAction: 'pan-x pan-y', scrollbarWidth: 'none' }}
         >
           {media.map((url, i) => {
             const isVideo = isVideoUrl(url);
