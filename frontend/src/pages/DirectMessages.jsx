@@ -3,12 +3,13 @@ import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
-import { directMessagesApi, notificationsApi, usersApi, bookingsApi, dispatchToast } from '../api/client';
+import { directMessagesApi, notificationsApi, usersApi, bookingsApi, storiesApi, dispatchToast } from '../api/client';
 import { formatPrice } from '../utils/constants';
 import { uploadUrl } from '../config';
 import { shortName } from '../utils/displayName';
 import SmartImage from '../components/SmartImage';
 import OfferMessageCard from '../components/OfferMessageCard';
+import StoryViewer from '../components/stories/StoryViewer';
 import { MessageCircleOff, CircleUserRound, ShieldCheck, MoveLeft, Link2, Laugh, EllipsisVertical, ScanSearch, SendHorizontal, CircleCheck, ListChecks, Bookmark, CircleX, NotebookPen as StickerIcon, RefreshCcw, Cigarette, ShoppingBasket, ThumbsUp, WandSparkles, BadgeDollarSign } from 'lucide-react';
 
 /* Curated emoji + sticker sets for the composer pickers (no external deps). */
@@ -261,6 +262,11 @@ export default function DirectMessages() {
   const [msgQuery, setMsgQuery] = useState('');
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  // A shared story is a snapshot taken at share time (see openSharedStory below) — the
+  // one thing it does NOT tell us is whether the story is still up 24h later. `null` means
+  // closed; otherwise it is the single-person `users` array StoryViewer expects.
+  const [openStoryUser, setOpenStoryUser] = useState(null);
+  const [openingStoryId, setOpeningStoryId] = useState(null);
   // Whether the open conversation started from a mutual Bond match — drives the valentine
   // treatment on the header and the thread. Checked via a dedicated endpoint (not just the
   // partners list' own isBondMatch field) so it's correct the moment a match is navigated to
@@ -574,6 +580,50 @@ export default function DirectMessages() {
       const pos = start + emoji.length;
       el?.setSelectionRange(pos, pos);
     });
+  };
+
+  /**
+   * Opens the story a shared-story message points at, in the same viewer stories open in
+   * everywhere else — not the author's profile.
+   *
+   * <h3>Why this needs a fetch and can't just render the card's own snapshot</h3>
+   * The card shows `sharedStoryImage`/`sharedStoryAuthorName` — a snapshot taken at share
+   * time so the card still means something once the story is long gone. That snapshot has
+   * no `viewsCount`, no like state, none of what the real viewer needs, and — the actual
+   * point of it — no way to tell whether the story is still up. So this asks the server for
+   * the live list and looks for a match by id.
+   *
+   * <h3>Why the profile is still the fallback, not an error</h3>
+   * Stories expire after 24h. A story shared last week is gone by now in the overwhelming
+   * common case, and that was always going to be true here no matter how this is wired —
+   * routing to the person who posted it is the closest thing left to "take me to it".
+   */
+  const openSharedStory = async (msg) => {
+    if (!msg.sharedStoryId || openingStoryId) return;
+    setOpeningStoryId(msg.id);
+    try {
+      const { data } = await storiesApi.getAll();
+      const story = (data || []).find((s) => s.id === msg.sharedStoryId);
+      if (story) {
+        // StoryViewer takes a list of people plus an index into it, because that is the
+        // shape the story tray already hands it — a one-person, one-story list is the
+        // smallest input that shape accepts, and it's enough to open on exactly this story
+        // without also surfacing the rest of that person's reel from a DM.
+        setOpenStoryUser({
+          id: story.authorId,
+          fullName: story.authorName,
+          avatarUrl: story.authorAvatarUrl,
+          stories: [story],
+        });
+        return;
+      }
+      dispatchToast('This story is no longer available');
+    } catch {
+      dispatchToast('This story is no longer available');
+    } finally {
+      setOpeningStoryId(null);
+    }
+    if (msg.sharedStoryAuthorId) navigate(`/profile/${msg.sharedStoryAuthorId}`);
   };
 
   const handleFilePick = (e) => {
@@ -1478,11 +1528,13 @@ export default function DirectMessages() {
                           );
                         }
 
-                        // Shared story: a portrait thumbnail card. Stories expire after
-                        // 24h, so this renders from the snapshot the server stored at
-                        // share time rather than looking the story up — the card still
-                        // works long after the story itself is gone.
+                        // Shared story: a portrait thumbnail card. The card itself renders
+                        // from the snapshot the server stored at share time (so it still
+                        // shows something long after the story is gone), but tapping it opens
+                        // the actual story — see openSharedStory's own doc comment for why
+                        // that needs a live fetch rather than just the snapshot above.
                         if (msg.messageType === 'STORY' && msg.sharedStoryId) {
+                          const opening = openingStoryId === msg.id;
                           return (
                             <motion.div
                               key={row.id}
@@ -1492,18 +1544,22 @@ export default function DirectMessages() {
                             >
                               <div className="max-w-[75%] md:max-w-[65%] space-y-1">
                                 <motion.div whileHover={reduceMotion ? {} : { scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={SOFT_SPRING}>
-                                  <Link
-                                    to={msg.sharedStoryAuthorId ? `/profile/${msg.sharedStoryAuthorId}` : '#'}
-                                    className={`flex items-center gap-3 p-2.5 rounded-2xl border transition-colors ${
+                                  <button
+                                    type="button"
+                                    onClick={() => openSharedStory(msg)}
+                                    disabled={opening}
+                                    className={`w-full flex items-center gap-3 p-2.5 rounded-2xl border transition-colors text-left disabled:opacity-70 ${
                                       isMe ? 'bg-[#CDFF00]/15 border-[#CDFF00]/30' : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
                                     }`}
                                   >
                                     <div className="w-12 h-16 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
-                                      {msg.sharedStoryImage
-                                        ? (msg.sharedStoryType === 'VIDEO'
-                                            ? <video src={uploadUrl(msg.sharedStoryImage)} className="w-full h-full object-cover" muted playsInline />
-                                            : <img src={uploadUrl(msg.sharedStoryImage)} alt="" className="w-full h-full object-cover" />)
-                                        : <WandSparkles className="w-5 h-5 text-[#CDFF00]" />}
+                                      {opening
+                                        ? <div className="w-4 h-4 border-2 border-[#CDFF00]/30 border-t-[#CDFF00] rounded-full animate-spin" />
+                                        : msg.sharedStoryImage
+                                          ? (msg.sharedStoryType === 'VIDEO'
+                                              ? <video src={uploadUrl(msg.sharedStoryImage)} className="w-full h-full object-cover" muted playsInline />
+                                              : <img src={uploadUrl(msg.sharedStoryImage)} alt="" className="w-full h-full object-cover" />)
+                                          : <WandSparkles className="w-5 h-5 text-[#CDFF00]" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <p className="text-[10px] font-black tracking-widest text-[#CDFF00]">Story</p>
@@ -1511,7 +1567,7 @@ export default function DirectMessages() {
                                         {msg.sharedStoryAuthorName || 'A story'}
                                       </p>
                                     </div>
-                                  </Link>
+                                  </button>
                                 </motion.div>
                                 {msg.content && (
                                   <p className={`text-[14.5px] leading-[19px] break-words px-1 ${isMe ? 'text-right' : ''} text-white`}>{msg.content}</p>
@@ -1866,6 +1922,18 @@ export default function DirectMessages() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Opened from a shared-story card above — see openSharedStory. A single-person,
+          single-story list is enough for StoryViewer's own prop shape without also pulling
+          in that person's other current stories, which the DM card never promised. */}
+      {openStoryUser && (
+        <StoryViewer
+          users={[openStoryUser]}
+          initialUserIndex={0}
+          onClose={() => setOpenStoryUser(null)}
+          onViewed={() => {}}
+        />
+      )}
     </div>
   );
 }
