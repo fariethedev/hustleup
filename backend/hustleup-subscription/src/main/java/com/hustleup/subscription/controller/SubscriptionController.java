@@ -4,6 +4,7 @@ import com.hustleup.common.model.Subscription;
 import com.hustleup.common.repository.SubscriptionRepository;
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
+import com.hustleup.common.subscription.PremiumAccess;
 import com.hustleup.subscription.model.SubscriptionPlan;
 import com.hustleup.subscription.service.StripeService;
 import com.stripe.exception.StripeException;
@@ -239,6 +240,52 @@ public class SubscriptionController {
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body(Map.of("error", "Could not confirm that payment. Please try again."));
         }
+    }
+
+    /**
+     * Ends Premium now.
+     *
+     * <p><b>POST /api/v1/subscriptions/cancel</b>
+     *
+     * <p>There is no Stripe subscription object behind this to call off — checkout runs in
+     * {@code Mode.PAYMENT}, a fixed prepaid term rather than a recurring charge (see
+     * {@link StripeService#createCheckoutSession}), so nothing is scheduled to renew in the
+     * first place. What this does instead is let the term be ended early — for whoever would
+     * rather stop being a seller today than leave Premium (and the listings/shop it unlocks)
+     * live until a date they no longer want it.
+     *
+     * <p>Flips {@link Subscription#getStatus()} to {@code CANCELLED}, which is the same field
+     * {@link PremiumAccess#isActivePremium} already checks — so this takes effect immediately,
+     * the moment the response is sent, with no separate flag or job needed to enforce it later.
+     *
+     * <p>Forfeits whatever time was left on the term: there is no partial-refund path for a
+     * one-off payment, so the client must make that plain <em>before</em> calling this, not
+     * after. Idempotent-shaped rather than erroring on a second call — cancelling an
+     * already-cancelled (or never-paid) plan just reports there was nothing to do.
+     *
+     * @return {@code {cancelled: true, message}} if an active plan was just ended, or
+     *         {@code {cancelled: false, message}} when there was nothing to cancel
+     */
+    @PostMapping("/cancel")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> cancel() {
+        User user = getCurrentUser();
+        Optional<Subscription> existing = subscriptionRepository.findBySellerId(user.getId());
+
+        if (existing.isEmpty() || !PremiumAccess.isActivePremium(existing.get())) {
+            return ResponseEntity.ok(Map.of(
+                    "cancelled", false,
+                    "message", "You don't have an active Premium subscription to cancel."));
+        }
+
+        Subscription sub = existing.get();
+        sub.setStatus("CANCELLED");
+        subscriptionRepository.save(sub);
+        log.info("Subscription cancelled for seller {}", user.getId());
+
+        return ResponseEntity.ok(Map.of(
+                "cancelled", true,
+                "message", "Premium has been cancelled."));
     }
 
     // -------------------------------------------------------------------------

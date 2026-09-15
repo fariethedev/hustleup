@@ -567,6 +567,15 @@ export const subscriptionsApi = {
    * → { premiumActive, message }
    */
   confirm: (sessionId) => api.post('/subscriptions/confirm', { sessionId }),
+  /**
+   * Ends Premium now. There is no recurring charge behind a plan to stop — checkout is a
+   * one-off payment for a fixed term — so this ends the term early rather than cancelling a
+   * future renewal that was never going to happen. Forfeits whatever time is left; the
+   * caller must warn about that before calling this, not after.
+   *
+   * → { cancelled, message }
+   */
+  cancel: () => api.post('/subscriptions/cancel'),
 };
 
 // Stories

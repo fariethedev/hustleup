@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
-import { Paintbrush, CircleUser, ShieldPlus, BellElectric, SunMedium, MoonStar, MonitorSmartphone, CircleCheck, Loader, Navigation, Earth, Hash, PhoneCall, AtSign, DoorOpen, Key, CircleSlash, Building, BookOpenText, SquareArrowOutUpRight } from 'lucide-react';
+import { Paintbrush, CircleUser, ShieldPlus, BellElectric, SunMedium, MoonStar, MonitorSmartphone, CircleCheck, Loader, Navigation, Earth, Hash, PhoneCall, AtSign, DoorOpen, Key, CircleSlash, Building, BookOpenText, SquareArrowOutUpRight, Ban, CalendarClock } from 'lucide-react';
 import { selectUser, loadUserProfile, logout } from '../store/authSlice';
-import { usersApi, authApi, followsApi, payoutsApi, publishersApi, dispatchToast } from '../api/client';
+import { usersApi, authApi, followsApi, payoutsApi, publishersApi, subscriptionsApi, dispatchToast } from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 import { POLISH_CITIES } from '../utils/constants';
+import { formatDateTime } from '../utils/time';
 import SmartImage from '../components/SmartImage';
 import HeroBrief from '../components/HeroBrief';
 import SellerUpgrade, { SellerUpgradeButton } from '../components/SellerUpgrade';
@@ -327,8 +328,34 @@ function ProfilePanel({ user, onSaved }) {
 function AccountPanel({ user, onSignOut }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-  const { canSell, premium, loading: checkingAccess } = useSellerAccess();
+  const { canSell, premium, subscription, loading: checkingAccess, refresh: refreshAccess } = useSellerAccess();
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  /**
+   * Ends Premium early. There is no recurring charge to stop — checkout is a one-off
+   * payment for a fixed term (see SellerUpgrade's own note on this) — so cancelling here
+   * doesn't prevent a future charge, it forfeits whatever time is left on the term already
+   * paid for. The confirm() has to say that plainly, since this can't be undone from here.
+   */
+  const cancelSubscription = async () => {
+    const until = subscription?.expiresAt ? ` (until ${formatDateTime(subscription.expiresAt)})` : '';
+    if (!confirm(`Cancel Premium${until}? You'll lose selling access immediately, and any time left on your plan is not refunded.`)) return;
+    setCancelling(true);
+    try {
+      const res = await subscriptionsApi.cancel();
+      if (res.data?.cancelled) {
+        dispatchToast('Premium cancelled', 'success');
+        refreshAccess();
+      } else {
+        dispatchToast(res.data?.message || 'Nothing to cancel', 'error');
+      }
+    } catch {
+      dispatchToast('Could not cancel — try again', 'error');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   /**
    * Password changes go through the same emailed reset link as "forgot password".
@@ -393,12 +420,41 @@ function AccountPanel({ user, onSignOut }) {
             Checking…
           </p>
         ) : canSell ? (
-          <p className="px-4 py-2.5 rounded-xl bg-[#CDFF00]/[0.07] border border-[#CDFF00]/25 text-sm text-[#CDFF00] font-bold">
-            {user.role === 'ADMIN' ? 'Admin' : 'Seller'}
-            <span className="block text-[11px] text-gray-400 font-medium mt-0.5">
-              {premium ? 'Selling is on through Premium.' : 'Selling is on for this account.'}
-            </span>
-          </p>
+          <div className="space-y-2.5">
+            <p className="px-4 py-2.5 rounded-xl bg-[#CDFF00]/[0.07] border border-[#CDFF00]/25 text-sm text-[#CDFF00] font-bold">
+              {user.role === 'ADMIN' ? 'Admin' : 'Seller'}
+              <span className="block text-[11px] text-gray-400 font-medium mt-0.5">
+                {premium ? 'Selling is on through Premium.' : 'Selling is on for this account.'}
+              </span>
+            </p>
+
+            {/* Only a real, paid subscription has anything to cancel — a grandfathered
+                SELLER/ADMIN role was never billed, so there's no term to end early. */}
+            {premium && (
+              <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <CalendarClock className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                    {subscription?.expiresAt
+                      ? <>Ends {formatDateTime(subscription.expiresAt)}</>
+                      : 'Active — no end date on record'}
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
+                    A one-off payment for the term, not a rolling charge — cancelling ends
+                    access now rather than at that date, and any time left isn't refunded.
+                  </p>
+                </div>
+                <button
+                  onClick={cancelSubscription}
+                  disabled={cancelling}
+                  className="px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-500/20 disabled:opacity-50 transition-colors flex items-center gap-2 shrink-0"
+                >
+                  {cancelling ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                  Cancel subscription
+                </button>
+              </div>
+            )}
+          </div>
         ) : showUpgrade ? (
           <SellerUpgrade onCancel={() => setShowUpgrade(false)} cancelLabel="Close" />
         ) : (

@@ -62,6 +62,9 @@ function fetchSubscription() {
  *   canSell: boolean,      may sell right now
  *   premium: boolean,      holds an active paid plan
  *   grandfathered: boolean granted by the legacy SELLER/ADMIN role rather than by paying
+ *   subscription: object|undefined  the raw GET /subscriptions/my record, once loaded —
+ *                                    for showing plan/expiry, e.g. on a cancel-subscription
+ *                                    screen; undefined while still loading
  *   loading: boolean,      still deciding — render neither the seller UI nor the upgrade wall
  *   refresh: Function,
  * }}
@@ -78,13 +81,14 @@ export function useSellerAccess() {
   // indistinguishable from a confirmed "not subscribed" while the request is still in
   // flight, or the upgrade wall flashes over a subscriber's dashboard on every load.
   const [premium, setPremium] = useState(undefined);
+  const [subscription, setSubscription] = useState(undefined);
 
   const load = useCallback((force = false) => {
-    if (!isAuthenticated) { setPremium(false); return undefined; }
+    if (!isAuthenticated) { setPremium(false); setSubscription(undefined); return undefined; }
     if (force) invalidateSellerAccess();
     let cancelled = false;
     fetchSubscription()
-      .then((sub) => { if (!cancelled) setPremium(isPremiumActive(sub)); })
+      .then((sub) => { if (!cancelled) { setPremium(isPremiumActive(sub)); setSubscription(sub); } })
       .catch(() => { if (!cancelled) setPremium(false); });
     return () => { cancelled = true; };
   }, [isAuthenticated]);
@@ -98,6 +102,7 @@ export function useSellerAccess() {
     canSell: grandfathered || premium === true,
     premium: premium === true,
     grandfathered,
+    subscription,
     loading: isAuthenticated && !grandfathered && premium === undefined,
     refresh: () => load(true),
   };
