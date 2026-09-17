@@ -1,7 +1,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LISTING_TYPES, formatPrice, convertToPLN } from '../utils/constants';
-import { Navigation, ShieldCheck, MessagesSquare, ShieldPlus, BaggageClaim, MoveLeft, Sparkle, ThumbsUp, Forward, Box, CircleCheck, BadgeDollarSign, CirclePlus, CalendarRange, TicketCheck, CircleMinus, Images as ImageIcon, SendHorizontal, Recycle, QrCode } from 'lucide-react';
+import { Navigation, ShieldCheck, MessagesSquare, ShieldPlus, BaggageClaim, MoveLeft, Sparkle, ThumbsUp, Forward, Box, CircleCheck, BadgeDollarSign, CirclePlus, CalendarRange, TicketCheck, CircleMinus, Images as ImageIcon, SendHorizontal, Recycle, QrCode, Luggage, Banknote, MessageCircle } from 'lucide-react';
 import SwapOfferModal from '../components/SwapOfferModal';
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -46,6 +46,13 @@ export default function ListingDetail() {
   // EVENT: ticket purchase + event update posts
   const [ticketQty, setTicketQty] = useState(1);
   const [ticketLoading, setTicketLoading] = useState(false);
+
+  // LUGGAGE: kg picker, mirrors the ticket quantity stepper above
+  const [kgQty, setKgQty] = useState(1);
+  const [luggageLoading, setLuggageLoading] = useState(false);
+
+  // RENTAL: only used when the agent opted into taking payment here rather than enquiries
+  const [rentalLoading, setRentalLoading] = useState(false);
   // Tickets the viewer already holds for this event. Drives the "you're going" panel, so a
   // buyer who has already booked sees their ticket instead of being sold to again.
   const [myTickets, setMyTickets] = useState([]);
@@ -208,6 +215,74 @@ export default function ListingDetail() {
     }
   };
 
+  /** Buying kg of carrying space — same shape as handleBuyTickets, quantity is kilograms. */
+  const handleBuyLuggage = async () => {
+    if (!listing) return;
+    setLuggageLoading(true);
+    try {
+      const booking = await bookingsApi.create({ listingId: listing.id, quantity: kgQty });
+      const bookingId = booking.data?.id;
+      if (bookingId) {
+        const session = await bookingsApi.checkoutSession(bookingId);
+        const url = session.data?.checkoutUrl || session.data?.url;
+        if (url) {
+          window.location.href = url;
+          return;
+        }
+      }
+      showToast(`${kgQty}kg booked — finish payment from your dashboard.`);
+      setKgQty(1);
+    } catch (e) {
+      showToast(e.response?.data?.error || 'Could not book that luggage space', 'error');
+    } finally {
+      setLuggageLoading(false);
+    }
+  };
+
+  /**
+   * A RENTAL listing the agent opted to take payment on directly — deposit, first month's
+   * rent and agent fee are charged now, same instant-purchase shape as buying a ticket.
+   */
+  const handlePayRental = async () => {
+    if (!listing) return;
+    setRentalLoading(true);
+    try {
+      const booking = await bookingsApi.create({ listingId: listing.id });
+      const bookingId = booking.data?.id;
+      if (bookingId) {
+        const session = await bookingsApi.checkoutSession(bookingId);
+        const url = session.data?.checkoutUrl || session.data?.url;
+        if (url) {
+          window.location.href = url;
+          return;
+        }
+      }
+      showToast('Booked — finish payment from your dashboard.');
+    } catch (e) {
+      showToast(e.response?.data?.error || 'Could not book this room', 'error');
+    } finally {
+      setRentalLoading(false);
+    }
+  };
+
+  /**
+   * The default for a RENTAL listing: no charge, just interest — same DM-first flow as
+   * "Negotiate via DM" on any other listing, with a prefill naming the terms so the agent
+   * doesn't have to ask what the buyer already saw on the page.
+   */
+  const handleRentalEnquiry = () => {
+    if (!listing) return;
+    const terms = [`rent ${formatPrice(listing.price, listing.currency)}/mo`];
+    if (Number(listing.depositAmount) > 0) terms.push(`deposit ${formatPrice(listing.depositAmount, listing.currency)}`);
+    if (Number(listing.agentFeeAmount) > 0) terms.push(`agent fee ${formatPrice(listing.agentFeeAmount, listing.currency)}`);
+    navigate(`/dm/${listing.sellerId}`, {
+      state: {
+        listing: { id: listing.id, title: listing.title, price: listing.price, currency: listing.currency },
+        prefillMessage: `Hi! I'm interested in "${listing.title}" (${terms.join(', ')}). Is it still available?`,
+      },
+    });
+  };
+
   const handleUpdateImage = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -287,6 +362,8 @@ export default function ListingDetail() {
   const typeInfo = LISTING_TYPES.find((t) => t.value === listing.listingType) || LISTING_TYPES[0];
   const isSeller = currentUser?.id === listing.sellerId;
   const isEventType = listing.listingType === 'EVENT';
+  const isLuggageType = listing.listingType === 'LUGGAGE';
+  const isRentalType = listing.listingType === 'RENTAL';
   const openSlots = slots.filter((s) => !s.booked);
   const showSlotPicker = SERVICE_TYPES.includes(listing.listingType) && openSlots.length > 0;
   // Cancelled tickets stay in the API response so the wallet can show them, but they're not
@@ -308,6 +385,12 @@ export default function ListingDetail() {
   // Never offer more than exist. The stepper used to climb without limit, so the only way to
   // discover the event was nearly full was to be refused at checkout.
   const maxQty = ticketsLeft != null ? Math.max(1, ticketsLeft) : 99;
+
+  // Same "server is the authority, absent means treat as buyable" convention as the door
+  // numbers above, for the trip's remaining carrying weight.
+  const kgLeft = listing.luggageKgRemaining;             // null = uncapped
+  const kgLastFew = kgLeft != null && kgLeft > 0 && kgLeft <= 10;
+  const maxKgQty = kgLeft != null ? Math.max(1, kgLeft) : 99;
 
   return (
     <div className="min-h-screen text-white pt-3 pb-10">
@@ -396,6 +479,14 @@ export default function ListingDetail() {
                   )}
                 </div>
               )}
+
+              {/* Route — a luggage listing is worthless without knowing where it's going,
+                  same reasoning as the event date/venue above. */}
+              {isLuggageType && listing.destinationCity && (
+                <div className="flex items-center gap-1.5 mt-2.5 px-2.5 py-1 rounded-lg bg-[#CDFF00]/10 border border-[#CDFF00]/25 text-[#CDFF00] text-[10px] font-black tracking-widest w-fit">
+                  <Luggage className="w-3 h-3" /> {listing.locationCity || 'Collecting'} → {listing.destinationCity}
+                </div>
+              )}
             </div>
 
             {/* Price & Actions */}
@@ -406,6 +497,12 @@ export default function ListingDetail() {
                   <span className="text-2xl sm:text-3xl font-black text-white tracking-wider">
                     {formatPrice(listing.price, listing.currency)}
                   </span>
+                  {isLuggageType && (
+                    <span className="text-xs font-bold text-gray-400">/ kg</span>
+                  )}
+                  {isRentalType && (
+                    <span className="text-xs font-bold text-gray-400">/ mo</span>
+                  )}
                   {listing.negotiable && (
                     <span className="text-[9px] font-black tracking-widest px-2 py-0.5 bg-white/5 border border-white/10 text-[#CDFF00] rounded-md">
                       Negotiable
@@ -564,7 +661,114 @@ export default function ListingDetail() {
                   </div>
                 )}
 
-                {!isSeller && !showSlotPicker && !isEventType && (
+                {/* LUGGAGE: buy kg the same way a ticket is bought — a quantity stepper
+                    (kilograms rather than seats) and a total that scales with it. */}
+                {!isSeller && isLuggageType && (
+                  <div className="space-y-3">
+                    {kgLeft != null && (
+                      <p className={`text-[10px] font-black tracking-widest text-center ${
+                        kgLastFew ? 'text-[#CDFF00]' : 'text-gray-500'
+                      }`}>
+                        {kgLeft <= 0 ? 'No space left' : `${kgLeft}kg left`}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[10px] font-black tracking-widest text-gray-500">Kilograms</span>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setKgQty((q) => Math.max(1, q - 1))}
+                          className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors"
+                        >
+                          <CircleMinus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-sm font-black text-white w-8 text-center">{kgQty}kg</span>
+                        <button
+                          onClick={() => setKgQty((q) => Math.min(maxKgQty, q + 1))}
+                          disabled={kgQty >= maxKgQty}
+                          className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <CirclePlus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleBuyLuggage}
+                      disabled={luggageLoading || (kgLeft != null && kgLeft <= 0)}
+                      className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {luggageLoading ? (
+                        <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      ) : (
+                        <Luggage className="w-4 h-4" />
+                      )}
+                      {kgLeft != null && kgLeft <= 0
+                        ? 'No space left'
+                        : `Book ${kgQty}kg — ${formatPrice(listing.price * kgQty, listing.currency)}`}
+                    </button>
+                  </div>
+                )}
+
+                {/* RENTAL: the real cost of moving in, then either an instant-purchase
+                    button (agent opted to take payment here) or the DM-first enquiry every
+                    other negotiable listing already uses — nothing charged either way
+                    unless the agent explicitly turned payments on. */}
+                {!isSeller && isRentalType && (
+                  <div className="space-y-3">
+                    {(Number(listing.depositAmount) > 0 || Number(listing.agentFeeAmount) > 0 || Number(listing.billsAmount) > 0) && (
+                      <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                        {Number(listing.depositAmount) > 0 && (
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-gray-500 font-bold">Deposit</span>
+                            <span className="text-white font-black">{formatPrice(listing.depositAmount, listing.currency)}</span>
+                          </div>
+                        )}
+                        {Number(listing.agentFeeAmount) > 0 && (
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-gray-500 font-bold">Agent fee</span>
+                            <span className="text-white font-black">{formatPrice(listing.agentFeeAmount, listing.currency)}</span>
+                          </div>
+                        )}
+                        {Number(listing.billsAmount) > 0 && (
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-gray-500 font-bold">Bills, estimated</span>
+                            <span className="text-white font-black">{formatPrice(listing.billsAmount, listing.currency)}/mo</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {listing.payOnPlatform ? (
+                      <button
+                        onClick={handlePayRental}
+                        disabled={rentalLoading}
+                        className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {rentalLoading ? (
+                          <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                        ) : (
+                          <Banknote className="w-4 h-4" />
+                        )}
+                        Pay {formatPrice(
+                          Number(listing.price) + Number(listing.depositAmount || 0) + Number(listing.agentFeeAmount || 0),
+                          listing.currency
+                        )} now
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleRentalEnquiry}
+                          className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2"
+                        >
+                          <MessageCircle className="w-4 h-4" /> Send enquiry
+                        </button>
+                        <p className="text-[10px] text-gray-500 text-center leading-relaxed">
+                          Nothing is charged. The agent sees your message and replies from there.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {!isSeller && !showSlotPicker && !isEventType && !isLuggageType && !isRentalType && (
                   <div className="space-y-2">
                     {/* Add to Cart */}
                     <button

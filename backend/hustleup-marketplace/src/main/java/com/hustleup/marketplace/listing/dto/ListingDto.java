@@ -97,6 +97,30 @@ public class ListingDto {
     private String salesState;
     private String salesMessage;
 
+    // --- LUGGAGE-only fields (null for every other listing type) ---
+    /** Where the bags are headed — locationCity is where they're collected from. */
+    private String destinationCity;
+    /** Total kg on offer, or null for uncapped. */
+    private Integer luggageCapacityKg;
+    /** kg already sold — populated by ListingService.enrichDto, same pattern as ticketsSold. */
+    private Integer luggageKgSold;
+    /** kg still buyable, or null when uncapped. */
+    private Integer luggageKgRemaining;
+
+    // --- RENTAL-only fields (null/false for every other listing type) ---
+    /** One-off deposit, separate from the recurring rent held in {@code price}. */
+    private BigDecimal depositAmount;
+    /** The letting-agent fee, in money — what the boolean {@code agentFee} could only imply existed. */
+    private BigDecimal agentFeeAmount;
+    /** Estimated monthly utilities, shown for context — not charged at checkout. */
+    private BigDecimal billsAmount;
+    /**
+     * True: the agent takes deposit + rent + agent fee immediately at booking, the same as
+     * buying a physical product. False (the default): a buyer can only send an enquiry —
+     * the standard INQUIRED negotiation flow, nothing charged until the agent accepts.
+     */
+    private boolean payOnPlatform;
+
     /**
      * What this seller needs from a buyer at checkout, one prompt per line.
      *
@@ -172,6 +196,12 @@ public class ListingDto {
                 .eventCapacity(listing.getEventCapacity())
                 .salesOpenAt(listing.getSalesOpenAt())
                 .salesCloseAt(listing.getSalesCloseAt())
+                .destinationCity(listing.getDestinationCity())
+                .luggageCapacityKg(listing.getLuggageCapacityKg())
+                .depositAmount(listing.getDepositAmount())
+                .agentFeeAmount(listing.getAgentFeeAmount())
+                .billsAmount(listing.getBillsAmount())
+                .payOnPlatform(listing.isPayOnPlatform())
                 .meta(listing.getMeta())
                 // Parse the CSV string into a proper List<String>, applying the URL refresher to each
                 .mediaUrls(parseMediaUrls(listing.getMediaUrls(), urlRefresher))

@@ -1,4 +1,4 @@
-import { Slice, ChefHat, Cake, Footprints, Box, Hammer } from 'lucide-react';
+import { Slice, ChefHat, Cake, Footprints, Box, Hammer, Luggage, Building2 } from 'lucide-react';
 
 // `color` is a solid Tailwind bg-* class, one per category — not a gradient. Each still
 // gets its own hue so a category is still recognisable at a glance (a listing-type fallback
@@ -11,6 +11,12 @@ export const LISTING_TYPES = [
   { value: 'FASHION', label: 'Fashion & Clothing', icon: Footprints, color: 'bg-fuchsia-500' },
   { value: 'GOODS', label: 'Goods & Products', icon: Box, color: 'bg-blue-500' },
   { value: 'SKILL', label: 'Skills & Services', icon: Hammer, color: 'bg-emerald-500' },
+  // Spare luggage allowance sold by the kg — mainly Poland-to-Africa, carrying goods home
+  // or for a customer. See CreateListing's LUGGAGE-only fields and ListingDetail's kg picker.
+  { value: 'LUGGAGE', label: 'Luggage Space', icon: Luggage, color: 'bg-cyan-500' },
+  // Was an enum value with nowhere to be created from — see Listing.payOnPlatform for the
+  // agent's choice between taking payment here and just collecting enquiries.
+  { value: 'RENTAL', label: 'Rooms & Rentals', icon: Building2, color: 'bg-amber-500' },
 ];
 
 export const BOOKING_STATUS_MAP = {

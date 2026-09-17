@@ -107,11 +107,26 @@ public class ListingController {
             // Newline-separated prompts the buyer answers at checkout, in the seller's words.
             @RequestParam(required = false) String checkoutFields,
             @RequestParam(required = false) String meta,
-            @RequestParam(required = false) List<MultipartFile> images) {
+            @RequestParam(required = false) List<MultipartFile> images,
+            // LUGGAGE only. Where the bags are headed, and how much weight is on offer —
+            // capacity is a string for the same reason eventCapacity is: a blank field from
+            // every other category must not become a 400.
+            @RequestParam(required = false) String destinationCity,
+            @RequestParam(required = false) String luggageCapacityKg,
+            // RENTAL only. Deposit, the letting-agent fee itself (not just whether one
+            // applies), and an informational monthly bills estimate.
+            @RequestParam(required = false) BigDecimal depositAmount,
+            @RequestParam(required = false) BigDecimal agentFeeAmount,
+            @RequestParam(required = false) BigDecimal billsAmount,
+            // RENTAL only. False (the default) keeps the listing in the standard enquiry/
+            // negotiation flow; true lets the agent take payment immediately at booking.
+            @RequestParam(defaultValue = "false") boolean payOnPlatform) {
         return ResponseEntity.ok(listingService.create(title, description, listingType,
                 price, currency, negotiable, city, agentFee, swapEnabled,
                 shippingMethod, shippingPrice, eventStartsAt, eventVenue,
-                eventCapacity, salesOpenAt, salesCloseAt, checkoutFields, meta, images));
+                eventCapacity, salesOpenAt, salesCloseAt, checkoutFields, meta, images,
+                destinationCity, luggageCapacityKg, depositAmount, agentFeeAmount,
+                billsAmount, payOnPlatform));
     }
 
     // JSON body (not @RequestParam/form fields) — matches how the dashboard's price/negotiable
@@ -144,9 +159,24 @@ public class ListingController {
         String eventCapacity = body.get("eventCapacity") != null ? String.valueOf(body.get("eventCapacity")) : null;
         String salesOpenAt = (String) body.get("salesOpenAt");
         String salesCloseAt = (String) body.get("salesCloseAt");
+        // Same absent-means-leave-alone contract as the fields above, for the LUGGAGE- and
+        // RENTAL-only ones.
+        String destinationCity = (String) body.get("destinationCity");
+        String luggageCapacityKg = body.get("luggageCapacityKg") != null
+                ? String.valueOf(body.get("luggageCapacityKg")) : null;
+        BigDecimal depositAmount = body.get("depositAmount") != null
+                ? new BigDecimal(body.get("depositAmount").toString()) : null;
+        BigDecimal agentFeeAmount = body.get("agentFeeAmount") != null
+                ? new BigDecimal(body.get("agentFeeAmount").toString()) : null;
+        BigDecimal billsAmount = body.get("billsAmount") != null
+                ? new BigDecimal(body.get("billsAmount").toString()) : null;
+        Boolean payOnPlatform = body.get("payOnPlatform") != null
+                ? Boolean.valueOf(Boolean.TRUE.equals(body.get("payOnPlatform"))) : null;
         return ResponseEntity.ok(listingService.update(id, title, description, price, negotiable, city,
                 meta, status, swapEnabled, shippingMethod, shippingPrice,
-                eventCapacity, salesOpenAt, salesCloseAt, (String) body.get("checkoutFields")));
+                eventCapacity, salesOpenAt, salesCloseAt, (String) body.get("checkoutFields"),
+                destinationCity, luggageCapacityKg, depositAmount, agentFeeAmount,
+                billsAmount, payOnPlatform));
     }
 
     @GetMapping("/user/{userId}")

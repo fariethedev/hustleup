@@ -48,6 +48,7 @@ import com.hustleup.marketplace.shipping.ShipmentService;
 import com.hustleup.marketplace.shipping.ShippingMethod;
 import com.hustleup.marketplace.ticket.service.TicketService;
 import com.hustleup.marketplace.ticket.service.EventAvailabilityService;
+import com.hustleup.marketplace.luggage.service.LuggageAvailabilityService;
 import com.hustleup.common.email.EmailService;
 import com.hustleup.common.push.ExpoPushService;
 import com.hustleup.common.model.Notification;
@@ -115,6 +116,8 @@ public class BookingService {
     private final ShipmentService shipmentService; // delivery-track updates and the alerts they generate
     /** The door: capacity and the sales window for EVENT listings. */
     private final EventAvailabilityService eventAvailabilityService;
+    /** Remaining carrying weight for LUGGAGE listings. */
+    private final LuggageAvailabilityService luggageAvailabilityService;
     private final ReviewRepository reviewRepository; // completing a booking records the completer's review in the same step
     /** Consulted before every payout: an open buyer claim freezes the money where it is. */
     private final ProtectionClaimService protectionClaimService;
@@ -136,6 +139,7 @@ public class BookingService {
                           TicketService ticketService, NotificationRepository notificationRepository,
                           ReviewRepository reviewRepository, ShipmentService shipmentService,
                           EventAvailabilityService eventAvailabilityService,
+                          LuggageAvailabilityService luggageAvailabilityService,
                           ProtectionClaimService protectionClaimService,
                           EmailVerificationGuard emailVerificationGuard) {
         this.protectionClaimService = protectionClaimService;
@@ -152,6 +156,7 @@ public class BookingService {
         this.notificationRepository = notificationRepository;
         this.shipmentService = shipmentService;
         this.eventAvailabilityService = eventAvailabilityService;
+        this.luggageAvailabilityService = luggageAvailabilityService;
         this.emailVerificationGuard = emailVerificationGuard;
     }
 
@@ -369,6 +374,39 @@ public class BookingService {
             return enrichDto(saved);
         }
 
+        // ── Luggage space: instant purchase ───────────────────────────────────────────────
+        // Buying kg of carrying space is shopping, not negotiating — the buyer names a
+        // weight and pays for it, the same as buying a ticket. qty here IS the kilograms.
+        if (listing.getListingType() == ListingType.LUGGAGE) {
+            // Checked here rather than only in the UI, for the same reason event capacity is:
+            // a limit that lives only in the client is one a second browser tab walks
+            // straight through, and kg held by a checkout still in flight count against it so
+            // the last few kilograms can't be sold twice over to two people at once.
+            String refusal = luggageAvailabilityService.refuse(listing, qty);
+            if (refusal != null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, refusal);
+            }
+
+            Booking booking = Booking.builder()
+                    .buyerId(buyer.getId())
+                    .sellerId(listing.getSellerId())
+                    .listingId(listingId)
+                    .offeredPrice(listing.getPrice())
+                    .agreedPrice(listing.getPrice().multiply(BigDecimal.valueOf(qty)))
+                    .currency(listing.getCurrency())
+                    .fulfilment(deliveryFor(listing))
+                    .scheduledAt(scheduledAt)
+                    .quantity(qty)
+                    .status(BookingStatus.BOOKED)
+                    .build();
+            Booking saved = bookingRepository.save(booking);
+            notifyEverywhere(listing.getSellerId(),
+                    "New luggage booking: " + listing.getTitle(),
+                    qty + "kg booked on \"" + listing.getTitle() + "\" — payment is being taken now.",
+                    "BOOKING_REQUEST", saved.getId());
+            return enrichDto(saved);
+        }
+
         // ── Physical goods: instant purchase ─────────────────────────────────────────────
         // Buying a product is shopping, not negotiating. A shopper expects to pay and be
         // done, so these confirm immediately (BOOKED) and go straight to payment, exactly
@@ -383,17 +421,30 @@ public class BookingService {
         // to 19.82, with no offer for the seller to accept or refuse and nothing on screen
         // saying so. Naming a price is what distinguishes the two intents, so it is what
         // decides the branch.
-        if (INSTANT_PURCHASE_TYPES.contains(listing.getListingType()) && offeredPrice == null) {
+        // A RENTAL listing joins the instant-purchase group only when the agent opted into
+        // taking payment on the platform (payOnPlatform) — the default keeps it in the
+        // standard INQUIRED flow below, which is what "send an enquiry" actually is: a
+        // request the agent must accept before anything is charged.
+        boolean rentalPayNow = listing.getListingType() == ListingType.RENTAL && listing.isPayOnPlatform();
+        if ((INSTANT_PURCHASE_TYPES.contains(listing.getListingType()) || rentalPayNow) && offeredPrice == null) {
+            // A room isn't bought by the unit — quantity multiplying the price makes sense
+            // for a candle, not a tenancy — so RENTAL charges the flat total below instead,
+            // and the quantity on the booking record stays 1.
+            int effectiveQty = rentalPayNow ? 1 : qty;
+            BigDecimal agreed = rentalPayNow
+                    ? totalRentalDue(listing)
+                    : listing.getPrice().multiply(BigDecimal.valueOf(qty));
+
             Booking booking = Booking.builder()
                     .buyerId(buyer.getId())
                     .sellerId(listing.getSellerId())
                     .listingId(listingId)
                     .offeredPrice(listing.getPrice())
-                    .agreedPrice(listing.getPrice().multiply(BigDecimal.valueOf(qty)))
+                    .agreedPrice(agreed)
                     .currency(listing.getCurrency())
                     .fulfilment(deliveryFor(listing))
                     .scheduledAt(scheduledAt)
-                    .quantity(qty)
+                    .quantity(effectiveQty)
                     .status(BookingStatus.BOOKED)
                     .build();
             Booking saved = bookingRepository.save(booking);
@@ -1156,6 +1207,24 @@ public class BookingService {
                 ? listing.getShippingPrice() : BigDecimal.ZERO);
         fulfilment.setFulfilmentStatus(FulfilmentStatus.AWAITING_PAYMENT);
         return fulfilment;
+    }
+
+    /**
+     * What a buyer owes upfront on a RENTAL listing that takes payment on the platform —
+     * the first month's rent (stored in {@code price}) plus a one-off deposit and the
+     * letting-agent fee, whichever of those the agent actually set.
+     *
+     * <p>Bills are deliberately excluded: they are an ongoing cost paid to the landlord or
+     * utility company directly as they fall due, not a one-off collected at booking — this
+     * platform runs no recurring payment leg to collect them with anyway (see
+     * {@code StripeService#createCheckoutSession}'s note on why Premium is prepaid rather
+     * than subscribed).
+     */
+    private BigDecimal totalRentalDue(Listing listing) {
+        BigDecimal total = listing.getPrice();
+        if (listing.getDepositAmount() != null) total = total.add(listing.getDepositAmount());
+        if (listing.getAgentFeeAmount() != null) total = total.add(listing.getAgentFeeAmount());
+        return total;
     }
 
     /**

@@ -131,6 +131,29 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     Long sumHeldSeats(@Param("listingId") UUID listingId, @Param("since") LocalDateTime since);
 
     /**
+     * Kilograms actually sold on a LUGGAGE listing — quantity paid for, not merely reserved.
+     *
+     * <p>{@code TRANSFERRED} counts alongside {@code PAID}: it means the same charge that was
+     * paid has since been released to the seller, not that it was refunded. {@code REFUNDED}
+     * is excluded on purpose — that kg was given back, so it belongs to the next buyer, not
+     * to the count of what already left with someone else's bags.
+     *
+     * <p>{@code COMPLETED} bookings are included alongside {@code BOOKED}: once a piece of
+     * luggage space is paid for it stays sold for the rest of that trip's listing, it does
+     * not free up again just because the delivery was marked done.
+     *
+     * @return kg sold, or 0 when none (COALESCE is in the query, not left to the caller)
+     */
+    @Query("""
+            SELECT COALESCE(SUM(b.quantity), 0) FROM Booking b
+             WHERE b.listingId = :listingId
+               AND b.status IN (com.hustleup.marketplace.booking.model.BookingStatus.BOOKED,
+                                 com.hustleup.marketplace.booking.model.BookingStatus.COMPLETED)
+               AND b.paymentStatus IN ('PAID', 'TRANSFERRED')
+            """)
+    long sumSoldQuantity(@Param("listingId") UUID listingId);
+
+    /**
      * Looks up the booking a Stripe PaymentIntent belongs to — used by the payout webhook
      * to mark a booking PAID once the buyer's Checkout Session completes.
      *

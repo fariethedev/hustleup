@@ -11,6 +11,7 @@ import com.hustleup.marketplace.listing.repository.ListingRepository;
 import com.hustleup.marketplace.review.repository.ReviewRepository;
 import com.hustleup.marketplace.shipping.ShippingMethod;
 import com.hustleup.marketplace.ticket.service.EventAvailabilityService;
+import com.hustleup.marketplace.luggage.service.LuggageAvailabilityService;
 import com.hustleup.common.storage.FileStorageService;
 import com.hustleup.common.model.User;
 import com.hustleup.common.model.Notification;
@@ -49,6 +50,8 @@ public class ListingService {
     private final ListingMediaLibrary mediaLibrary;
     /** Capacity and sales window for EVENT listings — see enrichDto. */
     private final EventAvailabilityService eventAvailabilityService;
+    /** Remaining carrying weight for LUGGAGE listings — see enrichDto. */
+    private final LuggageAvailabilityService luggageAvailabilityService;
     private final EmailVerificationGuard emailVerificationGuard;
 
     public ListingService(ListingRepository listingRepository, UserRepository userRepository,
@@ -56,6 +59,7 @@ public class ListingService {
                           NotificationRepository notificationRepository, JdbcTemplate jdbcTemplate,
                           AlgoliaIndexService algoliaIndexService, ListingMediaLibrary mediaLibrary,
                           EventAvailabilityService eventAvailabilityService,
+                          LuggageAvailabilityService luggageAvailabilityService,
                           EmailVerificationGuard emailVerificationGuard) {
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
@@ -66,6 +70,7 @@ public class ListingService {
         this.algoliaIndexService = algoliaIndexService;
         this.mediaLibrary = mediaLibrary;
         this.eventAvailabilityService = eventAvailabilityService;
+        this.luggageAvailabilityService = luggageAvailabilityService;
         this.emailVerificationGuard = emailVerificationGuard;
     }
 
@@ -127,7 +132,10 @@ public class ListingService {
                               boolean swapEnabled, String shippingMethod, BigDecimal shippingPrice,
                               String eventStartsAt, String eventVenue,
                               String eventCapacity, String salesOpenAt, String salesCloseAt,
-                              String checkoutFields, String meta, List<MultipartFile> images) {
+                              String checkoutFields, String meta, List<MultipartFile> images,
+                              String destinationCity, String luggageCapacityKg,
+                              BigDecimal depositAmount, BigDecimal agentFeeAmount,
+                              BigDecimal billsAmount, boolean payOnPlatform) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -163,7 +171,6 @@ public class ListingService {
                 .currency(currency != null ? currency : "GBP")
                 .negotiable(negotiable)
                 .locationCity(city)
-                .agentFee(agentFee)
                 .swapEnabled(swapEnabled)
                 // An unrecognised or absent method falls back to NONE rather than failing the
                 // post: a seller who has written a good listing should not lose it to a bad
@@ -181,6 +188,24 @@ public class ListingService {
                 .eventCapacity(type == ListingType.EVENT ? parseCapacity(eventCapacity) : null)
                 .salesOpenAt(type == ListingType.EVENT ? parseEventStart(salesOpenAt) : null)
                 .salesCloseAt(type == ListingType.EVENT ? parseEventStart(salesCloseAt) : null)
+                // Where the bags are headed, and how much weight is on offer. Blank capacity
+                // means uncapped, same convention as eventCapacity — a seller who left it
+                // empty hasn't said "no space", they just haven't stated a limit.
+                .destinationCity(type == ListingType.LUGGAGE ? blankToNull(destinationCity) : null)
+                .luggageCapacityKg(type == ListingType.LUGGAGE ? parseCapacity(luggageCapacityKg) : null)
+                // Deposit, agent fee and bills only mean anything on a RENTAL listing. A
+                // negative amount is nonsense a form control shouldn't produce, but is
+                // defended against anyway rather than trusted from the wire.
+                .depositAmount(type == ListingType.RENTAL ? positiveOrNull(depositAmount) : null)
+                .agentFeeAmount(type == ListingType.RENTAL ? positiveOrNull(agentFeeAmount) : null)
+                .billsAmount(type == ListingType.RENTAL ? positiveOrNull(billsAmount) : null)
+                // Derived from the fee amount rather than trusted as its own input, so the
+                // boolean other code already reads can never disagree with the number this
+                // form actually collected.
+                .agentFee(type == ListingType.RENTAL
+                        ? positiveOrNull(agentFeeAmount) != null
+                        : agentFee)
+                .payOnPlatform(type == ListingType.RENTAL && payOnPlatform)
                 .checkoutFields(blankToNull(checkoutFields))
                 .meta(meta)
                 .mediaUrls(mediaUrlsCsv)
@@ -249,6 +274,16 @@ public class ListingService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    /**
+     * Null or a negative amount both mean "not stated" for an optional money field like a
+     * deposit or an agent fee — a negative number is not a real answer a form control should
+     * produce, and storing it would make {@code agentFee} (derived from whether the fee
+     * amount is present) claim a fee applies when the number behind it is nonsense.
+     */
+    private BigDecimal positiveOrNull(BigDecimal value) {
+        return value != null && value.compareTo(BigDecimal.ZERO) > 0 ? value : null;
+    }
+
     private void notifyFollowersOfNewListing(User seller, Listing saved) {
         try {
             String sellerId = seller.getId().toString();
@@ -279,7 +314,9 @@ public class ListingService {
                               boolean negotiable, String city, String meta, String status,
                               Boolean swapEnabled, String shippingMethod, BigDecimal shippingPrice,
                               String eventCapacity, String salesOpenAt, String salesCloseAt,
-                              String checkoutFields) {
+                              String checkoutFields, String destinationCity, String luggageCapacityKg,
+                              BigDecimal depositAmount, BigDecimal agentFeeAmount,
+                              BigDecimal billsAmount, Boolean payOnPlatform) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -313,6 +350,20 @@ public class ListingService {
         if (salesCloseAt != null) listing.setSalesCloseAt(parseEventStart(salesCloseAt));
         // Absent means "leave alone"; an empty string is a real instruction to clear them.
         if (checkoutFields != null) listing.setCheckoutFields(blankToNull(checkoutFields));
+
+        // Same "absent means leave alone, blank/zero is a real instruction to clear it"
+        // contract as the EVENT fields above, for the LUGGAGE- and RENTAL-only fields.
+        if (destinationCity != null) listing.setDestinationCity(blankToNull(destinationCity));
+        if (luggageCapacityKg != null) listing.setLuggageCapacityKg(parseCapacity(luggageCapacityKg));
+        if (depositAmount != null) listing.setDepositAmount(positiveOrNull(depositAmount));
+        if (agentFeeAmount != null) {
+            BigDecimal fee = positiveOrNull(agentFeeAmount);
+            listing.setAgentFeeAmount(fee);
+            // Derived, same as at creation — the boolean can never disagree with the number.
+            listing.setAgentFee(fee != null);
+        }
+        if (billsAmount != null) listing.setBillsAmount(positiveOrNull(billsAmount));
+        if (payOnPlatform != null) listing.setPayOnPlatform(payOnPlatform);
 
         Listing saved = listingRepository.save(listing);
         algoliaIndexService.indexListing(saved);
@@ -376,6 +427,20 @@ public class ListingService {
             } catch (Exception ignored) {
                 // Leaves the fields null, which the client reads as "unknown" and falls back
                 // to simply offering the buy button — the server still refuses an oversell.
+            }
+        }
+
+        // Remaining carrying weight, for the same reason the door count above is computed
+        // here rather than on the client: the listing page and the purchase path must read
+        // the same number, or the page advertises kg the checkout then refuses to sell.
+        if (listing.getListingType() == ListingType.LUGGAGE) {
+            try {
+                var space = luggageAvailabilityService.read(listing);
+                dto.setLuggageKgSold(space.soldKg());
+                dto.setLuggageKgRemaining(space.remainingKg());
+            } catch (Exception ignored) {
+                // Leaves the fields null — the client falls back to offering the buy button,
+                // and the server still refuses a purchase that would oversell the bags.
             }
         }
         return dto;

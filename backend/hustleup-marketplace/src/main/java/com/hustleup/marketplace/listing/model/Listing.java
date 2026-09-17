@@ -200,6 +200,53 @@ public class Listing {
     @Column(name = "event_venue")
     private String eventVenue;
 
+    // --- LUGGAGE-only fields ---
+    // Where the bags are headed — Lagos, Accra, Nairobi... More specific than locationCity,
+    // which for a LUGGAGE listing holds where the traveller collects items FROM (and, typed
+    // as a plain comma-separated list, can name more than one collection city).
+    @Column(name = "destination_city")
+    private String destinationCity;
+
+    // Total weight on offer across every bag, e.g. 46 for two 23kg bags. Null means the
+    // seller hasn't said — treated as uncapped, the same convention eventCapacity uses,
+    // rather than zero (which would mean "no space at all" and block every purchase).
+    //
+    // Enforced server-side by LuggageAvailabilityService when kg are bought, for the same
+    // reason eventCapacity is: a limit that only lives in the client is a limit a second
+    // browser tab walks straight through, and selling 50kg of a 46kg allowance is a bag
+    // that doesn't make the flight.
+    @Column(name = "luggage_capacity_kg")
+    private Integer luggageCapacityKg;
+
+    // --- RENTAL-only fields ---
+    // One-off deposit due before moving in, separate from the recurring rent stored in
+    // `price`. Null means the agent hasn't stated one.
+    @Column(name = "deposit_amount", precision = 12, scale = 2)
+    private BigDecimal depositAmount;
+
+    // The letting-agent fee itself, in money — what the boolean `agentFee` above could only
+    // say existed, not how much. Kept as a separate column rather than replacing `agentFee`
+    // so existing rows and any code still reading the boolean are unaffected; ListingService
+    // derives `agentFee` from this whenever it is set, so the two cannot drift apart for any
+    // listing created or edited through the service.
+    @Column(name = "agent_fee_amount", precision = 12, scale = 2)
+    private BigDecimal agentFeeAmount;
+
+    // Estimated monthly utilities, shown alongside rent so a prospective tenant sees the real
+    // cost of living there — not charged at checkout, since bills are ongoing and paid to the
+    // utility company or landlord directly, not collected by this platform.
+    @Column(name = "bills_amount", precision = 12, scale = 2)
+    private BigDecimal billsAmount;
+
+    // How a buyer proceeds on this RENTAL listing. False (the default) keeps it in the
+    // standard INQUIRED negotiation flow — "send an enquiry" — where nothing is charged
+    // until the agent has actually confirmed the room. True lets the agent take payment
+    // (deposit + first month's rent + agent fee) immediately at booking, the same way a
+    // physical product does; see BookingService's instant-purchase check.
+    @Column(name = "pay_on_platform", nullable = false)
+    @Builder.Default
+    private boolean payOnPlatform = false;
+
     // Flexible JSON/string blob for category-specific extras (e.g. cuisine type for FOOD).
     // Stored as TEXT so any amount of metadata can be attached without schema changes.
     @Column(columnDefinition = "TEXT")

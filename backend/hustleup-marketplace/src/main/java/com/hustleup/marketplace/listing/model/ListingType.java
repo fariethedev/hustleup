@@ -52,5 +52,14 @@ public enum ListingType {
      * The listing price typically represents a monthly or weekly rent.
      * The optional {@code agentFee} flag indicates whether a letting-agent fee applies.
      */
-    RENTAL
+    RENTAL,
+
+    /**
+     * Spare luggage allowance a traveller is willing to carry items in, sold by weight.
+     * Common on this platform for taking goods from Poland to family or customers back
+     * home in Africa. {@code price} is per kilogram; {@code luggageCapacityKg} is the
+     * total weight on offer (e.g. 46 for two 23kg bags), and {@code locationCity} /
+     * {@code destinationCity} record where it is collected from and where it is going.
+     */
+    LUGGAGE
 }

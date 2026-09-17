@@ -8,7 +8,7 @@ import { LISTING_TYPES, CURRENCIES, POLISH_CITIES, formatPrice } from '../utils/
 import { SHIPPING_METHODS, defaultMethodFor, getMethod } from '../utils/shipping';
 import { useSellerAccess } from '../hooks/useSellerAccess';
 import SellerUpgrade from '../components/SellerUpgrade';
-import { LockKeyhole, Images as ImageIcon, CircleCheck, CircleX, MoveRight, MoveLeft, CirclePlay, CalendarRange, Forklift, Grid2x2, PiggyBank, ClipboardCheck, PartyPopper, UploadCloud } from 'lucide-react';
+import { LockKeyhole, Images as ImageIcon, CircleCheck, CircleX, MoveRight, MoveLeft, CirclePlay, CalendarRange, Forklift, Grid2x2, PiggyBank, ClipboardCheck, PartyPopper, UploadCloud, Luggage, Building2 } from 'lucide-react';
 import { isVideoUrl } from '../utils/media';
 
 /**
@@ -55,6 +55,14 @@ export default function CreateListing() {
     // The door. Blank capacity means uncapped, which is the honest default for a
     // free-standing gig; blank sales dates mean on sale from posting until it starts.
     eventCapacity: '', salesOpenAt: '', salesCloseAt: '',
+    // LUGGAGE only. Where the bags are headed — locationCity (the `city` field above) is
+    // where they're collected from, and can name more than one city as plain comma-
+    // separated text. Blank capacity means uncapped, same convention as eventCapacity.
+    destinationCity: '', luggageCapacityKg: '',
+    // RENTAL only. Deposit, the agent's own fee, and an informational monthly bills
+    // estimate — none of these are the recurring rent itself, which is just `price`.
+    // payOnPlatform false (the default) keeps the listing in the standard enquiry flow.
+    depositAmount: '', agentFeeAmount: '', billsAmount: '', payOnPlatform: false,
     // What this seller needs from a buyer before they can start the order — one prompt
     // per line, asked at checkout. Blank for most listings, which need nothing beyond
     // the standard contact details.
@@ -134,6 +142,18 @@ export default function CreateListing() {
         formData.append('eventCapacity', form.eventCapacity || '');
         formData.append('salesOpenAt', form.salesOpenAt || '');
         formData.append('salesCloseAt', form.salesCloseAt || '');
+      }
+      // LUGGAGE- and RENTAL-only, same lenient-blank-string contract as the EVENT fields
+      // above — a value from the wrong category is simply ignored server-side.
+      if (form.listingType === 'LUGGAGE') {
+        formData.append('destinationCity', form.destinationCity || '');
+        formData.append('luggageCapacityKg', form.luggageCapacityKg || '');
+      }
+      if (form.listingType === 'RENTAL') {
+        formData.append('depositAmount', form.depositAmount || '0');
+        formData.append('agentFeeAmount', form.agentFeeAmount || '0');
+        formData.append('billsAmount', form.billsAmount || '0');
+        formData.append('payOnPlatform', form.payOnPlatform);
       }
       formData.append('checkoutFields', form.checkoutFields || '');
       if (form.meta) formData.append('meta', form.meta);
@@ -431,7 +451,11 @@ export default function CreateListing() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-2">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-black text-gray-500 tracking-widest">Price *</label>
+                    <label className="text-xs font-black text-gray-500 tracking-widest">
+                      {form.listingType === 'LUGGAGE' ? 'Price per kg *'
+                        : form.listingType === 'RENTAL' ? 'Monthly rent *'
+                        : 'Price *'}
+                    </label>
                     {/* What the buyer actually sees, spelled out as you type — the field
                         below takes a bare number, and this is the one place a seller can
                         confirm "20" became twenty złoty and not twenty of the wrong thing. */}
@@ -597,7 +621,9 @@ export default function CreateListing() {
               {/* City picker rather than free text: browse filters everything by Polish city,
                   so a typo'd or blank city quietly drops the listing out of every city view. */}
               <div>
-                <label className="block text-xs font-black text-gray-500 tracking-widest mb-2">City / Location</label>
+                <label className="block text-xs font-black text-gray-500 tracking-widest mb-2">
+                  {form.listingType === 'LUGGAGE' ? 'Collection city (or cities)' : 'City / Location'}
+                </label>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {POLISH_CITIES.slice(0, 6).map((c) => (
                     <button
@@ -620,11 +646,19 @@ export default function CreateListing() {
                   value={form.city}
                   onChange={(e) => set('city', e.target.value)}
                   className="w-full px-5 py-4 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-bold"
-                  placeholder="Pick or type a city, e.g. Warszawa"
+                  placeholder={form.listingType === 'LUGGAGE'
+                    ? 'e.g. Warszawa, Kraków — separate more than one with a comma'
+                    : 'Pick or type a city, e.g. Warszawa'}
                 />
                 <datalist id="polish-cities">
                   {POLISH_CITIES.map((c) => <option key={c} value={c} />)}
                 </datalist>
+                {form.listingType === 'LUGGAGE' && (
+                  <p className="mt-1.5 text-[10px] text-gray-500 leading-relaxed">
+                    Everywhere you can pick items up from before you fly. Buyers search by
+                    city, so listing more than one gets you found by more of them.
+                  </p>
+                )}
               </div>
 
             </motion.div>
@@ -723,6 +757,136 @@ export default function CreateListing() {
                     once their payment clears. You scan them in from the listing's Door screen.
                     Leave the sales dates blank to sell from now until the event starts.
                   </p>
+                </div>
+              )}
+
+              {/* LUGGAGE-only: where it's going, and how much weight is on offer. Price per
+                  kg was already asked for in step 2 — this is the rest of what makes a bare
+                  "spare luggage space" into something a buyer can actually book kilograms
+                  against. */}
+              {form.listingType === 'LUGGAGE' && (
+                <div className="p-5 rounded-xl bg-[#CDFF00]/5 border border-[#CDFF00]/25 space-y-4">
+                  <h3 className="text-xs font-black text-[#CDFF00] tracking-widest flex items-center gap-2">
+                    <Luggage className="w-4 h-4" /> Trip details
+                  </h3>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">Destination</label>
+                    <input
+                      type="text"
+                      value={form.destinationCity}
+                      onChange={(e) => set('destinationCity', e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] outline-none transition-all font-bold"
+                      placeholder="e.g. Lagos, Nigeria"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">
+                      Total space (kg)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={form.luggageCapacityKg}
+                      onChange={(e) => set('luggageCapacityKg', e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] outline-none transition-all font-bold"
+                      placeholder="e.g. 46 for two 23kg bags"
+                    />
+                    <p className="mt-1.5 text-[10px] text-gray-500 leading-relaxed">
+                      Once this much has been bought the listing shows as full and stops
+                      taking bookings — kg being paid for right now count towards it too, so
+                      the last few can't be sold twice over. Leave blank if you'd rather not
+                      set a limit yet.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* RENTAL-only: the real cost of moving in, and how a buyer gets in touch. Rent
+                  itself was already asked for in step 2 — this is the deposit, the agent's
+                  own fee, and an informational bills estimate, plus the one choice that
+                  decides whether this listing behaves like a purchase or like a contact
+                  form. */}
+              {form.listingType === 'RENTAL' && (
+                <div className="p-5 rounded-xl bg-[#CDFF00]/5 border border-[#CDFF00]/25 space-y-4">
+                  <h3 className="text-xs font-black text-[#CDFF00] tracking-widest flex items-center gap-2">
+                    <Building2 className="w-4 h-4" /> Rental terms
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">Deposit</label>
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={form.depositAmount}
+                        onChange={(e) => set('depositAmount', e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] outline-none transition-all font-bold"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">Agent fee</label>
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={form.agentFeeAmount}
+                        onChange={(e) => set('agentFeeAmount', e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] outline-none transition-all font-bold"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">Bills / mo</label>
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={form.billsAmount}
+                        onChange={(e) => set('billsAmount', e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] outline-none transition-all font-bold"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">
+                    Leave any of these at 0 if they don't apply. Bills are shown to buyers so
+                    they can see the real monthly cost, but aren't collected by HustleSpace —
+                    they're paid to you or the utility company directly.
+                  </p>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 tracking-widest mb-2">
+                      How buyers get in touch
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => set('payOnPlatform', false)}
+                        className={`p-3.5 rounded-xl border text-left transition-colors ${
+                          !form.payOnPlatform
+                            ? 'border-[#CDFF00] text-[#CDFF00] bg-[#CDFF00]/10'
+                            : 'bg-black/50 border-white/10 text-gray-400 hover:border-white/30'
+                        }`}
+                      >
+                        <span className="block text-[10px] font-black tracking-widest">Send an enquiry</span>
+                        <span className="block text-[10px] mt-1 leading-snug opacity-80">
+                          Nothing is charged. You accept or decline each request yourself.
+                        </span>
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => set('payOnPlatform', true)}
+                        className={`p-3.5 rounded-xl border text-left transition-colors ${
+                          form.payOnPlatform
+                            ? 'border-[#CDFF00] text-[#CDFF00] bg-[#CDFF00]/10'
+                            : 'bg-black/50 border-white/10 text-gray-400 hover:border-white/30'
+                        }`}
+                      >
+                        <span className="block text-[10px] font-black tracking-widest">Buyers pay online</span>
+                        <span className="block text-[10px] mt-1 leading-snug opacity-80">
+                          Rent, deposit and agent fee are charged immediately at booking.
+                        </span>
+                      </motion.button>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -861,6 +1025,30 @@ export default function CreateListing() {
                     <span className="text-gray-500 font-bold tracking-widest text-[10px]">Starts</span>
                     <span className="text-white font-bold">
                       {form.eventStartsAt ? new Date(form.eventStartsAt).toLocaleString() : 'Not set'}
+                    </span>
+                  </div>
+                )}
+                {form.listingType === 'LUGGAGE' && (
+                  <>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500 font-bold tracking-widest text-[10px]">Route</span>
+                      <span className="text-white font-bold text-right">
+                        {form.city || 'Not set'} → {form.destinationCity || 'Not set'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500 font-bold tracking-widest text-[10px]">Space</span>
+                      <span className="text-white font-bold">
+                        {form.luggageCapacityKg ? `${form.luggageCapacityKg}kg` : 'No limit set'}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {form.listingType === 'RENTAL' && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500 font-bold tracking-widest text-[10px]">Buyers</span>
+                    <span className="text-white font-bold">
+                      {form.payOnPlatform ? 'Pay online' : 'Send an enquiry'}
                     </span>
                   </div>
                 )}
