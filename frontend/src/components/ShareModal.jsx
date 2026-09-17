@@ -90,7 +90,7 @@ export default function ShareModal({ type, item, onClose }) {
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(shareUrl);
       setLinkCopied(true);
       showToast('Link copied!');
       setTimeout(() => setLinkCopied(false), 2000);
@@ -112,6 +112,13 @@ export default function ShareModal({ type, item, onClose }) {
       : (item?.content || 'Post');
   const postByLine = !isListing && item?.authorName ? `by ${item.authorName}` : null;
   const heading = isListing ? 'Share listing' : isStory ? 'Share story' : 'Share post';
+  // Built from the listing's own id rather than read off the current page — this modal
+  // opens from more than one place (the listing's own detail page, but also its promo card
+  // in the feed), and window.location.href is only ever right on the first of those. On the
+  // feed it silently copied the feed's own URL, not a link to the listing at all.
+  const shareUrl = isListing
+    ? `${window.location.origin}/listing/${item?.id}`
+    : window.location.href;
   const placeholderGlyph = isListing ? '🛍️' : isStory ? '✨' : '📤';
 
   return (
