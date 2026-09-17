@@ -247,11 +247,39 @@ export default function DirectMessages() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sendingIds, setSendingIds] = useState(new Set());
-  const [listingContext, setListingContext] = useState(navState?.listing || null);
+  /**
+   * The listing being enquired about, and — crucially — who it is being enquired of.
+   *
+   * `partnerId` is stamped on at arrival because this is otherwise just component state
+   * that outlives the conversation it was opened for. Enquiring about a room took you to
+   * the landlord's chat with the strip showing, and clicking any other conversation in the
+   * sidebar left the strip sitting there, now pointed at somebody with no connection to the
+   * listing. The offer field went with it, so naming a price in the wrong thread would
+   * create a real INQUIRED booking against that room and send the card to the wrong person.
+   */
+  const [listingContext, setListingContext] = useState(
+    navState?.listing ? { ...navState.listing, partnerId: partnerId || null } : null
+  );
   // The buyer's proposed price for listingContext, and whether that offer is mid-flight
   // (creates a Booking, then sends the OFFER card that references it — see submitOffer).
   const [offerPrice, setOfferPrice] = useState('');
   const [offerBusy, setOfferBusy] = useState(false);
+  // The message the enquiry arrived with, kept so it can be told apart from something the
+  // user has actually typed. Switching away discards it; anything typed over it is theirs.
+  const prefillRef = useRef(navState?.prefillMessage || '');
+
+  /**
+   * The enquiry, but only in the conversation it belongs to.
+   *
+   * Everything that reads the listing strip goes through this rather than `listingContext`,
+   * so there is one place the question "is this the right chat for it" is answered. A
+   * context with no partner (arriving at /dm with a listing but no recipient) matches
+   * nothing and is therefore never shown, which is the safe direction to fail in.
+   */
+  const activeListing =
+    listingContext && listingContext.partnerId && listingContext.partnerId === activePartner
+      ? listingContext
+      : null;
   // Composer extras: emoji/sticker picker, image attachment, in-chat search, header menu, lightbox
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState('emoji');
@@ -539,11 +567,15 @@ export default function DirectMessages() {
   // attached photo borrows the composer text as its caption.
   const submitOffer = async () => {
     const price = parseFloat(offerPrice);
-    if (!price || price <= 0 || !listingContext || !activePartner) return;
+    // activeListing, not listingContext: this creates a real booking and sends a card to
+    // whoever is open, so it must refuse to fire from a conversation the enquiry is not
+    // about. The strip is already hidden there, but this is the call that spends money and
+    // it should not depend on the render having got it right.
+    if (!price || price <= 0 || !activeListing || !activePartner) return;
     setOfferBusy(true);
     const caption = newMsg.trim();
     try {
-      const { data: booking } = await bookingsApi.create({ listingId: listingContext.id, offeredPrice: price });
+      const { data: booking } = await bookingsApi.create({ listingId: activeListing.id, offeredPrice: price });
       await optimisticSend(
         { content: caption, messageType: 'OFFER', offerBookingId: booking.id },
         () => directMessagesApi.sendOffer(activePartner, booking.id, caption)
@@ -648,6 +680,19 @@ export default function DirectMessages() {
   // badge locally right away and the row stops looking unread the instant it's
   // clicked, rather than sitting bold for several seconds after being opened.
   const openChat = (id) => {
+    if (id !== activePartner) {
+      // The price belongs to the strip, and the strip belongs to one conversation. Leaving
+      // it filled meant walking into another chat with a number already typed into an offer
+      // box that was about somebody else's listing.
+      setOfferPrice('');
+      // The enquiry's opening line goes too — but only while it is still untouched. Once
+      // it has been edited it is the user's own draft and throwing it away would be worse
+      // than carrying it over.
+      if (prefillRef.current && newMsg === prefillRef.current) {
+        setNewMsg('');
+        prefillRef.current = '';
+      }
+    }
     setActivePartner(id);
     setPartners((prev) => prev.map((p) => (p.id === id ? { ...p, unreadCount: 0 } : p)));
   };
@@ -1262,13 +1307,13 @@ export default function DirectMessages() {
                     it creates the Booking and shares it into the thread as a live OFFER card;
                     from then on the negotiation plays out on that card, not in here. */}
                 <AnimatePresence initial={false}>
-                  {listingContext && (
+                  {activeListing && (
                     <motion.div {...STRIP_MOTION} className="shrink-0 overflow-hidden border-b border-white/5 bg-black/40">
                       <div className="px-4 pt-2.5 pb-2 flex items-center gap-2">
                         <Bookmark className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />
-                        <span className="text-xs text-[#CDFF00] font-bold truncate flex-1">{listingContext.title}</span>
-                        {listingContext.price != null && (
-                          <span className="text-[10px] text-gray-500 shrink-0">Listed {formatPrice(listingContext.price, listingContext.currency)}</span>
+                        <span className="text-xs text-[#CDFF00] font-bold truncate flex-1">{activeListing.title}</span>
+                        {activeListing.price != null && (
+                          <span className="text-[10px] text-gray-500 shrink-0">Listed {formatPrice(activeListing.price, activeListing.currency)}</span>
                         )}
                         <motion.button
                           whileHover={{ scale: 1.15, rotate: 90 }}
@@ -1286,7 +1331,7 @@ export default function DirectMessages() {
                           step="0.01"
                           value={offerPrice}
                           onChange={(e) => setOfferPrice(e.target.value)}
-                          placeholder={`Your offer (${listingContext.currency || 'PLN'})`}
+                          placeholder={`Your offer (${activeListing.currency || 'PLN'})`}
                           className="flex-1 min-w-0 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-[#CDFF00] transition-colors"
                         />
                         <button
