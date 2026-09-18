@@ -93,6 +93,19 @@ app:
     sweep-ms: ${PAYOUT_SWEEP_MS:3600000}
   frontend:
     url: ${FRONTEND_URL:http://localhost:5174}
+  digest:
+    # The clock the nightly digest's "day" is measured against, and the one its cron fires
+    # on. Not the server's: containers run UTC, and a digest that lands at 2am local because
+    # of that is a different product from one that lands at midnight. The audience is in one
+    # city, so there is a right answer here.
+    zone: ${DIGEST_ZONE:Europe/Warsaw}
+    new-listings:
+      # One email a night per follower, covering every listing the people they follow put up
+      # that day — instead of one email per listing, which meant a seller posting eight
+      # things in an afternoon sent each follower eight near-identical messages.
+      enabled: ${DIGEST_NEW_LISTINGS_ENABLED:true}
+      # Midnight in the zone above. Second, minute, hour, day, month, weekday.
+      cron: ${DIGEST_NEW_LISTINGS_CRON:0 0 0 * * *}
   aws:
     access-key: ${AWS_ACCESS_KEY_ID:}
     secret-key: ${AWS_SECRET_ACCESS_KEY:}

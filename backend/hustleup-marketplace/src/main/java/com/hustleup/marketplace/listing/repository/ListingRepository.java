@@ -19,6 +19,16 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
 
     List<Listing> findBySellerId(UUID sellerId);
 
+    /**
+     * Everything posted inside a window, for the nightly new-listing digest.
+     *
+     * <p>Filtered on status as well as time: a listing put up and taken down again the same
+     * day should not arrive in an email at midnight pointing at something nobody can open.
+     * Ordered oldest-first so the digest reads in the order the day actually happened.
+     */
+    List<Listing> findByCreatedAtBetweenAndStatusOrderByCreatedAtAsc(
+            java.time.LocalDateTime from, java.time.LocalDateTime to, ListingStatus status);
+
     int countBySellerIdAndStatus(UUID sellerId, ListingStatus status);
 
     @Query("SELECT l FROM Listing l WHERE l.status = 'ACTIVE' " +

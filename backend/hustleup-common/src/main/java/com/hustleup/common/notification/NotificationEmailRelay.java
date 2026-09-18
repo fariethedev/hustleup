@@ -1,5 +1,11 @@
 /**
- * Emails every in-app notification to the person it is for.
+ * Emails in-app notifications to the person they are for, as they happen.
+ *
+ * <p>With one exception, and it is the reason to read {@link #BATCHED_ELSEWHERE} before
+ * adding another: LISTING notifications are not sent from here. Posting a listing writes one
+ * notification per follower, so a seller listing eight things in an afternoon sent each
+ * follower eight near-identical emails. Those are collected into a single nightly digest by
+ * {@code NewListingDigestService} instead. The in-app notification still fires immediately.
  *
  * <h2>Why this is a listener and not a call at each site</h2>
  * Notifications are raised from fourteen places across three services — bookings, listings,
@@ -47,6 +53,18 @@ public class NotificationEmailRelay {
     private final UserRepository userRepository;
 
     /**
+     * Types that are emailed by something else, so must never be emailed from here.
+     *
+     * <p>Unlike {@link #excludedTypes} this is not a preference an environment can override.
+     * LISTING is batched into one nightly digest by {@code NewListingDigestService}; leaving
+     * it switchable here would mean an environment could turn the per-listing mail back on
+     * and send both, which is worse than either alone.
+     *
+     * <p>The in-app notification is untouched — only the mail moved.
+     */
+    private static final Set<String> BATCHED_ELSEWHERE = Set.of("LISTING");
+
+    /**
      * Notification types that stay in-app only.
      *
      * <p>Empty by default: every notification is emailed, which is what was asked for. It is a
@@ -75,9 +93,9 @@ public class NotificationEmailRelay {
         Notification n = event.notification();
         try {
             if (n.getUserId() == null) return;
-            if (n.getNotificationType() != null
-                    && excludedTypes.contains(n.getNotificationType().toUpperCase())) {
-                return;
+            if (n.getNotificationType() != null) {
+                String type = n.getNotificationType().toUpperCase();
+                if (BATCHED_ELSEWHERE.contains(type) || excludedTypes.contains(type)) return;
             }
 
             User user = userRepository.findById(n.getUserId()).orElse(null);
