@@ -66,6 +66,16 @@ public class Shop {
     @Column(length = 60)
     private String category;
 
+    /**
+     * The structured counterpart {@code category} deliberately isn't — see
+     * {@link ShopBusinessType}'s own Javadoc for why both fields exist. Drives which features
+     * {@code ShopManager} and the storefront actually offer this shop's owner.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "business_type", nullable = false, length = 32)
+    @Builder.Default
+    private ShopBusinessType businessType = ShopBusinessType.GENERAL;
+
     /** One-line hook shown on the shop card. */
     @Column(length = 160)
     private String tagline;

@@ -204,6 +204,38 @@ export const shopsApi = {
   removeProduct: (id, productId) => api.delete(`/shops/${id}/products/${productId}`),
 };
 
+// An appointment-based shop's menu of bookable services (a haircut, a manicure) plus the
+// time slots opened against them — the shop counterpart of `availabilityApi`, kept separate
+// because a shop service isn't a marketplace listing. See ShopServiceController's own
+// Javadoc for why.
+export const shopServicesApi = {
+  list: (idOrSlug) => api.get(`/shops/${idOrSlug}/services`),
+  create: (idOrSlug, data) => api.post(`/shops/${idOrSlug}/services`, data),
+  update: (idOrSlug, serviceId, data) => api.patch(`/shops/${idOrSlug}/services/${serviceId}`, data),
+  remove: (idOrSlug, serviceId) => api.delete(`/shops/${idOrSlug}/services/${serviceId}`),
+  // Slots for one service — what a customer's picker shows.
+  slots: (idOrSlug, serviceId) => api.get(`/shops/${idOrSlug}/services/${serviceId}/slots`),
+  addSlot: (idOrSlug, serviceId, startTime, endTime) =>
+    api.post(`/shops/${idOrSlug}/services/${serviceId}/slots`, { startTime, endTime }),
+  // Every slot across the whole shop, service names attached — the manager's own calendar.
+  mySlots: (idOrSlug) => api.get(`/shops/${idOrSlug}/services/slots`),
+  removeSlot: (idOrSlug, slotId) => api.delete(`/shops/${idOrSlug}/services/slots/${slotId}`),
+};
+
+// Booking, and managing, an appointment against a shop's own calendar. No payment travels
+// through this — an appointment reserves the owner's time; see ShopAppointment's own Javadoc
+// for why that's deliberate.
+export const shopAppointmentsApi = {
+  // customer: { fullName, email, phone } — same shape shopsApi.checkout takes.
+  book: (idOrSlug, { slotId, customer, notes } = {}) =>
+    api.post(`/shops/${idOrSlug}/appointments`, { slotId, customer, notes }),
+  received: (idOrSlug) => api.get(`/shops/${idOrSlug}/appointments`),
+  updateStatus: (idOrSlug, appointmentId, status) =>
+    api.patch(`/shops/${idOrSlug}/appointments/${appointmentId}`, { status }),
+  mine: () => api.get('/shops/appointments/mine'),
+  cancel: (appointmentId) => api.patch(`/shops/appointments/${appointmentId}/cancel`),
+};
+
 // Bookings
 export const bookingsApi = {
   create: (data) => api.post('/bookings', data),

@@ -14,6 +14,8 @@ import lombok.*;
 public class ShopRequest {
     private String name;
     private String category;
+    /** ShopBusinessType name; anything unrecognised falls back to GENERAL rather than rejecting the save. */
+    private String businessType;
     private String tagline;
     private String description;
     private String bannerUrl;

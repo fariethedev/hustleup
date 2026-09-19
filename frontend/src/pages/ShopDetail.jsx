@@ -6,31 +6,13 @@ import { listingsApi, followsApi } from '../api/client';
 import { formatPrice, displayCity } from '../utils/constants';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
-import { Sparkle, Navigation, MoveLeft, BaggageClaim, Box, CircleChevronRight, Forward, ThumbsUp, CalendarRange, ShoppingBasket, SquarePen, ClipboardCheck, BadgeDollarSign, MessagesSquare } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
+import { Sparkle, Navigation, MoveLeft, BaggageClaim, Box, CircleChevronRight, Forward, ThumbsUp, ShoppingBasket, SquarePen, ClipboardCheck, BadgeDollarSign, MessagesSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import SmartImage from '../components/SmartImage';
 import ListingCard from '../components/ListingCard';
 import ShopReviews from '../components/ShopReviews';
+import AppointmentBooking from '../components/AppointmentBooking';
 import { uploadUrl } from '../config';
-
-// Shop categories whose products are appointments/sessions rather than physical goods
-// (hair & beauty, skills & services) get a "book an appointment" slot picker instead
-// of just an add-to-cart button.
-const BOOKABLE_CATEGORIES = ['Beauty & Skincare', 'Skills & Services'];
-
-// Builds 6 upcoming mock days of appointment slots for bookable shops.
-function buildAvailability() {
-  const times = ['09:00', '11:30', '14:00', '16:30'];
-  return Array.from({ length: 6 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() + i + 1);
-    return {
-      key: date.toISOString().slice(0, 10),
-      label: `${date.toLocaleDateString('en-GB', { weekday: 'short' })} ${date.getDate()}`,
-      times,
-    };
-  });
-}
 
 export default function ShopDetail() {
   const { id } = useParams();
@@ -53,15 +35,6 @@ export default function ShopDetail() {
   }, [shop?.ownerId]);
 
   const isOwner = !!shop && currentUser?.id === shop.ownerId;
-  const isBookable = !!shop && BOOKABLE_CATEGORIES.includes(shop.category);
-  const availability = useMemo(() => (isBookable ? buildAvailability() : []), [isBookable]);
-  const [selectedDay, setSelectedDay] = useState(0);
-  const [selectedTime, setSelectedTime] = useState(null);
-
-  const confirmSlot = (time) => {
-    setSelectedTime(time);
-    showToast(`Slot selected — ${availability[selectedDay].label}, ${time}`, 'success');
-  };
 
   // Following the shop means following its owner — the platform has one social graph, and a
   // separate "saved shops" list would be a second, weaker one that nothing else reads. This
@@ -532,48 +505,7 @@ export default function ShopDetail() {
                </div>
              )}
 
-             {isBookable && (
-               <div className="p-5 sm:p-6 rounded-3xl sm:rounded-[32px] bg-white/[0.03] border border-white/10">
-                  <h5 className="text-[10px] font-black tracking-widest text-gray-500 mb-1 flex items-center gap-2">
-                    <CalendarRange className="w-3.5 h-3.5 text-[#CDFF00]" /> Book an appointment
-                  </h5>
-                  <p className="text-xs text-gray-400 mb-4">Pick a date and time that works for you.</p>
-
-                  <div className="grid grid-cols-3 gap-2 mb-4">
-                    {availability.map((day, i) => (
-                      <button
-                        key={day.key}
-                        onClick={() => { setSelectedDay(i); setSelectedTime(null); }}
-                        className={`px-2 py-2 rounded-xl text-[10px] font-bold tracking-wide transition-all ${
-                          selectedDay === i ? 'bg-[#CDFF00] text-black' : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                        }`}
-                      >
-                        {day.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {availability[selectedDay]?.times.map((time) => (
-                      <button
-                        key={time}
-                        onClick={() => confirmSlot(time)}
-                        className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                          selectedTime === time ? 'bg-[#CDFF00] text-black' : 'bg-white/5 text-white hover:bg-white/10'
-                        }`}
-                      >
-                        {time}
-                      </button>
-                    ))}
-                  </div>
-
-                  {selectedTime && (
-                    <p className="mt-4 text-[11px] text-[#CDFF00] font-bold text-center">
-                      Selected: {availability[selectedDay].label} · {selectedTime}
-                    </p>
-                  )}
-               </div>
-             )}
+             {shop.appointmentBased && <AppointmentBooking shop={shop} />}
 
              {/* "Run by" used to live here as a full panel ending in a Message owner button.
                  Messaging moved to the action row in the hero; who runs the shop is one line

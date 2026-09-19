@@ -22,6 +22,10 @@ public class ShopDto {
     // ── Owner-editable ──
     private String name;
     private String category;
+    /** ShopBusinessType.name() — drives which of ShopManager's feature panels the owner sees. */
+    private String businessType;
+    /** True for a salon/barber/spa-style shop — the client's shorthand for businessType's kind. */
+    private boolean appointmentBased;
     private String tagline;
     private String description;
     private String bannerUrl;
@@ -57,6 +61,8 @@ public class ShopDto {
                 .slug(shop.getSlug())
                 .name(shop.getName())
                 .category(shop.getCategory())
+                .businessType(shop.getBusinessType().name())
+                .appointmentBased(shop.getBusinessType().isAppointmentBased())
                 .tagline(shop.getTagline())
                 .description(shop.getDescription())
                 .bannerUrl(shop.getBannerUrl())

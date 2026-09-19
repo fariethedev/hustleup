@@ -151,6 +151,7 @@ public class ShopController {
                 .slug(shopService.uniqueSlug(name))
                 .name(name)
                 .category(trimToNull(body.getCategory()))
+                .businessType(com.hustleup.marketplace.shop.model.ShopBusinessType.parse(body.getBusinessType()))
                 .tagline(trimToNull(body.getTagline()))
                 .description(trimToNull(body.getDescription()))
                 .bannerUrl(trimToNull(body.getBannerUrl()))
@@ -177,6 +178,7 @@ public class ShopController {
         // Blank strings are meaningful here: they clear an optional field. Only `null`
         // (field absent from the JSON) means "leave this alone".
         if (body.getCategory() != null)    shop.setCategory(trimToNull(body.getCategory()));
+        if (body.getBusinessType() != null) shop.setBusinessType(com.hustleup.marketplace.shop.model.ShopBusinessType.parse(body.getBusinessType()));
         if (body.getTagline() != null)     shop.setTagline(trimToNull(body.getTagline()));
         if (body.getDescription() != null) shop.setDescription(trimToNull(body.getDescription()));
         if (body.getBannerUrl() != null)   shop.setBannerUrl(trimToNull(body.getBannerUrl()));
