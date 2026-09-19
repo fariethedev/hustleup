@@ -42,6 +42,16 @@ export default function Dashboard() {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingListing, setEditingListing] = useState(null); // listing being price-edited, or null
+
+  /**
+   * Which slice of the bookings list is on screen.
+   *
+   * The dashboard counted pending sales correctly and the tiles linked here, but the list
+   * underneath showed every booking the account has ever touched — bought and sold, every
+   * status, one flat run. So "Needs reply: 3" led to forty rows with nothing marking the
+   * three. The count was the only part that worked.
+   */
+  const [bookingView, setBookingView] = useState('all');
   const [payoutStatus, setPayoutStatus] = useState(null); // { connected, payoutsEnabled, chargesEnabled, detailsSubmitted }
   const [payoutBusy, setPayoutBusy] = useState(false);
   const [payingBookingId, setPayingBookingId] = useState(null);
@@ -239,6 +249,21 @@ export default function Dashboard() {
   const openShopOrders = [...shopOrders, ...shopSales]
     .filter((o) => o.status === 'PAID' && !isComplete(o.fulfilment?.fulfilmentStatus)).length;
 
+  /**
+   * The bookings actually shown, for the view selected.
+   *
+   * "Needs reply" is INQUIRED and NEGOTIATING together: a counter-offer is every bit as much
+   * the seller's turn as a first enquiry, and splitting them would leave the negotiating ones
+   * in a bucket nobody opens.
+   */
+  const viewedBookings = bookings.filter((b) => {
+    if (bookingView === 'needsReply') return b.role === 'seller' && ['INQUIRED', 'NEGOTIATING'].includes(b.status);
+    if (bookingView === 'inProgress') return b.role === 'seller' && b.status === 'BOOKED';
+    if (bookingView === 'selling') return b.role === 'seller';
+    if (bookingView === 'buying') return b.role !== 'seller';
+    return true;
+  });
+
   /** Requests from buyers a seller has not yet accepted or declined — their real to-do list. */
   const pendingRequests = bookings.filter((b) => b.role === 'seller' && b.status === 'INQUIRED');
   /** Sold and paid for, but not yet delivered and marked complete. */
@@ -342,7 +367,7 @@ export default function Dashboard() {
                 <p className="text-[9px] font-black tracking-[0.18em] text-[#CDFF00]/70">Revenue</p>
                 <p className="text-lg font-black text-[#CDFF00] mt-0.5 truncate">{formatPrice(totalRevenue, 'PLN')}</p>
               </button>
-              <button onClick={() => setTab('bookings')} className={`text-left rounded-2xl border p-3.5 transition-colors ${
+              <button onClick={() => { setBookingView('needsReply'); setTab('bookings'); }} className={`text-left rounded-2xl border p-3.5 transition-colors ${
                 pendingRequests.length > 0
                   ? 'border-amber-400/40 bg-amber-400/10 hover:bg-amber-400/15'
                   : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
@@ -350,7 +375,7 @@ export default function Dashboard() {
                 <p className={`text-[9px] font-black tracking-[0.18em] ${pendingRequests.length > 0 ? 'text-amber-300/80' : 'text-gray-500'}`}>Needs reply</p>
                 <p className={`text-lg font-black mt-0.5 ${pendingRequests.length > 0 ? 'text-amber-300' : 'text-white'}`}>{pendingRequests.length}</p>
               </button>
-              <button onClick={() => setTab('bookings')} className="text-left rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors">
+              <button onClick={() => { setBookingView('inProgress'); setTab('bookings'); }} className="text-left rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors">
                 <p className="text-[9px] font-black tracking-[0.18em] text-gray-500">In progress</p>
                 <p className="text-lg font-black text-white mt-0.5">{inProgress.length}</p>
               </button>
@@ -505,10 +530,44 @@ export default function Dashboard() {
               {/* Bookings Tab */}
               {tab === 'bookings' && (
                 <div className="space-y-2.5">
-                  {bookings.length === 0 ? (
-                    <EmptyState icon={Archive} title="No Active Orders" desc="Your active purchasing or service bookings will appear here." />
+                  {/* Visible filters, so the slice a tile selected is named on screen and can
+                      be changed without going back. A seller arriving from "Needs reply" would
+                      otherwise have no way to tell why the list is short. */}
+                  <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-hide pb-1 -mx-1 px-1">
+                    {[
+                      { id: 'all', label: 'All', n: bookings.length },
+                      ...(isSeller ? [
+                        { id: 'needsReply', label: 'Needs reply', n: bookings.filter((b) => b.role === 'seller' && ['INQUIRED', 'NEGOTIATING'].includes(b.status)).length },
+                        { id: 'inProgress', label: 'To fulfil', n: inProgress.length },
+                        { id: 'selling', label: 'Selling', n: bookings.filter((b) => b.role === 'seller').length },
+                      ] : []),
+                      { id: 'buying', label: 'Buying', n: bookings.filter((b) => b.role !== 'seller').length },
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => setBookingView(f.id)}
+                        aria-pressed={bookingView === f.id}
+                        className={`shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest transition-colors ${
+                          bookingView === f.id
+                            ? 'bg-[#CDFF00] text-black'
+                            : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {f.label} {f.n > 0 && <span className="tabular-nums opacity-70">{f.n}</span>}
+                      </button>
+                    ))}
+                  </div>
+
+                  {viewedBookings.length === 0 ? (
+                    <EmptyState
+                      icon={Archive}
+                      title={bookingView === 'all' ? 'No Active Orders' : 'Nothing here'}
+                      desc={bookingView === 'all'
+                        ? 'Your active purchasing or service bookings will appear here.'
+                        : 'Nothing in this view right now — try All to see everything.'}
+                    />
                   ) : (
-                    bookings.map((booking) => {
+                    viewedBookings.map((booking) => {
                       const status = BOOKING_STATUS_MAP[booking.status] || { label: booking.status, color: 'bg-gray-800 text-gray-400' };
                       const isBuyer = user?.id === booking.buyerId;
 
