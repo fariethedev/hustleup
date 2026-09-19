@@ -114,7 +114,11 @@ export default function PendingSalesButton({ compact = false }) {
                 {sales.map((s) => (
                   <Link
                     key={s.id}
-                    to="/dashboard"
+                    // Carries where it wants to land. A bare /dashboard dropped you on the
+                    // default tab with every booking you have ever had in one list, which for
+                    // a seller who came here to act on one order is the same as landing
+                    // nowhere.
+                    to={`/dashboard?tab=bookings&view=${s.status === 'BOOKED' ? 'inProgress' : 'needsReply'}`}
                     onClick={() => setOpen(false)}
                     className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-amber-400/40 transition-colors"
                   >

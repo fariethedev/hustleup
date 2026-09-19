@@ -51,7 +51,9 @@ export default function Dashboard() {
    * status, one flat run. So "Needs reply: 3" led to forty rows with nothing marking the
    * three. The count was the only part that worked.
    */
-  const [bookingView, setBookingView] = useState('all');
+  const [bookingView, setBookingView] = useState(() => searchParams.get('view') || 'all');
+  /** Set when the orders call itself failed, so an empty page can say why. */
+  const [loadError, setLoadError] = useState('');
   const [payoutStatus, setPayoutStatus] = useState(null); // { connected, payoutsEnabled, chargesEnabled, detailsSubmitted }
   const [payoutBusy, setPayoutBusy] = useState(false);
   const [payingBookingId, setPayingBookingId] = useState(null);
@@ -127,28 +129,49 @@ export default function Dashboard() {
 
   const loadData = async () => {
     setLoading(true);
-    try {
-      const [bookRes, notifRes] = await Promise.all([
-        bookingsApi.my(),
-        notificationsApi.getAll(),
-      ]);
-      setBookings(bookRes.data);
-      setNotifications(notifRes.data);
-      // Non-blocking: someone who's never booked an event just gets an empty wallet.
-      ticketsApi.my().then((r) => setTickets(r.data)).catch(() => setTickets([]));
-      // Same treatment for storefront orders — a buyer who has never bought from a shop
-      // simply has none, which is not an error worth failing the whole dashboard over.
-      shopsApi.myOrders().then((r) => setShopOrders(r.data || [])).catch(() => setShopOrders([]));
-      if (isSeller) {
-        const listRes = await listingsApi.my();
-        setListings(listRes.data);
-        if (listRes.data.some((l) => SERVICE_TYPES.includes(l.listingType))) {
-          availabilityApi.my().then((r) => setSlots(r.data)).catch(() => setSlots([]));
-        }
-        payoutsApi.status().then((r) => setPayoutStatus(r.data)).catch(() => setPayoutStatus({ connected: false }));
-        shopsApi.receivedOrders().then((r) => setShopSales(r.data || [])).catch(() => setShopSales([]));
-      }
-    } catch { /* fail silently */ }
+
+    // allSettled, not all.
+    //
+    // These two were awaited together with Promise.all, which rejects as soon as either does
+    // — so a notification service having a bad moment meant setBookings never ran and the
+    // dashboard rendered completely empty. The old catch then swallowed it, so there was not
+    // even an error to explain the blank page: every order you had was simply gone from view
+    // because something unrelated to orders had failed.
+    const [bookRes, notifRes] = await Promise.allSettled([
+      bookingsApi.my(),
+      notificationsApi.getAll(),
+    ]);
+    if (bookRes.status === 'fulfilled') setBookings(bookRes.value.data || []);
+    if (notifRes.status === 'fulfilled') setNotifications(notifRes.value.data || []);
+
+    // Surfaced rather than swallowed. A dashboard with no orders on it looks identical to a
+    // dashboard whose orders failed to load, and only one of those is worth retrying.
+    setLoadError(bookRes.status === 'rejected'
+      ? (bookRes.reason?.response?.data?.error || 'Could not load your orders — pull to refresh or try again.')
+      : '');
+
+    // Non-blocking: someone who's never booked an event just gets an empty wallet.
+    ticketsApi.my().then((r) => setTickets(r.data)).catch(() => setTickets([]));
+    // Same treatment for storefront orders — a buyer who has never bought from a shop
+    // simply has none, which is not an error worth failing the whole dashboard over.
+    shopsApi.myOrders().then((r) => setShopOrders(r.data || [])).catch(() => setShopOrders([]));
+
+    if (isSeller) {
+      // Each of these stands alone. listingsApi.my() was awaited here, so when it failed —
+      // a lapsed subscription answers 403 — everything after it was skipped, including the
+      // received orders that are the seller's actual to-do list.
+      listingsApi.my()
+        .then((r) => {
+          setListings(r.data || []);
+          if ((r.data || []).some((l) => SERVICE_TYPES.includes(l.listingType))) {
+            availabilityApi.my().then((a) => setSlots(a.data)).catch(() => setSlots([]));
+          }
+        })
+        .catch(() => setListings([]));
+      payoutsApi.status().then((r) => setPayoutStatus(r.data)).catch(() => setPayoutStatus({ connected: false }));
+      shopsApi.receivedOrders().then((r) => setShopSales(r.data || [])).catch(() => setShopSales([]));
+    }
+
     setLoading(false);
   };
 
@@ -530,6 +553,17 @@ export default function Dashboard() {
               {/* Bookings Tab */}
               {tab === 'bookings' && (
                 <div className="space-y-2.5">
+                  {loadError && (
+                    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-red-500/10 border border-red-500/30">
+                      <p className="text-xs text-red-300 font-medium">{loadError}</p>
+                      <button
+                        onClick={loadData}
+                        className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/40 text-red-200 text-[10px] font-black tracking-widest hover:bg-red-500/30 transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
                   {/* Visible filters, so the slice a tile selected is named on screen and can
                       be changed without going back. A seller arriving from "Needs reply" would
                       otherwise have no way to tell why the list is short. */}
