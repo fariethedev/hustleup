@@ -6,7 +6,7 @@ import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { useSellerAccess } from '../hooks/useSellerAccess';
 import SellerUpgrade, { SellerUpgradeButton } from '../components/SellerUpgrade';
 import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, feedbackApi, dispatchToast } from '../api/client';
-import { BOOKING_STATUS_MAP, LISTING_TYPES, formatPrice } from '../utils/constants';
+import { BOOKING_STATUS_MAP, LISTING_TYPES, POLISH_CITIES, formatPrice } from '../utils/constants';
 import { ChevronDown, Cog, CirclePlus, Archive, ClipboardCheck, CircleCheck, CircleX, MessagesSquare, ListChecks, Boxes, BellDot, ChartLine, CalendarRange, SquarePen, Building2, Eraser, CircleSlash, Building, WalletCards, ShieldPlus, ShieldX, TicketCheck, QrCode, MoveRight, Sparkle, Forklift, Box, Speech, CircleUser, Store } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
 import ShopManager from '../components/ShopManager';
@@ -625,10 +625,17 @@ export default function Dashboard() {
                               </button>
                             )}
 
-                            {/* Only once money has arrived: there is nothing to track on an
-                                order nobody has paid for, and offering the control anyway
-                                invites a seller to tell a buyer their unpaid parcel shipped. */}
-                            {!isBuyer && ['PAID', 'TRANSFERRED'].includes(booking.paymentStatus) && (
+                            {/* Not on an order nobody has paid for: offering the control there
+                                invites a seller to tell a buyer their unpaid parcel shipped.
+                                But the test is now "not explicitly unpaid" rather than
+                                "explicitly paid", because paymentStatus is null on every
+                                booking that predates payment tracking — and those are real,
+                                confirmed sales whose seller had no way to update the buyer at
+                                all. An explicit PENDING or AWAITING_PAYMENT still hides it. */}
+                            {!isBuyer
+                              && ['BOOKED', 'COMPLETED'].includes(booking.status)
+                              && !['PENDING', 'AWAITING_PAYMENT', 'REFUNDED', 'FAILED'].includes(booking.paymentStatus)
+                              && (
                               <button
                                 onClick={() => setTracking({ order: booking, kind: 'booking', title: booking.listingTitle })}
                                 className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1.5"
@@ -1056,7 +1063,7 @@ export default function Dashboard() {
       )}
 
       {editingListing && (
-        <EditPriceModal
+        <EditListingModal
           listing={editingListing}
           onClose={() => setEditingListing(null)}
           onSaved={(updated) => {
@@ -1069,20 +1076,44 @@ export default function Dashboard() {
   );
 }
 
-/* Compact modal for updating a listing's price / negotiable flag from the dashboard. */
-function EditPriceModal({ listing, onClose, onSaved }) {
+/**
+ * Edit a listing from the dashboard.
+ *
+ * <p>This used to be price and the negotiable flag, and nothing else — so a typo in a title,
+ * a wrong city or a description that needed a sentence adding could not be corrected at all.
+ * The only route was to delete the listing and post it again, which loses its age, its views
+ * and any saves against it.
+ *
+ * <p>Nothing new was needed on the server: PATCH /listings/{id} has always accepted title,
+ * description, city and status alongside price, and ignores any key it is not sent. The form
+ * had simply never offered them.
+ */
+function EditListingModal({ listing, onClose, onSaved }) {
+  const [title, setTitle] = useState(listing.title || '');
+  const [description, setDescription] = useState(listing.description || '');
   const [price, setPrice] = useState(listing.price);
+  const [city, setCity] = useState(listing.locationCity || '');
   const [negotiable, setNegotiable] = useState(listing.negotiable);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
+    if (!title.trim()) { dispatchToast('A listing needs a title', 'error'); return; }
+    if (!(Number(price) > 0)) { dispatchToast('Price must be more than zero', 'error'); return; }
     setSaving(true);
     try {
-      const res = await listingsApi.update(listing.id, { price: Number(price), negotiable });
+      const res = await listingsApi.update(listing.id, {
+        title: title.trim(),
+        description: description.trim(),
+        price: Number(price),
+        city: city.trim(),
+        negotiable,
+      });
       dispatchToast('Listing updated', 'success');
       onSaved(res.data);
     } catch (e) {
-      dispatchToast('Failed to update listing', 'error');
+      // The server explains a refusal — a lapsed subscription blocks selling actions, and
+      // "Failed to update listing" over the top of that says nothing about what to do.
+      dispatchToast(e.response?.data?.error || 'Failed to update listing', 'error');
     } finally {
       setSaving(false);
     }
@@ -1096,11 +1127,33 @@ function EditPriceModal({ listing, onClose, onSaved }) {
           <h3 className="text-sm font-bold text-white truncate pr-2">{listing.title}</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 shrink-0"><CircleX className="w-4 h-4" /></button>
         </div>
+        <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1.5 block">Title</label>
+        <input
+          type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] mb-3"
+        />
+
+        <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1.5 block">Description</label>
+        <textarea
+          value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
+          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] mb-3 resize-y"
+        />
+
         <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1.5 block">Price ({listing.currency})</label>
         <input
           type="number" value={price} onChange={(e) => setPrice(e.target.value)}
           className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] mb-3"
         />
+
+        <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1.5 block">City</label>
+        <input
+          type="text" value={city} onChange={(e) => setCity(e.target.value)} list="edit-listing-cities"
+          placeholder="e.g. Lublin"
+          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] mb-3"
+        />
+        <datalist id="edit-listing-cities">
+          {POLISH_CITIES.map((c) => <option key={c} value={c} />)}
+        </datalist>
         <label className="flex items-center gap-2 text-sm text-gray-300 mb-5 cursor-pointer">
           <input type="checkbox" checked={negotiable} onChange={(e) => setNegotiable(e.target.checked)} className="accent-[#CDFF00] w-4 h-4" />
           Open to negotiation
