@@ -313,6 +313,11 @@ public class DirectMessageController {
                             previewText = last.getContent() + " Sticker";
                         } else if ("LISTING".equals(last.getMessageType())) {
                             previewText = "🛍️ Shared a listing" + (last.getSharedListingTitle() != null ? ": " + last.getSharedListingTitle() : "");
+                        } else if ("ENQUIRY".equals(last.getMessageType())) {
+                            // Unlike LISTING, content is guaranteed non-blank here (enforced at
+                            // send time) — it's the actual enquiry, so it belongs in the preview
+                            // the same way an ordinary text message's content would.
+                            previewText = "📩 " + last.getContent();
                         } else if ("POST".equals(last.getMessageType())) {
                             previewText = "📤 Shared a post";
                         } else if ("STORY".equals(last.getMessageType())) {
@@ -504,16 +509,24 @@ public class DirectMessageController {
             // dedicated DTO when the request shape is trivially simple.
             @RequestBody Map<String, String> payload) {
 
-        // Optional "type" field: TEXT (default), STICKER, or LISTING (in-app share of a
-        // marketplace listing). Anything else is coerced to TEXT so a malformed client
-        // can't invent new message kinds.
+        // Optional "type" field: TEXT (default), STICKER, LISTING (in-app share of a
+        // marketplace listing), or ENQUIRY (a buyer's actual message about a listing they
+        // haven't been offered a price-negotiation strip for — see RENTAL's "Send enquiry",
+        // the flow that introduced this). Anything else is coerced to TEXT so a malformed
+        // client can't invent new message kinds.
         String rawType = payload.get("type");
         String type = "STICKER".equalsIgnoreCase(rawType) ? "STICKER"
                 : "LISTING".equalsIgnoreCase(rawType) ? "LISTING"
+                : "ENQUIRY".equalsIgnoreCase(rawType) ? "ENQUIRY"
                 : "POST".equalsIgnoreCase(rawType) ? "POST"
                 : "STORY".equalsIgnoreCase(rawType) ? "STORY"
                 : "OFFER".equalsIgnoreCase(rawType) ? "OFFER" : "TEXT";
-        boolean isListingShare = "LISTING".equals(type);
+        boolean isEnquiry = "ENQUIRY".equals(type);
+        // ENQUIRY reuses every sharedListing* field LISTING does — same snapshot, same
+        // reason (avoid a cross-service call to hustleup-marketplace on every read) — so
+        // the two are treated as one branch below and only split where they actually
+        // differ: ENQUIRY requires real words from the buyer, a bare listing share does not.
+        boolean isListingShare = "LISTING".equals(type) || isEnquiry;
         boolean isPostShare = "POST".equals(type);
         boolean isStoryShare = "STORY".equals(type);
         boolean isOffer = "OFFER".equals(type);
@@ -524,10 +537,14 @@ public class DirectMessageController {
         String storyId = payload.get("storyId");
         String offerBookingId = payload.get("bookingId");
         if (isListingShare) {
-            // A shared listing IS the content — the card renders from the snapshot fields
-            // below, so a text caption is optional. Only the listing reference is required.
             if (listingId == null || listingId.isBlank()) return ResponseEntity.badRequest().build();
-            if (content == null) content = "";
+            if (isEnquiry) {
+                // Unlike a bare listing share, an enquiry IS a message — a seller reading
+                // "Enquiry" with nothing underneath has nothing to actually answer.
+                if (content == null || content.trim().isEmpty()) return ResponseEntity.badRequest().build();
+            } else if (content == null) {
+                content = "";
+            }
         } else if (isPostShare) {
             if (postId == null || postId.isBlank()) return ResponseEntity.badRequest().build();
             if (content == null) content = "";
@@ -602,7 +619,10 @@ public class DirectMessageController {
                     .orElse("Someone"); // fallback if the user record is missing
 
             String preview;
-            if (isListingShare) {
+            if (isEnquiry) {
+                preview = "📩 Enquiry" + (saved.getSharedListingTitle() != null ? " about " + saved.getSharedListingTitle() : "")
+                        + ": " + content;
+            } else if (isListingShare) {
                 preview = "🛍️ Shared a listing" + (saved.getSharedListingTitle() != null ? ": " + saved.getSharedListingTitle() : "");
             } else if (isPostShare) {
                 preview = "📤 Shared a post";

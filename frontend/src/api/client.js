@@ -329,6 +329,19 @@ export const directMessagesApi = {
     listingCurrency: listing.currency || 'PLN',
     listingImage: listing.mediaUrls?.[0] || listing.image || '',
   }),
+  // A buyer's actual message about a listing — RENTAL's "Send enquiry" flow, and anywhere
+  // else that isn't a price negotiation (that's shareOffer, below). Carries the same
+  // listing snapshot as shareListing so the card renders, but `message` is required: an
+  // enquiry the seller can't read anything into is not one.
+  sendEnquiry: (partnerId, listing, message) => api.post(`/direct-messages/${partnerId}`, {
+    content: message,
+    type: 'ENQUIRY',
+    listingId: listing.id,
+    listingTitle: listing.title,
+    listingPrice: listing.price != null ? String(listing.price) : '',
+    listingCurrency: listing.currency || 'PLN',
+    listingImage: listing.mediaUrls?.[0] || listing.image || '',
+  }),
   // In-app share: sends a rich feed-post card into the DM thread.
   sharePost: (partnerId, post, message = '') => api.post(`/direct-messages/${partnerId}`, {
     content: message,
@@ -506,6 +519,15 @@ export const followsApi = {
   follow: (userId) => api.post(`/follows/${userId}`),
   unfollow: (userId) => api.delete(`/follows/${userId}`),
   relationship: (userId) => api.get(`/follows/${userId}/relationship`),
+  /**
+   * Who follows you, and who you follow.
+   *
+   * Both answer for the signed-in user only and take no id — there is no endpoint for
+   * somebody else's follower list, so the profile header only offers these on your own.
+   * Each row carries `isFollowing`, which is what makes "follow back" possible.
+   */
+  followers: () => api.get('/follows/followers'),
+  following: () => api.get('/follows/following'),
   // { followers, following } for ANY user — used to show follower counts on creator cards.
   counts: (userId) => api.get(`/follows/${userId}/counts`),
   /** Everyone you have blocked — the Privacy tab in Settings. */

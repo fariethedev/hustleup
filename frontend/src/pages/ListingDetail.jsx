@@ -277,8 +277,15 @@ export default function ListingDetail() {
     if (Number(listing.agentFeeAmount) > 0) terms.push(`agent fee ${formatPrice(listing.agentFeeAmount, listing.currency)}`);
     navigate(`/dm/${listing.sellerId}`, {
       state: {
-        listing: { id: listing.id, title: listing.title, price: listing.price, currency: listing.currency },
+        listing: {
+          id: listing.id, title: listing.title, price: listing.price, currency: listing.currency,
+          mediaUrls: listing.mediaUrls,
+        },
         prefillMessage: `Hi! I'm interested in "${listing.title}" (${terms.join(', ')}). Is it still available?`,
+        // Tags the next message sent from this thread as an ENQUIRY rather than plain
+        // TEXT, so it renders tagged and highlighted for the seller — see DirectMessages'
+        // listingContext.isEnquiry.
+        isEnquiry: true,
       },
     });
   };

@@ -9,6 +9,7 @@ import ReviewStars from '../components/ReviewStars';
 import ListingCard from '../components/ListingCard';
 import { displayName } from '../utils/displayName';
 import DistanceBadge from '../components/DistanceBadge';
+import FollowListModal from '../components/FollowListModal';
 import { timeAgo } from '../utils/time';
 import { uploadUrl } from '../config';
 import { Navigation, ShieldCheck, CircleUser, MessageCircleMore, Cog, Aperture, Images as ImageIcon, CircleCheck, CircleX, Hash, Earth, LayoutPanelLeft, Sparkle, Flame, Ellipsis, CircleSlash, Milestone, ShieldBan, FileType, CirclePlus } from 'lucide-react';
@@ -78,6 +79,8 @@ export default function Profile() {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportBusy, setReportBusy] = useState(false);
+  // Which follow list is open — 'followers' | 'following' | null. Own profile only.
+  const [followList, setFollowList] = useState(null);
 
   // Edit modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -264,7 +267,10 @@ export default function Profile() {
           uploadUrl() around the banner as well as the avatar. It was missing here,
           so a server-relative "/uploads/…" banner resolved against the frontend's
           own origin and silently failed to load in production. */}
-      <div className="relative h-32 sm:h-48 rounded-3xl overflow-hidden">
+      {/* Taller than it was (h-32/h-48). A banner is the one thing on this page a seller
+          chooses purely to be looked at, and at the old height a landscape photo was a
+          letterbox strip with the avatar covering a third of it. */}
+      <div className="relative h-44 sm:h-64 rounded-3xl overflow-hidden">
         {profile.shopBannerUrl ? (
           <img src={uploadUrl(profile.shopBannerUrl)} alt="" className="w-full h-full object-cover" />
         ) : (
@@ -413,15 +419,34 @@ export default function Profile() {
             Both chips now share one treatment. They were previously lime and cyan
             respectively, which made two equivalent facts look like different kinds
             of thing and left the row with three competing colours. */}
+        {/* On your own profile these open the list behind the number. The endpoints answer
+            for the signed-in user only, so on somebody else's profile they stay plain text
+            rather than becoming buttons that would have nothing to open. */}
         <div className="flex items-center gap-2 mt-4">
-          <span className="inline-flex items-baseline gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10">
-            <b className="text-white font-extrabold">{rel.followers}</b>
-            <span className="text-gray-400 text-xs font-semibold">followers</span>
-          </span>
-          <span className="inline-flex items-baseline gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10">
-            <b className="text-white font-extrabold">{rel.following}</b>
-            <span className="text-gray-400 text-xs font-semibold">following</span>
-          </span>
+          {[
+            { key: 'followers', count: rel.followers, label: 'followers' },
+            { key: 'following', count: rel.following, label: 'following' },
+          ].map(({ key, count, label }) => {
+            const chip = 'inline-flex items-baseline gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10';
+            const inner = (
+              <>
+                <b className="text-white font-extrabold">{count}</b>
+                <span className="text-gray-400 text-xs font-semibold">{label}</span>
+              </>
+            );
+            return isOwn ? (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFollowList(key)}
+                className={`${chip} hover:border-[#CDFF00]/40 hover:bg-white/[0.08] transition-colors`}
+              >
+                {inner}
+              </button>
+            ) : (
+              <span key={key} className={chip}>{inner}</span>
+            );
+          })}
         </div>
 
         {/* Role, location, bio and links — rendered once, at every width. */}
@@ -506,6 +531,21 @@ export default function Profile() {
           ) : <EmptyTab icon={Flame} text="Posts you like will appear here" />
         )}
       </div>
+
+      {/* ── FOLLOWERS / FOLLOWING ── */}
+      <AnimatePresence>
+        {followList && (
+          <FollowListModal
+            mode={followList}
+            onClose={() => setFollowList(null)}
+            // Following somebody from inside the list changes the number on the chip that
+            // opened it. Adjusting locally keeps the two agreeing without refetching the
+            // whole profile behind an open modal.
+            onCountChange={(delta) =>
+              setRel((r) => ({ ...r, following: Math.max(0, (r.following || 0) + delta) }))}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── REPORT MODAL ── */}
       <AnimatePresence>

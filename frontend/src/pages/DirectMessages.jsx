@@ -10,7 +10,7 @@ import { shortName } from '../utils/displayName';
 import SmartImage from '../components/SmartImage';
 import OfferMessageCard from '../components/OfferMessageCard';
 import StoryViewer from '../components/stories/StoryViewer';
-import { MessageCircleOff, CircleUserRound, ShieldCheck, MoveLeft, Link2, Laugh, EllipsisVertical, ScanSearch, SendHorizontal, CircleCheck, ListChecks, Bookmark, CircleX, NotebookPen as StickerIcon, RefreshCcw, Cigarette, ShoppingBasket, ThumbsUp, WandSparkles, BadgeDollarSign } from 'lucide-react';
+import { MessageCircleOff, CircleUserRound, ShieldCheck, MoveLeft, Link2, Laugh, EllipsisVertical, ScanSearch, SendHorizontal, CircleCheck, ListChecks, Bookmark, CircleX, NotebookPen as StickerIcon, RefreshCcw, Cigarette, ShoppingBasket, ThumbsUp, WandSparkles, BadgeDollarSign, MailQuestion } from 'lucide-react';
 
 /* Curated emoji + sticker sets for the composer pickers (no external deps). */
 const EMOJI_CATEGORIES = [
@@ -258,7 +258,9 @@ export default function DirectMessages() {
    * create a real INQUIRED booking against that room and send the card to the wrong person.
    */
   const [listingContext, setListingContext] = useState(
-    navState?.listing ? { ...navState.listing, partnerId: partnerId || null } : null
+    navState?.listing
+      ? { ...navState.listing, partnerId: partnerId || null, isEnquiry: !!navState.isEnquiry }
+      : null
   );
   // The buyer's proposed price for listingContext, and whether that offer is mid-flight
   // (creates a Booking, then sends the OFFER card that references it — see submitOffer).
@@ -554,6 +556,28 @@ export default function DirectMessages() {
     const content = newMsg;
     setNewMsg('');
     inputRef.current?.focus();
+
+    // The next message out of this composer is the enquiry itself — tagged and carrying
+    // the listing snapshot, so the seller sees both what it means and what it's about, the
+    // same way an OFFER card carries its booking. One-shot: cleared right after, so a reply
+    // typed later in the same thread goes out as an ordinary message, not another enquiry.
+    if (activeListing?.isEnquiry) {
+      setListingContext(null);
+      await optimisticSend(
+        {
+          content, messageType: 'ENQUIRY',
+          sharedListingId: activeListing.id,
+          sharedListingTitle: activeListing.title,
+          sharedListingPrice: activeListing.price,
+          sharedListingCurrency: activeListing.currency,
+          sharedListingImage: activeListing.mediaUrls?.[0],
+        },
+        () => directMessagesApi.sendEnquiry(activePartner, activeListing, content),
+        () => { setNewMsg(content); setListingContext(activeListing); }
+      );
+      return;
+    }
+
     await optimisticSend(
       { content, messageType: 'TEXT' },
       () => directMessagesApi.sendMessage(activePartner, content),
@@ -1303,11 +1327,36 @@ export default function DirectMessages() {
                   )}
                 </AnimatePresence>
 
+                {/* Enquiry strip — no price field, because there is nothing to negotiate:
+                    the text already in the composer (or whatever the buyer replaces it
+                    with) IS the enquiry. Hitting the normal Send button tags that one
+                    message ENQUIRY and clears this; nothing about later replies changes. */}
+                <AnimatePresence initial={false}>
+                  {activeListing?.isEnquiry && (
+                    <motion.div {...STRIP_MOTION} className="shrink-0 overflow-hidden border-b border-white/5 bg-black/40">
+                      <div className="px-4 py-2.5 flex items-center gap-2">
+                        <MailQuestion className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />
+                        <span className="text-xs text-[#CDFF00] font-bold truncate flex-1">
+                          Sending as an enquiry about {activeListing.title}
+                        </span>
+                        <motion.button
+                          whileHover={{ scale: 1.15, rotate: 90 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setListingContext(null)}
+                          className="text-gray-500 hover:text-white shrink-0"
+                        >
+                          <CircleX className="w-3.5 h-3.5" />
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Negotiation context strip — where a buyer actually names a price. Sending
                     it creates the Booking and shares it into the thread as a live OFFER card;
                     from then on the negotiation plays out on that card, not in here. */}
                 <AnimatePresence initial={false}>
-                  {activeListing && (
+                  {activeListing && !activeListing.isEnquiry && (
                     <motion.div {...STRIP_MOTION} className="shrink-0 overflow-hidden border-b border-white/5 bg-black/40">
                       <div className="px-4 pt-2.5 pb-2 flex items-center gap-2">
                         <Bookmark className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />
@@ -1482,6 +1531,53 @@ export default function DirectMessages() {
                                   <span className="text-[10px] text-gray-400 leading-none">{formatClock(msg.createdAt)}</span>
                                   {ticks}
                                 </span>
+                              </div>
+                            </motion.div>
+                          );
+                        }
+
+                        // An enquiry: a real message about a listing, not a negotiation offer
+                        // (that's the OFFER card below) and not a bare share (LISTING, further
+                        // down). Deliberately green rather than the brand lime every "my own
+                        // message" bubble already uses — the point is for this to read as its
+                        // own category to whoever receives it, not just "a message I sent",
+                        // which the usual isMe tint would not distinguish from anything else.
+                        if (msg.messageType === 'ENQUIRY' && msg.sharedListingId) {
+                          return (
+                            <motion.div
+                              key={row.id}
+                              {...bubbleIn}
+                              transition={SOFT_SPRING}
+                              className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${startsRun ? 'mt-2.5' : 'mt-[3px]'}`}
+                            >
+                              <div className="max-w-[75%] md:max-w-[65%] rounded-2xl border border-emerald-500/40 bg-emerald-500/10 overflow-hidden">
+                                <div className="flex items-center gap-1.5 px-3 pt-2">
+                                  <MailQuestion className="w-3 h-3 text-emerald-400 shrink-0" />
+                                  <span className="text-[9px] font-black tracking-widest text-emerald-400">ENQUIRY</span>
+                                </div>
+                                <div className="px-3 pt-1.5">
+                                  <Link
+                                    to={`/listing/${msg.sharedListingId}`}
+                                    className="flex items-center gap-2.5 p-2 rounded-xl bg-black/20 hover:bg-black/30 transition-colors"
+                                  >
+                                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/40 border border-white/10 shrink-0 flex items-center justify-center">
+                                      {msg.sharedListingImage
+                                        ? <img src={uploadUrl(msg.sharedListingImage)} alt="" className="w-full h-full object-cover" />
+                                        : <ShoppingBasket className="w-4 h-4 text-gray-500" />}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-bold text-white truncate">{msg.sharedListingTitle || 'Listing'}</p>
+                                      {msg.sharedListingPrice != null && (
+                                        <p className="text-[10px] text-emerald-400 font-bold">{formatPrice(msg.sharedListingPrice, msg.sharedListingCurrency)}</p>
+                                      )}
+                                    </div>
+                                  </Link>
+                                </div>
+                                <p className="text-[14.5px] leading-[19px] break-words text-white px-3 pt-2 pb-1">{msg.content}</p>
+                                <div className="flex items-center gap-1 justify-end px-3 pb-1.5">
+                                  <span className="text-[11px] text-gray-400 leading-none">{formatClock(msg.createdAt)}</span>
+                                  {ticks}
+                                </div>
                               </div>
                             </motion.div>
                           );
