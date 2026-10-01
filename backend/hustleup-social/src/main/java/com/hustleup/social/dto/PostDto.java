@@ -151,7 +151,7 @@ public class PostDto {
     /** Timestamp of when the post was created. */
     LocalDateTime createdAt;
 
-    /** When the author last edited the text, or null. Drives the "edited" marker in the UI. */
+    /** When the author last edited text or a photo, or null. Drives the "edited" marker in the UI. */
     LocalDateTime editedAt;
 
     // ── Static factory methods (entity → DTO transformation) ─────────────────

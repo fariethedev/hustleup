@@ -71,6 +71,11 @@ public class ShopOrder {
     @Builder.Default
     private int quantity = 1;
 
+    /** Units were deducted from tracked stock; cleared when an unpaid checkout expires. */
+    @Column(name = "stock_reserved", nullable = false)
+    @Builder.Default
+    private boolean stockReserved = false;
+
     @Column(name = "total_price", precision = 12, scale = 2, nullable = false)
     private BigDecimal totalPrice;
 

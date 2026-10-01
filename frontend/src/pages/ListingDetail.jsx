@@ -1,12 +1,12 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { LISTING_TYPES, formatPrice, convertToPLN } from '../utils/constants';
+import { motion as Motion } from "framer-motion";
+import { LISTING_TYPES, formatPrice } from '../utils/constants';
 import { Navigation, ShieldCheck, MessagesSquare, ShieldPlus, BaggageClaim, MoveLeft, Sparkle, ThumbsUp, Forward, Box, CircleCheck, BadgeDollarSign, CirclePlus, CalendarRange, TicketCheck, CircleMinus, Images as ImageIcon, SendHorizontal, Recycle, QrCode, Luggage, Banknote, MessageCircle } from 'lucide-react';
 import SwapOfferModal from '../components/SwapOfferModal';
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { listingsApi, usersApi, bookingsApi, availabilityApi, feedApi, ticketsApi } from '../api/client';
-import { addToCart, selectCartItems } from '../store/cartSlice';
+import { addToCart, closeCart, selectCartItems } from '../store/cartSlice';
 import { selectUser } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
 import ShareModal from '../components/ShareModal';
@@ -66,7 +66,7 @@ export default function ListingDetail() {
 
   useEffect(() => {
     setLoading(true);
-    try { setSaved((JSON.parse(localStorage.getItem('hustleup_saved')) || []).includes(id)); } catch {}
+    try { setSaved((JSON.parse(localStorage.getItem('hustleup_saved')) || []).includes(id)); } catch { /* Saved items are optional when browser storage is unavailable. */ }
     listingsApi.getById(id)
       .then((r) => {
         const data = r.data;
@@ -107,17 +107,17 @@ export default function ListingDetail() {
     dispatch(addToCart({
       listingId: listing.id,
       title: listing.title,
-      price: convertToPLN(listing.price, listing.currency || 'PLN'),
-      currency: 'PLN',
+      price: Number(listing.price),
+      currency: listing.currency || 'PLN',
       // coverImage, not mediaUrls[0]: if the seller led with a video clip the cart row would
       // otherwise try to render it as an <img> and show nothing.
       image: coverImage(listing),
       sellerId: listing.sellerId,
       sellerName: listing.sellerName || seller?.fullName || 'Seller',
-      // Delivery travels with the line, converted to PLN like the price above, so the cart
+      // Delivery travels with the line in its charge currency, so the cart
       // can show postage before checkout rather than after payment.
       shippingMethod: listing.shippingMethod,
-      shippingPrice: convertToPLN(listing.shippingPrice || 0, listing.currency || 'PLN'),
+      shippingPrice: Number(listing.shippingPrice) || 0,
       // What this seller asks a buyer at checkout. Carried on the line so the checkout
       // can put the questions in front of them without re-fetching every listing.
       checkoutFields: listing.checkoutFields,
@@ -311,7 +311,7 @@ export default function ListingDetail() {
       setUpdateImage(null);
       setUpdateImagePreview('');
       showToast('Update posted!');
-    } catch (e) {
+    } catch {
       showToast('Could not post update', 'error');
     } finally {
       setPostingUpdate(false);
@@ -323,21 +323,22 @@ export default function ListingDetail() {
     dispatch(addToCart({
       listingId: listing.id,
       title: listing.title,
-      price: convertToPLN(listing.price, listing.currency || 'PLN'),
-      currency: 'PLN',
+      price: Number(listing.price),
+      currency: listing.currency || 'PLN',
       // coverImage, not mediaUrls[0]: if the seller led with a video clip the cart row would
       // otherwise try to render it as an <img> and show nothing.
       image: coverImage(listing),
       sellerId: listing.sellerId,
       sellerName: listing.sellerName || seller?.fullName || 'Seller',
-      // Delivery travels with the line, converted to PLN like the price above, so the cart
+      // Delivery travels with the line in its charge currency, so the cart
       // can show postage before checkout rather than after payment.
       shippingMethod: listing.shippingMethod,
-      shippingPrice: convertToPLN(listing.shippingPrice || 0, listing.currency || 'PLN'),
+      shippingPrice: Number(listing.shippingPrice) || 0,
       // What this seller asks a buyer at checkout. Carried on the line so the checkout
       // can put the questions in front of them without re-fetching every listing.
       checkoutFields: listing.checkoutFields,
     }));
+    dispatch(closeCart());
     navigate('/checkout');
   };
 
@@ -442,13 +443,13 @@ export default function ListingDetail() {
           <div className="flex flex-col gap-4">
             {/* Title */}
             <div>
-              <motion.h1
+              <Motion.h1
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 className="text-xl sm:text-2xl font-black text-white mb-2 tracking-tighter leading-tight"
               >
                 {listing.title}
-              </motion.h1>
+              </Motion.h1>
               <div className="flex flex-wrap items-center gap-3">
                 {listing.avgRating > 0 && (
                   <div className="flex items-center gap-1.5 bg-[#CDFF00] text-black px-2 py-0.5 rounded-lg text-xs font-black">

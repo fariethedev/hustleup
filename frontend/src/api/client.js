@@ -7,6 +7,19 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Validate the destination before sending a buyer or seller off-site.
+export const stripeHostedUrl = (value, kind = 'connect') => {
+  let url;
+  try { url = new URL(value); } catch { throw new Error('Stripe did not return a valid secure link. Please try again.'); }
+  const host = kind === 'checkout' ? 'checkout.stripe.com' : 'connect.stripe.com';
+  if (url.protocol !== 'https:' || url.hostname !== host || url.port || url.username || url.password) {
+    throw new Error('Stripe did not return a valid secure link. Please try again.');
+  }
+  return url.href;
+};
+
+let refreshRequest;
+
 // Helper for non-React code to trigger toasts
 export const dispatchToast = (message, type = 'error') => {
   const event = new CustomEvent('hustleup-toast', { detail: { message, type } });
@@ -88,7 +101,7 @@ api.interceptors.response.use(
     // them to the login screen. The API now returns 401 for authentication and 403 for
     // authorisation, so this can tell them apart.
     const hasStoredToken = !!localStorage.getItem('hustleup_token') || !!localStorage.getItem('hustleup_refresh');
-    if (status === 401 && !original._retry && hasStoredToken) {
+    if (status === 401 && original && !original._retry && hasStoredToken) {
       original._retry = true;
       const refreshToken = localStorage.getItem('hustleup_refresh');
       if (refreshToken) {
@@ -96,7 +109,19 @@ api.interceptors.response.use(
           // Raw axios (not the `api` instance) to avoid recursing through this same
           // interceptor — so it needs the absolute base spelled out, since it does not
           // inherit baseURL.
-          const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+          // Rotating tokens may only be consumed once. Concurrent requests must share
+          // a refresh instead of invalidating each other's session.
+          if (!refreshRequest) {
+            refreshRequest = axios.post(`${API_URL}/auth/refresh`, { refreshToken })
+              .then((response) => {
+                if (!response.data?.accessToken) throw new Error('Session refresh returned no access token');
+                localStorage.setItem('hustleup_token', response.data.accessToken);
+                if (response.data.refreshToken) localStorage.setItem('hustleup_refresh', response.data.refreshToken);
+                return response;
+              })
+              .finally(() => { refreshRequest = null; });
+          }
+          const res = await refreshRequest;
           const newToken = res.data.accessToken;
           localStorage.setItem('hustleup_token', newToken);
           // The server now ROTATES the refresh token: the one just sent has been deleted
@@ -316,8 +341,12 @@ export const ticketsApi = {
 // Stripe's own hosted onboarding form — HustleSpace never sees or stores the actual bank
 // details, only the resulting account status.
 export const payoutsApi = {
-  status: () => api.get('/payouts/status'),
-  connect: () => api.post('/payouts/connect'),
+  status: () => api.get('/payouts/status', { timeout: 15000 }),
+  connect: async () => {
+    const response = await api.post('/payouts/connect', null, { timeout: 20000 });
+    const url = stripeHostedUrl(response.data?.url);
+    return { ...response, data: { ...response.data, url } };
+  },
 };
 
 // Seller-defined booking slots — HAIR_BEAUTY/SKILL listings let buyers book a specific
@@ -498,6 +527,11 @@ export const feedApi = {
   getByAuthor: (userId) => api.get(`/feed/user/${userId}`),
   /** Edit your own post's text. Media is fixed once published. */
   updatePost: (postId, content) => api.patch(`/feed/${postId}`, { content }),
+  replacePhoto: (postId, mediaIndex, file) => {
+    const body = new FormData();
+    body.append('media', file);
+    return api.put(`/feed/${postId}/media/${mediaIndex}`, body, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
   /** Delete your own post, along with its likes, comments and saves. */
   deletePost: (postId) => api.delete(`/feed/${postId}`),
   /** Posts from the people you follow. Empty when you follow nobody — never a fallback. */

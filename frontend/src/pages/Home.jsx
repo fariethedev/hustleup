@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from "framer-motion";
 import { MoveRight, Building2, ShoppingBasket, Navigation, TicketCheck, Sparkle, ShieldPlus, WandSparkles, Handshake } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -98,7 +98,7 @@ function CarouselArrows({ edges, page, label }) {
   return (
     <>
       {!edges.start && (
-        <motion.button
+        <Motion.button
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           onClick={() => page(-1)}
@@ -106,10 +106,10 @@ function CarouselArrows({ edges, page, label }) {
           className="hidden md:flex absolute -left-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-[#0A0A0A] border border-[#CDFF00]/40 items-center justify-center text-[#CDFF00] shadow-[0_4px_16px_rgba(0,0,0,0.7)] hover:bg-[#CDFF00] hover:text-black transition-colors"
         >
           <MoveRight className="w-5 h-5 rotate-180" />
-        </motion.button>
+        </Motion.button>
       )}
       {!edges.end && (
-        <motion.button
+        <Motion.button
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           onClick={() => page(1)}
@@ -117,7 +117,7 @@ function CarouselArrows({ edges, page, label }) {
           className="hidden md:flex absolute -right-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-[#0A0A0A] border border-[#CDFF00]/40 items-center justify-center text-[#CDFF00] shadow-[0_4px_16px_rgba(0,0,0,0.7)] hover:bg-[#CDFF00] hover:text-black transition-colors"
         >
           <MoveRight className="w-5 h-5" />
-        </motion.button>
+        </Motion.button>
       )}
     </>
   );
@@ -144,7 +144,7 @@ function FeatureCarousel() {
         className="flex gap-6 overflow-x-auto overscroll-x-contain scrollbar-hide snap-x snap-mandatory pb-2"
       >
         {features.map((feature, i) => (
-          <motion.div
+          <Motion.div
             key={feature.title}
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -164,7 +164,7 @@ function FeatureCarousel() {
                 {feature.cta} <MoveRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
             </Link>
-          </motion.div>
+          </Motion.div>
         ))}
       </div>
     </div>
@@ -195,7 +195,7 @@ function EventCarousel({ events }) {
           const startsOn = formatEventDate(event.eventStartsAt);
           const isLive = isHappeningNow(event.eventStartsAt);
           return (
-            <motion.div
+            <Motion.div
               key={event.id}
               // animate, not whileInView. In a horizontally scrolling track, viewport-triggered
               // reveals leave every card past the right edge sitting at opacity 0 — swiping the
@@ -254,7 +254,7 @@ function EventCarousel({ events }) {
                   </Link>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           );
         })}
       </div>
@@ -294,10 +294,10 @@ export default function Home() {
           Two layouts in one section. On mobile the photograph gets a block of its own at the
           top, uninterrupted, and the copy sits beneath it on the page background. From md up
           it returns to the full-bleed frame with the copy laid over the lower third. */}
-      <section className="relative w-full overflow-hidden md:h-[100svh] md:min-h-[560px] md:flex md:items-end media-overlay">
+      <section className="relative mx-auto grid max-w-7xl gap-8 overflow-hidden bg-[#090909] px-5 pb-12 pt-28 sm:px-8 md:min-h-[680px] md:grid-cols-2 md:items-center md:gap-12 md:pb-20 md:pt-36">
         {/* 100svh (not 100vh) so mobile browser chrome appearing and disappearing doesn't make
             the section jump height mid-scroll. */}
-        <div className="relative h-[54svh] min-h-[300px] w-full md:absolute md:inset-0 md:h-full">
+        <div className="relative order-2 h-64 w-full overflow-hidden rounded-[2rem] md:h-[460px]">
           <img
             src={heroImage}
             alt="Students gathered together on their campus steps"
@@ -311,41 +311,41 @@ export default function Home() {
               lower-centre behind that copy, so it is desktop-only. The top band gives the
               navbar a dark ground: it renders transparent until scrolled, and without it the
               logo and icons float over open photograph. */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent md:via-[#050505]/55 md:to-[#050505]/25" />
-          <div className="hidden md:block absolute inset-0 bg-[radial-gradient(ellipse_at_50%_78%,rgba(5,5,5,0.75)_0%,rgba(5,5,5,0.4)_50%,transparent_80%)]" />
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#050505]/90 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+          <div className="absolute inset-x-5 bottom-5 flex items-center justify-between gap-3 rounded-2xl border border-white/20 bg-black/40 p-4 backdrop-blur-md"><div><p className="text-sm font-semibold text-white">Good things happen locally.</p><p className="mt-1 text-xs text-gray-300">Meet the people behind the products.</p></div><Link to="/explore/shops" aria-label="Discover local shops" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#CDFF00] text-black"><MoveRight className="h-5 w-5" /></Link></div>
         </div>
 
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-8 md:pt-0 pb-14 md:pb-24">
-          <motion.div
+        <div className="relative order-1 w-full">
+          <Motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
-            className="max-w-2xl mx-auto text-center"
+            className="max-w-xl"
           >
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-black text-white leading-[1.08] tracking-tight mb-7 drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
-              The <span className="text-[#CDFF00]">space</span> to shop, connect and{' '}
-              <span className="text-[#CDFF00]">hustle</span>.
+            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-2 text-xs text-gray-300"><span className="h-1.5 w-1.5 rounded-full bg-[#CDFF00]" /> Your community. Your marketplace.</p>
+            <h1 className="mb-5 text-[42px] font-heading font-extrabold leading-[1.06] tracking-tight text-white sm:text-6xl lg:text-7xl">
+              Find your people.<br /><span className="text-[#CDFF00]">Make it happen.</span>
             </h1>
-
-            <div className="flex flex-wrap items-center justify-center gap-4">
+            <p className="mb-7 max-w-md text-base leading-relaxed text-gray-400">Shop local finds, book a fresh look, or turn your own idea into a business. It starts with the people around you.</p>
+            <div className="flex flex-wrap items-center gap-3">
               {/* Desktop offers both routes. Mobile leads with browsing alone: a signed-out
                   visitor meets the sign-up wall the moment they act on anything they find,
                   so putting the choice up front only adds a decision before the value. */}
               <Link
-                to={isAuthenticated ? '/dashboard' : '/register'}
-                className="hidden md:inline-flex px-7 py-3.5 rounded-full bg-[#CDFF00] text-black font-bold text-sm hover:brightness-110 active:scale-95 transition-all shadow-[0_10px_30px_rgba(205,255,0,0.25)] items-center gap-2"
+                to="/explore"
+                className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#CDFF00] px-6 py-3.5 text-sm font-bold text-black hover:brightness-110"
               >
-                Join the community <MoveRight className="w-4 h-4" />
+                Explore the marketplace <MoveRight className="w-4 h-4" />
               </Link>
               <Link
-                to="/explore"
-                className="px-7 py-3.5 rounded-full border border-white/25 bg-black/30 backdrop-blur-sm text-white font-bold text-sm hover:bg-white/10 hover:border-white/40 transition-all"
+                to={isAuthenticated ? '/dashboard?tab=shop' : '/register'}
+                className="inline-flex min-h-12 items-center rounded-full border border-white/25 px-6 py-3.5 text-sm font-semibold text-white hover:bg-white/5"
               >
-                Explore the marketplace
+                Start your shop
               </Link>
             </div>
-          </motion.div>
+            <div className="mt-8 flex flex-wrap gap-x-5 gap-y-3 border-t border-white/10 pt-5 text-xs text-gray-400"><Link to="/explore/listings?type=FOOD" className="min-h-8 py-2 hover:text-white">Food & groceries</Link><Link to="/explore/listings?type=HAIR_BEAUTY" className="min-h-8 py-2 hover:text-white">Hair & beauty</Link><Link to="/feed" className="min-h-8 py-2 hover:text-white">Community conversations</Link></div>
+          </Motion.div>
         </div>
 
       </section>
@@ -380,7 +380,7 @@ export default function Home() {
           <div className="flex gap-6 sm:gap-8 overflow-x-auto overscroll-x-contain scrollbar-hide pb-2 px-2 snap-x justify-start sm:justify-center"
                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {shops.slice(0, 8).map((shop, i) => (
-              <motion.div
+              <Motion.div
                 key={shop.id}
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -413,7 +413,7 @@ export default function Home() {
                     </span>
                   </div>
                 </Link>
-              </motion.div>
+              </Motion.div>
             ))}
           </div>
         </div>
@@ -462,7 +462,7 @@ export default function Home() {
           ) : listings.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               {listings.slice(0, 8).map((listing, i) => (
-                <motion.div
+                <Motion.div
                   key={listing.id}
                   initial={{ opacity: 0, y: 24 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -494,7 +494,7 @@ export default function Home() {
                       </div>
                     </div>
                   </Link>
-                </motion.div>
+                </Motion.div>
               ))}
             </div>
           ) : (
@@ -522,7 +522,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {steps.map((step, i) => (
-              <motion.div
+              <Motion.div
                 key={step.num}
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -535,7 +535,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-white font-heading font-bold text-lg mb-2">{step.title}</h3>
                 <p className="text-gray-400 text-sm leading-relaxed">{step.desc}</p>
-              </motion.div>
+              </Motion.div>
             ))}
           </div>
         </div>
@@ -544,7 +544,7 @@ export default function Home() {
       {/* ── ABOUT ── */}
       <section id="about" className="py-16 md:py-24 border-t border-white/5 scroll-mt-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, x: -24 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: '-60px' }}
@@ -563,9 +563,9 @@ export default function Home() {
               <p className="text-black font-heading font-black text-2xl leading-none">By students,</p>
               <p className="text-black/70 font-bold text-sm mt-1">for students.</p>
             </div>
-          </motion.div>
+          </Motion.div>
 
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, x: 24 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: '-60px' }}
@@ -604,14 +604,14 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </motion.div>
+          </Motion.div>
         </div>
       </section>
 
       {/* ── CTA ── */}
       <section className="py-16 md:py-24 border-t border-white/5">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, scale: 0.97 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -648,7 +648,7 @@ export default function Home() {
                 Browse the marketplace
               </Link>
             </div>
-          </motion.div>
+          </Motion.div>
         </div>
       </section>
     </div>

@@ -1,6 +1,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useSelector } from 'react-redux';
+import { motion as Motion } from "framer-motion";
+import { useSelector, useDispatch } from 'react-redux';
+import { addToCart } from '../store/cartSlice';
 import { useShop, useShops } from '../hooks/useShops';
 import { listingsApi, followsApi } from '../api/client';
 import { formatPrice, displayCity } from '../utils/constants';
@@ -13,8 +14,10 @@ import ListingCard from '../components/ListingCard';
 import ShopReviews from '../components/ShopReviews';
 import AppointmentBooking from '../components/AppointmentBooking';
 import { uploadUrl } from '../config';
+import { isAppointmentBusiness, isProductInStock, stockLabel } from '../utils/shopCategories';
 
 export default function ShopDetail() {
+  const dispatch = useDispatch();
   const { id } = useParams();
   const { shop, loading } = useShop(id);
   const { shops: allShops } = useShops();
@@ -22,6 +25,8 @@ export default function ShopDetail() {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('All');
+  const [productSearch, setProductSearch] = useState('');
+  const [inStockOnly, setInStockOnly] = useState(false);
   const [ownerListings, setOwnerListings] = useState([]);
   const { showToast } = useToast();
 
@@ -107,6 +112,7 @@ export default function ShopDetail() {
    * of the same draft: one unit, no offer, no note.
    */
   const buyNow = (product) => {
+    if (!isProductInStock(product) || isOwner) return;
     try {
       sessionStorage.setItem(
         'hustleup_shop_checkout_draft',
@@ -118,6 +124,10 @@ export default function ShopDetail() {
       // is missing, which is exactly what this was writing.
     }
     navigate(`/shop/${shop.slug || shop.id}/product/${product.id}/checkout`);
+  };
+  const addProduct = (product) => {
+    if (!isProductInStock(product) || isOwner) return;
+    dispatch(addToCart({ listingId: `shop:${shop.id}:${product.id}`, shopSlug: shop.slug || shop.id, productId: product.id, title: product.name, price: Number(product.price), currency: product.currency || 'PLN', image: product.imageUrl, sellerId: shop.ownerId, sellerName: shop.name, shippingMethod: product.shippingMethod, shippingPrice: Number(product.shippingPrice) || 0, stockQuantity: product.stockQuantity }));
   };
 
   if (loading) {
@@ -150,21 +160,23 @@ export default function ShopDetail() {
 
   const products = shop.products || [];
   const categories = ['All', ...new Set(products.map((p) => p.category).filter(Boolean))];
-  const filteredProducts = activeCategory === 'All'
-    ? products
-    : products.filter((p) => p.category === activeCategory);
+  const selectedCategory = categories.includes(activeCategory) ? activeCategory : 'All';
+  const filteredProducts = products.filter((product) =>
+    (selectedCategory === 'All' || product.category === selectedCategory)
+    && `${product.name} ${product.description || ''} ${product.category || ''}`.toLowerCase().includes(productSearch.trim().toLowerCase())
+    && (!inStockOnly || isProductInStock(product)));
 
   // Cross-sell: a handful of other live storefronts, and one product from each.
   const otherShops = allShops.filter((s) => s.id !== shop.id).slice(0, 4);
   const suggestedProducts = otherShops
-    .map((s) => ({ ...(s.products || [])[0], shopId: s.slug || s.id, shopName: s.name, shopAccent: s.accentColor }))
+    .map((s) => ({ ...(s.products || []).find(isProductInStock), shopId: s.slug || s.id, shopName: s.name, shopAccent: s.accentColor }))
     .filter((p) => p.id);
 
   return (
     <div className="min-h-screen text-white">
       {/* Immersive Shop Banner & Header */}
       <section className="relative h-[260px] sm:h-[320px] overflow-hidden media-overlay">
-        <motion.div
+        <Motion.div
           initial={{ scale: 1.1 }}
           animate={{ scale: 1 }}
           transition={{ duration: 1.5, ease: 'easeOut' }}
@@ -179,7 +191,7 @@ export default function ShopDetail() {
             className="w-full h-full object-cover"
             fallbackClassName="opacity-40"
           />
-        </motion.div>
+        </Motion.div>
         <div
           className="absolute inset-0 opacity-25 pointer-events-none"
           style={{ background: `radial-gradient(circle at 30% 20%, ${shop.accentColor || '#CDFF00'} 0%, transparent 60%)` }}
@@ -265,16 +277,16 @@ export default function ShopDetail() {
         <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 px-4 sm:px-12">
           <div className="max-w-7xl mx-auto flex flex-col items-start gap-1.5 sm:gap-2">
             {shop.category && (
-              <motion.span
+              <Motion.span
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 className="px-3 py-1 sm:px-4 sm:py-1.5 rounded-2xl text-[9px] sm:text-[10px] font-black tracking-widest bg-black/70 backdrop-blur-md border border-white/20"
                 style={{ color: shop.accentColor || '#CDFF00' }}
               >
                 {shop.category}
-              </motion.span>
+              </Motion.span>
             )}
-            <motion.h1
+            <Motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               // Clamped: a long shop name wrapped to three lines at 30px and shoved the
@@ -282,8 +294,8 @@ export default function ShopDetail() {
               className="text-2xl sm:text-5xl font-black text-white mb-0.5 sm:mb-1 tracking-tighter leading-[1.05] line-clamp-2 drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
             >
               {shop.name}
-            </motion.h1>
-            <motion.div
+            </Motion.h1>
+            <Motion.div
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                transition={{ delay: 0.3 }}
@@ -305,7 +317,7 @@ export default function ShopDetail() {
                   <span className="opacity-50 shrink-0">by</span> <span className="truncate">{shop.ownerName}</span>
                 </Link>
               )}
-            </motion.div>
+            </Motion.div>
           </div>
         </div>
       </section>
@@ -343,6 +355,12 @@ export default function ShopDetail() {
               <span className="text-[#CDFF00]">{shop.name}</span>
             </div>
 
+            {products.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <input type="search" aria-label="Search this shop" placeholder="Search this shop" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white" />
+                <label className="flex items-center gap-2 text-xs text-gray-300"><input type="checkbox" checked={inStockOnly} onChange={(e) => setInStockOnly(e.target.checked)} className="accent-[#CDFF00]" /> In stock only</label>
+              </div>
+            )}
             {/* Category filter — only worth showing when the seller uses more than one shelf */}
             {categories.length > 2 && (
               <div className="flex flex-wrap gap-2 mb-6 sm:mb-8 p-2 rounded-3xl bg-white/[0.03] border border-white/5 max-w-full w-fit">
@@ -350,8 +368,9 @@ export default function ShopDetail() {
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
+                    aria-pressed={selectedCategory === cat}
                     className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-2xl text-[10px] font-black tracking-widest transition-all ${
-                      activeCategory === cat
+                      selectedCategory === cat
                         ? 'bg-[#CDFF00] text-black shadow-[0_0_20px_rgba(205,255,0,0.3)]'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'
                     }`}
@@ -367,7 +386,7 @@ export default function ShopDetail() {
                 different products. */}
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
               {filteredProducts.map((product, i) => (
-                <motion.div
+                <Motion.div
                   key={product.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -383,6 +402,8 @@ export default function ShopDetail() {
                   <div className="group relative flex flex-col h-full bg-[#0A0A0A] border border-white/10 hover:border-[#00FFFF]/60 rounded-2xl overflow-hidden transition-colors duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.4)] hover:shadow-[0_8px_24px_rgba(0,255,255,0.15)]">
                     <Link
                       to={`/shop/${shop.slug || shop.id}/product/${product.id}/checkout`}
+                      onClick={(e) => { e.preventDefault(); buyNow(product); }}
+                      aria-disabled={!isProductInStock(product) || isOwner}
                       className="flex flex-col h-full"
                     >
                       <div className="relative aspect-[4/5] overflow-hidden bg-black shrink-0">
@@ -402,22 +423,24 @@ export default function ShopDetail() {
                             is invalid and behaves unpredictably — so each stops the tile's own
                             navigation and routes itself, exactly as ListingCard's cart does. */}
                         <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); buyNow(product); }}
-                          aria-label={`Buy ${product.name}`}
-                          className="absolute bottom-2 right-2 w-9 h-9 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all active:scale-90 bg-white/10 backdrop-blur-md border border-white/25 text-white hover:bg-[#CDFF00] hover:text-black hover:border-[#CDFF00]"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); addProduct(product); }}
+                          aria-label={`Add ${product.name} to cart`}
+                          disabled={!isProductInStock(product) || isOwner}
+                          className="absolute bottom-2 right-2 min-h-11 px-3 rounded-full flex items-center justify-center gap-2 bg-white text-black text-xs font-semibold hover:bg-[#CDFF00] disabled:opacity-50"
                         >
-                          <BaggageClaim className="w-4 h-4" />
+                          <BaggageClaim className="w-4 h-4" /> Add to cart
                         </button>
                         <button
                           onClick={(e) => {
                             e.preventDefault(); e.stopPropagation();
-                            navigate(`/shop/${shop.slug || shop.id}/product/${product.id}/negotiate`);
+                            navigate(`/dm/${shop.ownerId}`);
                           }}
-                          title="Make an offer"
-                          aria-label={`Make an offer on ${product.name}`}
-                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[#CDFF00] text-black flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.5)] hover:scale-110 transition-transform"
+                          title="Message shop"
+                          aria-label={`Message shop about ${product.name}`}
+                          disabled={!isProductInStock(product) || isOwner}
+                          className="absolute top-2 right-2 w-11 h-11 rounded-full bg-black/70 text-white flex items-center justify-center"
                         >
-                          <BadgeDollarSign className="w-3.5 h-3.5" strokeWidth={2.5} />
+                          <MessagesSquare className="w-4 h-4" />
                         </button>
                       </div>
 
@@ -429,6 +452,7 @@ export default function ShopDetail() {
                         <h3 className="mt-1.5 text-[13px] font-black text-white leading-snug line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
                           {product.name}
                         </h3>
+                        {product.stockQuantity != null && <p className={`text-xs mt-1.5 ${isProductInStock(product) ? 'text-gray-400' : 'text-red-400'}`}>{stockLabel(product)}</p>}
 
                         {product.description && (
                           <p className="hidden sm:block text-xs text-gray-400 mt-1 line-clamp-2 leading-relaxed">
@@ -456,7 +480,7 @@ export default function ShopDetail() {
                     </Link>
 
                   </div>
-                </motion.div>
+                </Motion.div>
               ))}
             </div>
 
@@ -475,7 +499,7 @@ export default function ShopDetail() {
                   </Link>
                 ) : products.length > 0 && (
                   <button
-                    onClick={() => setActiveCategory('All')}
+                    onClick={() => { setActiveCategory('All'); setProductSearch(''); setInStockOnly(false); }}
                     className="text-xs font-black tracking-widest text-[#CDFF00] hover:text-white transition-colors"
                   >
                     Show all products
@@ -505,7 +529,7 @@ export default function ShopDetail() {
                </div>
              )}
 
-             {shop.appointmentBased && <AppointmentBooking shop={shop} />}
+             {(shop.appointmentBased || isAppointmentBusiness(shop.businessType)) && <AppointmentBooking key={shop.id} shop={shop} />}
 
              {/* "Run by" used to live here as a full panel ending in a Message owner button.
                  Messaging moved to the action row in the hero; who runs the shop is one line
@@ -555,7 +579,7 @@ export default function ShopDetail() {
               {suggestedProducts.map((product) => (
                 <Link
                   key={`${product.shopId}-${product.id}`}
-                  to={`/shop/${product.shopId}/product/${product.id}/negotiate`}
+                  to={`/shop/${product.shopId}/product/${product.id}/checkout`}
                   className="group flex flex-col h-full rounded-2xl overflow-hidden bg-black/40 border border-white/10 hover:border-[#CDFF00]/40 transition-all duration-300"
                 >
                   <div className="h-24 shrink-0 relative overflow-hidden bg-black/40 border-b border-white/5">

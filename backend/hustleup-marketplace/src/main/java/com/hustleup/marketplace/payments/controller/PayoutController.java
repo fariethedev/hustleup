@@ -44,6 +44,7 @@ public class PayoutController {
     private final com.hustleup.marketplace.shipping.ShipmentService shipmentService;
     private final com.hustleup.marketplace.booking.service.BookingService bookingService;
     private final EmailVerificationGuard emailVerificationGuard;
+    private final com.hustleup.marketplace.shop.service.ShopInventoryService inventoryService;
 
     @Value("${app.stripe.connect-webhook-secret}")
     private String webhookSecret;
@@ -56,7 +57,8 @@ public class PayoutController {
                              com.hustleup.marketplace.listing.repository.ListingRepository listingRepository,
                              com.hustleup.marketplace.shipping.ShipmentService shipmentService,
                              com.hustleup.marketplace.booking.service.BookingService bookingService,
-                             EmailVerificationGuard emailVerificationGuard) {
+                             EmailVerificationGuard emailVerificationGuard,
+                             com.hustleup.marketplace.shop.service.ShopInventoryService inventoryService) {
         this.stripeConnectService = stripeConnectService;
         this.payoutAccountRepository = payoutAccountRepository;
         this.userRepository = userRepository;
@@ -66,6 +68,7 @@ public class PayoutController {
         this.shipmentService = shipmentService;
         this.bookingService = bookingService;
         this.emailVerificationGuard = emailVerificationGuard;
+        this.inventoryService = inventoryService;
     }
 
     private User currentUser() {
@@ -89,7 +92,7 @@ public class PayoutController {
             // stays ungated so an unverified seller can still check where onboarding left off.
             emailVerificationGuard.require(seller, "set up payouts");
             String url = stripeConnectService.createOnboardingLink(seller.getId());
-            return ResponseEntity.ok(Map.of("url", url));
+            return ResponseEntity.ok().header("Cache-Control", "no-store").body(Map.of("url", url));
         } catch (StripeException e) {
             // Stripe's message is written for whoever integrated the API, not for the seller
             // staring at a toast — the Accounts v1 deprecation notice, for instance, is three
@@ -114,25 +117,24 @@ public class PayoutController {
         User seller = currentUser();
         Optional<SellerPayoutAccount> account = payoutAccountRepository.findBySellerId(seller.getId());
         if (account.isEmpty()) {
-            return ResponseEntity.ok(Map.of("connected", false));
+            return ResponseEntity.ok().header("Cache-Control", "no-store").body(Map.of(
+                    "connected", false, "payoutsEnabled", false,
+                    "chargesEnabled", false, "detailsSubmitted", false));
         }
         try {
             SellerPayoutAccount refreshed = stripeConnectService.refreshAccountStatus(account.get());
-            return ResponseEntity.ok(Map.of(
+            return ResponseEntity.ok().header("Cache-Control", "no-store").body(Map.of(
                     "connected", true,
                     "payoutsEnabled", refreshed.isPayoutsEnabled(),
                     "chargesEnabled", refreshed.isChargesEnabled(),
                     "detailsSubmitted", refreshed.isDetailsSubmitted()
             ));
         } catch (StripeException e) {
-            // Fall back to our last-known local state if Stripe is unreachable right now.
-            SellerPayoutAccount a = account.get();
-            return ResponseEntity.ok(Map.of(
-                    "connected", true,
-                    "payoutsEnabled", a.isPayoutsEnabled(),
-                    "chargesEnabled", a.isChargesEnabled(),
-                    "detailsSubmitted", a.isDetailsSubmitted()
-            ));
+            // Cached flags are not evidence of current payout eligibility.
+            log.warn("Could not refresh Stripe payout status for seller {}", seller.getId(), e);
+            return ResponseEntity.status(502).header("Cache-Control", "no-store").body(Map.of(
+                    "error", "Could not verify your bank connection with Stripe. Please retry.",
+                    "statusUnavailable", true));
         }
     }
 
@@ -145,6 +147,7 @@ public class PayoutController {
      * {@code Stripe-Signature} header instead (see {@code CommonSecurityConfig} permitAll).
      */
     @PostMapping("/webhook")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<Void> webhook(@RequestBody String payload,
                                          @RequestHeader("Stripe-Signature") String sigHeader) {
         try {
@@ -185,8 +188,19 @@ public class PayoutController {
                         });
                     }
                 }
-                case "checkout.session.completed" -> {
+                case "checkout.session.expired", "checkout.session.async_payment_failed" -> {
+                    if (stripeObject instanceof Session session && session.getMetadata() != null) {
+                        String ids = session.getMetadata().get("shopOrderIds");
+                        if (ids != null) for (String raw : ids.split(",")) {
+                            inventoryService.releaseUnpaid(java.util.UUID.fromString(raw.trim()));
+                        }
+                    }
+                }
+                case "checkout.session.completed", "checkout.session.async_payment_succeeded" -> {
                     if (stripeObject instanceof Session session) {
+                        if (!"paid".equals(session.getPaymentStatus()) && !"no_payment_required".equals(session.getPaymentStatus())) {
+                            return ResponseEntity.ok().build();
+                        }
                         // Resolve which bookings this payment covers from the session's own
                         // metadata rather than from a stored PaymentIntent id. Stripe does not
                         // create the PaymentIntent until the customer starts paying, so at
@@ -205,8 +219,9 @@ public class PayoutController {
                         if (shopCsv != null && !shopCsv.isBlank()) {
                             for (String raw : shopCsv.split(",")) {
                                 try {
-                                    shopOrderRepository.findById(java.util.UUID.fromString(raw.trim()))
+                                    shopOrderRepository.findLockedById(java.util.UUID.fromString(raw.trim()))
                                             .ifPresent(o -> {
+                                                if (o.getStatus() != com.hustleup.marketplace.shop.model.ShopOrder.ShopOrderStatus.AWAITING_PAYMENT) return;
                                                 o.setStatus(com.hustleup.marketplace.shop.model.ShopOrder
                                                         .ShopOrderStatus.PAID);
                                                 if (session.getPaymentIntent() != null) {

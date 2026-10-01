@@ -44,9 +44,10 @@ export default function WalletScreen() {
   }, []);
 
   const handleAddMethod = (method) => {
+    if (method.id === 'bank') { router.push('/profile/bank'); return; }
     Alert.alert(
       `Add ${method.label}`,
-      'In-app payments are coming soon! Until then, arrange payment directly with the other party via chat.',
+      'Choose your payment method securely on Stripe when checking out. To receive seller payouts, connect your bank account.',
       [{ text: 'Got it', style: 'default' }]
     );
   };
@@ -87,9 +88,9 @@ export default function WalletScreen() {
               <Text style={s.balanceActionText}>Top Up</Text>
             </TouchableOpacity>
             <View style={s.balanceActionDivider} />
-            <TouchableOpacity style={s.balanceActionBtn} onPress={() => Alert.alert('Coming Soon', 'Withdrawals will be available when in-app payments launch.')}>
+            <TouchableOpacity style={s.balanceActionBtn} onPress={() => router.push('/profile/bank')}>
               <Feather name="arrow-down-circle" size={16} color={LIME} />
-              <Text style={s.balanceActionText}>Withdraw</Text>
+              <Text style={s.balanceActionText}>Connect bank</Text>
             </TouchableOpacity>
           </View>
         </LinearGradient>

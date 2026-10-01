@@ -11,6 +11,7 @@ import { useSelector } from 'react-redux';
 import { listingsApi, usersApi, followsApi, directMessagesApi } from '../../src/api/client';
 import { selectUser, selectIsAuthenticated } from '../../src/store/authSlice';
 import ListingDetailSheet from '../../src/components/listings/ListingDetailSheet';
+import Storefront from '../../src/components/listings/Storefront';
 
 const { width } = Dimensions.get('window');
 const BG   = '#050505';
@@ -81,6 +82,11 @@ const pc = StyleSheet.create({
 
 // ─── Shop Page ────────────────────────────────────────────────────────────────
 export default function ShopPage() {
+  const { shopId } = useLocalSearchParams();
+  return shopId ? <Storefront key={String(shopId)} shopId={String(shopId)} /> : <SellerListings />;
+}
+
+function SellerListings() {
   const { userId } = useLocalSearchParams();
   const router = useRouter();
   const currentUser = useSelector(selectUser);

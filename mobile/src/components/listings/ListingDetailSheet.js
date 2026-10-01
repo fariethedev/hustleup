@@ -1,267 +1,70 @@
-import React, { useState } from 'react';
-import {
-  View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity,
-  Image, ActivityIndicator, Dimensions,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
-import { bookingsApi, directMessagesApi, API_URL } from '../../api/client';
-import { selectIsAuthenticated } from '../../store/authSlice';
-
-const { width, height } = Dimensions.get('window');
-const LIME = '#CDFF00';
-const BG   = '#050505';
-
-const TYPE_COLORS = {
-  PRODUCT: '#60A5FA', SERVICE: '#A78BFA', JOB: '#FB923C',
-  SKILL: '#34D399', RENTAL: '#F472B6', EVENT: '#FBBF24',
-};
-
-const resolveUrl = (url) => {
-  if (!url) return null;
-  if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
-  const base = (typeof API_URL !== 'undefined' && API_URL
-    ? API_URL
-    : 'http://localhost:8000/api/v1'
-  ).replace('/api/v1', '');
-  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
-};
+import { useSelector } from 'react-redux';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCart } from '../../store/CartProvider';
+import { canPurchaseListing, cartGroup, cartKey, categoryLabel, money } from '../../utils/marketplace';
+import { mediaUrl } from '../../utils/media';
 
 export default function ListingDetailSheet({ listing, visible, onClose }) {
-  const [activeImg, setActiveImg] = useState(0);
-  const [booking, setBooking] = useState(false);
-  const [booked, setBooked] = useState(false);
-  const [bookingError, setBookingError] = useState('');
-  const [showPolicy, setShowPolicy] = useState(false);
-  const isAuthenticated = useSelector(selectIsAuthenticated);
   const router = useRouter();
-
-  const reset = () => { setActiveImg(0); setBooked(false); setBookingError(''); setShowPolicy(false); };
-  const handleClose = () => { reset(); onClose?.(); };
-
-  const goToShop  = () => { handleClose(); router.push(`/shop/${listing.sellerId}`); };
-  const goToChat  = () => { handleClose(); router.push({ pathname: '/(tabs)/messages', params: { partnerId: listing.sellerId, partnerName: listing.sellerName } }); };
-
-  const handleBuyNow = async () => {
-    if (!isAuthenticated) { setBookingError('Please sign in to place an order.'); return; }
-    setBooking(true);
-    setBookingError('');
-    try {
-      await bookingsApi.create({ listingId: listing.id, offeredPrice: listing.price });
-      await directMessagesApi.sendMessage(
-        listing.sellerId,
-        `Hi! I just placed an order for "${listing.title}" (${currency}${listing.price}). Looking forward to hearing from you! 🛒`
-      );
-      setBooked(true);
-    } catch (e) {
-      setBookingError(e.response?.data?.message || 'Could not place order. Try messaging the seller directly.');
-    } finally {
-      setBooking(false);
-    }
-  };
-
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const { items, add, ready, sessions, storageError } = useCart();
+  const userId = useSelector(state => state.auth.user?.id);
+  const [added, setAdded] = useState(false);
+  useEffect(() => { setAdded(false); }, [listing?.id, visible]);
   if (!listing) return null;
-  const media    = (listing.mediaUrls || []).map(resolveUrl).filter(Boolean);
-  const currency = listing.currency || '£';
-  const typeColor = TYPE_COLORS[listing.listingType] || LIME;
+  const own = listing.sellerId === userId;
+  const inCart = items.some(item => cartKey(item) === cartKey(listing));
+  const pending = !!sessions[cartGroup(listing)];
+  const unavailable = listing.status && listing.status !== 'ACTIVE';
+  const media = (listing.mediaUrls?.length ? listing.mediaUrls : [listing.imageUrl]).map(mediaUrl).filter(Boolean);
+  const navigate = (path) => { onClose(); router.push(path); };
+  const chat = () => navigate({ pathname: '/(tabs)/messages', params: { partnerId: listing.sellerId, partnerName: listing.sellerName } });
+  const addToCart = () => { if (!ready || own || inCart || pending || unavailable) return; add({ ...listing, kind: 'listing' }); setAdded(true); };
 
-  return (
-    <Modal visible={!!visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <View style={s.overlay}>
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={handleClose} />
-        <View style={s.sheet}>
-          <View style={s.handle} />
-          <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-
-            {/* ── Images ── */}
-            {media.length > 0 ? (
-              <View>
-                <ScrollView
-                  horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-                  onMomentumScrollEnd={(e) => setActiveImg(Math.round(e.nativeEvent.contentOffset.x / width))}
-                >
-                  {media.map((uri, i) => (
-                    <Image key={i} source={{ uri }} style={[s.image, { width }]} resizeMode="cover" />
-                  ))}
-                </ScrollView>
-                {media.length > 1 && (
-                  <View style={s.dots}>
-                    {media.map((_, i) => <View key={i} style={[s.dot, i === activeImg && s.dotActive]} />)}
-                  </View>
-                )}
-              </View>
-            ) : (
-              <View style={s.noImg}>
-                <Feather name="package" size={52} color="rgba(255,255,255,0.08)" />
-              </View>
-            )}
-
-            <View style={s.body}>
-              {/* Badges */}
-              <View style={s.badgeRow}>
-                <View style={[s.typeBadge, { backgroundColor: typeColor + '22', borderColor: typeColor + '55' }]}>
-                  <Text style={[s.typeBadgeText, { color: typeColor }]}>{listing.listingType || 'PRODUCT'}</Text>
-                </View>
-                {listing.condition ? (
-                  <View style={s.condBadge}><Text style={s.condBadgeText}>{listing.condition}</Text></View>
-                ) : null}
-                {listing.listingType === 'RENTAL' && (
-                  <View style={[s.condBadge, listing.agentFee
-                    ? { backgroundColor: '#EF444420', borderColor: '#EF444455' }
-                    : { backgroundColor: '#22C55E20', borderColor: '#22C55E55' }]}>
-                    <Text style={[s.condBadgeText, { color: listing.agentFee ? '#EF4444' : '#22C55E' }]}>
-                      {listing.agentFee ? 'Agent Fee' : 'No Agent Fee'}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Price */}
-              <View style={s.priceRow}>
-                <Text style={s.price}>{currency}{Number(listing.price).toLocaleString()}</Text>
-                {listing.negotiable ? (
-                  <View style={s.negBadge}><Text style={s.negText}>NEGOTIABLE</Text></View>
-                ) : null}
-              </View>
-
-              <Text style={s.title}>{listing.title}</Text>
-              {listing.description ? <Text style={s.desc}>{listing.description}</Text> : null}
-
-              {listing.locationCity ? (
-                <View style={s.locRow}>
-                  <Feather name="map-pin" size={13} color="rgba(255,255,255,0.3)" />
-                  <Text style={s.locText}>{listing.locationCity}{listing.locationCountry ? `, ${listing.locationCountry}` : ''}</Text>
-                </View>
-              ) : null}
-
-              {/* ── Seller card ── */}
-              {listing.sellerName ? (
-                <TouchableOpacity style={s.sellerCard} onPress={goToShop} activeOpacity={0.85}>
-                  <View style={s.sellerAvatar}>
-                    {listing.sellerAvatarUrl ? (
-                      <Image source={{ uri: resolveUrl(listing.sellerAvatarUrl) }} style={s.sellerAvatarImg} />
-                    ) : (
-                      <Text style={s.sellerInitial}>{(listing.sellerName || '?')[0].toUpperCase()}</Text>
-                    )}
-                    <View style={s.onlineDot} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.sellerName}>{listing.sellerName}</Text>
-                    <Text style={s.sellerSub}>Tap to view their shop →</Text>
-                  </View>
-                  <View style={s.shopPill}>
-                    <Feather name="shopping-bag" size={12} color={LIME} />
-                    <Text style={s.shopPillText}>SHOP</Text>
-                  </View>
+  return <Modal visible={!!visible} transparent animationType="slide" onRequestClose={onClose}>
+    <View style={s.overlay}>
+      <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close listing" />
+      <View style={[s.sheet, { maxHeight: height - insets.top - 16 }]}>
+        <View style={s.header}><Text style={s.subtitle}>{categoryLabel(listing.listingType)}</Text><TouchableOpacity style={s.icon} onPress={onClose} accessibilityLabel="Close listing"><Feather name="x" size={23} color="#FFF" /></TouchableOpacity></View>
+        <ScrollView contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 20) }}>
+          {!!media.length && <ScrollView key={listing.id} horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+            {media.map((uri, index) => <Image key={`${uri}:${index}`} source={{ uri }} style={{ width, height: Math.min(width, 340) }} resizeMode="contain" accessibilityLabel={`Listing photo ${index + 1} of ${media.length}`} />)}
+          </ScrollView>}
+          <View style={s.content}>
+            {media.length > 1 && <Text style={s.subtitle}>Swipe to see all {media.length} photos</Text>}
+            <Text style={s.title}>{listing.title}</Text>
+            <Text style={s.price}>{money(listing.price, listing.currency)}</Text>
+            {listing.negotiable && <Text style={s.subtitle}>Seller is open to offers. Use Message seller to discuss a price.</Text>}
+            {!!listing.description && <Text style={s.description}>{listing.description}</Text>}
+            {!!listing.locationCity && <Text style={s.subtitle}>{listing.locationCity}</Text>}
+            {listing.listingType === 'RENTAL' && <Text style={s.subtitle}>{listing.agentFee ? 'Agent fee applies' : 'No agent fee'}</Text>}
+            {!!listing.sellerId && <TouchableOpacity style={s.seller} onPress={() => navigate(`/shop/${listing.sellerId}`)}>
+              <Feather name="shopping-bag" size={22} color="#CDFF00" /><View style={{ flex: 1 }}><Text style={s.text}>{listing.sellerName || 'Seller'}</Text><Text style={s.subtitle}>View shop</Text></View><Feather name="chevron-right" size={20} color="#AAA" />
+            </TouchableOpacity>}
+            {!!storageError && <Text style={s.error}>{storageError}</Text>}
+            {own ? <Text style={s.subtitle}>This is your listing.</Text> : <>
+              {canPurchaseListing(listing) && <>
+                <TouchableOpacity style={[s.primary, (!ready || unavailable || pending) && s.disabled]} onPress={addToCart} disabled={!ready || own || inCart || pending || !!unavailable} accessibilityRole="button">
+                  <Feather name={inCart ? 'check' : 'shopping-cart'} size={20} color="#050505" /><Text style={s.primaryText}>{unavailable ? 'Listing unavailable' : inCart ? 'Added to cart' : pending ? 'Checkout in progress' : 'Add to cart'}</Text>
                 </TouchableOpacity>
-              ) : null}
-
-              {/* ── Payment policy ── */}
-              <TouchableOpacity style={s.policyBox} onPress={() => setShowPolicy(v => !v)} activeOpacity={0.85}>
-                <View style={s.policyRow}>
-                  <Feather name="shield" size={14} color={LIME} />
-                  <Text style={s.policyTitle}>HustleUp Buyer Policy</Text>
-                  <Feather name={showPolicy ? 'chevron-up' : 'chevron-down'} size={14} color="rgba(255,255,255,0.35)" />
-                </View>
-                {showPolicy ? (
-                  <Text style={s.policyBody}>
-                    {'• Payment is arranged directly between buyer and seller.\n• Agree on method (bank transfer, cash, Blik, etc.) via chat before paying.\n• Always verify item condition before completing payment.\n• Card & Blik in-app payments coming soon.\n• For disputes, contact HustleUp support via Help.'}
-                  </Text>
-                ) : null}
-              </TouchableOpacity>
-
-              {/* Error */}
-              {bookingError ? (
-                <View style={s.errorBox}>
-                  <Feather name="alert-circle" size={13} color="#EF4444" />
-                  <Text style={s.errorText}>{bookingError}</Text>
-                </View>
-              ) : null}
-
-              {/* Actions */}
-              {booked ? (
-                <View style={s.successBox}>
-                  <Feather name="check-circle" size={24} color={LIME} />
-                  <Text style={s.successTitle}>Order Placed! 🎉</Text>
-                  <Text style={s.successSub}>
-                    A message has been sent to the seller. Continue the chat to arrange payment and delivery.
-                  </Text>
-                  <TouchableOpacity style={s.goToChatBtn} onPress={goToChat}>
-                    <Feather name="message-circle" size={16} color={BG} />
-                    <Text style={s.goToChatText}>Continue in Chat</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={s.actionRow}>
-                  <TouchableOpacity style={s.buyBtn} onPress={handleBuyNow} disabled={booking} activeOpacity={0.88}>
-                    {booking ? (
-                      <ActivityIndicator size="small" color={BG} />
-                    ) : (
-                      <>
-                        <Feather name="shopping-cart" size={18} color={BG} />
-                        <Text style={s.buyBtnText}>Buy Now · {currency}{Number(listing.price).toLocaleString()}</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity style={s.msgBtn} onPress={goToChat} activeOpacity={0.85}>
-                    <Feather name="message-circle" size={20} color={LIME} />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          </ScrollView>
-        </View>
+                {(inCart || pending) && <TouchableOpacity style={s.secondary} onPress={() => navigate('/cart')}><Text style={s.text}>View cart</Text><Feather name="arrow-right" size={18} color="#FFF" /></TouchableOpacity>}
+                {added && <Text style={s.confirmation} accessibilityLiveRegion="polite">Added. Continue browsing or review your cart.</Text>}
+                <Text style={s.subtitle}>Review quantities and details in your cart before checkout. No payment is taken when you add an item.</Text>
+              </>}
+              {!!listing.sellerId && <TouchableOpacity style={s.secondary} onPress={chat}><Feather name="message-circle" size={20} color="#FFF" /><Text style={s.text}>{listing.listingType === 'JOB' ? 'Contact employer' : 'Message seller'}</Text></TouchableOpacity>}
+            </>}
+          </View>
+        </ScrollView>
       </View>
-    </Modal>
-  );
+    </View>
+  </Modal>;
 }
 
 const s = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.75)' },
-  sheet: { backgroundColor: '#0E0E0E', borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: height * 0.92, overflow: 'hidden' },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginVertical: 12 },
-  image: { height: 300 },
-  noImg: { height: 180, backgroundColor: '#111', alignItems: 'center', justifyContent: 'center' },
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, position: 'absolute', bottom: 12, width: '100%' },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)' },
-  dotActive: { backgroundColor: LIME, width: 18 },
-  body: { padding: 22, paddingBottom: 48, gap: 14 },
-  badgeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  typeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
-  typeBadgeText: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  condBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  condBadgeText: { color: 'rgba(255,255,255,0.5)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  price: { color: LIME, fontSize: 30, fontWeight: '900' },
-  negBadge: { backgroundColor: 'rgba(205,255,0,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(205,255,0,0.25)' },
-  negText: { color: LIME, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  title: { color: '#FFF', fontSize: 20, fontWeight: '900', lineHeight: 26 },
-  desc: { color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 22 },
-  locRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  locText: { color: 'rgba(255,255,255,0.35)', fontSize: 13 },
-  sellerCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  sellerAvatar: { width: 48, height: 48, borderRadius: 15, backgroundColor: 'rgba(205,255,0,0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(205,255,0,0.25)', position: 'relative' },
-  sellerAvatarImg: { width: 48, height: 48, borderRadius: 15 },
-  sellerInitial: { color: LIME, fontSize: 20, fontWeight: '900' },
-  onlineDot: { position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#22C55E', borderWidth: 2, borderColor: '#0E0E0E' },
-  sellerName: { color: '#FFF', fontSize: 14, fontWeight: '800' },
-  sellerSub: { color: 'rgba(255,255,255,0.3)', fontSize: 11, marginTop: 2 },
-  shopPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(205,255,0,0.08)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(205,255,0,0.2)' },
-  shopPillText: { color: LIME, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  policyBox: { backgroundColor: 'rgba(205,255,0,0.04)', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: 'rgba(205,255,0,0.1)' },
-  policyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  policyTitle: { color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: '800', flex: 1 },
-  policyBody: { color: 'rgba(255,255,255,0.4)', fontSize: 12, lineHeight: 20, marginTop: 10 },
-  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)' },
-  errorText: { color: '#EF4444', fontSize: 12, fontWeight: '700', flex: 1 },
-  successBox: { alignItems: 'center', gap: 10, backgroundColor: 'rgba(205,255,0,0.06)', borderRadius: 18, padding: 22, borderWidth: 1, borderColor: 'rgba(205,255,0,0.2)' },
-  successTitle: { color: LIME, fontSize: 18, fontWeight: '900' },
-  successSub: { color: 'rgba(255,255,255,0.5)', fontSize: 13, textAlign: 'center', lineHeight: 20 },
-  goToChatBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: LIME, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 14, marginTop: 4 },
-  goToChatText: { color: BG, fontWeight: '900', fontSize: 13 },
-  actionRow: { flexDirection: 'row', gap: 12 },
-  buyBtn: { flex: 1, backgroundColor: LIME, borderRadius: 16, height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  buyBtnText: { color: BG, fontWeight: '900', fontSize: 14 },
-  msgBtn: { width: 56, height: 56, borderRadius: 16, backgroundColor: 'rgba(205,255,0,0.08)', borderWidth: 1.5, borderColor: 'rgba(205,255,0,0.25)', alignItems: 'center', justifyContent: 'center' },
+  overlay: { flex: 1, backgroundColor: '#000B', justifyContent: 'flex-end' }, sheet: { backgroundColor: '#101010', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }, header: { paddingLeft: 20, paddingRight: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, icon: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }, content: { padding: 20, gap: 16 }, title: { color: '#FFF', fontSize: 24, fontWeight: '700' }, price: { color: '#CDFF00', fontSize: 25, fontWeight: '700' }, text: { color: '#FFF', fontSize: 15, fontWeight: '600' }, subtitle: { color: '#AAA', fontSize: 13, lineHeight: 20 }, description: { color: '#DDD', fontSize: 15, lineHeight: 23 }, seller: { flexDirection: 'row', gap: 12, alignItems: 'center', padding: 16, backgroundColor: '#202020', borderRadius: 16 }, primary: { flexDirection: 'row', minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 16, backgroundColor: '#CDFF00' }, primaryText: { fontSize: 16, fontWeight: '700', color: '#050505' }, secondary: { flexDirection: 'row', minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1, borderColor: '#555', borderRadius: 14 }, disabled: { opacity: 0.5 }, error: { color: '#FCA5A5' }, confirmation: { color: '#CDFF00', fontSize: 13 },
 });

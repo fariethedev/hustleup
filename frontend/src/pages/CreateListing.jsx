@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { listingsApi } from '../api/client';
@@ -10,6 +10,9 @@ import { useSellerAccess } from '../hooks/useSellerAccess';
 import SellerUpgrade from '../components/SellerUpgrade';
 import { LockKeyhole, Images as ImageIcon, CircleCheck, CircleX, MoveRight, MoveLeft, CirclePlay, CalendarRange, Forklift, Grid2x2, PiggyBank, ClipboardCheck, PartyPopper, UploadCloud, Luggage, Building2 } from 'lucide-react';
 import { isVideoUrl } from '../utils/media';
+import ImageCropper from '../components/ImageCropper';
+import UploadPreview from '../components/UploadPreview';
+import { LISTING_GUIDANCE } from '../utils/listingCategories';
 
 /**
  * How many photos/clips a listing should carry. Listings with a full gallery convert better,
@@ -73,6 +76,7 @@ export default function CreateListing() {
     shippingMethod: '', shippingPrice: '',
   });
   const [images, setImages] = useState([]);
+  const [cropIndex, setCropIndex] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   // Held true for a beat after the server confirms the listing, before the redirect fires —
@@ -81,7 +85,7 @@ export default function CreateListing() {
   const [published, setPublished] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
-  if (!isAuthenticated) { navigate('/login'); return null; }
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   // Still asking whether this account can sell. Rendering the upgrade panel during the
   // lookup would flash a paywall over the screen of someone who already pays for Premium.
   if (checkingAccess) {
@@ -115,15 +119,20 @@ export default function CreateListing() {
 
   const handleSubmit = async () => {
     setError('');
-    if (!form.title || !form.listingType || !form.price) {
-      setError('Title, category, and price are required');
+    if (loading) return;
+    if (!form.title.trim() || !LISTING_TYPES.some((type) => type.value === form.listingType) || form.price === '' || !Number.isFinite(Number(form.price)) || Number(form.price) < 0) {
+      setError('Add a title, pick one category and enter a valid price of 0 or more.');
+      return;
+    }
+    if (chargesPostage && (Number(form.shippingPrice || 0) < 0 || !Number.isFinite(Number(form.shippingPrice || 0)))) {
+      setError('Enter a valid delivery cost of 0 or more.');
       return;
     }
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('title', form.title);
-      formData.append('description', form.description);
+      formData.append('title', form.title.trim());
+      formData.append('description', form.description.trim());
       formData.append('listingType', form.listingType);
       formData.append('price', form.price);
       formData.append('currency', form.currency);
@@ -164,9 +173,9 @@ export default function CreateListing() {
       // before it played at all. loading stays true for the same stretch so the button
       // can't be hit again while the redirect is pending.
       setPublished(true);
-      setTimeout(() => navigate(`/listing/${res.data.id}`), 1100);
+      setTimeout(() => navigate(`/listing/${res.data.id}`, { replace: true }), 1100);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create listing');
+      setError(err.response?.data?.message || err.response?.data?.error || 'Could not publish. Your details are still here — please try again.');
       setLoading(false);
     }
   };
@@ -181,6 +190,24 @@ export default function CreateListing() {
   const setCategory = (value) =>
     setForm((prev) => ({ ...prev, listingType: value, shippingMethod: defaultMethodFor(value) }));
 
+  const addMedia = (files) => {
+    const selected = Array.from(files || []);
+    if (selected.some((file) => !/^(image|video)\//.test(file.type))) {
+      setError('Choose image or video files.');
+      return;
+    }
+    if (selected.some((file) => file.size > 50 * 1024 * 1024)) {
+      setError('Each photo or video must be smaller than 50 MB.');
+      return;
+    }
+    if (images.length + selected.length > MAX_MEDIA) {
+      setError(`You can add up to ${MAX_MEDIA} photos and videos. Remove one before adding more.`);
+      return;
+    }
+    setError('');
+    setImages((previous) => [...previous, ...selected]);
+  };
+
   // Collection, digital delivery and services have nothing to charge postage for, so the
   // price field is hidden rather than shown at zero for the seller to wonder about.
   const shippingMeta = getMethod(form.shippingMethod);
@@ -189,15 +216,15 @@ export default function CreateListing() {
   // Which way the next step should come in from. Sliding both directions the same way makes
   // going back feel like going forward, which is the one thing a stepped form has to keep
   // straight.
-  const goTo = (next) => { setDirection(next > step ? 1 : -1); setStep(next); };
+  const goTo = (next) => { setError(''); setDirection(next > step ? 1 : -1); setStep(next); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   // What the footer can do from here. Kept as data rather than three hand-written pairs of
   // buttons: the old form repeated Back/Next in every step with its own disabled rule, so the
   // rules drifted and step 3 could be reached with a price the previous step had rejected.
   const STEP_META = {
-    1: { label: 'Basics', blurb: 'Category and title', icon: Grid2x2, canAdvance: !!(form.title && form.listingType) },
-    2: { label: 'Price', blurb: 'Price and delivery', icon: PiggyBank, canAdvance: !!form.price },
-    3: { label: 'Details', blurb: 'Photos and the rest', icon: ImageIcon, canAdvance: true },
+    1: { label: 'Basics', blurb: 'Tell people what you’re offering', icon: Grid2x2, canAdvance: !!(form.title.trim() && form.listingType) },
+    2: { label: 'Price', blurb: 'Set your price and how buyers receive it', icon: PiggyBank, canAdvance: form.price !== '' && Number.isFinite(Number(form.price)) && Number(form.price) >= 0 && (!chargesPostage || (Number.isFinite(Number(form.shippingPrice || 0)) && Number(form.shippingPrice || 0) >= 0)) },
+    3: { label: 'Review', blurb: 'Adjust your photos and review before publishing', icon: ImageIcon, canAdvance: true },
   };
   const meta = STEP_META[step];
   const isLast = step === 3;
@@ -214,34 +241,34 @@ export default function CreateListing() {
       {/* Two slow-drifting glows rather than a static page — fixed so they don't scroll
           with a tall step 3, and pointer-events-none so they never steal a tap meant for
           the form sitting on top of them. */}
-      <motion.div
+      <Motion.div
         aria-hidden="true"
         className="fixed -z-10 top-[-10%] left-[-10%] w-[55vmax] h-[55vmax] rounded-full bg-[#CDFF00]/10 blur-3xl pointer-events-none"
         animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
         transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <motion.div
+      <Motion.div
         aria-hidden="true"
         className="fixed -z-10 bottom-[-15%] right-[-10%] w-[50vmax] h-[50vmax] rounded-full bg-[#7D39EB]/10 blur-3xl pointer-events-none"
         animate={{ x: [0, -30, 0], y: [0, -40, 0] }}
         transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
       />
 
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="relative w-full max-w-xl"
       >
-        <motion.h1
+        <Motion.h1
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
           className="text-2xl sm:text-4xl font-heading font-extrabold text-white mb-1 sm:mb-2 tracking-wide text-center"
         >
-          Post <span className="text-[#CDFF00]">Listing</span>
-        </motion.h1>
+          Add a <span className="text-[#CDFF00]">listing</span>
+        </Motion.h1>
         <AnimatePresence mode="wait">
-          <motion.p
+          <Motion.p
             key={step}
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -250,8 +277,15 @@ export default function CreateListing() {
             className="text-gray-400 mb-5 sm:mb-8 font-bold tracking-wider text-xs sm:text-sm text-center"
           >
             {meta.blurb}
-          </motion.p>
+          </Motion.p>
         </AnimatePresence>
+
+        {step === 1 && (
+          <div className="mb-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-[#111] p-4 text-sm">
+            <Building2 className="h-5 w-5 shrink-0 text-[#CDFF00]" />
+            <p className="text-gray-400">Building a shop with products or appointments? <Link to="/dashboard?tab=shop" className="font-semibold text-white underline underline-offset-4">Set up your shop</Link></p>
+          </div>
+        )}
 
         {/* The same rail as sign-up: icon, label, and completed steps tappable so a
             correction does not mean walking forward through the whole form again. Labels
@@ -276,14 +310,14 @@ export default function CreateListing() {
                     {/* A breathing ring behind the live step only — it's what makes "you are
                         here" readable at a glance instead of just a colour difference. */}
                     {active && (
-                      <motion.span
+                      <Motion.span
                         aria-hidden="true"
                         className="absolute inset-0 rounded-xl bg-[#CDFF00]/40"
                         animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
                         transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
                       />
                     )}
-                    <motion.span
+                    <Motion.span
                       initial={false}
                       animate={{ scale: active ? 1.08 : 1, rotate: done ? [0, -12, 0] : 0 }}
                       transition={{ type: 'spring', stiffness: 400, damping: 22 }}
@@ -297,16 +331,16 @@ export default function CreateListing() {
                     >
                       <AnimatePresence mode="wait" initial={false}>
                         {done ? (
-                          <motion.span key="done" initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 20 }}>
+                          <Motion.span key="done" initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 20 }}>
                             <CircleCheck className="w-4 h-4" strokeWidth={3} />
-                          </motion.span>
+                          </Motion.span>
                         ) : (
-                          <motion.span key="pending" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                          <Motion.span key="pending" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
                             <Icon className="w-4 h-4" />
-                          </motion.span>
+                          </Motion.span>
                         )}
                       </AnimatePresence>
-                    </motion.span>
+                    </Motion.span>
                   </span>
                   <span className={`text-[11px] font-black tracking-widest truncate hidden sm:block ${
                     active ? 'text-white' : 'text-gray-500'
@@ -316,7 +350,7 @@ export default function CreateListing() {
                 </button>
                 {n < 3 && (
                   <div className="flex-1 h-0.5 rounded-full bg-white/10 overflow-hidden">
-                    <motion.div
+                    <Motion.div
                       initial={false}
                       animate={{ scaleX: step > n ? 1 : 0 }}
                       style={{ originX: 0 }}
@@ -332,7 +366,7 @@ export default function CreateListing() {
 
         <div className="relative glass rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-white/5 overflow-hidden">
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20 text-[#CDFF00] text-sm font-bold tracking-wider text-center flex items-center justify-center gap-2">
+            <div role="alert" className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm flex items-center justify-center gap-2">
               <CircleX className="w-4 h-4" /> {error}
             </div>
           )}
@@ -344,7 +378,7 @@ export default function CreateListing() {
           <AnimatePresence mode="wait" custom={direction} initial={false}>
           {/* Step 1: Core Details */}
           {step === 1 && (
-            <motion.div
+            <Motion.div
               key="step-1"
               custom={direction}
               variants={slide}
@@ -354,47 +388,48 @@ export default function CreateListing() {
               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
               className="space-y-6"
             >
-              <div>
-                <label className="block text-xs font-black text-gray-500 tracking-widest mb-3">Category *</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <fieldset>
+                <legend className="text-base font-bold text-white mb-1">What are you listing?</legend>
+                <p className="mb-4 text-sm text-gray-400">Pick one category below. Choose the closest match — no typing needed.</p>
+                <div className="grid grid-cols-2 gap-2.5">
                   {LISTING_TYPES.map((type) => {
                     const Icon = type.icon;
                     const isActive = form.listingType === type.value;
                     return (
-                      <motion.button
+                      <Motion.label
                         key={type.value}
-                        type="button"
-                        onClick={() => setCategory(type.value)}
                         whileHover={{ y: -2 }}
-                        whileTap={{ scale: 0.95 }}
-                        className={`relative p-4 rounded-xl border text-center transition-colors flex flex-col items-center gap-2 overflow-hidden ${
+                        whileTap={{ scale: 0.98 }}
+                        className={`relative cursor-pointer p-3.5 rounded-xl border text-left transition-colors flex flex-col items-start gap-2 overflow-hidden focus-within:ring-2 focus-within:ring-[#CDFF00] ${
                           isActive
                             ? 'border-[#CDFF00] text-[#CDFF00]'
                             : 'bg-black/50 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
                         }`}
                       >
+                        <input type="radio" name="listing-category" value={type.value} checked={isActive} onChange={() => setCategory(type.value)} className="sr-only" />
                         {/* One shared fill that slides between cards rather than each one
                             fading in and out on its own — a single element in motion reads
                             as a choice moving, where independent fades on every card just
                             reads as flicker. */}
                         {isActive && (
-                          <motion.span
+                          <Motion.span
                             layoutId="categoryHighlight"
                             className="absolute inset-0 bg-[#CDFF00]/10"
                             transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                           />
                         )}
-                        <motion.span
+                        <Motion.span
                           animate={isActive ? { scale: [1, 1.25, 1] } : { scale: 1 }}
                           transition={{ duration: 0.35 }}
                           className="relative"
                         >
                           <Icon className="w-6 h-6" />
-                        </motion.span>
-                        <span className="relative text-[10px] font-bold tracking-widest">{type.label}</span>
+                        </Motion.span>
+                        <span className="relative text-sm font-semibold leading-snug">{type.label}</span>
+                        <span className="relative text-xs leading-relaxed text-gray-400">{LISTING_GUIDANCE[type.value]?.examples}</span>
                         <AnimatePresence>
                           {isActive && (
-                            <motion.span
+                            <Motion.span
                               initial={{ scale: 0, opacity: 0 }}
                               animate={{ scale: 1, opacity: 1 }}
                               exit={{ scale: 0, opacity: 0 }}
@@ -402,23 +437,26 @@ export default function CreateListing() {
                               className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#CDFF00] text-black flex items-center justify-center"
                             >
                               <CircleCheck className="w-3 h-3" strokeWidth={3} />
-                            </motion.span>
+                            </Motion.span>
                           )}
                         </AnimatePresence>
-                      </motion.button>
+                      </Motion.label>
                     );
                   })}
                 </div>
-              </div>
+                {form.listingType && <p className="mt-3 rounded-xl bg-[#CDFF00]/5 border border-[#CDFF00]/15 p-3 text-sm leading-relaxed text-gray-300">{LISTING_GUIDANCE[form.listingType]?.hint}</p>}
+              </fieldset>
 
               <div>
-                <label className="block text-xs font-black text-gray-500 tracking-widest mb-2">Listing Title *</label>
+                <label htmlFor="listing-title" className="block text-sm font-semibold text-gray-300 mb-2">Listing title <span className="text-gray-500">(required)</span></label>
                 <input
+                  id="listing-title"
                   type="text"
+                  maxLength={255}
                   value={form.title}
                   onChange={(e) => set('title', e.target.value)}
                   className="w-full px-5 py-4 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-bold"
-                  placeholder="e.g. Professional Hair Braiding"
+                  placeholder={LISTING_GUIDANCE[form.listingType]?.title || 'Give your product or service a clear name'}
                 />
               </div>
 
@@ -433,12 +471,12 @@ export default function CreateListing() {
                 />
               </div>
 
-            </motion.div>
+            </Motion.div>
           )}
 
           {/* Step 2: Pricing */}
           {step === 2 && (
-            <motion.div
+            <Motion.div
               key="step-2"
               custom={direction}
               variants={slide}
@@ -461,7 +499,7 @@ export default function CreateListing() {
                         confirm "20" became twenty złoty and not twenty of the wrong thing. */}
                     <AnimatePresence>
                       {Number(form.price) > 0 && (
-                        <motion.span
+                        <Motion.span
                           initial={{ opacity: 0, scale: 0.8, y: -4 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.8 }}
@@ -469,7 +507,7 @@ export default function CreateListing() {
                           className="text-[11px] font-black text-[#CDFF00] tracking-wide"
                         >
                           {formatPrice(Number(form.price), form.currency)}
-                        </motion.span>
+                        </Motion.span>
                       )}
                     </AnimatePresence>
                   </div>
@@ -495,7 +533,7 @@ export default function CreateListing() {
                 </div>
               </div>
 
-              <motion.button
+              <Motion.button
                 type="button"
                 whileTap={{ scale: 0.98 }}
                 onClick={() => set('negotiable', !form.negotiable)}
@@ -503,27 +541,27 @@ export default function CreateListing() {
                   form.negotiable ? 'bg-[#CDFF00]/10 border-[#CDFF00]' : 'bg-black/50 border-white/10 hover:border-white/30'
                 }`}
               >
-                <motion.div
+                <Motion.div
                   animate={{ backgroundColor: form.negotiable ? '#CDFF00' : 'rgba(0,0,0,0)', borderColor: form.negotiable ? '#CDFF00' : '#4B5563' }}
                   className="w-6 h-6 rounded flex items-center justify-center border shrink-0"
                 >
                   <AnimatePresence>
                     {form.negotiable && (
-                      <motion.span initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
+                      <Motion.span initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
                         <CircleCheck className="w-4 h-4 text-black" />
-                      </motion.span>
+                      </Motion.span>
                     )}
                   </AnimatePresence>
-                </motion.div>
+                </Motion.div>
                 <div>
                   <span className={`block font-black tracking-widest text-sm mb-1 ${form.negotiable ? 'text-[#CDFF00]' : 'text-gray-400'}`}>Price Negotiable</span>
                   <p className="text-xs text-gray-500 font-medium">Allow buyers to submit counter-offers</p>
                 </div>
-              </motion.button>
+              </Motion.button>
 
               {/* Swap Mode opt-in — off by default, because a seller who only wants cash
                   shouldn't have to field trade offers. */}
-              <motion.button
+              <Motion.button
                 type="button"
                 whileTap={{ scale: 0.98 }}
                 onClick={() => set('swapEnabled', !form.swapEnabled)}
@@ -531,23 +569,23 @@ export default function CreateListing() {
                   form.swapEnabled ? 'bg-[#FF00FF]/10 border-[#FF00FF]' : 'bg-black/50 border-white/10 hover:border-white/30'
                 }`}
               >
-                <motion.div
+                <Motion.div
                   animate={{ backgroundColor: form.swapEnabled ? '#FF00FF' : 'rgba(0,0,0,0)', borderColor: form.swapEnabled ? '#FF00FF' : '#4B5563' }}
                   className="w-6 h-6 rounded flex items-center justify-center border shrink-0"
                 >
                   <AnimatePresence>
                     {form.swapEnabled && (
-                      <motion.span initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
+                      <Motion.span initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }}>
                         <CircleCheck className="w-4 h-4 text-black" />
-                      </motion.span>
+                      </Motion.span>
                     )}
                   </AnimatePresence>
-                </motion.div>
+                </Motion.div>
                 <div>
                   <span className={`block font-black tracking-widest text-sm mb-1 ${form.swapEnabled ? 'text-[#FF00FF]' : 'text-gray-400'}`}>Open to swaps</span>
                   <p className="text-xs text-gray-500 font-medium">Let people trade an item or a skill for this instead of cash</p>
                 </div>
-              </motion.button>
+              </Motion.button>
 
               {/* Delivery. Asked here, next to the price, because it is part of what the buyer
                   pays and part of what the seller is promising — not an afterthought to sort
@@ -562,7 +600,7 @@ export default function CreateListing() {
                     const Icon = m.icon;
                     const isActive = form.shippingMethod === m.value;
                     return (
-                      <motion.button
+                      <Motion.button
                         key={m.value}
                         type="button"
                         whileTap={{ scale: 0.96 }}
@@ -574,7 +612,7 @@ export default function CreateListing() {
                         }`}
                       >
                         {isActive && (
-                          <motion.span
+                          <Motion.span
                             layoutId="shippingHighlight"
                             className="absolute inset-0 bg-[#CDFF00]/10"
                             transition={{ type: 'spring', stiffness: 500, damping: 40 }}
@@ -585,7 +623,7 @@ export default function CreateListing() {
                           <span className="block text-[10px] font-black tracking-widest leading-tight">{m.label}</span>
                           <span className="block text-[10px] text-gray-500 font-medium mt-1 leading-snug">{m.hint}</span>
                         </span>
-                      </motion.button>
+                      </Motion.button>
                     );
                   })}
                 </div>
@@ -661,12 +699,12 @@ export default function CreateListing() {
                 )}
               </div>
 
-            </motion.div>
+            </Motion.div>
           )}
 
           {/* Step 3: Images & Summary */}
           {step === 3 && (
-            <motion.div
+            <Motion.div
               key="step-3"
               custom={direction}
               variants={slide}
@@ -855,7 +893,7 @@ export default function CreateListing() {
                       How buyers get in touch
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <motion.button
+                      <Motion.button
                         type="button"
                         whileTap={{ scale: 0.98 }}
                         onClick={() => set('payOnPlatform', false)}
@@ -869,8 +907,8 @@ export default function CreateListing() {
                         <span className="block text-[10px] mt-1 leading-snug opacity-80">
                           Nothing is charged. You accept or decline each request yourself.
                         </span>
-                      </motion.button>
-                      <motion.button
+                      </Motion.button>
+                      <Motion.button
                         type="button"
                         whileTap={{ scale: 0.98 }}
                         onClick={() => set('payOnPlatform', true)}
@@ -884,7 +922,7 @@ export default function CreateListing() {
                         <span className="block text-[10px] mt-1 leading-snug opacity-80">
                           Rent, deposit and agent fee are charged immediately at booking.
                         </span>
-                      </motion.button>
+                      </Motion.button>
                     </div>
                   </div>
                 </div>
@@ -923,7 +961,7 @@ export default function CreateListing() {
                   </span>
                 </div>
 
-                <motion.label
+                <Motion.label
                   animate={{ scale: dragActive ? 1.015 : 1 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                   onDragOver={(e) => { e.preventDefault(); if (images.length < MAX_MEDIA) setDragActive(true); }}
@@ -931,9 +969,7 @@ export default function CreateListing() {
                   onDrop={(e) => {
                     e.preventDefault();
                     setDragActive(false);
-                    if (images.length >= MAX_MEDIA) return;
-                    const dropped = Array.from(e.dataTransfer.files).filter((f) => /^(image|video)\//.test(f.type));
-                    if (dropped.length) setImages((prev) => [...prev, ...dropped].slice(0, MAX_MEDIA));
+                    addMedia(e.dataTransfer.files);
                   }}
                   className={`block w-full p-10 rounded-xl border-2 border-dashed text-center transition-colors outline-none ${
                     images.length >= MAX_MEDIA
@@ -943,7 +979,7 @@ export default function CreateListing() {
                         : 'border-white/20 cursor-pointer hover:border-[#CDFF00]/50 hover:bg-[#CDFF00]/5'
                   }`}
                 >
-                  <motion.span
+                  <Motion.span
                     className="block"
                     animate={{ y: dragActive ? -4 : 0 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 20 }}
@@ -951,7 +987,7 @@ export default function CreateListing() {
                     {dragActive
                       ? <UploadCloud className="w-10 h-10 mx-auto text-[#CDFF00] mb-3" />
                       : <ImageIcon className="w-10 h-10 mx-auto text-gray-500 mb-3" />}
-                  </motion.span>
+                  </Motion.span>
                   <p className="text-sm font-bold text-gray-300 tracking-widest mb-1">
                     {dragActive ? 'Drop it here' : 'Upload Media'}
                   </p>
@@ -969,13 +1005,13 @@ export default function CreateListing() {
                     // slice() enforces the cap even when someone multi-selects past it in the
                     // file picker, where the disabled attribute can't help.
                     onChange={(e) => {
-                      setImages([...images, ...Array.from(e.target.files)].slice(0, MAX_MEDIA));
+                      addMedia(e.target.files);
                       // Clearing the input lets the same file be re-picked after a removal;
                       // otherwise the browser suppresses the change event as a no-op.
                       e.target.value = '';
                     }}
                   />
-                </motion.label>
+                </Motion.label>
 
                 {/* Honest about what happens with a thin gallery, rather than blocking the
                     seller or quietly padding without telling them. */}
@@ -997,12 +1033,15 @@ export default function CreateListing() {
                           key={`${file.name}-${file.lastModified}-${i}`}
                           file={file}
                           isLead={i === 0}
+                          onCrop={() => setCropIndex(i)}
+                          onMakeCover={() => setImages((previous) => [previous[i], ...previous.filter((_, index) => index !== i)])}
                           onRemove={() => setImages(images.filter((_, idx) => idx !== i))}
                         />
                       ))}
                     </AnimatePresence>
                   </div>
                 )}
+                <p className="mt-3 text-xs text-gray-400">Tap Crop to frame a photo. The cover is the first image buyers see. Up to 10 files, 50 MB each.</p>
               </div>
 
               {/* Summary */}
@@ -1060,7 +1099,7 @@ export default function CreateListing() {
                 </div>
               </div>
 
-            </motion.div>
+            </Motion.div>
           )}
           </AnimatePresence>
           </div>
@@ -1081,7 +1120,7 @@ export default function CreateListing() {
                 <MoveLeft className="w-4 h-4" /> Back
               </button>
             )}
-            <motion.button
+            <Motion.button
               whileTap={meta.canAdvance && !loading ? { scale: 0.97 } : {}}
               onClick={() => (isLast ? handleSubmit() : goTo(step + 1))}
               disabled={loading || !meta.canAdvance}
@@ -1092,7 +1131,7 @@ export default function CreateListing() {
                 : isLast
                   ? 'Publish Listing'
                   : <>Next <MoveRight className="w-5 h-5" /></>}
-            </motion.button>
+            </Motion.button>
           </div>
 
           {/* The moment the whole form was building to — held on screen just long enough to
@@ -1101,7 +1140,7 @@ export default function CreateListing() {
               `absolute inset-0` covers exactly the card's own rounded box. */}
           <AnimatePresence>
           {published && (
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1115,7 +1154,7 @@ export default function CreateListing() {
                 const distance = 90 + (i % 3) * 30;
                 const colour = [ '#CDFF00', '#FF00FF', '#00FFFF' ][i % 3];
                 return (
-                  <motion.span
+                  <Motion.span
                     key={i}
                     initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
                     animate={{ x: Math.cos(angle) * distance, y: Math.sin(angle) * distance, opacity: 0, scale: 0 }}
@@ -1125,35 +1164,45 @@ export default function CreateListing() {
                   />
                 );
               })}
-              <motion.div
+              <Motion.div
                 initial={{ scale: 0, rotate: -30 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.1 }}
                 className="w-16 h-16 rounded-full bg-[#CDFF00] flex items-center justify-center"
               >
                 <PartyPopper className="w-8 h-8 text-black" />
-              </motion.div>
-              <motion.p
+              </Motion.div>
+              <Motion.p
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
                 className="text-lg font-heading font-black text-white tracking-tight"
               >
                 Listing published!
-              </motion.p>
-              <motion.p
+              </Motion.p>
+              <Motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.35 }}
                 className="text-xs text-gray-400 font-bold tracking-widest"
               >
                 Taking you there now…
-              </motion.p>
-            </motion.div>
+              </Motion.p>
+            </Motion.div>
           )}
           </AnimatePresence>
         </div>
-      </motion.div>
+      </Motion.div>
+      {cropIndex !== null && images[cropIndex] && (
+        <ImageCropper
+          file={images[cropIndex]}
+          onCancel={() => setCropIndex(null)}
+          onApply={(file) => {
+            setImages((previous) => previous.map((image, index) => index === cropIndex ? file : image));
+            setCropIndex(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1167,18 +1216,11 @@ export default function CreateListing() {
  * URL on every re-render and never releases any of them, which leaks the whole file in memory
  * each time — noticeable fast when the files are video.
  */
-function MediaThumb({ file, isLead, onRemove }) {
-  const [url, setUrl] = useState('');
+function MediaThumb({ file, isLead, onRemove, onCrop, onMakeCover }) {
   const isVideo = file.type ? file.type.startsWith('video/') : isVideoUrl(file.name);
 
-  useEffect(() => {
-    const objectUrl = URL.createObjectURL(file);
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [file]);
-
   return (
-    <motion.div
+    <Motion.div
       layout
       initial={{ scale: 0, rotate: -8, opacity: 0 }}
       animate={{ scale: 1, rotate: 0, opacity: 1 }}
@@ -1186,11 +1228,9 @@ function MediaThumb({ file, isLead, onRemove }) {
       transition={{ type: 'spring', stiffness: 500, damping: 28 }}
       className="relative group"
     >
-      {isVideo ? (
-        <video src={url} muted className="w-24 h-24 rounded-lg object-cover bg-black" />
-      ) : (
-        <img src={url} alt="" className="w-24 h-24 rounded-lg object-cover" />
-      )}
+      <UploadPreview file={file} alt={isLead ? 'Listing cover' : 'Listing photo'} className="w-28 h-28 rounded-xl object-contain bg-black" />
+      {!isVideo && <button type="button" onClick={onCrop} className="mt-1 min-h-11 w-full rounded-lg border border-white/15 text-sm font-semibold text-white hover:bg-white/10">Crop photo</button>}
+      {!isLead && <button type="button" onClick={onMakeCover} className="min-h-11 w-full text-xs text-gray-300 hover:text-[#CDFF00]">Make cover</button>}
 
       {isVideo && (
         <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/80 text-[8px] font-black tracking-widest text-white flex items-center gap-1">
@@ -1201,24 +1241,24 @@ function MediaThumb({ file, isLead, onRemove }) {
       {/* The first item is the one that shows on browse cards and shares, so it's worth
           calling out which photo the seller is actually leading with. */}
       {isLead && (
-        <motion.span
+        <Motion.span
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 500, damping: 20, delay: 0.1 }}
           className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-[#CDFF00] text-[8px] font-black tracking-widest text-black"
         >
           Cover
-        </motion.span>
+        </Motion.span>
       )}
 
       <button
         type="button"
         onClick={onRemove}
         aria-label="Remove this file"
-        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#CDFF00] text-black flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+        className="absolute -top-2 -right-2 w-11 h-11 rounded-full bg-black/80 border border-white/15 text-white flex items-center justify-center shadow-lg hover:bg-red-950"
       >
         <CircleX className="w-3 h-3" />
       </button>
-    </motion.div>
+    </Motion.div>
   );
 }

@@ -160,7 +160,7 @@ export const followsApi = {
 
 export const listingsApi = {
   browse: (params) => api.get('/listings', { params }),
-  search: (q) => api.get('/listings/search', { params: { q } }),
+  search: (q) => api.get('/listings', { params: { q } }),
   getById: (id) => api.get(`/listings/${id}`),
   create: (formData) => api.post('/listings', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   getMyListings: () => api.get('/listings/my'),
@@ -198,12 +198,28 @@ export const directMessagesApi = {
 };
 
 export const bookingsApi = {
+  checkout: (data) => api.post('/bookings/checkout', data),
   create: (data) => api.post('/bookings', data),
   getAll: () => api.get('/bookings/my'),
   cancel: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }),
   accept: (id) => api.patch(`/bookings/${id}/accept`),
   counter: (id, counterPrice) => api.patch(`/bookings/${id}/counter`, { counterPrice }),
   complete: (id) => api.patch(`/bookings/${id}/complete`),
+};
+
+export const shopsApi = {
+  browse: () => api.get('/shops'),
+  get: (id) => api.get(`/shops/${id}`),
+  services: (id) => api.get(`/shops/${id}/services`),
+  slots: (id, serviceId) => api.get(`/shops/${id}/services/${serviceId}/slots`),
+  book: (id, data) => api.post(`/shops/${id}/appointments`, data),
+  checkout: (id, data) => api.post(`/shops/${id}/checkout`, data),
+  orders: () => api.get('/shops/orders/mine'),
+};
+
+export const payoutsApi = {
+  status: () => api.get('/payouts/status'),
+  connect: () => api.post('/payouts/connect'),
 };
 
 export const notificationsApi = {

@@ -1,0 +1,113 @@
+// Browser smoke tests against explicit fixtures, not a live API.
+// Start Vite and a temporary Chrome profile with --remote-debugging-port=9222 first.
+import assert from 'node:assert/strict';
+import { mkdir, writeFile } from 'node:fs/promises';
+const targets = await fetch('http://127.0.0.1:9222/json/list').then(response => response.json());
+const page = targets.find(target => target.type === 'page');
+assert(page, 'A Chrome page must be available');
+const socket = new WebSocket(page.webSocketDebuggerUrl);
+await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
+let sequence = 0;
+const pending = new Map();
+const errors = [];
+const calls = [];
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const send = (method, params = {}) => new Promise((resolve, reject) => { const id = ++sequence; pending.set(id, { resolve, reject }); socket.send(JSON.stringify({ id, method, params })); });
+const user = { id: 'review-user', role: 'SELLER', fullName: 'Alex Review', email: 'review@example.test', emailVerified: true };
+const photo = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"><rect width="400" height="500" fill="#e8dfce"/><rect x="120" y="90" width="160" height="280" rx="32" fill="#42634a"/><text x="200" y="225" text-anchor="middle" fill="white" font-size="24">LOCAL</text></svg>');
+const listing = { id: 'review-listing', title: 'Everyday canvas tote', description: 'Made locally. A little room for everything.', price: 45, currency: 'PLN', listingType: 'FASHION', sellerId: 'seller', sellerName: 'Maya Studio', locationCity: 'Lublin', mediaUrls: [photo], status: 'ACTIVE', shippingMethod: 'PICKUP' };
+const product = { id: 'review-product', name: 'Fresh apples, 1 kg', price: 9, currency: 'PLN', category: 'Fruit & vegetables', stockQuantity: 8, imageUrl: photo, shippingMethod: 'PICKUP' };
+const shop = { id: 'review-shop', slug: 'local-grocer', name: 'The Local Grocer', category: 'Grocery & Food', businessType: 'GROCERY_FOOD', ownerId: 'seller', city: 'Lublin', published: true, products: [product] };
+let community = { id: 'review-community', name: 'Lublin food lovers', description: 'Recipes, good food and neighbourhood favourites.', memberCount: 12, city: 'Lublin', category: 'Food & groceries', joinedByCurrentUser: false };
+socket.onmessage = async event => {
+  const message = JSON.parse(event.data);
+  if (message.id) { const promise = pending.get(message.id); pending.delete(message.id); if (message.error) promise?.reject(new Error(message.error.message)); else promise?.resolve(message.result); return; }
+  if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.exception?.description || message.params.exceptionDetails.text);
+  if (message.method !== 'Fetch.requestPaused') return;
+  const { requestId, request } = message.params;
+  const url = new URL(request.url);
+  if (!url.pathname.startsWith('/api/v1')) { await send('Fetch.continueRequest', { requestId }); return; }
+  const route = url.pathname.replace('/api/v1', '');
+  calls.push(`${request.method} ${route}`);
+  let data = [];
+  if (route === '/subscriptions/my') data = { plan: 'VERIFIED', status: 'ACTIVE' };
+  else if (route === '/auth/me') data = user;
+  else if (route === '/users') data = [{ id: 'seller', fullName: 'Maya Studio', city: 'Lublin' }];
+  else if (route.startsWith('/listings')) data = route === '/listings/review-listing' ? listing : [listing];
+  else if (route === '/shops') data = [shop];
+  else if (route === '/shops/me') data = { ...shop, id: 'own-shop', ownerId: user.id };
+  else if (route === '/shops/local-grocer' || route === '/shops/review-shop') data = shop;
+  else if (route === '/communities/review-community/join') { community = { ...community, joinedByCurrentUser: request.method !== 'DELETE', memberCount: request.method === 'DELETE' ? 12 : 13 }; data = community; }
+  else if (route === '/communities') data = [community];
+  else if (route === '/communities/mine') data = community.joinedByCurrentUser ? [community] : [];
+  else if (route === '/payouts/status') data = { connected: false, payoutsEnabled: false, chargesEnabled: false, detailsSubmitted: false };
+  else if (route === '/notifications/unread-count') data = { count: 0 };
+  await send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify(data)).toString('base64') });
+};
+const evaluate = async expression => {
+  const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+  if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+  return result.result.value;
+};
+const waitFor = async (expression) => { for (let i = 0; i < 70; i++) { if (await evaluate(expression)) return; await sleep(100); } throw new Error(`Timed out: ${expression}`); };
+const clickText = async text => {
+  const clicked = await evaluate(`(() => { const el = [...document.querySelectorAll('button,a')].find(el => el.textContent.trim() === ${JSON.stringify(text)}); if (!el) return false; el.click(); return true; })()`);
+  assert(clicked, `Control exists: ${text}`); await sleep(450);
+};
+const go = async route => { await send('Page.navigate', { url: `http://127.0.0.1:5173${route}` }); await waitFor('!!document.querySelector("main")'); await sleep(900); };
+await mkdir('artifacts/ui-review', { recursive: true });
+const screenshot = async name => { const { data } = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(`artifacts/ui-review/${name}.png`, Buffer.from(data, 'base64')); };
+try {
+  await send('Runtime.enable'); await send('Page.enable');
+  await send('Fetch.enable', { patterns: [{ urlPattern: '*://*/api/v1/*' }] });
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `localStorage.setItem('hustleup_token','fixture-only');localStorage.setItem('hustleup_user',${JSON.stringify(JSON.stringify(user))});` });
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await go('/'); await evaluate("localStorage.removeItem('hustleup_cart')");
+  await go('/'); await screenshot('hero-mobile');
+  assert(await evaluate('document.body.innerText.includes("Find your people.")'), 'New hero renders');
+  await go('/explore');
+  await waitFor('document.body.innerText.includes("Everyday canvas tote")');
+  assert(await evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1'), 'Explore fits mobile width');
+  await screenshot('explore-mobile');
+  await clickText('Add to cart');
+  assert(await evaluate('JSON.parse(localStorage.getItem("hustleup_cart")).some(item => item.listingId === "review-listing")'), 'Listing button persists a cart item');
+  await go('/shop/local-grocer');
+  await waitFor('document.body.innerText.includes("Fresh apples")');
+  await clickText('Add to cart');
+  assert(await evaluate('JSON.parse(localStorage.getItem("hustleup_cart")).some(item => item.productId === "review-product")'), 'Shop button adds to cart');
+  await go('/shop/local-grocer/product/review-product/negotiate');
+  await waitFor('location.pathname === "/shop/local-grocer"');
+  await go('/feed'); await clickText('Communities');
+  await waitFor('document.body.innerText.includes("Lublin food lovers")');
+  await screenshot('communities-mobile');
+  await clickText('Join');
+  await clickText('Lublin food lovers');
+  assert(calls.includes('GET /feed/community/review-community'), 'Opening a community loads its own feed');
+  await waitFor(`!!document.querySelector('[aria-label^="Turn on anonymous"]')`);
+  await evaluate(`document.querySelector('[aria-label^="Turn on anonymous"]').click()`);
+  await waitFor('document.body.innerText.includes("Anonymous on")');
+  assert(await evaluate('document.body.innerText.includes("Anonymous on")'), 'Anonymous state is visible');
+  assert(await evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1'), 'Anonymous composer fits mobile');
+  await go('/create');
+  await waitFor('!!document.querySelector("input[value=GOODS]")');
+  await evaluate('document.querySelector("input[value=GOODS]").click(); const el=document.querySelector("#listing-title"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(el,"Desk lamp"); el.dispatchEvent(new Event("input",{bubbles:true}));');
+  await screenshot('listing-category-mobile');
+  await clickText('Next');
+  await waitFor('!!document.querySelector("input[type=number]")');
+  await evaluate('const price=document.querySelector("input[type=number]");Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(price,"20");price.dispatchEvent(new Event("input",{bubbles:true}));');
+  await clickText('Next');
+  await waitFor('!!document.querySelector("input[type=file]")');
+  await evaluate(`new Promise(resolve => { const canvas=document.createElement('canvas'); canvas.width=600;canvas.height=400;const ctx=canvas.getContext('2d');ctx.fillStyle='#cdff00';ctx.fillRect(0,0,600,400);canvas.toBlob(blob=>{ const dt=new DataTransfer();dt.items.add(new File([blob],'review.png',{type:'image/png'}));const input=document.querySelector('input[type=file]');input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));resolve(); }); })`);
+  await sleep(250); await clickText('Crop photo');
+  await waitFor('!!document.querySelector("[role=dialog]")');
+  await clickText('1:1'); await screenshot('crop-mobile'); await clickText('Use photo');
+  await waitFor('!document.querySelector("[role=dialog]")');
+  assert(await evaluate(`!!document.querySelector('img[alt="Listing cover"]')`), 'Cropped listing remains in gallery');
+  await go('/payouts'); await waitFor('document.body.innerText.includes("No bank account connected yet.")');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await go('/'); await screenshot('hero-desktop');
+  await go('/explore'); await screenshot('explore-desktop');
+  assert.equal(errors.length, 0, errors.join('\n'));
+  console.log('PASS: hero, mobile Explore width, listing/cart persistence, shop/cart persistence, retired negotiation redirect, community join/feed selection, mobile anonymity, category selection, photo crop/export, bank status and desktop layouts.');
+  console.log('Fixture-backed UI checks only; no live payment, membership or order was created. Screenshots: artifacts/ui-review.');
+} finally { socket.close(); }

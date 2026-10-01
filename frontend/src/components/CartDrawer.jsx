@@ -8,7 +8,6 @@ import SmartImage from './SmartImage';
 import {
   selectCartItems,
   selectCartOpen,
-  selectCartTotal,
   selectCartCount,
   closeCart,
   removeFromCart,
@@ -21,7 +20,6 @@ export default function CartDrawer() {
   const navigate = useNavigate();
   const items = useSelector(selectCartItems);
   const open = useSelector(selectCartOpen);
-  const total = useSelector(selectCartTotal);
   const count = useSelector(selectCartCount);
 
   // Display currency. A basket can hold listings priced in different currencies, so the
@@ -44,15 +42,19 @@ export default function CartDrawer() {
   // Converted per item, then summed — converting the raw mixed-currency sum would be
   // applying one rate to several currencies at once.
   const convertedTotal = items.reduce((acc, i) => {
-    const unit = i.negotiatedPrice ?? i.price;
+    const unit = i.price;
     return acc + convertPrice(unit, i.currency || 'PLN', displayCurrency) * (i.quantity || 1);
   }, 0);
 
   useEffect(() => {
     if (!open) return;
     const unlock = lockBodyScroll();
-    return () => unlock();
-  }, [open]);
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') dispatch(closeCart());
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => { unlock(); window.removeEventListener('keydown', onKeyDown); };
+  }, [open, dispatch]);
 
   const checkout = () => {
     dispatch(closeCart());
@@ -161,14 +163,14 @@ export default function CartDrawer() {
                         </p>
                         <p className="text-[#CDFF00] font-black text-base mt-2 shadow-[0_0_15px_rgba(205,255,0,0.1)]">
                           {formatPrice(
-                            convertPrice(item.negotiatedPrice ?? item.price, item.currency || 'PLN', displayCurrency),
+                            convertPrice(item.price, item.currency || 'PLN', displayCurrency),
                             displayCurrency
                           )}
                         </p>
                         {/* Only worth showing when a conversion actually happened. */}
                         {(item.currency || 'PLN') !== displayCurrency && (
                           <p className="text-[9px] font-bold text-gray-600 mt-0.5">
-                            listed at {formatPrice(item.negotiatedPrice ?? item.price, item.currency || 'PLN')}
+                            listed at {formatPrice(item.price, item.currency || 'PLN')}
                           </p>
                         )}
 
@@ -212,7 +214,7 @@ export default function CartDrawer() {
               <div className="px-6 py-5 border-t border-white/10 space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-400 text-sm font-bold tracking-widest">Total</span>
+                    <span className="text-gray-400 text-sm font-bold tracking-widest">Subtotal</span>
                     <select
                       value={displayCurrency}
                       onChange={(e) => changeCurrency(e.target.value)}
@@ -227,7 +229,7 @@ export default function CartDrawer() {
                   </span>
                 </div>
                 <p className="-mt-2 text-[10px] text-gray-600 font-bold leading-relaxed">
-                  Converted for display. You are charged in each seller&apos;s own currency.
+                  Conversion is an estimate. Delivery is added at checkout. Shops and currencies are checked out separately.
                 </p>
                 <button
                   onClick={checkout}

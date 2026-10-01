@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { feedApi, listingsApi, subscriptionsApi, communitiesApi, dispatchToast } from '../api/client';
@@ -15,6 +15,7 @@ import HeroBrief from '../components/HeroBrief';
 import ShareModal from '../components/ShareModal';
 import SmartImage from '../components/SmartImage';
 import ImageCropper from '../components/ImageCropper';
+import UploadPreview from '../components/UploadPreview';
 import CommunityPanel from '../components/CommunityPanel';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 import { timeAgo, formatDateTime } from '../utils/time';
@@ -109,7 +110,7 @@ function HeartBurst({ show }) {
   return (
     <AnimatePresence>
       {show && (
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, scale: 0.5 }}
           animate={{ opacity: 1, scale: 1.15 }}
           exit={{ opacity: 0, scale: 1.4 }}
@@ -117,7 +118,7 @@ function HeartBurst({ show }) {
           className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
         >
           <Flame className="w-24 h-24 text-white fill-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.5)]" />
-        </motion.div>
+        </Motion.div>
       )}
     </AnimatePresence>
   );
@@ -132,7 +133,7 @@ function HeartBurst({ show }) {
  *    avatar/name/timestamp header, larger body text, and a compact action row —
  *    a big image block would be empty space for a post that's just words.
  */
-function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpenComments, onOpenLikers, onShare, onRepost, isOwn, onEdit, onDelete }) {
+function PostCard({ post, likeInProgress, onLike, onSave, onOpenComments, onOpenLikers, onShare, onRepost, isOwn, onEdit, onDelete }) {
   const [burst, setBurst] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -198,7 +199,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
   // platform feature rather than someone calling themselves "Anonymous".
   const anon = post.anonymous;
 
-  const AuthorAvatar = ({ size = 'w-9 h-9', iconSize = 'w-4 h-4' }) => (
+  const renderAuthorAvatar = ({ size = 'w-9 h-9', iconSize = 'w-4 h-4' } = {}) => (
     anon ? (
       <div className={`${size} rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0`}>
         <Drama className={`${iconSize} text-gray-300`} />
@@ -209,7 +210,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
   );
 
   /** Author name — a profile link normally, plain text when anonymous. */
-  const AuthorName = ({ className = '' }) => (
+  const renderAuthorName = ({ className = '' } = {}) => (
     anon ? (
       <span className={`flex items-center gap-1.5 ${className}`}>
         <span className="truncate">Anonymous</span>
@@ -230,7 +231,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
     setTimeout(() => setBurst(false), 500);
   };
 
-  const ActionRow = ({ compact }) => (
+  const renderActions = ({ compact } = {}) => (
     <div className={`flex items-center gap-4 ${compact ? '' : 'mb-1'}`}>
       <button
         onClick={() => onLike(post.id)}
@@ -322,7 +323,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
     );
   })();
 
-  const CommentPreview = () => (
+  const renderCommentPreview = () => (
     <>
       {post.topComment && (
         <button onClick={() => onOpenComments(post)} className="block text-left text-sm text-gray-400 truncate w-full hover:text-gray-300 transition-colors">
@@ -341,21 +342,21 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
   // ── Twitter-style: text-only post, no media block ──────────────────────────
   if (!hasMedia && !singleImage) {
     return (
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         className="py-4 border-b border-white/10"
       >
         <div className="flex gap-3">
-          {anon ? <AuthorAvatar /> : (
+          {anon ? renderAuthorAvatar() : (
             <Link to={`/profile/${post.authorId}`}>
-              <AuthorAvatar />
+              {renderAuthorAvatar()}
             </Link>
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 text-sm">
-              <AuthorName className="font-bold text-white" />
+              {renderAuthorName({ className: 'font-bold text-white' })}
               {/* The date it was posted, not how long ago. "34w" is a number a reader has
                   to do arithmetic on before it means anything; a date is the thing they
                   were actually asking for. */}
@@ -376,35 +377,35 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
             )}
             {quotedPost}
             <div className="mt-3 max-w-sm">
-              <ActionRow compact />
+              {renderActions({ compact: true })}
             </div>
             {post.commentsCount > 0 && (
               <div className="mt-2">
-                <CommentPreview />
+                {renderCommentPreview()}
               </div>
             )}
           </div>
         </div>
-      </motion.div>
+      </Motion.div>
     );
   }
 
   // ── Instagram-style: media post ─────────────────────────────────────────────
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-40px' }}
       className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden"
     >
       <div className="px-3.5 py-3 flex items-center gap-2.5">
-        {anon ? <AuthorAvatar /> : (
+        {anon ? renderAuthorAvatar() : (
           <Link to={`/profile/${post.authorId}`}>
-            <AuthorAvatar />
+            {renderAuthorAvatar()}
           </Link>
         )}
         <div className="min-w-0">
-          <AuthorName className="text-sm font-bold text-white block" />
+          {renderAuthorName({ className: 'text-sm font-bold text-white block' })}
           <span className="flex items-center gap-2 text-xs text-gray-500">
             <span>{formatDateTime(post.createdAt)}{post.editedAt ? ' · edited' : ''}</span>
             {communityLabel}
@@ -437,7 +438,7 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
       </div>
 
       <div className="p-3.5">
-        <ActionRow />
+        {renderActions()}
 
         {(post.likesCount || 0) > 0 && (
           <button onClick={() => onOpenLikers(post)} className="text-sm font-bold text-white hover:underline mb-1.5 block">
@@ -454,9 +455,9 @@ function PostCard({ post, isAuthenticated, likeInProgress, onLike, onSave, onOpe
           </p>
         )}
 
-        <CommentPreview />
+        {renderCommentPreview()}
       </div>
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -469,7 +470,7 @@ function ListingPromoCard({ listing, onSave, onShare }) {
   const cover = uploadUrl(listing.mediaUrls?.[0] || POST_FALLBACK_IMAGE);
   const aspect = useMediaAspect(cover);
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-40px' }}
@@ -527,14 +528,14 @@ function ListingPromoCard({ listing, onSave, onShare }) {
           View listing <ShoppingBasket className="w-3.5 h-3.5" />
         </Link>
       </div>
-    </motion.div>
+    </Motion.div>
   );
 }
 
 /** A shop interleaved into the feed — a compact discovery/promo card. */
 function ShopPromoCard({ shop }) {
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-40px' }}
@@ -566,7 +567,7 @@ function ShopPromoCard({ shop }) {
           Visit
         </span>
       </Link>
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -589,6 +590,9 @@ export default function Feed() {
   const [followingLoading, setFollowingLoading] = useState(false);
   const [communityPosts, setCommunityPosts] = useState(null);
   const [communityLoading, setCommunityLoading] = useState(false);
+  const [activeCommunity, setActiveCommunity] = useState(null);
+  const [communityError, setCommunityError] = useState('');
+  const communityRequest = useRef(0);
   // Communities the user has joined — drives the composer's destination picker as well as
   // the Communities tab, so it is loaded once here rather than by each of them.
   const [myCommunities, setMyCommunities] = useState([]);
@@ -615,6 +619,8 @@ export default function Feed() {
   const [editingPost, setEditingPost] = useState(null);
   const [editDraft, setEditDraft] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [editingPhoto, setEditingPhoto] = useState(null);
+  const [loadingPhoto, setLoadingPhoto] = useState(false);
 
   // Comment Modal State
   const [selectedPost, setSelectedPost] = useState(null);
@@ -716,18 +722,28 @@ export default function Feed() {
   }, [tab]);
 
   /** Posts from every community you've joined, plus the list of those communities. */
-  const loadCommunityFeed = async () => {
+  const loadCommunityFeed = async (community = activeCommunity) => {
+    const request = ++communityRequest.current;
     setCommunityLoading(true);
+    setCommunityError('');
     try {
       const [postRes, mineRes] = await Promise.allSettled([
-        feedApi.communities(),
+        community ? feedApi.byCommunity(community.id) : feedApi.communities(),
         communitiesApi.mine(),
       ]);
+      if (request !== communityRequest.current) return;
       setCommunityPosts(postRes.status === 'fulfilled' ? (postRes.value.data || []) : []);
+      if (postRes.status === 'rejected') setCommunityError('Could not load these conversations. Please try again.');
       if (mineRes.status === 'fulfilled') setMyCommunities(mineRes.value.data || []);
     } finally {
-      setCommunityLoading(false);
+      if (request === communityRequest.current) setCommunityLoading(false);
     }
+  };
+
+  const selectCommunity = (community) => {
+    setActiveCommunity(community);
+    setPostTarget(community?.joinedByCurrentUser ? community : null);
+    loadCommunityFeed(community);
   };
 
   const switchTab = (next) => {
@@ -779,12 +795,17 @@ export default function Feed() {
   const [cropIndex, setCropIndex] = useState(null);
 
   const handleMediaChange = (e) => {
-    const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
     if (mediaFiles.length + files.length > 15) {
-      alert('You can only upload up to 15 items per post.');
+      dispatchToast('You can upload up to 15 photos and videos per post.', 'error');
       return;
     }
-    setMediaFiles([...mediaFiles, ...files]);
+    if (files.some((file) => !/^(image|video)\//.test(file.type) || file.size > 50 * 1024 * 1024)) {
+      dispatchToast('Choose photos or videos smaller than 50 MB each.', 'error');
+      return;
+    }
+    setMediaFiles((previous) => [...previous, ...files]);
   };
 
   const removeMedia = (index) => {
@@ -872,6 +893,8 @@ export default function Feed() {
     e.preventDefault();
     if (!content.trim() && mediaFiles.length === 0) return;
     if (!isAuthenticated) return;
+    if (posting) return;
+    if (tab === 'communities' && !postTarget) { dispatchToast('Pick a community for your post first.', 'error'); return; }
     // Guard the obvious case client-side so a non-subscriber gets the upgrade sheet instead
     // of a rejected request — but the server refuses it either way.
     if (anonymous && !premium) { setShowUpgrade(true); return; }
@@ -980,6 +1003,8 @@ export default function Feed() {
       await feedApi.deletePost(post.id);
       setPosts((prev) => prev.filter((p) => p.id !== post.id));
       setSavedPosts((prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev));
+      setFollowingPosts((prev) => prev?.filter((p) => p.id !== post.id) ?? prev);
+      setCommunityPosts((prev) => prev?.filter((p) => p.id !== post.id) ?? prev);
       dispatchToast('Post deleted', 'success');
     } catch (e) {
       dispatchToast(e.response?.data?.error || 'Could not delete post', 'error');
@@ -991,11 +1016,28 @@ export default function Feed() {
   const patchPost = (postId, updater) => {
     setPosts((prev) => prev.map((p) => (p.id === postId ? updater(p) : p)));
     setSavedPosts((prev) => (prev ? prev.map((p) => (p.id === postId ? updater(p) : p)) : prev));
+    setFollowingPosts((prev) => prev?.map((p) => p.id === postId ? updater(p) : p) ?? prev);
+    setCommunityPosts((prev) => prev?.map((p) => p.id === postId ? updater(p) : p) ?? prev);
+  };
+
+  const openPhotoCrop = async (media, index) => {
+    if (loadingPhoto) return;
+    setLoadingPhoto(true);
+    try {
+      const response = await fetch(uploadUrl(media.url));
+      if (!response.ok) throw new Error('Photo unavailable');
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('Not an image');
+      const extension = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+      setEditingPhoto({ index, file: new File([blob], `post-photo.${extension}`, { type: blob.type }) });
+    } catch {
+      dispatchToast('Could not open this photo. Use Replace photo to choose it from your device.', 'error');
+    } finally { setLoadingPhoto(false); }
   };
 
   const handleLike = async (postId) => {
     if (!isAuthenticated || likeInProgress[postId]) return;
-    const post = posts.find((p) => p.id === postId) || (savedPosts || []).find((p) => p.id === postId);
+    const post = [...posts, ...(savedPosts || []), ...(followingPosts || []), ...(communityPosts || [])].find((p) => p.id === postId);
     if (!post) return;
 
     setLikeInProgress((prev) => ({ ...prev, [postId]: true }));
@@ -1016,7 +1058,7 @@ export default function Feed() {
 
   const handleSavePost = async (postId) => {
     if (!isAuthenticated) return;
-    const post = posts.find((p) => p.id === postId) || (savedPosts || []).find((p) => p.id === postId);
+    const post = [...posts, ...(savedPosts || []), ...(followingPosts || []), ...(communityPosts || [])].find((p) => p.id === postId);
     if (!post) return;
 
     // Optimistic toggle.
@@ -1198,7 +1240,7 @@ export default function Feed() {
 
   // The composer belongs on the feeds you can actually post to. Saved is a collection, not
   // a place to write into.
-  const showComposer = isAuthenticated && tab !== 'saved';
+  const showComposer = isAuthenticated && tab !== 'saved' && (tab !== 'communities' || (myCommunities.length > 0 && (!activeCommunity || activeCommunity.joinedByCurrentUser)));
 
   return (
     <div className="min-h-screen font-sans pb-24">
@@ -1236,6 +1278,22 @@ export default function Feed() {
           </div>
         )}
 
+        {tab === 'communities' && isAuthenticated && (
+          <>
+            <CommunityPanel selectedId={activeCommunity?.id} onSelect={selectCommunity} onChanged={(community) => {
+              const next = activeCommunity?.id === community.id ? community : activeCommunity;
+              if (next) setActiveCommunity(next);
+              if (postTarget?.id === community.id) setPostTarget(community.joinedByCurrentUser ? community : null);
+              loadCommunityFeed(next);
+            }} />
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-white">{activeCommunity?.name || 'From your communities'}</h2>
+              {activeCommunity && <button type="button" onClick={() => selectCommunity(null)} className="min-h-11 shrink-0 px-3 text-xs font-semibold text-[#CDFF00]">All joined</button>}
+            </div>
+            {activeCommunity && !activeCommunity.joinedByCurrentUser && <p className="mb-5 rounded-xl border border-white/10 p-4 text-sm text-gray-400">You’re previewing this community. Join above to take part and share a post.</p>}
+          </>
+        )}
+
         {showComposer && (
           <form onSubmit={handlePost} className="bg-white/[0.02] border border-white/10 p-4 rounded-2xl mb-6">
             <div className="flex gap-3">
@@ -1262,24 +1320,14 @@ export default function Feed() {
                     and a row of community chips there was one more thing to read past on a
                     screen that has no room for it. */}
                 {tab === 'communities' && myCommunities.length > 0 && (
-                  <div className="flex items-center gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-hide -mx-1 px-1 pb-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setPostTarget(null)}
-                      className={`px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap transition-colors shrink-0 ${
-                        postTarget === null
-                          ? 'bg-[#CDFF00] text-black'
-                          : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      Everyone
-                    </button>
+                  <div className="flex items-center gap-1.5 overflow-x-auto overscroll-x-contain scrollbar-hide -mx-1 px-1 pb-0.5" aria-label="Pick a community to post in">
                     {myCommunities.map((community) => (
                       <button
                         key={community.id}
                         type="button"
-                        onClick={() => setPostTarget(community)}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap transition-colors shrink-0 ${
+                        onClick={() => selectCommunity(community)}
+                        aria-pressed={postTarget?.id === community.id}
+                        className={`flex min-h-11 items-center gap-1 px-3 rounded-full text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
                           postTarget?.id === community.id
                             ? 'bg-[#CDFF00] text-black'
                             : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white'
@@ -1320,17 +1368,18 @@ export default function Feed() {
                             title="Crop & adjust"
                             className="group relative w-20 h-20 rounded-xl overflow-hidden border border-white/10 block"
                           >
-                            <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover" />
-                            <span className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5">
+                            <UploadPreview file={file} alt={`Photo ${idx + 1}: tap to crop`} className="w-full h-full object-contain bg-black" />
+                            <span className="absolute bottom-0 inset-x-0 bg-black/75 py-1.5 flex items-center justify-center gap-1">
                               <Frame className="w-4 h-4 text-[#CDFF00]" />
-                              <span className="text-[8px] font-black tracking-widest text-white">Adjust</span>
+                              <span className="text-xs font-semibold text-white">Crop</span>
                             </span>
                           </button>
                         )}
                         <button
                           type="button"
                           onClick={() => removeMedia(idx)}
-                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black border border-white/20 text-white flex justify-center items-center hover:bg-red-500 hover:border-red-500 transition-colors"
+                          aria-label={`Remove attachment ${idx + 1}`}
+                          className="absolute -top-1.5 -right-1.5 w-8 h-8 rounded-full bg-black border border-white/20 text-white flex justify-center items-center hover:bg-red-500 hover:border-red-500 transition-colors"
                         >
                           <CircleX className="w-3 h-3" />
                         </button>
@@ -1340,7 +1389,7 @@ export default function Feed() {
                 )}
 
                 {anonymous && (
-                  <motion.p
+                  <Motion.p
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     className="flex items-start gap-2 text-[11px] text-gray-400 leading-relaxed bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2"
@@ -1352,12 +1401,12 @@ export default function Feed() {
                       Your name and avatar won't be shown, and your followers won't be notified.
                       HustleSpace still records who posted, so it can act on abuse.
                     </span>
-                  </motion.p>
+                  </Motion.p>
                 )}
 
-                <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/10">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <label className="cursor-pointer text-gray-400 hover:text-[#CDFF00] transition-colors flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-white/10">
+                  <div className="flex w-full items-center justify-between gap-2 min-w-0 sm:w-auto">
+                    <label className="min-h-11 cursor-pointer text-gray-400 hover:text-[#CDFF00] transition-colors flex items-center gap-2 shrink-0">
                       <ImageIcon className="w-5 h-5" />
                       <span className="text-xs font-bold">{mediaFiles.length > 0 ? `${mediaFiles.length}/15` : 'Photo/video'}</span>
                       <input type="file" className="hidden" accept="image/*,video/*" multiple onChange={handleMediaChange} />
@@ -1368,24 +1417,26 @@ export default function Feed() {
                     <button
                       type="button"
                       onClick={() => (premium ? setAnonymous((v) => !v) : setShowUpgrade(true))}
+                      disabled={premium === null || posting}
                       aria-pressed={anonymous}
+                      aria-label={anonymous ? 'Anonymous posting on. Turn off to post as yourself.' : 'Turn on anonymous posting'}
                       title={premium ? 'Post without showing your name' : 'Anonymous posting is a Premium feature'}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all active:scale-95 shrink-0 ${
+                      className={`flex min-h-11 items-center gap-1.5 px-3 rounded-full text-xs font-bold border transition-all active:scale-95 shrink-0 disabled:opacity-50 ${
                         anonymous
                           ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                           : 'bg-transparent text-gray-400 border-white/15 hover:text-white hover:border-white/35'
                       }`}
                     >
                       <Drama className="w-4 h-4" />
-                      <span className="hidden xs:inline sm:inline">Anonymous</span>
+                      <span>Anonymous {anonymous ? 'on' : 'off'}</span>
                       {premium === false && <LockKeyhole className="w-3 h-3 opacity-70" />}
                     </button>
                   </div>
 
                   <button
                     type="submit"
-                    disabled={posting || (!content.trim() && mediaFiles.length === 0)}
-                    className="px-6 py-2.5 rounded-full bg-[#CDFF00] text-black font-bold text-sm disabled:opacity-40 hover:brightness-110 active:scale-95 transition-all shrink-0"
+                    disabled={posting || (!content.trim() && mediaFiles.length === 0) || (tab === 'communities' && !postTarget)}
+                    className="min-h-11 w-full sm:w-auto px-5 py-2.5 rounded-full bg-[#CDFF00] text-black font-bold text-sm disabled:opacity-40 hover:brightness-110 active:scale-95 transition-all shrink-0"
                   >
                     {posting ? 'Posting…' : anonymous ? 'Post anonymously' : 'Post'}
                   </button>
@@ -1398,11 +1449,9 @@ export default function Feed() {
         <div className="space-y-5">
           {/* Browse / create / join, above the community feed itself: someone opening this
               tab for the first time has no posts to read and needs somewhere to start. */}
-          {tab === 'communities' && isAuthenticated && (
-            <CommunityPanel onChanged={() => { setCommunityPosts(null); loadCommunityFeed(); }} />
-          )}
-
-          {isLoadingCurrentTab ? (
+          {tab === 'communities' && communityError ? (
+            <div role="alert" className="rounded-xl border border-white/10 p-5 text-center text-sm text-gray-300"><p>{communityError}</p><button type="button" onClick={() => loadCommunityFeed()} className="min-h-11 px-4 text-[#CDFF00]">Try again</button></div>
+          ) : isLoadingCurrentTab ? (
             [...Array(3)].map((_, i) => <div key={i} className="h-64 bg-white/[0.02] border border-white/10 rounded-2xl animate-pulse" />)
           ) : visibleItems.length > 0 ? (
             visibleItems.map((item) => {
@@ -1480,14 +1529,14 @@ export default function Feed() {
         <AnimatePresence>
           {repostTarget && (
             <div className="fixed inset-0 z-[400] flex items-center justify-center px-4">
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setRepostTarget(null)}
                 className="absolute inset-0 bg-black/80 backdrop-blur-md"
               />
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 24 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 24 }}
@@ -1564,7 +1613,7 @@ export default function Feed() {
                     {reposting ? 'Reposting' : 'Repost'}
                   </button>
                 </div>
-              </motion.div>
+              </Motion.div>
             </div>
           )}
         </AnimatePresence>
@@ -1573,14 +1622,14 @@ export default function Feed() {
         <AnimatePresence>
           {selectedPost && (
             <div className="fixed inset-0 z-[400] flex items-center justify-center px-4">
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setSelectedPost(null)}
                 className="absolute inset-0 bg-black/80 backdrop-blur-md"
               />
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 30 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 30 }}
@@ -1628,7 +1677,7 @@ export default function Feed() {
                     </div>
                   ) : (
                     comments.map((c, idx) => (
-                      <motion.div key={c.id || idx} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}>
+                      <Motion.div key={c.id || idx} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}>
                         <CommentRow
                           comment={c}
                           isAuthenticated={isAuthenticated}
@@ -1654,7 +1703,7 @@ export default function Feed() {
                             ))}
                           </div>
                         )}
-                      </motion.div>
+                      </Motion.div>
                     ))
                   )}
                 </div>
@@ -1705,7 +1754,7 @@ export default function Feed() {
                     <Link to="/login" className="text-[#CDFF00] font-bold text-sm hover:underline">Sign in to comment</Link>
                   </div>
                 )}
-              </motion.div>
+              </Motion.div>
             </div>
           )}
         </AnimatePresence>
@@ -1714,12 +1763,12 @@ export default function Feed() {
         <AnimatePresence>
           {likersPost && (
             <div className="fixed inset-0 z-[400] flex items-center justify-center px-4">
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setLikersPost(null)}
                 className="absolute inset-0 bg-black/80 backdrop-blur-md"
               />
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 24 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 24 }}
@@ -1763,7 +1812,7 @@ export default function Feed() {
                     ))
                   )}
                 </div>
-              </motion.div>
+              </Motion.div>
             </div>
           )}
         </AnimatePresence>
@@ -1778,26 +1827,42 @@ export default function Feed() {
           onApply={applyCrop}
         />
       )}
+      {editingPhoto && editingPost && <ImageCropper file={editingPhoto.file} onCancel={() => setEditingPhoto(null)} onApply={async (file) => {
+        const { data } = await feedApi.replacePhoto(editingPost.id, editingPhoto.index, file);
+        patchPost(editingPost.id, () => data);
+        setEditingPost(data);
+        setEditingPhoto(null);
+        dispatchToast('Photo updated', 'success');
+      }} />}
 
       <AnimatePresence>
         {editingPost && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => !savingEdit && setEditingPost(null)}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl p-5"
+              className="relative w-full max-w-md max-h-[85dvh] overflow-y-auto bg-[#0a0a0a] border border-white/10 rounded-2xl p-5"
             >
               <h3 className="text-base font-bold text-white mb-1">Edit post</h3>
               {/* Set expectations before they look for a way to change the photo. */}
               <p className="text-[11px] text-gray-500 mb-3">
-                Only the text can be changed. Photos and videos stay as posted.
+                Edit your words or crop a photo. Photo changes save when you choose Use photo.
               </p>
+              <div className="mb-3 flex gap-3 overflow-x-auto">
+                {(editingPost.media?.length ? editingPost.media : editingPost.imageUrl ? [{ type: 'IMAGE', url: editingPost.imageUrl }] : []).map((media, index) => media.type === 'IMAGE' && (
+                  <div key={`${index}:${media.url}`} className="w-28 shrink-0">
+                    <img src={uploadUrl(media.url)} alt={`Post photo ${index + 1}`} className="h-28 w-28 rounded-xl object-contain bg-black" />
+                    <button type="button" disabled={loadingPhoto || savingEdit} onClick={() => openPhotoCrop(media, index)} className="min-h-11 w-full text-sm font-semibold text-[#CDFF00]">{loadingPhoto ? 'Opening…' : 'Crop photo'}</button>
+                    <label className="flex min-h-11 cursor-pointer items-center justify-center text-xs text-gray-400">Replace photo<input type="file" accept="image/*" className="sr-only" disabled={savingEdit} onChange={(event) => { const file = event.target.files?.[0]; if (file) setEditingPhoto({ index, file }); event.target.value = ''; }} /></label>
+                  </div>
+                ))}
+              </div>
               <textarea
                 value={editDraft}
                 onChange={(e) => setEditDraft(e.target.value)}
@@ -1824,18 +1889,18 @@ export default function Feed() {
                   {savingEdit ? 'Saving…' : 'Save'}
                 </button>
               </div>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
 
         {showUpgrade && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setShowUpgrade(false)}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -1889,7 +1954,7 @@ export default function Feed() {
               >
                 Not now
               </button>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>

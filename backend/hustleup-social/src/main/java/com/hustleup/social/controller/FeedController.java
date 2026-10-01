@@ -73,6 +73,7 @@ import java.util.stream.Collectors;
 
 import com.hustleup.social.event.FeedEventPublisher;
 import com.hustleup.social.service.RecommendationEngine;
+import com.hustleup.social.service.PostMediaService;
 import com.hustleup.common.subscription.PremiumAccess;
 
 import org.springframework.cache.annotation.CacheEvict;
@@ -141,6 +142,7 @@ public class FeedController {
      * UI offers, not what the API accepts.
      */
     private final PremiumAccess premiumAccess;
+    private final PostMediaService postMediaService;
 
     /**
      * Constructor injection is preferred over field injection (@Autowired) because:
@@ -164,7 +166,8 @@ public class FeedController {
             RecommendationEngine recommendationEngine,
             PremiumAccess premiumAccess,
             CommunityRepository communityRepository,
-            CommunityMemberRepository communityMemberRepository) {
+            CommunityMemberRepository communityMemberRepository,
+            PostMediaService postMediaService) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.savedPostRepository = savedPostRepository;
@@ -179,6 +182,7 @@ public class FeedController {
         this.premiumAccess = premiumAccess;
         this.communityRepository = communityRepository;
         this.communityMemberRepository = communityMemberRepository;
+        this.postMediaService = postMediaService;
     }
 
     // ── Endpoints ─────────────────────────────────────────────────────────────
@@ -572,9 +576,7 @@ public class FeedController {
      *
      * <p><b>PATCH /api/v1/feed/{postId}</b> — body {@code {"content":"..."}}
      *
-     * <p>Only the text is editable. Swapping the media of a post that already has likes and
-     * comments would let someone bait engagement with one image and then replace it with
-     * another, so media is fixed once posted.
+     * <p>Photo replacements use the separate multipart media endpoint below.
      *
      * @return 200 with the updated post, 403 if you are not the author, 404 if it is gone
      */
@@ -608,6 +610,30 @@ public class FeedController {
         Post saved = postRepository.save(post);
 
         return ResponseEntity.ok(PostDto.from(saved, false, storageService::refreshUrl));
+    }
+
+    /**
+     * Replaces one photo with a client-cropped image. The index is zero-based in
+     * {@link PostDto#getMedia()}, including video slots. Accepts exactly one {@code media}
+     * file and returns the same fully decorated DTO as the feed.
+     */
+    @PutMapping(value = "/{postId}/media/{mediaIndex}", consumes = "multipart/form-data")
+    @CacheEvict(value = "feed", allEntries = true)
+    public ResponseEntity<?> replacePostImage(@PathVariable String postId,
+                                              @PathVariable String mediaIndex,
+                                              @RequestParam(value = "media", required = false)
+                                              List<MultipartFile> mediaFiles) {
+        Optional<User> current = getCurrentUser();
+        if (current.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        int index;
+        try {
+            index = Integer.parseInt(mediaIndex);
+        } catch (NumberFormatException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Media index must be an integer"));
+        }
+        Post updated = postMediaService.replaceImage(postId, current.get().getId().toString(), index, mediaFiles);
+        return ResponseEntity.ok(decorate(List.of(updated)).get(0));
     }
 
     /**

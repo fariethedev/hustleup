@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion as Motion } from "framer-motion";
 import { shopsApi, shopServicesApi, shopAppointmentsApi, dispatchToast } from '../api/client';
 import { SHIPPING_METHODS } from '../utils/shipping';
 import { invalidateShops } from '../hooks/useShops';
 import { POLISH_CITIES, CURRENCIES, formatPrice } from '../utils/constants';
-import { SHOP_BUSINESS_TYPES, isAppointmentBusiness, DURATION_PRESETS } from '../utils/shopCategories';
+import { SHOP_BUSINESS_TYPES, getBusinessType, getProductCategories, stockLabel, isAppointmentBusiness, DURATION_PRESETS } from '../utils/shopCategories';
 import SmartImage from './SmartImage';
+import ImageCropper from './ImageCropper';
 import { uploadUrl } from '../config';
 import { Building2, ImageUp, CirclePlus, SquarePen, Eraser, CircleX, CircleCheck, ScanEye, EyeClosed, Box, SquareArrowOutUpRight, Paintbrush, Loader, CalendarClock, CalendarCheck2, UserRoundCheck, Timer, ClockAlert } from 'lucide-react';
 
@@ -14,7 +15,7 @@ import { Building2, ImageUp, CirclePlus, SquarePen, Eraser, CircleX, CircleCheck
 const ACCENT_PRESETS = ['#CDFF00', '#00FFFF', '#FF00FF', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#3B82F6'];
 
 const EMPTY_SHOP = {
-  name: '', category: '', businessType: 'GENERAL', tagline: '', description: '',
+  name: '', category: 'General store', businessType: 'GENERAL', tagline: '', description: '',
   bannerUrl: '', accentColor: '#CDFF00', city: '', published: true,
 };
 
@@ -23,6 +24,7 @@ const EMPTY_PRODUCT = {
   // Collection is the safe opening default: always possible, costs nobody anything, and
   // promises the buyer nothing the seller hasn't offered.
   shippingMethod: 'PICKUP', shippingPrice: '',
+  stockTracked: false, stockQuantity: '',
 };
 
 const EMPTY_SERVICE = {
@@ -39,10 +41,12 @@ const EMPTY_SERVICE = {
 export default function ShopManager({ user }) {
   const [shop, setShop] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [form, setForm] = useState(EMPTY_SHOP);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [bannerFile, setBannerFile] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null); // product object, or 'new', or null
   const bannerInput = useRef(null);
 
@@ -51,21 +55,50 @@ export default function ShopManager({ user }) {
   const [slots, setSlots] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [editingService, setEditingService] = useState(null); // service object, or 'new', or null
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState(false);
+  const [appointmentBusy, setAppointmentBusy] = useState(null);
+  const [productSearch, setProductSearch] = useState('');
+  const [stockFilter, setStockFilter] = useState('all');
+
+  const loadBookingData = useCallback(async (shopId) => {
+    setBookingLoading(true);
+    setBookingError(false);
+    try {
+      const [menu, calendar, received] = await Promise.all([
+        shopServicesApi.list(shopId), shopServicesApi.mySlots(shopId), shopAppointmentsApi.received(shopId),
+      ]);
+      setServices(menu.data || []);
+      setSlots(calendar.data || []);
+      setAppointments(received.data || []);
+    } catch {
+      setBookingError(true);
+    } finally {
+      setBookingLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    let cancelled = false;
     shopsApi.mine()
       .then((r) => {
+        if (cancelled) return;
         // 204 No Content — this seller hasn't created a shop yet.
         if (!r.data) { setShop(null); return; }
         setShop(r.data);
         setForm({ ...EMPTY_SHOP, ...r.data });
         if (isAppointmentBusiness(r.data.businessType)) loadBookingData(r.data.id);
       })
-      .catch(() => setShop(null))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch(() => { if (!cancelled) setLoadError(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [loadBookingData]);
 
   const set = (key, value) => { setForm((f) => ({ ...f, [key]: value })); setDirty(true); };
+  const setBusinessType = (value) => {
+    setForm((f) => ({ ...f, businessType: value, category: getBusinessType(value).label }));
+    setDirty(true);
+  };
 
   const createShop = async () => {
     if (!form.name.trim()) { dispatchToast('Give your shop a name first', 'error'); return; }
@@ -76,7 +109,8 @@ export default function ShopManager({ user }) {
       setForm({ ...EMPTY_SHOP, ...res.data });
       setDirty(false);
       invalidateShops();
-      dispatchToast('Shop created — it’s live on Explore', 'success');
+      if (isAppointmentBusiness(res.data.businessType)) loadBookingData(res.data.id);
+      dispatchToast(res.data.published ? 'Shop created — it’s live on Explore' : 'Shop created', 'success');
     } catch (e) {
       dispatchToast(e.response?.data?.message || 'Could not create your shop', 'error');
     } finally {
@@ -85,6 +119,7 @@ export default function ShopManager({ user }) {
   };
 
   const saveShop = async () => {
+    if (!form.name.trim()) { dispatchToast('Give your shop a name first', 'error'); return; }
     setSaving(true);
     try {
       const res = await shopsApi.update(shop.id, form);
@@ -123,6 +158,10 @@ export default function ShopManager({ user }) {
       await shopsApi.remove(shop.id);
       setShop(null);
       setForm(EMPTY_SHOP);
+      setServices([]);
+      setSlots([]);
+      setAppointments([]);
+      setDirty(false);
       invalidateShops();
       dispatchToast('Shop deleted', 'success');
     } catch {
@@ -151,13 +190,6 @@ export default function ShopManager({ user }) {
     } catch {
       dispatchToast('Could not remove that product', 'error');
     }
-  };
-
-  /** Services, slots and received appointments — loaded once, only for an appointment shop. */
-  const loadBookingData = (shopId) => {
-    shopServicesApi.list(shopId).then((r) => setServices(r.data || [])).catch(() => setServices([]));
-    shopServicesApi.mySlots(shopId).then((r) => setSlots(r.data || [])).catch(() => setSlots([]));
-    shopAppointmentsApi.received(shopId).then((r) => setAppointments(r.data || [])).catch(() => setAppointments([]));
   };
 
   const onServiceSaved = (service, mode) => {
@@ -192,6 +224,9 @@ export default function ShopManager({ user }) {
   };
 
   const updateAppointmentStatus = async (appointmentId, status) => {
+    if (appointmentBusy) return;
+    if (status === 'CANCELLED' && !confirm('Cancel this appointment and reopen its time slot?')) return;
+    setAppointmentBusy(appointmentId);
     try {
       const res = await shopAppointmentsApi.updateStatus(shop.id, appointmentId, status);
       setAppointments((prev) => prev.map((a) => (a.id === appointmentId ? res.data : a)));
@@ -200,8 +235,10 @@ export default function ShopManager({ user }) {
         const cancelled = appointments.find((a) => a.id === appointmentId);
         if (cancelled) setSlots((prev) => prev.map((s) => (s.id === cancelled.slotId ? { ...s, booked: false } : s)));
       }
-    } catch {
-      dispatchToast('Could not update that appointment', 'error');
+    } catch (e) {
+      dispatchToast(e.response?.data?.message || 'Could not update that appointment', 'error');
+    } finally {
+      setAppointmentBusy(null);
     }
   };
 
@@ -215,10 +252,16 @@ export default function ShopManager({ user }) {
     );
   }
 
+  if (loadError) {
+    return <div role="alert" className="glass rounded-2xl p-5 text-sm text-gray-300">
+      Your shop could not be loaded. <button onClick={() => window.location.reload()} className="text-[#CDFF00] underline">Try again</button>
+    </div>;
+  }
+
   /* ── No shop yet: a short create form rather than an empty state with nothing to do ── */
   if (!shop) {
     return (
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto">
+      <Motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-lg mx-auto">
         <div className="glass rounded-2xl p-6 border border-white/5 text-center">
           <div className="w-12 h-12 rounded-full bg-[#CDFF00]/10 flex items-center justify-center mx-auto mb-3">
             <Building2 className="w-6 h-6 text-[#CDFF00]" />
@@ -230,9 +273,8 @@ export default function ShopManager({ user }) {
           </p>
 
           <div className="space-y-2.5 text-left">
-            <Field label="Shop name" value={form.name} onChange={(v) => set('name', v)} placeholder="e.g. Piękna Moda" />
-            <Field label="Category" value={form.category} onChange={(v) => set('category', v)} placeholder="e.g. Fashion & Clothing" />
-            <BusinessTypeField value={form.businessType} onChange={(v) => set('businessType', v)} />
+            <Field label="Shop name" value={form.name} onChange={(v) => set('name', v)} placeholder="e.g. Piękna Moda" maxLength={120} />
+            <BusinessTypeField value={form.businessType} onChange={setBusinessType} />
             <CityField value={form.city} onChange={(v) => set('city', v)} fallback={user?.city} />
           </div>
 
@@ -244,11 +286,17 @@ export default function ShopManager({ user }) {
             {saving ? <><Loader className="w-4 h-4 animate-spin" /> Creating…</> : <><CirclePlus className="w-4 h-4" /> Create shop</>}
           </button>
         </div>
-      </motion.div>
+      </Motion.div>
     );
   }
 
   const products = shop.products || [];
+  const visibleProducts = products.filter((p) =>
+    `${p.name} ${p.category || ''}`.toLowerCase().includes(productSearch.trim().toLowerCase())
+    && (stockFilter === 'all'
+      || (stockFilter === 'out' && p.stockQuantity === 0)
+      || (stockFilter === 'low' && p.stockQuantity != null && p.stockQuantity > 0 && p.stockQuantity <= 5)
+      || (stockFilter === 'untracked' && p.stockQuantity == null)));
 
   return (
     <div className="space-y-4">
@@ -300,12 +348,12 @@ export default function ShopManager({ user }) {
       <div className="glass rounded-2xl p-4 border border-white/5 space-y-3">
         <h4 className="text-[10px] font-black tracking-widest text-gray-500">Storefront details</h4>
 
-        <div className="grid sm:grid-cols-2 gap-2.5">
-          <Field label="Shop name" value={form.name} onChange={(v) => set('name', v)} />
-          <Field label="Category" value={form.category} onChange={(v) => set('category', v)} placeholder="e.g. Beauty & Skincare" />
-        </div>
+        <Field label="Shop name" value={form.name} onChange={(v) => set('name', v)} maxLength={120} />
 
-        <BusinessTypeField value={form.businessType} onChange={(v) => set('businessType', v)} />
+        <BusinessTypeField value={form.businessType} onChange={setBusinessType} />
+        {form.category && form.category !== getBusinessType(form.businessType).label && (
+          <p className="text-xs text-gray-500">Current label: {form.category}. Pick a category above to update it.</p>
+        )}
 
         <Field label="Tagline" value={form.tagline} onChange={(v) => set('tagline', v)} placeholder="One line buyers see on your card" maxLength={160} />
 
@@ -348,7 +396,7 @@ export default function ShopManager({ user }) {
               type="file"
               accept="image/*"
               hidden
-              onChange={(e) => { uploadBanner(e.target.files?.[0]); e.target.value = ''; }}
+              onChange={(e) => { setBannerFile(e.target.files?.[0] || null); e.target.value = ''; }}
             />
           </div>
         </div>
@@ -397,7 +445,7 @@ export default function ShopManager({ user }) {
         <div className="flex items-center gap-2.5 pt-2 border-t border-white/5">
           <button
             onClick={saveShop}
-            disabled={saving || !dirty}
+            disabled={saving || uploadingBanner || !dirty || !form.name.trim()}
             className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
           >
             {saving ? <><Loader className="w-4 h-4 animate-spin" /> Saving…</> : dirty ? <><CircleCheck className="w-4 h-4" /> Save changes</> : 'Saved'}
@@ -414,9 +462,17 @@ export default function ShopManager({ user }) {
       {/* ── Services & Appointments — only for a salon/barber/spa-style shop. A hair salon
           still sells product sometimes, so this sits alongside the shelf below rather than
           replacing it. ── */}
-      {isAppointmentBusiness(form.businessType) && (
+      {isAppointmentBusiness(form.businessType) && !isAppointmentBusiness(shop.businessType) && (
+        <p className="text-sm text-[#CDFF00]">Save your shop category to start adding services and appointments.</p>
+      )}
+      {isAppointmentBusiness(shop.businessType) && (
+        <div className="flex items-center justify-between gap-3 text-xs text-gray-400">
+          <span role={bookingError ? 'alert' : undefined}>{bookingError ? 'Could not refresh services and appointments.' : bookingLoading ? 'Loading services and appointments…' : 'Manage your services, availability and customers.'}</span>
+          <button disabled={bookingLoading} onClick={() => loadBookingData(shop.id)} className="text-[#CDFF00] disabled:opacity-50">Refresh</button>
+        </div>
+      )}
+      {isAppointmentBusiness(shop.businessType) && !bookingLoading && (
         <ServicesAndAppointments
-          shop={shop}
           services={services}
           slots={slots}
           appointments={appointments}
@@ -426,6 +482,7 @@ export default function ShopManager({ user }) {
           onAddSlot={addSlot}
           onRemoveSlot={removeSlot}
           onAppointmentStatus={updateAppointmentStatus}
+          appointmentBusy={appointmentBusy}
         />
       )}
 
@@ -442,7 +499,7 @@ export default function ShopManager({ user }) {
       <div className="glass rounded-2xl p-4 border border-white/5">
         <div className="flex items-center justify-between gap-3 mb-3">
           <h4 className="text-[10px] font-black tracking-widest text-gray-500">
-            Products <span className="text-gray-600">({products.length})</span>
+            Products & inventory <span className="text-gray-600">({products.length})</span>
           </h4>
           <button
             onClick={() => setEditingProduct('new')}
@@ -452,6 +509,19 @@ export default function ShopManager({ user }) {
           </button>
         </div>
 
+        {products.length > 0 && (
+          <div className="space-y-3 mb-4">
+            <p className="text-xs text-gray-400">
+              {products.filter((p) => p.stockQuantity === 0).length} out of stock · {products.filter((p) => p.stockQuantity != null && p.stockQuantity > 0 && p.stockQuantity <= 5).length} running low (5 or fewer)
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <input type="search" aria-label="Search shop products" placeholder="Search products or categories" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="flex-1 min-w-0 bg-black border border-white/10 rounded-xl px-3 py-2 text-sm text-white" />
+              <select aria-label="Filter inventory" value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} className="bg-black border border-white/10 rounded-xl px-3 py-2 text-sm text-white">
+                <option value="all">All stock</option><option value="out">Out of stock</option><option value="low">Low stock</option><option value="untracked">Not tracked</option>
+              </select>
+            </div>
+          </div>
+        )}
         {products.length === 0 ? (
           <div className="text-center py-8 rounded-xl border border-dashed border-white/10">
             <Box className="w-8 h-8 mx-auto text-white/15 mb-2" />
@@ -460,8 +530,8 @@ export default function ShopManager({ user }) {
         ) : (
           <div className="space-y-2">
             <AnimatePresence mode="popLayout">
-              {products.map((p) => (
-                <motion.div
+              {visibleProducts.map((p) => (
+                <Motion.div
                   key={p.id}
                   layout
                   initial={{ opacity: 0, y: 8 }}
@@ -477,6 +547,7 @@ export default function ShopManager({ user }) {
                     <p className="text-[10px] font-black tracking-widest text-gray-500">
                       {p.category || 'Uncategorised'} · <span className="text-[#CDFF00]">{formatPrice(p.price, p.currency)}</span>
                     </p>
+                    <p className={`text-xs mt-1 ${p.stockQuantity === 0 ? 'text-red-400' : p.stockQuantity != null && p.stockQuantity <= 5 ? 'text-amber-400' : 'text-gray-400'}`}>{stockLabel(p)}</p>
                   </div>
                   <button
                     onClick={() => setEditingProduct(p)}
@@ -492,31 +563,37 @@ export default function ShopManager({ user }) {
                   >
                     <Eraser className="w-3.5 h-3.5" />
                   </button>
-                </motion.div>
+                </Motion.div>
               ))}
             </AnimatePresence>
           </div>
         )}
+        {products.length > 0 && visibleProducts.length === 0 && <p className="py-5 text-center text-sm text-gray-500">No products match these filters.</p>}
       </div>
 
       {editingProduct && (
         <ProductModal
           shopId={shop.id}
+          businessType={shop.businessType}
           product={editingProduct === 'new' ? null : editingProduct}
           onClose={() => setEditingProduct(null)}
           onSaved={onProductSaved}
         />
       )}
+      {bannerFile && <ImageCropper file={bannerFile} lockAspect={3} onApply={(file) => { setBannerFile(null); uploadBanner(file); }} onCancel={() => setBannerFile(null)} />}
     </div>
   );
 }
 
 /* ── Product add/edit modal ── */
-function ProductModal({ shopId, product, onClose, onSaved }) {
+function ProductModal({ shopId, businessType, product, onClose, onSaved }) {
   const isNew = !product;
-  const [form, setForm] = useState(product ? { ...EMPTY_PRODUCT, ...product } : EMPTY_PRODUCT);
+  const [form, setForm] = useState(product
+    ? { ...EMPTY_PRODUCT, ...product, stockTracked: product.stockQuantity != null, stockQuantity: product.stockQuantity ?? '' }
+    : { ...EMPTY_PRODUCT, stockTracked: businessType === 'GROCERY_FOOD' });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [cropFile, setCropFile] = useState(null);
   const fileInput = useRef(null);
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -540,12 +617,20 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
 
   const save = async () => {
     if (!form.name.trim()) { dispatchToast('Product needs a name', 'error'); return; }
-    if (form.price === '' || Number(form.price) < 0) { dispatchToast('Enter a valid price', 'error'); return; }
+    if (form.price === '' || !Number.isFinite(Number(form.price)) || Number(form.price) < 0) { dispatchToast('Enter a valid price', 'error'); return; }
+    if (!form.category) { dispatchToast('Pick a product category', 'error'); return; }
+    if (form.stockTracked && (form.stockQuantity === '' || !Number.isSafeInteger(Number(form.stockQuantity)) || Number(form.stockQuantity) < 0 || Number(form.stockQuantity) > 2147483647)) {
+      dispatchToast('Stock must be a whole number of units, zero or more', 'error'); return;
+    }
+    if (chargesPostage && (!Number.isFinite(Number(form.shippingPrice)) || Number(form.shippingPrice) < 0)) {
+      dispatchToast('Enter a valid delivery cost', 'error'); return;
+    }
     setSaving(true);
     try {
       const payload = {
         ...form,
         price: Number(form.price),
+        stockQuantity: form.stockTracked ? Number(form.stockQuantity) : null,
         // Methods with nothing to post send zero rather than whatever was typed before the
         // seller switched to collection.
         shippingPrice: chargesPostage ? Number(form.shippingPrice) || 0 : 0,
@@ -564,8 +649,8 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
-      <div onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-      <motion.div
+      <div onClick={saving || uploading ? undefined : onClose} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+      <Motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 max-h-[90vh] overflow-y-auto"
@@ -574,18 +659,19 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
           <h3 className="text-sm font-black text-white tracking-tight">
             {isNew ? 'Add product' : 'Edit product'}
           </h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500">
+          <button onClick={onClose} disabled={saving || uploading} aria-label="Close product editor" className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500">
             <CircleX className="w-4 h-4" />
           </button>
         </div>
 
         <div className="space-y-2.5">
-          <Field label="Name" value={form.name} onChange={(v) => set('name', v)} placeholder="e.g. Oversized Graphic Tee" />
+          <Field label="Name" value={form.name} onChange={(v) => set('name', v)} placeholder={businessType === 'GROCERY_FOOD' ? 'e.g. Apples, 1 kg bag' : 'e.g. Oversized Graphic Tee'} maxLength={120} />
 
           <div>
             <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">Description</label>
             <textarea
               rows={2}
+              maxLength={1000}
               value={form.description || ''}
               onChange={(e) => set('description', e.target.value)}
               className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] resize-none"
@@ -614,7 +700,24 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
             </div>
           </div>
 
-          <Field label="Shelf / category" value={form.category} onChange={(v) => set('category', v)} placeholder="e.g. Hoodies" />
+          <label className="block text-[10px] font-black tracking-widest text-gray-500">
+            Product category
+            <select value={form.category || ''} onChange={(e) => set('category', e.target.value)} className="w-full mt-1.5 bg-black border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00]">
+              <option value="" disabled>Pick one category</option>
+              {getProductCategories(businessType, form.category).map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
+          </label>
+
+          <div className="p-3 rounded-xl border border-white/10 space-y-2">
+            <label className="flex items-center gap-2 text-sm text-white">
+              <input type="checkbox" checked={form.stockTracked} onChange={(e) => set('stockTracked', e.target.checked)} className="accent-[#CDFF00]" /> Track stock
+            </label>
+            {form.stockTracked && <label className="block text-xs text-gray-400">
+              Units available
+              <input type="number" min="0" max="2147483647" step="1" value={form.stockQuantity} onChange={(e) => set('stockQuantity', e.target.value)} className="mt-1 w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-white" />
+            </label>}
+            <p className="text-[11px] text-gray-500">{form.stockTracked ? 'Zero marks this product out of stock. Count each pack or selling unit as one.' : 'Customers can order without a stock limit.'}</p>
+          </div>
 
           {/* Delivery terms live on the shelf, not on each order: they decide what the buyer
               is charged at checkout and which tracking steps you're offered afterwards. */}
@@ -667,30 +770,34 @@ function ProductModal({ shopId, product, onClose, onSaved }) {
               </button>
               <input
                 ref={fileInput} type="file" accept="image/*" hidden
-                onChange={(e) => { uploadImage(e.target.files?.[0]); e.target.value = ''; }}
+                onChange={(e) => { setCropFile(e.target.files?.[0] || null); e.target.value = ''; }}
               />
+              {form.imageUrl && <button type="button" disabled={uploading} onClick={() => set('imageUrl', '')} className="text-xs text-red-400">Remove photo</button>}
             </div>
           </div>
         </div>
 
         <button
           onClick={save}
-          disabled={saving}
+          disabled={saving || uploading || !!cropFile}
           className="w-full mt-5 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {saving ? <><Loader className="w-4 h-4 animate-spin" /> Saving…</> : <><CircleCheck className="w-4 h-4" /> {isNew ? 'Add to shop' : 'Save changes'}</>}
         </button>
-      </motion.div>
+      </Motion.div>
+      {cropFile && <ImageCropper file={cropFile} onApply={(file) => { setCropFile(null); uploadImage(file); }} onCancel={() => setCropFile(null)} />}
     </div>
   );
 }
 
 /* ── Small shared inputs ── */
 function Field({ label, value, onChange, placeholder, maxLength }) {
+  const id = useId();
   return (
     <div>
-      <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">{label}</label>
+      <label htmlFor={id} className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">{label}</label>
       <input
+        id={id}
         type="text"
         value={value || ''}
         maxLength={maxLength}
@@ -729,7 +836,7 @@ function BusinessTypeField({ value, onChange }) {
   return (
     <div>
       <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
-        What kind of shop is this?
+        Shop category — pick one
       </label>
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
         {SHOP_BUSINESS_TYPES.map((t) => {
@@ -741,6 +848,7 @@ function BusinessTypeField({ value, onChange }) {
               type="button"
               onClick={() => onChange(t.value)}
               title={t.label}
+              aria-pressed={active}
               className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border text-center transition-all ${
                 active
                   ? 'bg-[#CDFF00]/10 border-[#CDFF00] text-[#CDFF00]'
@@ -771,33 +879,39 @@ function BusinessTypeField({ value, onChange }) {
  * who's coming in), and tabs would hide two of them at any moment.
  */
 function ServicesAndAppointments({
-  shop, services, slots, appointments,
+  services, slots, appointments, appointmentBusy,
   onAddService, onEditService, onDeleteService, onAddSlot, onRemoveSlot, onAppointmentStatus,
 }) {
   const [slotServiceId, setSlotServiceId] = useState(services[0]?.id || '');
   const [slotDate, setSlotDate] = useState('');
   const [slotStart, setSlotStart] = useState('');
-  const [slotDuration, setSlotDuration] = useState(30);
+  const [slotDuration, setSlotDuration] = useState(null);
   const [addingSlot, setAddingSlot] = useState(false);
 
-  // The service picker needs a live default once services finish loading — it mounts before
-  // they arrive, when there is nothing yet to default to.
-  useEffect(() => {
-    if (!slotServiceId && services.length > 0) setSlotServiceId(services[0].id);
-  }, [services, slotServiceId]);
+  const activeServices = services.filter((service) => service.active);
+  const selectedService = activeServices.find((service) => service.id === slotServiceId) || activeServices[0];
+  const duration = slotDuration ?? selectedService?.durationMinutes ?? 30;
+  const today = new Date();
+  const minDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   const addSlot = async () => {
-    if (!slotServiceId || !slotDate || !slotStart) {
+    if (!selectedService || !slotDate || !slotStart) {
       dispatchToast('Pick a service, date and start time', 'error');
       return;
     }
     const start = new Date(`${slotDate}T${slotStart}:00`);
-    const end = new Date(start.getTime() + slotDuration * 60000);
+    if (!Number.isFinite(start.getTime()) || start <= new Date()) {
+      dispatchToast('Choose a future date and time', 'error'); return;
+    }
+    if (duration < selectedService.durationMinutes) {
+      dispatchToast('The slot must be long enough for this service', 'error'); return;
+    }
+    const end = new Date(start.getTime() + duration * 60000);
     const pad = (n) => String(n).padStart(2, '0');
     const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
     setAddingSlot(true);
     try {
-      await onAddSlot(slotServiceId, iso(start), iso(end));
+      await onAddSlot(selectedService.id, iso(start), iso(end));
       dispatchToast('Slot opened', 'success');
       setSlotStart('');
     } catch (e) {
@@ -807,8 +921,8 @@ function ServicesAndAppointments({
     }
   };
 
-  const upcomingSlots = [...slots].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-  const activeAppointments = appointments.filter((a) => a.status === 'CONFIRMED');
+  const upcomingSlots = slots.filter((slot) => new Date(slot.endTime) > new Date()).sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+  const activeAppointments = appointments.filter((a) => a.status === 'CONFIRMED').sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
   const pastAppointments = appointments.filter((a) => a.status !== 'CONFIRMED');
 
   return (
@@ -836,7 +950,7 @@ function ServicesAndAppointments({
           <div className="space-y-2">
             <AnimatePresence mode="popLayout">
               {services.map((s) => (
-                <motion.div
+                <Motion.div
                   key={s.id}
                   layout
                   initial={{ opacity: 0, y: 8 }}
@@ -871,7 +985,7 @@ function ServicesAndAppointments({
                   >
                     <Eraser className="w-3.5 h-3.5" />
                   </button>
-                </motion.div>
+                </Motion.div>
               ))}
             </AnimatePresence>
           </div>
@@ -882,32 +996,33 @@ function ServicesAndAppointments({
       <div className="glass rounded-2xl p-4 border border-white/5">
         <h4 className="text-[10px] font-black tracking-widest text-gray-500 mb-3">Open a time slot</h4>
 
-        {services.length === 0 ? (
-          <p className="text-xs text-gray-500">Add a service above before opening slots for it.</p>
+        {activeServices.length === 0 ? (
+          <p className="text-xs text-gray-500">Add or activate a service above before opening slots for it.</p>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2.5 mb-2.5">
               <select
-                value={slotServiceId}
-                onChange={(e) => setSlotServiceId(e.target.value)}
+                aria-label="Service for the new time slot"
+                value={selectedService?.id || ''}
+                onChange={(e) => { setSlotServiceId(e.target.value); setSlotDuration(null); }}
                 className="col-span-2 bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:border-[#CDFF00]"
               >
-                {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {activeServices.map((s) => <option key={s.id} value={s.id}>{s.name} · {s.durationMinutes} min</option>)}
               </select>
-              <input type="date" value={slotDate} onChange={(e) => setSlotDate(e.target.value)}
+              <input type="date" aria-label="Slot date" min={minDate} value={slotDate} onChange={(e) => setSlotDate(e.target.value)}
                 className="bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white outline-none focus:border-[#CDFF00]" />
-              <input type="time" value={slotStart} onChange={(e) => setSlotStart(e.target.value)}
+              <input type="time" aria-label="Slot start time" value={slotStart} onChange={(e) => setSlotStart(e.target.value)}
                 className="bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-[#CDFF00]" />
             </div>
             <div className="flex flex-wrap items-center gap-1.5 mb-3">
               <span className="text-[9px] font-black tracking-widest text-gray-500 mr-1">Length</span>
-              {DURATION_PRESETS.map((mins) => (
+              {[...new Set([selectedService.durationMinutes, ...DURATION_PRESETS])].sort((a, b) => a - b).filter((mins) => mins >= selectedService.durationMinutes).map((mins) => (
                 <button
                   key={mins}
                   type="button"
                   onClick={() => setSlotDuration(mins)}
                   className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
-                    slotDuration === mins ? 'bg-[#CDFF00] text-black' : 'bg-white/5 text-gray-400 hover:text-white'
+                    duration === mins ? 'bg-[#CDFF00] text-black' : 'bg-white/5 text-gray-400 hover:text-white'
                   }`}
                 >
                   {mins}m
@@ -915,7 +1030,7 @@ function ServicesAndAppointments({
               ))}
             </div>
             <button
-              onClick={addSlot} disabled={addingSlot}
+              onClick={addSlot} disabled={addingSlot || !slotDate || !slotStart}
               className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-xs hover:bg-[#d9ff33] active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
             >
               <CirclePlus className="w-4 h-4" /> {addingSlot ? 'Opening…' : 'Open slot'}
@@ -952,7 +1067,7 @@ function ServicesAndAppointments({
       {/* Appointments */}
       <div className="glass rounded-2xl p-4 border border-white/5">
         <h4 className="text-[10px] font-black tracking-widest text-gray-500 mb-3">
-          Appointments <span className="text-gray-600">({activeAppointments.length} upcoming)</span>
+          Appointments <span className="text-gray-600">({activeAppointments.length} confirmed)</span>
         </h4>
 
         {appointments.length === 0 ? (
@@ -976,6 +1091,7 @@ function ServicesAndAppointments({
                       </p>
                     )}
                     {a.customerPhone && <p className="text-xs text-gray-500 mt-0.5">{a.customerPhone}</p>}
+                    {a.notes && <p className="text-xs text-gray-400 mt-1 whitespace-pre-wrap">{a.notes}</p>}
                   </div>
                   <span className={`shrink-0 px-2.5 py-1 rounded-lg text-[9px] font-black tracking-widest ${
                     a.status === 'CONFIRMED' ? 'bg-[#CDFF00]/15 text-[#CDFF00]'
@@ -990,18 +1106,21 @@ function ServicesAndAppointments({
                   <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-white/5">
                     <button
                       onClick={() => onAppointmentStatus(a.id, 'COMPLETED')}
+                      disabled={!!appointmentBusy || new Date(a.startTime) > new Date()}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold hover:bg-emerald-500/20 transition-colors"
                     >
                       <CircleCheck className="w-3 h-3" /> Completed
                     </button>
                     <button
                       onClick={() => onAppointmentStatus(a.id, 'NO_SHOW')}
+                      disabled={!!appointmentBusy || new Date(a.startTime) > new Date()}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold hover:bg-amber-500/20 transition-colors"
                     >
                       <ClockAlert className="w-3 h-3" /> No-show
                     </button>
                     <button
                       onClick={() => onAppointmentStatus(a.id, 'CANCELLED')}
+                      disabled={!!appointmentBusy}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold hover:bg-red-500/20 transition-colors ml-auto"
                     >
                       <CircleX className="w-3 h-3" /> Cancel
@@ -1027,8 +1146,8 @@ function ServiceModal({ shopId, service, onClose, onSaved }) {
 
   const save = async () => {
     if (!form.name.trim()) { dispatchToast('Service needs a name', 'error'); return; }
-    if (form.price === '' || Number(form.price) < 0) { dispatchToast('Enter a valid price', 'error'); return; }
-    if (!form.durationMinutes || Number(form.durationMinutes) <= 0) { dispatchToast('Duration must be at least one minute', 'error'); return; }
+    if (form.price === '' || !Number.isFinite(Number(form.price)) || Number(form.price) < 0) { dispatchToast('Enter a valid price', 'error'); return; }
+    if (!Number.isInteger(Number(form.durationMinutes)) || Number(form.durationMinutes) <= 0 || Number(form.durationMinutes) > 1440) { dispatchToast('Duration must be between 1 and 1,440 whole minutes', 'error'); return; }
     setSaving(true);
     try {
       const payload = { ...form, price: Number(form.price), durationMinutes: Number(form.durationMinutes) };
@@ -1047,7 +1166,7 @@ function ServiceModal({ shopId, service, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
       <div onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 max-h-[90vh] overflow-y-auto"
@@ -1062,7 +1181,7 @@ function ServiceModal({ shopId, service, onClose, onSaved }) {
         </div>
 
         <div className="space-y-2.5">
-          <Field label="Name" value={form.name} onChange={(v) => set('name', v)} placeholder="e.g. Men's Haircut" />
+          <Field label="Name" value={form.name} onChange={(v) => set('name', v)} placeholder="e.g. Men's Haircut" maxLength={120} />
 
           <div>
             <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">Description</label>
@@ -1112,7 +1231,7 @@ function ServiceModal({ shopId, service, onClose, onSaved }) {
                 </button>
               ))}
               <input
-                type="number" min="1"
+                type="number" min="1" max="1440" step="1" aria-label="Service duration in minutes"
                 value={form.durationMinutes}
                 onChange={(e) => set('durationMinutes', e.target.value)}
                 className="w-20 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs outline-none focus:border-[#CDFF00]"
@@ -1141,7 +1260,7 @@ function ServiceModal({ shopId, service, onClose, onSaved }) {
         >
           {saving ? <><Loader className="w-4 h-4 animate-spin" /> Saving…</> : <><CircleCheck className="w-4 h-4" /> {isNew ? 'Add to menu' : 'Save changes'}</>}
         </button>
-      </motion.div>
+      </Motion.div>
     </div>
   );
 }

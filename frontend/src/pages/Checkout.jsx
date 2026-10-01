@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import { useDispatch, useSelector } from 'react-redux';
 import { MoveLeft, MoveRight, ShieldPlus, ShoppingBasket, LockKeyhole, CircleUserRound, AtSign, PhoneCall, WalletCards, Timer } from 'lucide-react';
-import { selectCartItems, removeFromCart } from '../store/cartSlice';
-import { bookingsApi } from '../api/client';
+import { selectCartItems, removeFromCart, isStorefrontItem, shopItemCheckoutPath } from '../store/cartSlice';
+import { bookingsApi, stripeHostedUrl } from '../api/client';
 import { formatPrice } from '../utils/constants';
 import SmartImage from '../components/SmartImage';
 import { ApplePayMark, PayPalMark, VisaMark, MastercardMark } from '../components/PaymentBrands';
@@ -38,13 +38,16 @@ export default function Checkout() {
   // so a buyer was quoted one figure, charged a smaller one, and had the basket emptied of
   // items nobody had ordered or taken money for. They are separated here instead, so the
   // summary only ever promises what the next screen actually charges.
-  const isStorefrontItem = (item) => String(item.listingId).startsWith('shop:');
-  const bookableItems = items.filter((i) => !isStorefrontItem(i));
+  const [selectedCurrency, setSelectedCurrency] = useState('');
+  const listingItems = items.filter((i) => !isStorefrontItem(i));
+  const currencies = [...new Set(listingItems.map((i) => i.currency || 'PLN'))];
+  const currency = currencies.includes(selectedCurrency) ? selectedCurrency : currencies[0] || 'PLN';
+  const bookableItems = listingItems.filter((i) => (i.currency || 'PLN') === currency);
   const shopItems = items.filter(isStorefrontItem);
 
   // Same arithmetic as the cart selectors, over the payable lines only: price (or the
   // negotiated one) per unit, and postage once per line rather than per unit.
-  const subtotal = bookableItems.reduce((acc, i) => acc + (i.negotiatedPrice ?? i.price) * i.quantity, 0);
+  const subtotal = bookableItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
   // Postage is a separate line rather than folded into the subtotal, and is added once per
   // item in the basket rather than per unit — the same arithmetic the server does when it
   // builds the Stripe session, so this page cannot promise a total the charge contradicts.
@@ -59,7 +62,6 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const currency = bookableItems[0]?.currency || items[0]?.currency || 'PLN';
 
   // Every seller-set prompt across the basket, with the line that asked it. `checkoutFields`
   // is newline-separated free text in the seller's own words.
@@ -98,7 +100,7 @@ export default function Checkout() {
   }
 
   const placeOrder = async () => {
-    if (!customer.fullName || !customer.email) return;
+    if (!canSubmit) return;
     setLoading(true);
     setError(null);
     try {
@@ -130,12 +132,16 @@ export default function Checkout() {
       // the orders are still payable from their dashboard. Anything not ordered stays in
       // the basket: clearing the lot used to throw away storefront items that had never
       // been sent anywhere, so they vanished without ever being bought.
+      const paymentUrl = data.url ? stripeHostedUrl(data.url, 'checkout') : null;
+      if (!paymentUrl && !data.awaitingApproval?.length) {
+        throw new Error('Checkout did not return a payment link or orders awaiting approval. Your cart has been kept.');
+      }
       bookableItems.forEach((item) => dispatch(removeFromCart(item.listingId)));
 
-      if (data.url) {
+      if (paymentUrl) {
         // Hand off to Stripe's hosted page. Stripe returns the buyer to
         // /checkout/confirmation?payment=success afterwards.
-        window.location.href = data.url;
+        window.location.assign(paymentUrl);
         return;
       }
 
@@ -152,16 +158,17 @@ export default function Checkout() {
     }
   };
 
-  const canSubmit = !loading
-    && customer.fullName
-    && customer.email
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim());
+  const canSubmit = !loading && bookableItems.length > 0
+    && customer.fullName.trim()
+    && validEmail
     && (!needsAddress || customer.address.trim())
     && unanswered.length === 0;
 
   // Names the specific blocker so a disabled pay button is never a mystery.
   const missing = [
-    !customer.fullName && 'name',
-    !customer.email && 'email address',
+    !customer.fullName.trim() && 'name',
+    !validEmail && 'valid email address',
     needsAddress && !customer.address.trim() && 'delivery address',
     unanswered.length > 0 && (unanswered.length === 1
       ? `an answer to "${unanswered[0].prompt}"`
@@ -192,7 +199,7 @@ export default function Checkout() {
           <MoveLeft className="w-3.5 h-3.5" /> Back to Explore
         </Link>
 
-        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
+        <Motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
           {/* ── Header. The two-step rail replaces the old numbered sections: payment is a
                  real step, it just happens on Stripe rather than here, and showing it stops
                  the redirect feeling like the page threw you somewhere unexpected. ── */}
@@ -230,10 +237,26 @@ export default function Checkout() {
                 for there. {shopItems.length === 1 ? 'It stays' : 'They stay'} in your basket; the total below covers
                 only what this checkout charges.
               </p>
+              <div className="mt-3 space-y-2">
+                {shopItems.map((item) => (
+                  <Link key={item.listingId} to={shopItemCheckoutPath(item)} state={{ quantity: item.quantity }}
+                    className="block font-bold text-[#CDFF00] underline">
+                    Checkout {item.title} × {item.quantity}
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.85fr] gap-4">
+          {currencies.length > 1 && (
+            <label className="block mb-4 text-sm text-gray-300">
+              Choose a currency to check out. Other items stay in your cart.
+              <select value={currency} onChange={(event) => setSelectedCurrency(event.target.value)} className="ml-3 rounded bg-[#111] p-2">
+                {currencies.map((code) => <option key={code} value={code}>{code}</option>)}
+              </select>
+            </label>
+          )}
+          {bookableItems.length > 0 && <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.85fr] gap-4">
             {/* ── Left: the only thing this page actually collects ── */}
             <div className="space-y-4">
               <section className="rounded-2xl border border-white/10 bg-[#0E0E0E] p-5">
@@ -354,14 +377,14 @@ export default function Checkout() {
               <div className="flex items-baseline justify-between mb-3">
                 <h2 className="text-xs font-black text-white tracking-widest">Order summary</h2>
                 <span className="text-[10px] font-bold text-gray-500">
-                  {items.length} item{items.length === 1 ? '' : 's'}
+                  {bookableItems.length} item{bookableItems.length === 1 ? '' : 's'}
                 </span>
               </div>
 
               <div className="space-y-2 mb-4 max-h-[220px] overflow-y-auto scrollbar-hide pr-0.5">
                 <AnimatePresence>
                   {bookableItems.map((item) => (
-                    <motion.div
+                    <Motion.div
                       key={item.listingId}
                       layout
                       className="flex items-center gap-3 p-2.5 rounded-xl bg-black/40 border border-white/5"
@@ -383,9 +406,9 @@ export default function Checkout() {
                         <p className="text-gray-500 text-[10px] mt-0.5">Qty {item.quantity}</p>
                       </div>
                       <p className="text-white font-black text-xs shrink-0">
-                        {formatPrice((item.negotiatedPrice ?? item.price) * item.quantity, item.currency)}
+                        {formatPrice(item.price * item.quantity, item.currency)}
                       </p>
-                    </motion.div>
+                    </Motion.div>
                   ))}
                 </AnimatePresence>
               </div>
@@ -456,8 +479,8 @@ export default function Checkout() {
                 </p>
               </div>
             </aside>
-          </div>
-        </motion.div>
+          </div>}
+        </Motion.div>
       </div>
     </div>
   );

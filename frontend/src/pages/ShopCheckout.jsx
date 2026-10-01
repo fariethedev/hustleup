@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { motion as Motion } from "framer-motion";
 import { MoveLeft, MoveRight, ShieldPlus, LockKeyhole, CircleUserRound, AtSign, PhoneCall, Loader, CircleAlert, WalletCards } from 'lucide-react';
 import { formatPrice } from '../utils/constants';
 import { describeMethod } from '../utils/shipping';
 import { useShopProduct } from '../hooks/useShops';
-import { shopsApi } from '../api/client';
+import { shopsApi, stripeHostedUrl } from '../api/client';
+import { selectCartItems, removeFromCart } from '../store/cartSlice';
 import SmartImage from '../components/SmartImage';
 import { ApplePayMark, PayPalMark, VisaMark, MastercardMark } from '../components/PaymentBrands';
 
@@ -25,19 +27,22 @@ const STORAGE_KEY = 'hustleup_shop_checkout_draft';
  */
 export default function ShopCheckout() {
   const { id, productId } = useParams();
-  const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useDispatch();
+  const cartItems = useSelector(selectCartItems);
   const { shop, product, loading, notFound } = useShopProduct(id, productId);
-  const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '' });
+  const [customer, setCustomer] = useState({ fullName: '', email: '', phone: '', address: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
   const draft = useMemo(() => {
     try {
-      return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}');
+      const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}');
+      return saved?.productId === productId && (saved.shopId === id || saved.shopSlug === id) ? saved : {};
     } catch {
       return {};
     }
-  }, []);
+  }, [id, productId]);
 
   if (loading) {
     return (
@@ -59,8 +64,11 @@ export default function ShopCheckout() {
     );
   }
 
-  const quantity = Number(draft.quantity) || 1;
-  const unitPrice = draft.offer ? Number(draft.offer) : Number(product.price);
+  const cartItem = cartItems.find((item) => item.listingId === `shop:${shop.id}:${product.id}`
+    || item.listingId === `shop:${shop.slug}:${product.id}`);
+  const requestedQuantity = Number(cartItem?.quantity ?? location.state?.quantity ?? draft.quantity ?? 1);
+  const quantity = Number.isSafeInteger(requestedQuantity) && requestedQuantity > 0 ? Math.min(999, requestedQuantity) : 1;
+  const unitPrice = Number(product.price);
   // Postage is charged once per order, not per unit — the server does the same arithmetic
   // when it builds the Stripe session, so the number here is the number that gets charged.
   const shipping = Number(product.shippingPrice) || 0;
@@ -68,14 +76,18 @@ export default function ShopCheckout() {
   const shippingMethod = describeMethod(product.shippingMethod, true);
   const total = unitPrice * quantity + shipping;
 
-  const canSubmit = !!(customer.fullName && customer.email) && !submitting;
+  const needsAddress = product.shippingMethod && !['PICKUP', 'DIGITAL', 'NONE'].includes(product.shippingMethod);
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim());
+  const canSubmit = !!customer.fullName.trim() && validEmail && (!needsAddress || !!customer.address.trim()) && !submitting;
   // Names the specific blocker so a disabled pay button is never a mystery.
   const missing = [
-    !customer.fullName && 'name',
-    !customer.email && 'email address',
+    !customer.fullName.trim() && 'name',
+    !validEmail && 'valid email address',
+    needsAddress && !customer.address.trim() && 'delivery address',
   ].filter(Boolean).join(' and ');
 
   const placeOrder = async () => {
+    if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -90,17 +102,18 @@ export default function ShopCheckout() {
 
       // The order exists now, so the draft has done its job. Clearing it stops a
       // back-button press from re-submitting the same basket.
-      sessionStorage.removeItem(STORAGE_KEY);
-
       if (data.url) {
-        window.location.href = data.url;
+        const url = stripeHostedUrl(data.url, 'checkout');
+        try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* storage may be disabled */ }
+        if (cartItem) dispatch(removeFromCart(cartItem.listingId));
+        window.location.assign(url);
         return;
       }
       // No URL means nothing was payable — surface it rather than implying a sale.
       setError('This order could not be sent for payment. Please try again.');
     } catch (e) {
       const d = e.response?.data;
-      setError(d?.error || d?.message
+      setError(d?.error || d?.message || e.message
         || (e.response?.status === 401
             ? 'Sign in to place this order.'
             : 'Could not place the order. Please try again.'));
@@ -111,7 +124,7 @@ export default function ShopCheckout() {
 
   const field = (key, placeholder, type, Icon) => (
     <div className="relative">
-      <Icon className="w-4 h-4 text-gray-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+      {Icon && <Icon className="w-4 h-4 text-gray-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />}
       <input
         type={type}
         value={customer[key]}
@@ -126,13 +139,14 @@ export default function ShopCheckout() {
     <div className="min-h-screen text-white pt-4 pb-10">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         <Link
-          to={`/shop/${shop.slug || shop.id}/product/${product.id}/negotiate`}
+          to={`/shop/${encodeURIComponent(shop.slug || shop.id)}`}
+          replace
           className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white transition-colors mb-4"
         >
-          <MoveLeft className="w-3.5 h-3.5" /> Back to negotiation
+          <MoveLeft className="w-3.5 h-3.5" /> Back to shop
         </Link>
 
-        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
+        <Motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
           <div className="text-center mb-6">
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Checkout</h1>
             <p className="text-[11px] text-gray-500 font-bold mt-1.5">{shop.name}</p>
@@ -161,6 +175,7 @@ export default function ShopCheckout() {
                   {field('fullName', 'Full name', 'text', CircleUserRound)}
                   {field('email', 'Email address', 'email', AtSign)}
                   {field('phone', 'Phone number (optional)', 'tel', PhoneCall)}
+                  {needsAddress && field('address', 'Delivery address', 'text', CircleUserRound)}
                 </div>
               </section>
 
@@ -280,7 +295,7 @@ export default function ShopCheckout() {
               </div>
             </aside>
           </div>
-        </motion.div>
+        </Motion.div>
       </div>
     </div>
   );

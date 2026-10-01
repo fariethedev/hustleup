@@ -53,6 +53,10 @@ public class ShopProduct {
     @Column(length = 60)
     private String category;
 
+    /** Available selling units. Null keeps existing catalogues untracked. */
+    @Column(name = "stock_quantity")
+    private Integer stockQuantity;
+
     @Column(name = "image_url", length = 512)
     private String imageUrl;
 

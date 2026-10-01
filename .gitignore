@@ -54,3 +54,6 @@ backend/uploads/
 # the repo root. Uploads belong in S3, never in git.
 uploads/
 /.expo/
+/.browser-review/
+/artifacts/ui-review/
+/mobile/dist-review/

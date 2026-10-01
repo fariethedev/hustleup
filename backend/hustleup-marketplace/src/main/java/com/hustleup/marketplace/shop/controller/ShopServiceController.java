@@ -311,9 +311,13 @@ public class ShopServiceController {
      * "who is this for" contract across both booking flows.
      */
     @PostMapping("/{idOrSlug}/appointments")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<ShopAppointmentDto> book(@PathVariable String idOrSlug, @RequestBody Map<String, Object> body) {
         Shop shop = requireShop(idOrSlug);
         User buyer = requireUser();
+        if (shop.getOwnerId().equals(buyer.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot book your own shop");
+        }
 
         UUID slotId;
         try {
@@ -321,7 +325,7 @@ public class ShopServiceController {
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "slotId is required");
         }
-        ShopServiceSlot slot = slotRepository.findById(slotId)
+        ShopServiceSlot slot = slotRepository.findLockedById(slotId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Slot not found"));
         if (!slot.getShopId().equals(shop.getId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Slot not found");
@@ -329,11 +333,12 @@ public class ShopServiceController {
         // Checked again here even though the picker should already hide booked slots — the
         // picker is what stops an honest double-click, not what stops two tabs racing to
         // book the last opening. This is the actual guard.
-        if (slot.isBooked()) {
+        if (slot.isBooked() || !slot.getStartTime().isAfter(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "That slot has just been booked — pick another");
         }
         ShopBookableService service = serviceRepository.findById(slot.getShopServiceId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
+        if (!service.isActive()) throw new ResponseStatusException(HttpStatus.CONFLICT, "This service is no longer available");
 
         @SuppressWarnings("unchecked")
         Map<String, Object> customer = (Map<String, Object>) body.getOrDefault("customer", Map.of());

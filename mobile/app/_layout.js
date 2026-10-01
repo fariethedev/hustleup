@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Sentry from '@sentry/react-native';
 import { store } from '../src/store';
+import CartProvider from '../src/store/CartProvider';
 import { setUser } from '../src/store/authSlice';
 import { registerForPushNotifications } from '../src/utils/pushNotifications';
 
@@ -84,6 +85,7 @@ function RootLayout() {
   return (
     <Provider store={store}>
       <AuthGate>
+        <CartProvider>
         <Stack
           screenOptions={{
             headerShown: false,
@@ -96,6 +98,7 @@ function RootLayout() {
           <Stack.Screen name="register" />
         </Stack>
         <StatusBar style="light" />
+        </CartProvider>
       </AuthGate>
     </Provider>
   );

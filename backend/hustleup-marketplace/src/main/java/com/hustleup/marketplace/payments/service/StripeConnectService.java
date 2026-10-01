@@ -46,6 +46,7 @@ import com.stripe.model.PaymentIntent;
 import com.stripe.model.Refund;
 import com.stripe.model.Transfer;
 import com.stripe.model.checkout.Session;
+import com.stripe.net.RequestOptions;
 import com.stripe.param.AccountCreateParams;
 import com.stripe.param.AccountLinkCreateParams;
 import com.stripe.param.RefundCreateParams;
@@ -116,7 +117,8 @@ public class StripeConnectService {
                                             .setRequested(true).build())
                                     .build())
                     .build();
-            Account account = Account.create(params);
+            Account account = Account.create(params, RequestOptions.builder()
+                    .setIdempotencyKey("seller-connect-" + sellerId).build());
 
             payoutAccount = payoutAccountRepository.save(
                     SellerPayoutAccount.builder()
@@ -130,8 +132,8 @@ public class StripeConnectService {
                 .setType(AccountLinkCreateParams.Type.ACCOUNT_ONBOARDING)
                 // If the link expires before the seller finishes, Stripe sends them back here
                 // so the frontend can request a fresh one.
-                .setRefreshUrl(frontendUrl + "/dashboard?payout=refresh")
-                .setReturnUrl(frontendUrl + "/dashboard?payout=complete")
+                .setRefreshUrl(frontendUrl.replaceAll("/+$", "") + "/payouts?payout=refresh")
+                .setReturnUrl(frontendUrl.replaceAll("/+$", "") + "/payouts?payout=return")
                 .build();
 
         return AccountLink.create(linkParams).getUrl();

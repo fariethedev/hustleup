@@ -13,6 +13,7 @@ import com.hustleup.marketplace.shipping.ShippingMethod;
 import com.hustleup.marketplace.shop.model.Shop;
 import com.hustleup.marketplace.shop.model.ShopOrder;
 import com.hustleup.marketplace.shop.service.OrderPayoutService;
+import com.hustleup.marketplace.shop.service.ShopInventoryService;
 import com.hustleup.marketplace.shop.model.ShopProduct;
 import com.hustleup.marketplace.shop.repository.ShopOrderRepository;
 import com.hustleup.marketplace.shop.repository.ShopProductRepository;
@@ -25,6 +26,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -52,6 +54,7 @@ public class ShopOrderController {
     private final ShipmentService shipmentService;
     private final OrderPayoutService orderPayoutService;
     private final EmailVerificationGuard emailVerificationGuard;
+    private final ShopInventoryService inventoryService;
 
     /** Platform default — {@link ShopProduct} carries a price with no currency of its own. */
     private static final String CURRENCY = "PLN";
@@ -82,45 +85,50 @@ public class ShopOrderController {
         emailVerificationGuard.require(buyer, "buy");
 
         Shop shop = resolveShop(idOrSlug);
-        if (shop == null) return ResponseEntity.status(404).body(Map.of("error", "Shop not found"));
+        if (shop == null || !shop.isPublished()) return ResponseEntity.status(404).body(Map.of("error", "Shop not found"));
 
         if (shop.getOwnerId().equals(buyer.getId())) {
             return ResponseEntity.badRequest().body(Map.of("error", "You cannot buy from your own shop"));
         }
 
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> items = (List<Map<String, Object>>) body.get("items");
-        if (items == null || items.isEmpty()) {
+        if (!(body.get("items") instanceof List<?> items) || items.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Your basket is empty"));
         }
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> customer = (Map<String, Object>) body.getOrDefault("customer", Map.of());
+        if (items.size() > 100) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Too many basket items");
+        // Merge duplicate lines and acquire locks in a stable order across concurrent carts.
+        Map<UUID, Integer> quantities = new TreeMap<>();
+        for (Object raw : items) {
+            if (!(raw instanceof Map<?, ?> item)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid basket item");
+            try {
+                UUID productId = UUID.fromString(String.valueOf(item.get("productId")));
+                int quantity = item.get("quantity") == null ? 1 : Integer.parseInt(String.valueOf(item.get("quantity")));
+                if (quantity < 1) throw new IllegalArgumentException();
+                quantities.merge(productId, quantity, Math::addExact);
+            } catch (IllegalArgumentException | ArithmeticException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Each item needs a valid product and positive whole quantity");
+            }
+        }
+        Map<?, ?> customer = body.get("customer") instanceof Map<?, ?> values ? values : Map.of();
         String notes = body.get("notes") != null ? String.valueOf(body.get("notes")) : null;
 
         List<ShopOrder> created = new ArrayList<>();
-        for (Map<String, Object> item : items) {
-            UUID productId;
-            try {
-                productId = UUID.fromString(String.valueOf(item.get("productId")));
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Invalid product id"));
-            }
-
-            ShopProduct product = productRepository.findById(productId).orElse(null);
-            if (product == null) {
-                return ResponseEntity.status(404).body(Map.of("error", "Product not found"));
-            }
+        String checkoutCurrency = null;
+        for (var item : quantities.entrySet()) {
+            ShopProduct product = productRepository.findLockedById(item.getKey())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
             // Guards against a basket assembled from one shop being posted at another.
             if (!product.getShopId().equals(shop.getId())) {
-                return ResponseEntity.badRequest().body(Map.of("error", "That product is not sold by this shop"));
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That product is not sold by this shop");
             }
 
-            int qty = 1;
-            if (item.get("quantity") != null) {
-                try { qty = Math.max(1, Integer.parseInt(String.valueOf(item.get("quantity")))); }
-                catch (NumberFormatException ignored) { /* keep 1 */ }
+            int qty = item.getValue();
+            String productCurrency = product.getCurrency() == null ? CURRENCY : product.getCurrency().toUpperCase(java.util.Locale.ROOT);
+            if (checkoutCurrency != null && !checkoutCurrency.equals(productCurrency)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Check out products in different currencies separately");
             }
+            checkoutCurrency = productCurrency;
+            boolean stockReserved = inventoryService.reserve(product, qty);
 
             // Price comes from the product row, never from the request — otherwise a client
             // could name its own price for someone else's goods.
@@ -145,8 +153,9 @@ public class ShopOrderController {
                     .productImageUrl(product.getImageUrl())
                     .unitPrice(unit)
                     .quantity(qty)
+                    .stockReserved(stockReserved)
                     .totalPrice(unit.multiply(BigDecimal.valueOf(qty)))
-                    .currency(CURRENCY)
+                    .currency(productCurrency)
                     .customerName(str(customer.get("fullName")))
                     .customerEmail(str(customer.get("email")) != null ? str(customer.get("email")) : buyer.getEmail())
                     .customerPhone(str(customer.get("phone")))
@@ -164,7 +173,8 @@ public class ShopOrderController {
             out.put("orderIds", created.stream().map(ShopOrder::getId).collect(Collectors.toList()));
             return ResponseEntity.ok(out);
         } catch (StripeException e) {
-            return ResponseEntity.status(502).body(Map.of("error", "Could not reach Stripe: " + e.getMessage()));
+            // Throw so the order rows and stock deductions roll back together.
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Could not start payment. Please try again.", e);
         }
     }
 

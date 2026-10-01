@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { CircleX, Redo, Maximize2, Undo, CircleCheck, Loader } from 'lucide-react';
 import { lockBodyScroll } from '../utils/lockBodyScroll';
 
@@ -38,22 +38,31 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [aspect, setAspect] = useState(lockAspect || RATIOS[0].value);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   const [stage, setStage] = useState({ w: 320, h: 320 });
 
   const stageRef = useRef(null);
+  const dialogRef = useRef(null);
   const drag = useRef(null);
   const pinch = useRef(null);
 
   useEffect(() => lockBodyScroll(), []);
+  useEffect(() => {
+    const previous = document.activeElement;
+    dialogRef.current?.focus();
+    return () => previous?.focus?.();
+  }, []);
 
   // Decode once. The object URL is revoked on unmount so a long editing session
   // doesn't leak one blob per opened photo.
   useEffect(() => {
     const url = URL.createObjectURL(file);
     const im = new Image();
-    im.onload = () => setImgEl(im);
+    let active = true;
+    im.onload = () => { if (active) setImgEl(im); };
+    im.onerror = () => { if (active) setError('This photo could not be opened. Try a JPEG, PNG or WebP image.'); };
     im.src = url;
-    return () => URL.revokeObjectURL(url);
+    return () => { active = false; URL.revokeObjectURL(url); };
   }, [file]);
 
   // Rotating by 90 degrees swaps which natural dimension is horizontal.
@@ -97,7 +106,7 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
 
   // Re-clamp whenever the geometry changes — switching ratio or zooming out could
   // otherwise strand the image off-centre with a visible gap.
-  useEffect(() => { setOffset((o) => clamp(o)); }, [clamp]);
+  const position = clamp(offset);
 
   useEffect(() => {
     const el = stageRef.current;
@@ -126,7 +135,7 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
       return;
     }
     const p = pointFrom(e);
-    drag.current = { sx: p.x, sy: p.y, ox: offset.x, oy: offset.y };
+    drag.current = { sx: p.x, sy: p.y, ox: position.x, oy: position.y };
   };
 
   const onMove = (e) => {
@@ -162,6 +171,7 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
   const apply = async () => {
     if (!imgEl) return;
     setBusy(true);
+    setError('');
     try {
       // 1. Bake rotation into an upright bitmap so the crop maths stays axis-aligned.
       let source = imgEl;
@@ -178,8 +188,8 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
 
       // 2. Map the frame back onto source pixels. `scale` converts source px to CSS px,
       //    and the image's top-left sits at this offset inside the frame.
-      const left = (frame.w - displayed.w) / 2 + offset.x;
-      const top = (frame.h - displayed.h) / 2 + offset.y;
+      const left = (frame.w - displayed.w) / 2 + position.x;
+      const top = (frame.h - displayed.h) / 2 + position.y;
       const sx = -left / scale;
       const sy = -top / scale;
       const sw = frame.w / scale;
@@ -193,6 +203,7 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
       canvas.width = Math.max(1, Math.round(sw * outScale));
       canvas.height = Math.max(1, Math.round(sh * outScale));
       const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Image editing is unavailable in this browser');
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
@@ -204,49 +215,74 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
       if (!blob) throw new Error('Could not render the crop');
 
       const name = file.name.replace(/\.[^.]+$/, '') + (isPng ? '.png' : '.jpg');
-      onApply(new File([blob], name, { type, lastModified: Date.now() }));
+      await onApply(new File([blob], name, { type, lastModified: Date.now() }));
     } catch {
-      // Falling back to the untouched original beats blocking the post entirely.
-      onApply(file);
+      setError('Your crop could not be saved. Try again, or cancel to keep the original photo.');
     } finally {
       setBusy(false);
     }
   };
 
   return createPortal(
-    <motion.div
+    <Motion.div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="crop-dialog-title"
+      tabIndex={-1}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && !busy) { event.stopPropagation(); onCancel(); }
+        if (event.key === 'Tab') {
+          const elements = [...event.currentTarget.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex="0"]')];
+          const first = elements[0];
+          const last = elements[elements.length - 1];
+          if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last?.focus(); }
+          else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first?.focus(); }
+        }
+      }}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[1200] bg-black/95 backdrop-blur-xl flex flex-col"
+      className="fixed inset-0 z-[1200] bg-black/95 backdrop-blur-xl flex flex-col outline-none"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
         <button
+          type="button"
           onClick={onCancel}
+          disabled={busy}
           aria-label="Cancel crop"
-          className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+          className="w-11 h-11 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors disabled:opacity-40"
         >
           <CircleX className="w-4 h-4" />
         </button>
-        <p className="text-xs font-black text-white tracking-widest">Adjust photo</p>
+        <p id="crop-dialog-title" className="text-sm font-semibold text-white">Crop photo</p>
         <button
+          type="button"
           onClick={apply}
           disabled={busy || !imgEl}
-          className="h-9 px-4 rounded-full bg-[#CDFF00] text-black text-[11px] font-black tracking-widest flex items-center gap-1.5 disabled:opacity-40 active:scale-95 transition-all"
+          className="min-h-11 px-4 rounded-full bg-[#CDFF00] text-black text-sm font-bold flex items-center gap-1.5 disabled:opacity-40 active:scale-95 transition-all"
         >
-          {busy ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CircleCheck className="w-3.5 h-3.5" />} Done
+          {busy ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <CircleCheck className="w-3.5 h-3.5" />} {busy ? 'Saving…' : 'Use photo'}
         </button>
       </div>
+      {error && <p role="alert" className="px-4 py-3 text-sm text-red-300 text-center">{error}</p>}
 
       {/* Stage */}
       <div ref={stageRef} className="flex-1 min-h-0 flex items-center justify-center p-4 select-none">
         {!imgEl ? (
-          <Loader className="w-6 h-6 text-gray-600 animate-spin" />
+          !error && <Loader className="w-6 h-6 text-gray-600 animate-spin" />
         ) : (
           <div
             className="relative overflow-hidden bg-black touch-none cursor-grab active:cursor-grabbing rounded-lg"
+            tabIndex={0}
+            role="group"
+            aria-label="Photo framing. Use arrow keys to move the photo."
+            onKeyDown={(event) => {
+              const movement = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] }[event.key];
+              if (movement) { event.preventDefault(); setOffset(clamp({ x: position.x + movement[0], y: position.y + movement[1] })); }
+            }}
             style={{ width: frame.w, height: frame.h }}
             onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
-            onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
+            onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp} onTouchCancel={onUp}
             onWheel={onWheel}
           >
             {/* Sized by the *unrotated* natural dimensions, then rotated about its centre —
@@ -259,8 +295,8 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
               style={{
                 width: imgEl.naturalWidth * scale,
                 height: imgEl.naturalHeight * scale,
-                left: (frame.w - displayed.w) / 2 + offset.x + (displayed.w - imgEl.naturalWidth * scale) / 2,
-                top: (frame.h - displayed.h) / 2 + offset.y + (displayed.h - imgEl.naturalHeight * scale) / 2,
+                left: (frame.w - displayed.w) / 2 + position.x + (displayed.w - imgEl.naturalWidth * scale) / 2,
+                top: (frame.h - displayed.h) / 2 + position.y + (displayed.h - imgEl.naturalHeight * scale) / 2,
                 transform: `rotate(${rotation}deg)`,
                 transformOrigin: 'center center',
               }}
@@ -278,7 +314,7 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
       </div>
 
       {/* Controls */}
-      <div className="shrink-0 border-t border-white/10 px-4 py-3 space-y-3">
+      <div className="shrink-0 border-t border-white/10 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-3">
         <div className="flex items-center gap-3 max-w-md mx-auto">
           <Maximize2 className="w-4 h-4 text-gray-500 shrink-0" />
           <input
@@ -287,10 +323,10 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
             aria-label="Zoom"
             className="flex-1 accent-[#CDFF00] cursor-pointer"
           />
-          <button onClick={rotate} title="Rotate 90 degrees" aria-label="Rotate" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors">
+          <button type="button" onClick={rotate} title="Rotate 90 degrees" aria-label="Rotate" className="w-11 h-11 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors">
             <Redo className="w-4 h-4" />
           </button>
-          <button onClick={reset} title="Reset" aria-label="Reset" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors">
+          <button type="button" onClick={reset} title="Reset" aria-label="Reset" className="w-11 h-11 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors">
             <Undo className="w-4 h-4" />
           </button>
         </div>
@@ -299,9 +335,11 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
           <div className="flex items-center justify-center gap-1.5 flex-wrap">
             {RATIOS.map((r) => (
               <button
+                type="button"
                 key={r.label}
                 onClick={() => setAspect(r.value)}
-                className={`px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest border transition-all ${
+                aria-pressed={aspect === r.value}
+                className={`min-h-11 px-4 rounded-full text-xs font-semibold border transition-all ${
                   aspect === r.value
                     ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
                     : 'border-white/15 text-gray-400 hover:text-white hover:border-white/35'
@@ -313,11 +351,11 @@ export default function ImageCropper({ file, aspects, lockAspect, onCancel, onAp
           </div>
         )}
 
-        <p className="text-[10px] text-gray-600 text-center font-bold">
+        <p className="text-xs text-gray-400 text-center">
           Drag to reposition · scroll or pinch to zoom
         </p>
       </div>
-    </motion.div>,
+    </Motion.div>,
     document.body,
   );
 }

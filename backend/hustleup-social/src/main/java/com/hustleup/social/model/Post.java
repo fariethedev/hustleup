@@ -186,7 +186,7 @@ public class Post {
     private LocalDateTime createdAt;
 
     /**
-     * When the author last edited the text, or null if they never have.
+     * When the author last edited the text or a photo, or null if they never have.
      *
      * <p>Recorded so the UI can mark a post as edited. Silently changing what someone
      * already replied to, with no trace, misrepresents the conversation.

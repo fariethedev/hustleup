@@ -4,10 +4,8 @@ import {
 } from 'lucide-react';
 
 /**
- * A shop's structured business type — separate from the free-text `category` a seller has
- * always been able to type ("Hair & Beauty", "Beauty Salon", two spellings of the same
- * business). Nothing that decides which features a shop gets can be driven by parsing that
- * string, so this is the fixed list the owner instead picks from at creation.
+ * The single shop category choice supplies both the business type and its display label.
+ * Existing custom category labels are retained until the owner chooses a category.
  *
  * `kind: 'APPOINTMENT'` is the one thing this actually drives: whether ShopManager offers a
  * services-and-slots calendar alongside the product shelf, and whether the storefront offers
@@ -40,6 +38,38 @@ export const getBusinessType = (value) =>
   SHOP_BUSINESS_TYPES.find((t) => t.value === value) || SHOP_BUSINESS_TYPES[0];
 
 export const isAppointmentBusiness = (value) => getBusinessType(value).kind === 'APPOINTMENT';
+
+const BEAUTY_CATEGORIES = ['Hair care', 'Skin care', 'Makeup', 'Nail care', 'Fragrance', 'Beauty tools'];
+const PRODUCT_CATEGORIES = {
+  GENERAL: ['Food & drink', 'Clothing', 'Accessories', 'Electronics', 'Home & garden', 'Health & beauty', 'Books & stationery', 'Sports & leisure'],
+  CLOTHING_FASHION: ['T-shirts & tops', 'Shirts', 'Hoodies & sweatshirts', 'Trousers & jeans', 'Dresses & skirts', 'Coats & jackets', 'Shoes', 'Bags & accessories'],
+  GROCERY_FOOD: ['Fruit & vegetables', 'Dairy & eggs', 'Meat & fish', 'Bread & bakery', 'Pantry staples', 'Frozen food', 'Snacks & sweets', 'Drinks', 'Household essentials'],
+  ELECTRONICS: ['Phones & tablets', 'Computers', 'Audio', 'Cameras', 'Gaming', 'Cables & accessories', 'Appliances'],
+  BOOKS_STATIONERY: ['Books', 'Notebooks & planners', 'Pens & pencils', 'Art supplies', 'Office supplies'],
+  HOME_LIVING: ['Furniture', 'Home decor', 'Kitchen & dining', 'Bedding & textiles', 'Lighting', 'Garden', 'Cleaning supplies'],
+  BEAUTY_COSMETICS: BEAUTY_CATEGORIES,
+  HAIR_SALON: BEAUTY_CATEGORIES,
+  BARBERSHOP: ['Hair care', 'Beard & shaving', 'Skin care', 'Grooming tools'],
+  NAIL_STUDIO: ['Nail care', 'Nail polish', 'Nail tools', 'Hand & foot care'],
+  SPA_MASSAGE: ['Skin care', 'Bath & body', 'Massage oils', 'Wellness accessories'],
+  TATTOO_PIERCING: ['Aftercare', 'Jewellery', 'Art & prints', 'Accessories'],
+  FITNESS_TRAINING: ['Equipment', 'Sportswear', 'Supplements', 'Accessories'],
+  TUTORING_LESSONS: ['Books', 'Study materials', 'Stationery', 'Learning kits'],
+  REPAIR_SERVICES: ['Spare parts', 'Tools', 'Accessories', 'Refurbished products'],
+};
+
+/** Keep a saved custom shelf selectable, including after a shop changes category. */
+export const getProductCategories = (businessType, currentCategory = '') => {
+  const options = [...(PRODUCT_CATEGORIES[businessType] || PRODUCT_CATEGORIES.GENERAL), 'Other'];
+  return currentCategory && !options.includes(currentCategory) ? [currentCategory, ...options] : options;
+};
+
+export const isProductInStock = (product) =>
+  product?.stockQuantity == null || Number(product.stockQuantity) > 0;
+
+export const stockLabel = (product) => product?.stockQuantity == null
+  ? 'Stock not tracked'
+  : Number(product.stockQuantity) === 0 ? 'Out of stock' : `${product.stockQuantity} in stock`;
 
 /** How long a slot lasts, offered as one-tap presets when opening a new one. */
 export const DURATION_PRESETS = [15, 30, 45, 60, 90, 120];

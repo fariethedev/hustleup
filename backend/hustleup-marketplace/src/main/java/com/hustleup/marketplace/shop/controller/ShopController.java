@@ -150,7 +150,9 @@ public class ShopController {
                 .ownerId(me.getId())
                 .slug(shopService.uniqueSlug(name))
                 .name(name)
-                .category(trimToNull(body.getCategory()))
+                .category(body.getBusinessType() != null
+                        ? com.hustleup.marketplace.shop.model.ShopBusinessType.parse(body.getBusinessType()).label()
+                        : trimToNull(body.getCategory()))
                 .businessType(com.hustleup.marketplace.shop.model.ShopBusinessType.parse(body.getBusinessType()))
                 .tagline(trimToNull(body.getTagline()))
                 .description(trimToNull(body.getDescription()))
@@ -178,7 +180,13 @@ public class ShopController {
         // Blank strings are meaningful here: they clear an optional field. Only `null`
         // (field absent from the JSON) means "leave this alone".
         if (body.getCategory() != null)    shop.setCategory(trimToNull(body.getCategory()));
-        if (body.getBusinessType() != null) shop.setBusinessType(com.hustleup.marketplace.shop.model.ShopBusinessType.parse(body.getBusinessType()));
+        if (body.getBusinessType() != null) {
+            var type = com.hustleup.marketplace.shop.model.ShopBusinessType.parse(body.getBusinessType());
+            if (shop.getBusinessType() != type || body.getCategory() == null || body.getCategory().equals(type.label())) {
+                shop.setCategory(type.label());
+            }
+            shop.setBusinessType(type);
+        }
         if (body.getTagline() != null)     shop.setTagline(trimToNull(body.getTagline()));
         if (body.getDescription() != null) shop.setDescription(trimToNull(body.getDescription()));
         if (body.getBannerUrl() != null)   shop.setBannerUrl(trimToNull(body.getBannerUrl()));
@@ -247,17 +255,23 @@ public class ShopController {
                         : (int) productRepository.countByShopId(shop.getId()))
                 .build();
 
+        applyStock(product, body);
+
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ShopProductDto.from(productRepository.save(product)));
     }
 
     @PatchMapping("/{idOrSlug}/products/{productId}")
+    @Transactional
     public ResponseEntity<ShopProductDto> updateProduct(
             @PathVariable String idOrSlug,
             @PathVariable UUID productId,
             @RequestBody ShopProductRequest body) {
         Shop shop = requireOwned(idOrSlug);
-        ShopProduct product = requireProductOf(shop, productId);
+        ShopProduct product = productRepository.findLockedById(productId)
+                .filter(p -> p.getShopId().equals(shop.getId()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+        applyStock(product, body);
 
         if (body.getName() != null) {
             String name = trimToNull(body.getName());
@@ -321,5 +335,18 @@ public class ShopController {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void applyStock(ShopProduct product, ShopProductRequest body) {
+        if (body.getStockQuantity() != null && body.getStockQuantity() < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stock must be zero or more");
+        }
+        if (Boolean.FALSE.equals(body.getStockTracked())) {
+            product.setStockQuantity(null);
+        } else if (body.getStockQuantity() != null) {
+            product.setStockQuantity(body.getStockQuantity());
+        } else if (Boolean.TRUE.equals(body.getStockTracked()) && product.getStockQuantity() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter the number of units in stock");
+        }
     }
 }

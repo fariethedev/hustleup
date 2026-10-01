@@ -19,6 +19,9 @@ public class ShopProductDto {
     private String category;
     private String imageUrl;
     private int sortOrder;
+    private Integer stockQuantity;
+    private boolean stockTracked;
+    private boolean inStock;
 
     /** ShippingMethod.name() — how the seller sends this, e.g. "PARCEL_LOCKER". */
     private String shippingMethod;
@@ -37,6 +40,9 @@ public class ShopProductDto {
                 .category(p.getCategory())
                 .imageUrl(p.getImageUrl())
                 .sortOrder(p.getSortOrder())
+                .stockQuantity(p.getStockQuantity())
+                .stockTracked(p.getStockQuantity() != null)
+                .inStock(p.getStockQuantity() == null || p.getStockQuantity() > 0)
                 // Null on products added before sellers were asked how they ship — the shop
                 // page reads that as "ask the seller", not as free delivery.
                 .shippingMethod(p.getShippingMethod() != null ? p.getShippingMethod().name() : null)

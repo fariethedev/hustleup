@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
+import BankConnection from './components/BankConnection';
 import Home from './pages/Home';
 import Explore from './pages/Explore';
 import ExploreListings from './pages/ExploreListings';
@@ -112,6 +113,7 @@ export default function App() {
             <Route path="/tickets/:id" element={<TicketDetail />} />
             <Route path="/events/:listingId/door" element={<EventDoor />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/payouts" element={<BankConnection />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/messages" element={<Messages />} />
@@ -158,7 +160,7 @@ function ProtectedRoute() {
   const location = useLocation();
 
   if (!isAuthenticated) {
-    return <Navigate to="/register" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/register" replace state={{ from: location.pathname + location.search + location.hash }} />;
   }
 
   return <Outlet />;

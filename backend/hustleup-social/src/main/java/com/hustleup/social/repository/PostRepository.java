@@ -29,6 +29,7 @@ package com.hustleup.social.repository;
 
 import com.hustleup.social.model.Post;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
@@ -36,6 +37,26 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PostRepository extends JpaRepository<Post, String> {
+
+    /**
+     * Compare-and-set only the media columns, preserving concurrent text and counter
+     * updates. A zero result means the post disappeared or its media changed during upload.
+     * Clearing the persistence context makes the subsequent read see the updated row.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Post p SET p.mediaUrls = :urls, p.mediaTypes = :types,
+                p.imageUrl = :image, p.editedAt = :editedAt
+            WHERE p.id = :id AND p.authorId = :authorId
+                AND (p.mediaUrls = :oldUrls OR (p.mediaUrls IS NULL AND :oldUrls IS NULL))
+                AND (p.mediaTypes = :oldTypes OR (p.mediaTypes IS NULL AND :oldTypes IS NULL))
+                AND (p.imageUrl = :oldImage OR (p.imageUrl IS NULL AND :oldImage IS NULL))
+            """)
+    int replaceMediaIfUnchanged(@Param("id") String id, @Param("authorId") String authorId,
+                                @Param("oldUrls") String oldUrls, @Param("oldTypes") String oldTypes,
+                                @Param("oldImage") String oldImage, @Param("urls") String urls,
+                                @Param("types") String types, @Param("image") String image,
+                                @Param("editedAt") LocalDateTime editedAt);
 
     /**
      * Returns all posts ordered by creation date, newest first.

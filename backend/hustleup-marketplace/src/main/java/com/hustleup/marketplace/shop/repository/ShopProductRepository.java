@@ -2,11 +2,20 @@ package com.hustleup.marketplace.shop.repository;
 
 import com.hustleup.marketplace.shop.model.ShopProduct;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface ShopProductRepository extends JpaRepository<ShopProduct, UUID> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from ShopProduct p where p.id = :id")
+    Optional<ShopProduct> findLockedById(@Param("id") UUID id);
 
     /** A shop's shelf, in the order the seller arranged it. */
     List<ShopProduct> findByShopIdOrderBySortOrderAscCreatedAtAsc(UUID shopId);
