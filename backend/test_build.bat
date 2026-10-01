@@ -9,10 +9,10 @@ echo ========================================
 echo HustleUp Backend - Maven Build Test
 echo ========================================
 echo.
-echo Running: mvn clean compile -q
+echo Running: mvnw.cmd clean compile -q
 echo.
 
-mvn clean compile 2>&1 | tee build.log
+mvnw.cmd clean compile -q > build.log 2>&1
 
 echo.
 echo ========================================

@@ -64,7 +64,7 @@ foreach ($s in $services) {
         [Environment]::SetEnvironmentVariable($k, $childEnv[$k], "Process")
     }
 
-    $cmdArgs = "/c set `"PATH=C:\Program Files\Java\jdk-21\bin;%PATH%`" && `"C:\Users\User\maven-dist\apache-maven-3.9.6\bin\mvn.cmd`" spring-boot:run -pl $($s.Dir) -Dmaven.test.skip=true"
+    $cmdArgs = "/c set `"PATH=C:\Program Files\Java\jdk-21\bin;%PATH%`" && `"$((Get-Location).Path)\mvnw.cmd`" spring-boot:run -pl $($s.Dir) -Dmaven.test.skip=true"
     Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs -WindowStyle Minimized -WorkingDirectory (Get-Location)
 
     # Restore this shell's own environment so the secrets don't linger in the session.

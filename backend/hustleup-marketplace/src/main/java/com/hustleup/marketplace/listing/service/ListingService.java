@@ -147,7 +147,7 @@ public class ListingService {
         String mediaUrlsCsv = "";
         if (images != null && !images.isEmpty()) {
             mediaUrlsCsv = images.stream()
-                    .map(fileStorageService::store)
+                    .map(fileStorageService::storePublicMedia)
                     .collect(Collectors.joining(","));
         }
 

@@ -160,7 +160,7 @@ public class JobController {
             for (MultipartFile f : media) {
                 if (f != null && !f.isEmpty()) {
                     try {
-                        mediaUrls.add(fileStorageService.store(f));
+                        mediaUrls.add(fileStorageService.storePublicMedia(f));
                     } catch (IllegalArgumentException e) {
                         return badRequest(e.getMessage());
                     }

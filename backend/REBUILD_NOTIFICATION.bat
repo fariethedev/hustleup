@@ -7,13 +7,13 @@ timeout /t 3 /nobreak >nul
 
 echo Building common module...
 cd hustleup-common
-call mvn clean install -DskipTests -q
+call mvnw.cmd clean install -DskipTests -q
 if %errorlevel% neq 0 ( echo Common build FAILED & pause & exit /b 1 )
 cd ..
 
 echo Building notification service...
 cd hustleup-notification
-call mvn clean package -DskipTests -q
+call mvnw.cmd clean package -DskipTests -q
 if %errorlevel% neq 0 ( echo Notification build FAILED & pause & exit /b 1 )
 cd ..
 

@@ -415,7 +415,7 @@ public class StoryController {
 
             // Upload the media file to storage and store the resulting URL on the entity.
             if (media != null && !media.isEmpty()) {
-                String url = storageService.store(media);
+                String url = storageService.storePublicMedia(media);
                 story.setMediaUrl(url);
             }
 

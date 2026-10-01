@@ -17,32 +17,32 @@ cd /d "%~dp0"
 
 REM Gateway
 echo [1/6] Starting API Gateway on port 8000...
-start "Gateway-8000" cmd /k "mvn spring-boot:run -pl hustleup-gateway"
+start "Gateway-8000" cmd /k "mvnw.cmd spring-boot:run -pl hustleup-gateway"
 timeout /t 8 /nobreak
 
 REM Auth Service
 echo [2/6] Starting Auth Service on port 8081...
-start "Auth-8081" cmd /k "mvn spring-boot:run -pl hustleup-auth"
+start "Auth-8081" cmd /k "mvnw.cmd spring-boot:run -pl hustleup-auth"
 timeout /t 8 /nobreak
 
 REM Social Service
 echo [3/6] Starting Social Service (Stories) on port 8082...
-start "Social-8082" cmd /k "mvn spring-boot:run -pl hustleup-social"
+start "Social-8082" cmd /k "mvnw.cmd spring-boot:run -pl hustleup-social"
 timeout /t 8 /nobreak
 
 REM Marketplace Service
 echo [4/6] Starting Marketplace Service on port 8083...
-start "Marketplace-8083" cmd /k "mvn spring-boot:run -pl hustleup-marketplace"
+start "Marketplace-8083" cmd /k "mvnw.cmd spring-boot:run -pl hustleup-marketplace"
 timeout /t 8 /nobreak
 
 REM Subscription Service
 echo [5/6] Starting Subscription Service on port 8084...
-start "Subscription-8084" cmd /k "mvn spring-boot:run -pl hustleup-subscription"
+start "Subscription-8084" cmd /k "mvnw.cmd spring-boot:run -pl hustleup-subscription"
 timeout /t 8 /nobreak
 
 REM Notification Service
 echo [6/6] Starting Notification Service on port 8085...
-start "Notification-8085" cmd /k "mvn spring-boot:run -pl hustleup-notification"
+start "Notification-8085" cmd /k "mvnw.cmd spring-boot:run -pl hustleup-notification"
 timeout /t 8 /nobreak
 
 echo.

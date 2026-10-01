@@ -300,8 +300,20 @@ export default function ShopManager({ user }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-end justify-between gap-4 px-1">
+        <div>
+          <p className="text-[9px] font-black tracking-[0.24em] text-[#CDFF00] uppercase">Storefront workspace</p>
+          <h2 className="mt-1 text-2xl sm:text-3xl font-black tracking-[-0.05em] text-white">Edit your shop</h2>
+          <p className="mt-1 text-xs text-gray-500">Shape the storefront customers see, then keep the shelf and schedule moving.</p>
+        </div>
+        <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[9px] font-black tracking-widest text-gray-400">
+          {dirty ? 'Unsaved changes' : 'All changes saved'}
+        </span>
+      </div>
+
+      <div className="grid lg:grid-cols-[minmax(0,1.12fr)_minmax(280px,0.88fr)] gap-4 items-start">
       {/* ── Live preview of the card buyers see, so edits have an obvious target ── */}
-      <div className="glass rounded-2xl border border-white/5 overflow-hidden">
+      <div className="glass rounded-2xl border border-white/5 overflow-hidden lg:order-2 lg:sticky lg:top-24">
         <div className="relative h-32 bg-black media-overlay">
           <SmartImage
             src={uploadUrl(form.bannerUrl)}
@@ -333,7 +345,7 @@ export default function ShopManager({ user }) {
         </div>
 
         {/* Read-only stats — derived from real reviews and listings, not editable here */}
-        <div className="flex items-center gap-4 px-4 py-2.5 border-t border-white/5 text-[9px] font-black tracking-widest text-gray-500">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 border-t border-white/5 text-[9px] font-black tracking-widest text-gray-500">
           <span>{shop.rating > 0 ? `${shop.rating.toFixed(1)}★` : 'No rating yet'}</span>
           <span>{shop.reviewCount} reviews</span>
           <span>{products.length} products</span>
@@ -345,8 +357,14 @@ export default function ShopManager({ user }) {
       </div>
 
       {/* ── Shop details ── */}
-      <div className="glass rounded-2xl p-4 border border-white/5 space-y-3">
-        <h4 className="text-[10px] font-black tracking-widest text-gray-500">Storefront details</h4>
+      <div className="glass rounded-2xl p-4 sm:p-5 border border-white/5 space-y-3 lg:order-1">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black tracking-widest text-gray-500">Storefront details</p>
+            <p className="text-xs text-gray-600 mt-1">Identity, story and visibility</p>
+          </div>
+          <span className={`w-2 h-2 rounded-full ${dirty ? 'bg-amber-300' : 'bg-[#CDFF00]'}`} title={dirty ? 'Unsaved changes' : 'Saved'} />
+        </div>
 
         <Field label="Shop name" value={form.name} onChange={(v) => set('name', v)} maxLength={120} />
 
@@ -457,6 +475,8 @@ export default function ShopManager({ user }) {
             <Eraser className="w-4 h-4" />
           </button>
         </div>
+      </div>
+
       </div>
 
       {/* ── Services & Appointments — only for a salon/barber/spa-style shop. A hair salon

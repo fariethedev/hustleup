@@ -43,6 +43,8 @@ export default function Navbar() {
   const cartCount = useSelector(selectCartCount);
 
   const [scrolled, setScrolled] = useState(false);
+  const [navHidden, setNavHidden] = useState(false);
+  const lastScrollY = useRef(0);
   const [unread, setUnread] = useState(0);
   const [dmUnread, setDmUnread] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -58,7 +60,19 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
+    lastScrollY.current = window.scrollY;
+    const onScroll = () => {
+      const current = Math.max(0, window.scrollY);
+      const delta = current - lastScrollY.current;
+      setScrolled(current > 20);
+
+      // Facebook-style behaviour: give the page room while reading down, then bring
+      // the controls back as soon as the user reverses direction. The small threshold
+      // prevents a touchpad's one-pixel jitter from making the bar flicker.
+      if (current <= 24 || delta < -6) setNavHidden(false);
+      else if (delta > 6) setNavHidden(true);
+      lastScrollY.current = current;
+    };
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -240,7 +254,7 @@ export default function Navbar() {
       {/* ── TOP NAV BAR ── */}
       <nav
         id="main-navbar"
-        className={`fixed top-0 left-0 right-0 z-[200] transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-[200] will-change-transform transition-all duration-300 ${navHidden ? '-translate-y-full' : 'translate-y-0'} ${
           scrolled ? 'glass bg-black/60 border-b border-white/5 shadow-sm backdrop-blur-2xl' : 'bg-transparent'
         }`}
       >

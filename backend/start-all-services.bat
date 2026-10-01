@@ -22,7 +22,7 @@ REM Start each service
 for /L %%i in (0,1,5) do (
     echo.
     echo ✨ Starting !services[%%i]! on port !ports[%%i]!...
-    start "!services[%%i]!" cmd /k "mvn spring-boot:run -pl !services[%%i]! > spring-boot-!ports[%%i]!.out.log 2> spring-boot-!ports[%%i]!.err.log"
+    start "!services[%%i]!" cmd /k "mvnw.cmd spring-boot:run -pl !services[%%i]! > spring-boot-!ports[%%i]!.out.log 2> spring-boot-!ports[%%i]!.err.log"
     
     REM Wait 8 seconds for service to start
     timeout /t 8 /nobreak

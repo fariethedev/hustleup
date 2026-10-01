@@ -271,7 +271,7 @@ public class UserController {
 
         // Store the file on disk (or cloud) and get back a publicly accessible URL.
         // FileStorageService abstracts away whether storage is local, S3, etc.
-        user.setAvatarUrl(fileStorageService.store(file));
+        user.setAvatarUrl(fileStorageService.storePublicMedia(file));
 
         // Persist the updated avatar URL and return the refreshed DTO.
         return ResponseEntity.ok(UserDto.fromEntity(userRepository.save(user)));
@@ -294,7 +294,7 @@ public class UserController {
         User user = userRepository.findByEmail(currentUserEmail()).orElseThrow();
 
         // Store the file and save the resulting URL to the shopBannerUrl field.
-        user.setShopBannerUrl(fileStorageService.store(file));
+        user.setShopBannerUrl(fileStorageService.storePublicMedia(file));
 
         return ResponseEntity.ok(UserDto.fromEntity(userRepository.save(user)));
     }

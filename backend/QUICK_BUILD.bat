@@ -1,4 +1,4 @@
 @echo off
 cd /d "%~dp0"
-mvn clean install -DskipTests
+mvnw.cmd clean install -DskipTests
 pause

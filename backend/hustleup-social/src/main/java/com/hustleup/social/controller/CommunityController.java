@@ -145,7 +145,7 @@ public class CommunityController {
                 .description(trimToNull(description))
                 .city(trimToNull(city))
                 .category(trimToNull(category))
-                .imageUrl(image != null && !image.isEmpty() ? storageService.store(image) : null)
+                .imageUrl(image != null && !image.isEmpty() ? storageService.storePublicMedia(image) : null)
                 // The creator counts, and is added as a member immediately below.
                 .memberCount(1)
                 .build();

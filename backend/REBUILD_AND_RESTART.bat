@@ -5,7 +5,7 @@ cd /d "%~dp0"
 echo ========================================
 echo Building with Maven...
 echo ========================================
-mvn clean install -DskipTests
+mvnw.cmd clean install -DskipTests
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

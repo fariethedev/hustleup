@@ -17,7 +17,7 @@ timeout /t 2 /nobreak >nul
 
 echo Building hustleup-common...
 cd hustleup-common
-call mvn clean install -DskipTests -q
+call mvnw.cmd clean install -DskipTests -q
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Common build failed!
     pause
@@ -27,7 +27,7 @@ cd ..
 
 echo Building hustleup-marketplace...
 cd hustleup-marketplace
-call mvn clean package -DskipTests -q
+call mvnw.cmd clean package -DskipTests -q
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Marketplace build failed!
     pause

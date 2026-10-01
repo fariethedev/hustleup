@@ -20,7 +20,7 @@ for service in "${SERVICES[@]}"; do
     name=$(echo $dir | sed 's/hustleup-//' | tr '[:lower:]' '[:upper:]')
     
     echo "✨ Starting $name on port $port..."
-    mvn spring-boot:run -pl "$dir" > "spring-boot-$port.out.log" 2> "spring-boot-$port.err.log" &
+    sh ./mvnw spring-boot:run -pl "$dir" > "spring-boot-$port.out.log" 2> "spring-boot-$port.err.log" &
     
     # Wait for service to start before moving to next
     sleep 5

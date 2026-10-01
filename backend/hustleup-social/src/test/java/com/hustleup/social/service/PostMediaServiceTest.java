@@ -35,7 +35,7 @@ class PostMediaServiceTest {
                 "IMAGE,VIDEO,IMAGE", "/uploads/first.jpg");
         when(posts.findById("post")).thenReturn(Optional.of(post));
         MultipartFile file = image();
-        when(storage.store(file)).thenReturn("/uploads/cropped.png");
+        when(storage.storePublicMedia(file)).thenReturn("/uploads/cropped.png");
         when(posts.replaceMediaIfUnchanged(eq("post"), eq("owner"), eq(post.getMediaUrls()),
                 eq("IMAGE,VIDEO,IMAGE"), eq("/uploads/first.jpg"),
                 eq("/uploads/first.jpg,https://bucket/clip.mp4?token=old,/uploads/cropped.png"),
@@ -53,7 +53,7 @@ class PostMediaServiceTest {
         Post post = post(null, null, "/uploads/old.jpg");
         post.setAnonymous(true);
         when(posts.findById("post")).thenReturn(Optional.of(post));
-        when(storage.store(any())).thenReturn("/uploads/cropped.png");
+        when(storage.storePublicMedia(any())).thenReturn("/uploads/cropped.png");
         when(posts.replaceMediaIfUnchanged(eq("post"), eq("owner"), isNull(), isNull(),
                 eq("/uploads/old.jpg"), eq("/uploads/cropped.png"), eq("IMAGE"),
                 eq("/uploads/cropped.png"), any())).thenReturn(1);
@@ -61,14 +61,14 @@ class PostMediaServiceTest {
         service.replaceImage("post", "owner", 0, List.of(image()));
 
         assertTrue(post.isAnonymous());
-        verify(storage).store(any());
+        verify(storage).storePublicMedia(any());
     }
 
     @Test
     void infersMissingTypesAndUpdatesFirstImageAfterVideo() {
         Post post = post("/clip.mp4?signature=old,/photo.jpg,/other.jpg", null, "/photo.jpg");
         when(posts.findById("post")).thenReturn(Optional.of(post));
-        when(storage.store(any())).thenReturn("/cropped.png");
+        when(storage.storePublicMedia(any())).thenReturn("/cropped.png");
         when(posts.replaceMediaIfUnchanged(eq("post"), eq("owner"), eq(post.getMediaUrls()), isNull(),
                 eq("/photo.jpg"), eq("/clip.mp4?signature=old,/cropped.png,/other.jpg"),
                 eq("VIDEO,IMAGE,IMAGE"), eq("/cropped.png"), any())).thenReturn(1);
@@ -155,7 +155,7 @@ class PostMediaServiceTest {
     @Test
     void storageFailureLeavesPostUntouched() {
         Post post = loadImagePost();
-        when(storage.store(any())).thenThrow(new IllegalStateException("storage unavailable"));
+        when(storage.storePublicMedia(any())).thenThrow(new IllegalStateException("storage unavailable"));
         assertThrows(IllegalStateException.class, () -> service.replaceImage("post", "owner", 0, List.of(image())));
         assertEquals("/photo.jpg", post.getMediaUrls());
         assertNull(post.getEditedAt());
@@ -165,7 +165,7 @@ class PostMediaServiceTest {
     @Test
     void refusesToOverwriteConcurrentReplacement() {
         loadImagePost();
-        when(storage.store(any())).thenReturn("/cropped.png");
+        when(storage.storePublicMedia(any())).thenReturn("/cropped.png");
         assertStatus(HttpStatus.CONFLICT, () -> service.replaceImage("post", "owner", 0, List.of(image())));
         verify(posts, times(1)).findById("post");
     }

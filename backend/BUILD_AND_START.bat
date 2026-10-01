@@ -9,18 +9,9 @@ echo HustleUp Backend - Build and Start
 echo ========================================
 echo.
 
-REM Check if Maven is installed
-where mvn >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Maven is not installed or not in PATH
-    echo Please install Maven or add it to your PATH
-    pause
-    exit /b 1
-)
-
 echo Step 1: Building entire backend...
 echo.
-call mvn clean install -DskipTests -q
+call mvnw.cmd clean install -DskipTests -q
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo ERROR: Maven build failed!

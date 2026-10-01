@@ -218,7 +218,7 @@ public class ShopController {
             @PathVariable String idOrSlug,
             @RequestParam("file") MultipartFile file) {
         requireOwned(idOrSlug);
-        return ResponseEntity.ok(Map.of("url", fileStorageService.store(file)));
+        return ResponseEntity.ok(Map.of("url", fileStorageService.storePublicMedia(file)));
     }
 
     // -------------------------------------------------------------------------

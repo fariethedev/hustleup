@@ -2,6 +2,7 @@ package com.hustleup.marketplace.shop.service;
 
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
+import com.hustleup.common.storage.FileStorageService;
 import com.hustleup.marketplace.listing.model.ListingStatus;
 import com.hustleup.marketplace.listing.repository.ListingRepository;
 import com.hustleup.marketplace.review.repository.ReviewRepository;
@@ -34,6 +35,7 @@ public class ShopService {
     private final ListingRepository listingRepository;
     private final ReviewRepository reviewRepository;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
 
     /**
      * Every published shop, each with its product list attached.
@@ -73,7 +75,12 @@ public class ShopService {
     public ShopDto toDto(Shop shop, List<ShopProduct> products, User owner) {
         ShopDto dto = ShopDto.from(shop);
 
-        dto.setProducts(products.stream().map(ShopProductDto::from).toList());
+        dto.setBannerUrl(fileStorageService.refreshUrl(dto.getBannerUrl()));
+        dto.setProducts(products.stream().map(product -> {
+            ShopProductDto item = ShopProductDto.from(product);
+            item.setImageUrl(fileStorageService.refreshUrl(item.getImageUrl()));
+            return item;
+        }).toList());
         dto.setProductCount(products.size());
 
         // Derived from the owner's real reviews — never accepted from the client.
@@ -84,7 +91,7 @@ public class ShopService {
 
         if (owner != null) {
             dto.setOwnerName(owner.displayName());
-            dto.setOwnerAvatarUrl(owner.getAvatarUrl());
+            dto.setOwnerAvatarUrl(fileStorageService.refreshUrl(owner.getAvatarUrl()));
             dto.setOwnerVerified(owner.isIdVerified());
         }
         return dto;

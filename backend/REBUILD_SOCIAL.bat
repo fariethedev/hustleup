@@ -29,7 +29,7 @@ timeout /t 2 /nobreak >nul
 echo.
 echo Building hustleup-common...
 cd hustleup-common
-call mvn clean install -DskipTests -q
+call mvnw.cmd clean install -DskipTests -q
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Common build failed!
     pause
@@ -39,7 +39,7 @@ cd ..
 
 echo Building hustleup-auth...
 cd hustleup-auth
-call mvn clean package -DskipTests -q
+call mvnw.cmd clean package -DskipTests -q
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Auth service build failed!
     pause
@@ -49,7 +49,7 @@ cd ..
 
 echo Building hustleup-social...
 cd hustleup-social
-call mvn clean package -DskipTests -q
+call mvnw.cmd clean package -DskipTests -q
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Social service build failed!
     pause

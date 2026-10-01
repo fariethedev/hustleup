@@ -781,7 +781,7 @@ public class FeedController {
         if (!validMediaFiles.isEmpty()) {
             // Upload each file to storage and collect the resulting storage keys/URLs.
             List<String> urls = validMediaFiles.stream()
-                    .map(storageService::store)
+                    .map(storageService::storePublicMedia)
                     .toList();
             // Determine whether each file is an IMAGE or VIDEO.
             List<String> types = validMediaFiles.stream()

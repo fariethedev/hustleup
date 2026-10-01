@@ -1110,12 +1110,12 @@ export default function CreateListing() {
               step 3 was reachable with a price step 2 would have refused. Deriving both the
               label and the guard from STEP_META means a step cannot be advanced past its own
               requirements, and the last step is the only one that submits. */}
-          <div className="flex gap-3 pt-8">
+          <div className="flex gap-2.5 pt-6">
             {step > 1 && (
               <button
                 onClick={() => goTo(step - 1)}
                 disabled={loading}
-                className="flex-1 py-4 rounded-xl glass bg-black/40 border border-white/10 text-white font-bold tracking-widest hover:bg-white/5 transition-all flex items-center justify-center gap-2 outline-none disabled:opacity-50"
+                className="flex-1 min-h-10 py-2.5 rounded-xl glass bg-black/40 border border-white/10 text-white text-xs font-bold tracking-widest hover:bg-white/5 transition-all flex items-center justify-center gap-2 outline-none disabled:opacity-50"
               >
                 <MoveLeft className="w-4 h-4" /> Back
               </button>
@@ -1124,7 +1124,7 @@ export default function CreateListing() {
               whileTap={meta.canAdvance && !loading ? { scale: 0.97 } : {}}
               onClick={() => (isLast ? handleSubmit() : goTo(step + 1))}
               disabled={loading || !meta.canAdvance}
-              className={`${step > 1 ? 'flex-[2]' : 'w-full'} py-4 rounded-xl bg-[#CDFF00] text-black font-black tracking-widest hover:bg-[#E0FF4D] shadow-lg hover:shadow-[#CDFF00]/20 transition-all flex items-center justify-center gap-2 outline-none disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed`}
+              className={`${step > 1 ? 'flex-[2]' : 'w-full'} min-h-10 py-2.5 rounded-xl bg-[#CDFF00] text-black text-xs font-black tracking-widest hover:bg-[#E0FF4D] shadow-md hover:shadow-[#CDFF00]/20 transition-all flex items-center justify-center gap-2 outline-none disabled:opacity-50 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed`}
             >
               {loading
                 ? <><span className="w-4 h-4 border-2 border-black/25 border-t-black rounded-full animate-spin" /> Publishing…</>

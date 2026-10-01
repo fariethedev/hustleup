@@ -49,6 +49,7 @@ import java.util.UUID;
  */
 @Service // Marks this as a Spring-managed service bean — can be @Autowired / constructor-injected
 public class FileStorageService {
+    private final CloudflareR2Storage r2;
 
     /**
      * File extensions accepted by {@link #store}. Everything else is rejected outright.
@@ -169,13 +170,15 @@ public class FileStorageService {
             @Value("${app.aws.secret-key:}") String secretKey,
             @Value("${app.aws.region:us-east-1}") String region,
             @Value("${app.aws.s3.bucket:}") String bucket,
-            @Value("${app.cdn.domain:}") String cdnDomain) {
+            @Value("${app.cdn.domain:}") String cdnDomain,
+            CloudflareR2Storage r2) {
 
         // Resolve to absolute path and normalise (remove ".." segments) for safety
         this.uploadDir = Paths.get(uploadDir).toAbsolutePath().normalize();
         this.bucketName = bucket;
         this.awsRegion = region;
         this.cdnDomain = cdnDomain;
+        this.r2 = r2;
 
         if (!accessKey.isBlank() && !secretKey.isBlank() && !bucket.isBlank()) {
             // All AWS config present — build an S3 client and presigner for cloud storage
@@ -264,9 +267,8 @@ public class FileStorageService {
             // Strip the bucket/region prefix to get the raw S3 key
             key = storedUrl.substring(prefix.length());
         } else if (storedUrl.startsWith("https://")) {
-            // Some other HTTPS URL (different S3 URL format, CDN, etc.) — strip query params only
-            int q = storedUrl.indexOf('?');
-            return q > 0 ? storedUrl.substring(0, q) : storedUrl;
+            // Do not strip signatures or transformations belonging to another provider.
+            return storedUrl;
         }
         // Remove any stale query parameters (presign signature, expiry, etc.) from the key
         int q = key.indexOf('?');
@@ -291,6 +293,15 @@ public class FileStorageService {
      * @throws RuntimeException wrapping {@link IOException} if the file cannot be written
      */
     public String store(MultipartFile file) {
+        return storeValidated(file, false);
+    }
+
+    /** Public avatars, listing/feed photos and shop images only. Never use for private attachments. */
+    public String storePublicMedia(MultipartFile file) {
+        return storeValidated(file, true);
+    }
+
+    private String storeValidated(MultipartFile file, boolean publicMedia) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("No file was uploaded");
         }
@@ -313,6 +324,9 @@ public class FileStorageService {
             // pick an extension out of the allowlist above.
             String filename = UUID.randomUUID() + "." + extension;
 
+            if (publicMedia && r2.isEnabled() && contentType.startsWith("image/")) {
+                return r2.storeImage(file, filename);
+            }
             if (s3Client != null) {
                 return uploadToS3(file, filename);
             } else {

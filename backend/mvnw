@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+
+# Lightweight Maven Wrapper for Unix-like shells. It downloads Maven once into the
+# user's Maven wrapper cache, then delegates every argument to the real mvn binary.
+MAVEN_VERSION="3.9.11"
+DIST_ROOT="${MAVEN_USER_HOME:-${HOME}/.m2}/wrapper/dists/apache-maven-${MAVEN_VERSION}"
+MAVEN_HOME="${DIST_ROOT}/apache-maven-${MAVEN_VERSION}"
+MAVEN_REPO="${MAVEN_USER_HOME:-${HOME}/.m2}/repository"
+MAVEN_URL="https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${MAVEN_VERSION}/apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+
+if [ ! -x "${MAVEN_HOME}/bin/mvn" ]; then
+  echo "Maven ${MAVEN_VERSION} is not installed in the wrapper cache. Downloading it..."
+  mkdir -p "${DIST_ROOT}"
+  archive="${DIST_ROOT}/apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "${MAVEN_URL}" -o "${archive}"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q "${MAVEN_URL}" -O "${archive}"
+  else
+    echo "[ERROR] curl or wget is required to bootstrap Maven." >&2
+    exit 1
+  fi
+  tar -xzf "${archive}" -C "${DIST_ROOT}"
+fi
+
+exec "${MAVEN_HOME}/bin/mvn" "-Dmaven.repo.local=${MAVEN_REPO}" "$@"

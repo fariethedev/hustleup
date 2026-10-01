@@ -89,7 +89,7 @@ public class PublisherController {
         String logoUrl = null;
         String documentUrl = null;
         try {
-            if (logo != null && !logo.isEmpty()) logoUrl = fileStorageService.store(logo);
+            if (logo != null && !logo.isEmpty()) logoUrl = fileStorageService.storePublicMedia(logo);
             if (document != null && !document.isEmpty()) documentUrl = fileStorageService.store(document);
         } catch (IllegalArgumentException e) {
             return badRequest(e.getMessage());

@@ -142,11 +142,11 @@ public class NewsController {
         List<String> mediaUrls = new ArrayList<>();
         try {
             if (coverImage != null && !coverImage.isEmpty()) {
-                coverUrl = fileStorageService.store(coverImage);
+                coverUrl = fileStorageService.storePublicMedia(coverImage);
             }
             if (media != null) {
                 for (MultipartFile f : media) {
-                    if (f != null && !f.isEmpty()) mediaUrls.add(fileStorageService.store(f));
+                    if (f != null && !f.isEmpty()) mediaUrls.add(fileStorageService.storePublicMedia(f));
                 }
             }
         } catch (IllegalArgumentException e) {

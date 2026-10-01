@@ -55,7 +55,7 @@ public class PostMediaService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only existing photos can be replaced");
         }
         MultipartFile file = validateImage(files);
-        String replacementUrl = storageService.store(file);
+        String replacementUrl = storageService.storePublicMedia(file);
         media.set(mediaIndex, new PostDto.PostMediaDto(replacementUrl, "IMAGE"));
         String urls = media.stream().map(PostDto.PostMediaDto::getUrl).collect(Collectors.joining(","));
         String types = media.stream().map(PostDto.PostMediaDto::getType).collect(Collectors.joining(","));

@@ -11,18 +11,10 @@ echo 1. Build all services with Maven
 echo 2. Start 3 key services (Gateway, Auth, Social)
 echo.
 
-REM Check Maven
-where mvn >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Maven not found. Install Maven or add to PATH.
-    pause
-    exit /b 1
-)
-
 echo [1/4] Building with Maven (this may take 1-2 minutes)...
 echo.
 
-call mvn clean install -DskipTests -q
+call mvnw.cmd clean install -DskipTests -q
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Build failed. Check Maven output above.

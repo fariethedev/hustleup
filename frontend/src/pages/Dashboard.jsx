@@ -7,7 +7,7 @@ import { useSellerAccess } from '../hooks/useSellerAccess';
 import SellerUpgrade, { SellerUpgradeButton } from '../components/SellerUpgrade';
 import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, feedbackApi, dispatchToast } from '../api/client';
 import { BOOKING_STATUS_MAP, LISTING_TYPES, POLISH_CITIES, formatPrice } from '../utils/constants';
-import { ChevronDown, Cog, CirclePlus, Archive, ClipboardCheck, CircleCheck, CircleX, MessagesSquare, ListChecks, Boxes, BellDot, ChartLine, CalendarRange, SquarePen, Building2, Eraser, CircleSlash, Building, WalletCards, ShieldPlus, ShieldX, TicketCheck, QrCode, MoveRight, Sparkle, Forklift, Box, Speech, CircleUser, Store } from 'lucide-react';
+import { ChevronDown, Cog, CirclePlus, Archive, ClipboardCheck, CircleCheck, CircleX, MessagesSquare, ListChecks, Boxes, BellDot, ChartLine, CalendarRange, SquarePen, Building2, Eraser, CircleSlash, Building, WalletCards, ShieldPlus, ShieldX, TicketCheck, QrCode, MoveRight, Sparkle, Forklift, Box, Speech, CircleUser, Store, ArrowUpRight, Activity } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
 import ShopManager from '../components/ShopManager';
 import ReviewModal from '../components/ReviewModal';
@@ -348,12 +348,69 @@ export default function Dashboard() {
     },
   ];
 
+  const firstName = user?.fullName?.trim()?.split(/\s+/)[0] || user?.username || 'there';
+  const openTasks = pendingRequests.length + awaitingReview.length + openShopOrders;
+
   return (
     <div className="min-h-screen text-white">
       <HeroBrief title="Dashboard" />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-14">
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
+          <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0B0B0B] mb-6 shadow-[0_24px_70px_rgba(0,0,0,0.35)]">
+            <div className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-[#CDFF00]/10 blur-3xl pointer-events-none" />
+            <div className="absolute -left-20 bottom-0 w-56 h-32 rounded-full bg-[#FF00FF]/[0.08] blur-3xl pointer-events-none" />
+            <div className="relative grid lg:grid-cols-[1.35fr_0.65fr] gap-6 p-5 sm:p-7">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-[9px] font-black tracking-[0.24em] text-[#CDFF00] uppercase">
+                  <Activity className="w-3.5 h-3.5" /> Your workspace
+                </div>
+                <h1 className="mt-3 text-3xl sm:text-4xl font-black tracking-[-0.06em] text-white">
+                  Good to see you, <span className="text-[#CDFF00]">{firstName}</span>.
+                </h1>
+                <p className="mt-2 max-w-xl text-sm leading-relaxed text-gray-400">
+                  {isSeller
+                    ? openTasks > 0
+                      ? `${openTasks} ${openTasks === 1 ? 'thing needs' : 'things need'} your attention today.`
+                      : 'Your selling workspace is clear. Keep the momentum going.'
+                    : 'Track your bookings, orders and saved momentum from one place.'}
+                </p>
+                <div className="flex flex-wrap gap-2.5 mt-5">
+                  {isSeller ? (
+                    <>
+                      <Link to="/create" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#E0FF4D] transition-colors">
+                        <CirclePlus className="w-3.5 h-3.5" /> Post a listing
+                      </Link>
+                      <button onClick={() => setTab(openTasks ? 'bookings' : 'shop')} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-[10px] font-black tracking-widest hover:bg-white/10 transition-colors">
+                        {openTasks ? 'Review activity' : 'Edit your shop'} <ArrowUpRight className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <Link to="/explore" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#E0FF4D] transition-colors">
+                      Explore opportunities <ArrowUpRight className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/35 p-4 sm:p-5 self-end">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[9px] font-black tracking-[0.2em] text-gray-500 uppercase">Today at a glance</p>
+                  <span className={`w-2 h-2 rounded-full ${openTasks > 0 ? 'bg-amber-300 shadow-[0_0_10px_rgba(252,211,77,0.8)]' : 'bg-[#CDFF00] shadow-[0_0_10px_rgba(205,255,0,0.8)]'}`} />
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-5">
+                  <div><p className="text-2xl font-black text-white">{bookings.length}</p><p className="mt-1 text-[9px] font-bold tracking-wider text-gray-500">Bookings</p></div>
+                  <div><p className="text-2xl font-black text-white">{shopOrders.length + shopSales.length}</p><p className="mt-1 text-[9px] font-bold tracking-wider text-gray-500">Shop orders</p></div>
+                  <div><p className={`text-2xl font-black ${openTasks > 0 ? 'text-amber-300' : 'text-[#CDFF00]'}`}>{openTasks}</p><p className="mt-1 text-[9px] font-bold tracking-wider text-gray-500">To do</p></div>
+                </div>
+                <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between gap-3 text-[10px]">
+                  <span className="text-gray-500">Workspace status</span>
+                  <span className={openTasks > 0 ? 'text-amber-300 font-bold' : 'text-[#CDFF00] font-bold'}>{openTasks > 0 ? 'Needs attention' : 'All clear'}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* Seller summary. Revenue was only visible after opening the Sales tab, and the
               two numbers that actually need acting on — unanswered requests, and whether
               payouts are even set up — were not shown anywhere. A dashboard should answer
@@ -385,12 +442,12 @@ export default function Dashboard() {
           )}
 
           {isSeller && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
-              <button onClick={() => setTab('sales')} className="text-left rounded-2xl border border-[#CDFF00]/25 bg-[#CDFF00]/[0.06] p-3.5 hover:bg-[#CDFF00]/10 transition-colors">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <button onClick={() => setTab('sales')} className="text-left rounded-2xl border border-[#CDFF00]/25 bg-gradient-to-br from-[#CDFF00]/[0.12] to-transparent p-4 hover:bg-[#CDFF00]/10 transition-colors">
                 <p className="text-[9px] font-black tracking-[0.18em] text-[#CDFF00]/70">Revenue</p>
                 <p className="text-lg font-black text-[#CDFF00] mt-0.5 truncate">{formatPrice(totalRevenue, 'PLN')}</p>
               </button>
-              <button onClick={() => { setBookingView('needsReply'); setTab('bookings'); }} className={`text-left rounded-2xl border p-3.5 transition-colors ${
+              <button onClick={() => { setBookingView('needsReply'); setTab('bookings'); }} className={`text-left rounded-2xl border p-4 transition-colors ${
                 pendingRequests.length > 0
                   ? 'border-amber-400/40 bg-amber-400/10 hover:bg-amber-400/15'
                   : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
@@ -398,11 +455,11 @@ export default function Dashboard() {
                 <p className={`text-[9px] font-black tracking-[0.18em] ${pendingRequests.length > 0 ? 'text-amber-300/80' : 'text-gray-500'}`}>Needs reply</p>
                 <p className={`text-lg font-black mt-0.5 ${pendingRequests.length > 0 ? 'text-amber-300' : 'text-white'}`}>{pendingRequests.length}</p>
               </button>
-              <button onClick={() => { setBookingView('inProgress'); setTab('bookings'); }} className="text-left rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 hover:bg-white/[0.06] transition-colors">
+              <button onClick={() => { setBookingView('inProgress'); setTab('bookings'); }} className="text-left rounded-2xl border border-white/10 bg-white/[0.03] p-4 hover:bg-white/[0.06] transition-colors">
                 <p className="text-[9px] font-black tracking-[0.18em] text-gray-500">In progress</p>
                 <p className="text-lg font-black text-white mt-0.5">{inProgress.length}</p>
               </button>
-              <button onClick={() => setTab('payouts')} className={`text-left rounded-2xl border p-3.5 transition-colors ${
+              <button onClick={() => setTab('payouts')} className={`text-left rounded-2xl border p-4 transition-colors ${
                 payoutStatus?.payoutsEnabled
                   ? 'border-emerald-400/30 bg-emerald-400/[0.07] hover:bg-emerald-400/10'
                   : 'border-red-400/40 bg-red-400/10 hover:bg-red-400/15'
