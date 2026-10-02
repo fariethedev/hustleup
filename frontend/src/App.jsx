@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
 import BankConnection from './components/BankConnection';
+import SellerUpgrade from './components/SellerUpgrade';
 import Home from './pages/Home';
 import Explore from './pages/Explore';
 import ExploreListings from './pages/ExploreListings';
@@ -114,6 +115,7 @@ export default function App() {
             <Route path="/events/:listingId/door" element={<EventDoor />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/payouts" element={<BankConnection />} />
+            <Route path="/plans" element={<SellerUpgrade />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/messages" element={<Messages />} />

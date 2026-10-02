@@ -11,7 +11,7 @@ const api = axios.create({
 export const stripeHostedUrl = (value, kind = 'connect') => {
   let url;
   try { url = new URL(value); } catch { throw new Error('Stripe did not return a valid secure link. Please try again.'); }
-  const host = kind === 'checkout' ? 'checkout.stripe.com' : 'connect.stripe.com';
+  const host = kind === 'checkout' ? 'checkout.stripe.com' : kind === 'dashboard' ? 'stripe.com' : 'connect.stripe.com';
   if (url.protocol !== 'https:' || url.hostname !== host || url.port || url.username || url.password) {
     throw new Error('Stripe did not return a valid secure link. Please try again.');
   }
@@ -341,6 +341,10 @@ export const ticketsApi = {
 // Stripe's own hosted onboarding form — HustleSpace never sees or stores the actual bank
 // details, only the resulting account status.
 export const payoutsApi = {
+  dashboard: async () => {
+    const response = await api.post('/payouts/dashboard', null, { timeout: 20000 });
+    return { ...response, data: { ...response.data, url: stripeHostedUrl(response.data?.url, 'dashboard') } };
+  },
   status: () => api.get('/payouts/status', { timeout: 15000 }),
   connect: async () => {
     const response = await api.post('/payouts/connect', null, { timeout: 20000 });
@@ -645,7 +649,10 @@ export const subscriptionsApi = {
    *
    * @param {'MONTHLY'|'ALL_ACCESS'} plan
    */
-  checkout: (plan) => api.post('/subscriptions/checkout', { plan }),
+  checkout: async (plan) => {
+    const response = await api.post('/subscriptions/checkout', { plan });
+    return { ...response, data: { ...response.data, checkoutUrl: stripeHostedUrl(response.data?.checkoutUrl, 'checkout') } };
+  },
   /**
    * Honours a checkout the buyer has just returned from, and activates Premium.
    *

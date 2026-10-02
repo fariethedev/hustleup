@@ -153,8 +153,8 @@ public class OrderPayoutService {
             order.setReleasedAt(LocalDateTime.now());
             orderRepository.save(order);
 
-            notify(order.getSellerId(), "Payout sent",
-                    "You've been paid out for " + order.getProductName() + ".");
+            notify(order.getSellerId(), "Funds released to Stripe",
+                    "Your earnings for " + order.getProductName() + " were transferred to your Stripe balance. Open Payments to check bank arrival dates.");
             log.info("Released order {} to seller {} (transfer {})",
                     order.getId(), order.getSellerId(), transferId);
             return true;

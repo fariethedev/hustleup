@@ -63,17 +63,17 @@ export default function PaymentSuccess() {
     active: {
       icon: <Gem className="w-8 h-8 text-black" />,
       title: 'Premium is active',
-      body: 'Selling, Bond and the rest of the paid features are unlocked on your account. Set your shop up from the dashboard whenever you are ready.',
+      body: 'Your selected plan is active. To receive money from sales, connect your bank account and complete Stripe verification. Bond and leaderboards require All Access.',
     },
     pending: {
       icon: <BadgeCheck className="w-8 h-8 text-black" />,
-      title: 'Payment received',
-      body: 'Your payment is still clearing with the bank. Premium switches on automatically the moment it settles — nothing else for you to do.',
+      title: 'Payment not confirmed yet',
+      body: 'Stripe has not confirmed a completed payment. Check your payment status before trying again to avoid paying twice.',
     },
     error: {
       icon: <CircleAlert className="w-8 h-8 text-black" />,
       title: 'We could not confirm this yet',
-      body: 'If you were charged, your Premium will still be applied. Contact us if it has not appeared shortly.',
+      body: 'Check your plan before paying again. If you were charged but your access is missing, contact support with your Stripe payment reference.',
     },
   }[state.status];
 
@@ -97,10 +97,10 @@ export default function PaymentSuccess() {
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">
           <Link
-            to="/dashboard"
+              to={state.status === 'active' ? '/payouts' : '/dashboard'}
             className="flex-1 px-6 py-3 rounded-full bg-[#CDFF00] text-black text-sm font-bold hover:brightness-110 active:scale-95 transition-all inline-flex items-center justify-center gap-2"
           >
-            Go to dashboard <MoveRight className="w-4 h-4" />
+              {state.status === 'active' ? 'Set up seller payments' : 'Go to dashboard'} <MoveRight className="w-4 h-4" />
           </Link>
           <Link
             to="/explore"

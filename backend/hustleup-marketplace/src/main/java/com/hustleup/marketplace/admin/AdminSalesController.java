@@ -161,7 +161,7 @@ public class AdminSalesController {
      */
     private Map<String, Object> platform(LocalDateTime since) {
         List<Subscription> active = subscriptionRepository
-                .findByPlanAndStatus(PremiumAccess.PREMIUM_PLAN, "ACTIVE").stream()
+                .findByPlanInAndStatus(List.of(PremiumAccess.PREMIUM_PLAN, "PLUS"), "ACTIVE").stream()
                 .filter(PremiumAccess::isActivePremium)
                 .toList();
 

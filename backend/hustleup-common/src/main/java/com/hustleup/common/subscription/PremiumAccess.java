@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
  * <p>Deliberately identical to the rule the frontend uses to decide what to show, so the
  * button and the endpoint never disagree:
  * <ol>
- *   <li>plan is {@code VERIFIED} — the paid tier,</li>
+ *   <li>plan is {@code PLUS} or {@code VERIFIED} (All Access),</li>
  *   <li>status is {@code ACTIVE} (not CANCELLED or EXPIRED), and</li>
  *   <li>{@code expiresAt}, when set, is still in the future.</li>
  * </ol>
@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PremiumAccess {
 
-    /** The paid tier's plan name, as written by {@code SubscriptionController#upgrade}. */
+    /** All Access storage value, retained so existing paid members keep their features. */
     public static final String PREMIUM_PLAN = "VERIFIED";
 
     private final SubscriptionRepository subscriptionRepository;
@@ -69,6 +69,18 @@ public class PremiumAccess {
                 .orElse(false);
     }
 
+    public boolean isAllAccess(UUID userId) {
+        return userId != null && subscriptionRepository.findBySellerId(userId)
+                .filter(PremiumAccess::isActivePremium)
+                .filter(sub -> PREMIUM_PLAN.equalsIgnoreCase(sub.getPlan())).isPresent();
+    }
+
+    public boolean hasAllAccess(Authentication auth) {
+        if (auth == null || !auth.isAuthenticated()) return false;
+        return userRepository.findByEmail(auth.getName())
+                .map(user -> isAllAccess(user.getId())).orElse(false);
+    }
+
     /**
      * Which of these accounts currently hold Premium.
      *
@@ -87,7 +99,7 @@ public class PremiumAccess {
     }
 
     /**
-     * Every account currently holding Premium.
+     * Every account currently holding All Access, for Bond discovery.
      *
      * <p>Preferred over {@link #premiumAmong} when the question is "filter this large list
      * down to subscribers": subscribers are far fewer than users, so this reads the small
@@ -138,7 +150,7 @@ public class PremiumAccess {
 
     public static boolean isActivePremium(Subscription sub) {
         if (sub == null) return false;
-        if (!PREMIUM_PLAN.equalsIgnoreCase(sub.getPlan())) return false;
+        if (!PREMIUM_PLAN.equalsIgnoreCase(sub.getPlan()) && !"PLUS".equalsIgnoreCase(sub.getPlan())) return false;
         // status is nullable on legacy rows; only an explicit non-ACTIVE value disqualifies.
         if (sub.getStatus() != null && !"ACTIVE".equalsIgnoreCase(sub.getStatus())) return false;
         // A null expiry means "does not lapse", which is how FREE-turned-paid rows behave.

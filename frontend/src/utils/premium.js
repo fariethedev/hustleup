@@ -32,10 +32,14 @@ export const PLAN_IDS = ['MONTHLY', 'ALL_ACCESS'];
  * @returns {boolean}
  */
 export function isPremiumActive(sub) {
-  if (!sub || sub.plan !== PREMIUM_PLAN) return false;
+  if (!sub || !['VERIFIED', 'PLUS'].includes(sub.plan)) return false;
   if (sub.status && sub.status !== 'ACTIVE') return false;
-  if (sub.expiresAt && new Date(sub.expiresAt).getTime() < Date.now()) return false;
+  if (sub.expiresAt && !(new Date(sub.expiresAt).getTime() > Date.now())) return false;
   return true;
+}
+
+export function isAllAccessActive(sub) {
+  return isPremiumActive(sub) && sub.plan === 'VERIFIED';
 }
 
 /**

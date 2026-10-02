@@ -1068,9 +1068,9 @@ public class BookingService {
 
                         String title = listingRepository.findById(booking.getListingId())
                                 .map(Listing::getTitle).orElse("your booking");
-                        notifyByEmail(booking.getSellerId(), "Payout sent: " + title,
-                                "<p>You've been paid out for <b>" + title + "</b>.</p>");
-                        notifyByPush(booking.getSellerId(), "Payout sent", "You've been paid out for " + title + ".");
+                        notifyByEmail(booking.getSellerId(), "Funds released: " + title,
+                                "<p>Your earnings for <b>" + title + "</b> were transferred to your Stripe balance. Open Payments to check bank arrival dates.</p>");
+                        notifyByPush(booking.getSellerId(), "Funds released to Stripe", "Open Payments to check bank arrival dates for " + title + ".");
                     } catch (StripeException e) {
                         // Left PAID on purpose: recording a transfer that did not happen would
                         // erase, from the platform's own books, money it still owes. The sweep

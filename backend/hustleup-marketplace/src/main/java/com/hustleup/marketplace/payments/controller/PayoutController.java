@@ -83,7 +83,7 @@ public class PayoutController {
      * <p><b>POST /api/v1/payouts/connect</b>
      */
     @PostMapping("/connect")
-    @PreAuthorize("@premiumAccess.canSell(authentication)")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> connect() {
         try {
             User seller = currentUser();
@@ -112,23 +112,19 @@ public class PayoutController {
      * <p><b>GET /api/v1/payouts/status</b>
      */
     @GetMapping("/status")
-    @PreAuthorize("@premiumAccess.canSell(authentication)")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> status() {
         User seller = currentUser();
         Optional<SellerPayoutAccount> account = payoutAccountRepository.findBySellerId(seller.getId());
         if (account.isEmpty()) {
             return ResponseEntity.ok().header("Cache-Control", "no-store").body(Map.of(
+                    "platformFeePercent", stripeConnectService.getPlatformFeePercent(),
                     "connected", false, "payoutsEnabled", false,
                     "chargesEnabled", false, "detailsSubmitted", false));
         }
         try {
-            SellerPayoutAccount refreshed = stripeConnectService.refreshAccountStatus(account.get());
-            return ResponseEntity.ok().header("Cache-Control", "no-store").body(Map.of(
-                    "connected", true,
-                    "payoutsEnabled", refreshed.isPayoutsEnabled(),
-                    "chargesEnabled", refreshed.isChargesEnabled(),
-                    "detailsSubmitted", refreshed.isDetailsSubmitted()
-            ));
+            return ResponseEntity.ok().header("Cache-Control", "no-store")
+                    .body(stripeConnectService.accountStatus(account.get()));
         } catch (StripeException e) {
             // Cached flags are not evidence of current payout eligibility.
             log.warn("Could not refresh Stripe payout status for seller {}", seller.getId(), e);
@@ -146,6 +142,20 @@ public class PayoutController {
      * <p><b>POST /api/v1/payouts/webhook</b> — no JWT auth; authenticity is verified via the
      * {@code Stripe-Signature} header instead (see {@code CommonSecurityConfig} permitAll).
      */
+    @PostMapping("/dashboard")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> dashboard() {
+        var account = payoutAccountRepository.findBySellerId(currentUser().getId());
+        if (account.isEmpty()) return ResponseEntity.status(409).body(Map.of("error", "Connect a payout account first."));
+        try {
+            return ResponseEntity.ok().header("Cache-Control", "no-store")
+                    .body(Map.of("url", stripeConnectService.createDashboardLink(account.get())));
+        } catch (StripeException e) {
+            log.warn("Could not create seller dashboard link", e);
+            return ResponseEntity.status(502).body(Map.of("error", "Could not open Stripe. Please try again."));
+        }
+    }
+
     @PostMapping("/webhook")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<Void> webhook(@RequestBody String payload,

@@ -111,7 +111,7 @@ public class DatingController {
      */
     private ResponseEntity<?> requirePremium() {
         User current = getCurrentUser();
-        if (current != null && premiumAccess.isPremium(current.getId())) return null;
+        if (current != null && premiumAccess.isAllAccess(current.getId())) return null;
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                 "error", "Bond is a Premium feature",
                 "code", "PREMIUM_REQUIRED",

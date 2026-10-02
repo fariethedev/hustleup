@@ -1,255 +1,64 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Store, ClipboardCheck, Building2, CalendarRange, Banknote, ChartLine, CircleCheck, Gem, MoveRight } from 'lucide-react';
-import { subscriptionsApi, dispatchToast } from '../api/client';
-import { formatPrice } from '../utils/constants';
+import { Check, Store, MoveRight, ShieldCheck } from 'lucide-react';
+import { subscriptionsApi } from '../api/client';
+import { isAllAccessActive, isPremiumActive } from '../utils/premium';
 
-/**
- * The upgrade path from a plain account to a selling one.
- *
- * <h3>What this replaced</h3>
- * Selling used to be refused with a screen that said buying and selling were separate
- * accounts, and offered to sign the user out so they could register again on a second email.
- * That stopped being true when the server moved selling behind a subscription — there is one
- * kind of account now, and `PremiumAccess.canSell` grants selling to any active subscriber.
- * So the old screen logged people out to solve a problem that no longer existed, and never
- * mentioned the subscription that would actually have unlocked it.
- *
- * <h3>Why the price is fetched rather than written here</h3>
- * `GET /subscriptions/plans` is the same enum Stripe is charged from, so a price shown here
- * cannot drift from the price taken at checkout. Hardcoding the amount would be correct only
- * until the day it wasn't, and the failure mode is advertising a price we then don't honour.
- * Until the list arrives the panel shows a spinner rather than naming a number.
- */
-
-/** What subscribing actually turns on, matched to the endpoints `canSell` guards. */
-const UNLOCKS = [
-  { icon: ClipboardCheck, text: 'List items, services and events' },
-  { icon: Building2, text: 'Open your own storefront' },
-  { icon: CalendarRange, text: 'Take bookings on your own availability' },
-  { icon: Banknote, text: 'Get paid out to your bank via Stripe' },
-  { icon: ChartLine, text: 'Sales, revenue and your Hustle Score' },
+const tiers = [
+  { id: 'FREE', name: 'Free', description: 'Explore and connect.', features: ['Browse and buy', 'Community feed', 'Profile and messaging'], excluded: 'Selling, Bond and leaderboards not included' },
+  { id: 'MONTHLY', name: 'Plus', description: 'Turn your skills into sales.', features: ['Everything in Free', 'List products, services and events', 'Your storefront and booking availability', 'Seller tools and Stripe bank payouts'], excluded: 'Bond and leaderboards not included' },
+  { id: 'ALL_ACCESS', name: 'All Access', description: 'The complete HustleSpace experience.', features: ['Everything in Plus', 'Hustle Bond discovery and matching', 'Access to leaderboards', 'All paid app features included'], featured: true },
 ];
 
-/** The path itself, so this explains how selling works and not only what it costs. */
-const STEPS = [
-  'Subscribe to Premium',
-  'Set up your shop — name, city, category',
-  'Post your first listing',
-];
-
-/**
- * @param {object}   props
- * @param {string}   [props.title]       headline
- * @param {string}   [props.blurb]       one line under the headline, for page-specific context
- * @param {Function} [props.onCancel]    renders a secondary dismiss button when provided
- * @param {string}   [props.cancelLabel]
- */
-export default function SellerUpgrade({
-  title = 'Start selling on HustleSpace',
-  blurb = 'Selling is a Premium feature. One subscription turns the account you already have into a shop — no second account, no new email address.',
-  onCancel,
-  cancelLabel = 'Not now',
-}) {
-  // null = not loaded yet, so the plan list shows a spinner instead of briefly rendering
-  // an empty, un-buyable panel.
-  const [plans, setPlans] = useState(null);
-  const [currency, setCurrency] = useState('PLN');
-  // The plan id currently being started, not a boolean — only the button that was pressed
-  // should show a spinner.
-  const [upgrading, setUpgrading] = useState(null);
-
+export default function SellerUpgrade({ title = 'Choose your plan', blurb = 'Start free. Sell with Plus. Unlock every feature with All Access.', onCancel, cancelLabel = 'Not now' }) {
+  const [data, setData] = useState(null);
+  const [subscription, setSubscription] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    subscriptionsApi.plans()
-      .then((r) => {
-        if (cancelled) return;
-        setPlans(r.data?.plans ?? []);
-        if (r.data?.currency) setCurrency(r.data.currency);
-      })
-      .catch(() => { if (!cancelled) setPlans([]); });
+    Promise.all([subscriptionsApi.plans(), subscriptionsApi.my()]).then(([plans, mine]) => {
+      if (cancelled) return;
+      if (!plans.data?.plans?.some(p => p.id === 'MONTHLY') || !plans.data.plans.some(p => p.id === 'ALL_ACCESS')) throw new Error('Plans are unavailable.');
+      setData(plans.data); setSubscription(mine.data);
+    }).catch(() => { if (!cancelled) setError('We could not load your plans. Please retry.'); });
     return () => { cancelled = true; };
-  }, []);
-
-  /**
-   * Sends the seller to Stripe Checkout.
-   *
-   * Deliberately grants nothing locally: Premium is written by the signed webhook once the
-   * charge clears, so flipping a flag here would open the seller tools to someone who closed
-   * the payment page, and every endpoint would refuse them anyway.
-   */
-  const start = async (planId) => {
-    setUpgrading(planId);
-    try {
-      const res = await subscriptionsApi.checkout(planId);
-      const url = res.data?.checkoutUrl;
-      if (!url) throw new Error('No checkout URL returned');
-      window.location.assign(url);
-      // Not reset on success: the browser is leaving, and clearing this would re-enable the
-      // buttons mid-redirect and invite a second checkout session.
-    } catch {
-      dispatchToast('Could not start checkout — try again', 'error');
-      setUpgrading(null);
-    }
+  }, [attempt]);
+  const current = isAllAccessActive(subscription) ? 'ALL_ACCESS' : isPremiumActive(subscription) ? 'MONTHLY' : 'FREE';
+  const start = async id => {
+    if (busy) return;
+    setBusy(id); setError('');
+    try { const response = await subscriptionsApi.checkout(id); window.location.assign(response.data.checkoutUrl); }
+    catch (failure) { setError(failure.response?.data?.error || 'Checkout could not be opened. Please try again.'); setBusy(null); }
   };
-
-  // The entry price is the headline, because it is the number that decides whether any of
-  // the rest gets read. Cheapest-per-month is a different plan, flagged separately below.
-  const entry = plans?.length
-    ? plans.reduce((low, p) => (Number(p.price) < Number(low.price) ? p : low))
-    : null;
-  const bestValueId = plans && plans.length > 1
-    ? plans.reduce((best, p) => (Number(p.pricePerMonth) < Number(best.pricePerMonth) ? p : best)).id
-    : null;
-
-  return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 max-w-md w-full">
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-11 h-11 rounded-2xl bg-[#CDFF00] flex items-center justify-center shrink-0">
-          <Store className="w-5 h-5 text-black" strokeWidth={2.5} />
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-lg font-black text-white tracking-tight leading-tight">{title}</h2>
-          <span className="inline-flex items-center gap-1 text-[9px] font-black tracking-[0.18em] text-[#CDFF00] mt-0.5">
-            <Gem className="w-2.5 h-2.5" /> PREMIUM
-          </span>
-        </div>
-      </div>
-
-      <p className="text-sm text-gray-400 leading-relaxed mb-5">{blurb}</p>
-
-      {/* The price gets its own weight — "from 9,99 PLN a month" is the whole pitch. */}
-      <div className="rounded-2xl bg-[#CDFF00]/[0.07] border border-[#CDFF00]/25 p-4 mb-5">
-        {entry ? (
-          <>
-            <p className="text-[9px] font-black tracking-[0.2em] text-[#CDFF00]/70 mb-1">STARTS AT</p>
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-3xl font-black text-[#CDFF00] leading-none">
-                {formatPrice(Number(entry.price), currency)}
-              </span>
-              <span className="text-xs font-bold text-gray-400">
-                / {entry.months === 1 ? 'month' : `${entry.months} months`}
-              </span>
-            </div>
-          </>
-        ) : (
-          <div className="h-10 flex items-center">
-            <span className="w-4 h-4 border-2 border-white/20 border-t-[#CDFF00] rounded-full animate-spin" />
-          </div>
-        )}
-      </div>
-
-      <p className="text-[9px] font-black tracking-[0.2em] text-gray-500 mb-2.5">WHAT IT UNLOCKS</p>
-      <div className="space-y-2 mb-5">
-        {UNLOCKS.map((u) => (
-          <div key={u.text} className="flex items-start gap-2.5">
-            <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
-              <u.icon className="w-3 h-3 text-[#CDFF00]" />
-            </div>
-            <span className="text-xs text-gray-300 leading-snug">{u.text}</span>
-          </div>
-        ))}
-      </div>
-
-      <p className="text-[9px] font-black tracking-[0.2em] text-gray-500 mb-2.5">HOW IT WORKS</p>
-      <ol className="space-y-1.5 mb-5">
-        {STEPS.map((s, i) => (
-          <li key={s} className="flex items-center gap-2.5">
-            <span className="w-5 h-5 rounded-full bg-white/10 text-white text-[10px] font-black flex items-center justify-center shrink-0">
-              {i + 1}
-            </span>
-            <span className="text-xs text-gray-400">{s}</span>
-          </li>
-        ))}
-      </ol>
-
-      {/* Plans. Every button locks while one checkout is in flight — a second click would
-          open a second Stripe session and risk charging twice. */}
-      {!plans ? (
-        <div className="py-6 flex justify-center">
-          <span className="w-5 h-5 border-2 border-white/20 border-t-[#CDFF00] rounded-full animate-spin" />
-        </div>
-      ) : plans.length === 0 ? (
-        <p className="text-xs text-gray-500 text-center py-3">
-          Plans could not be loaded — refresh and try again.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {plans.map((p) => {
-            const isEntry = p.id === entry?.id;
-            const isBest = p.id === bestValueId;
-            const busy = upgrading === p.id;
-            return (
-              <motion.button
-                key={p.id}
-                whileTap={{ scale: 0.99 }}
-                onClick={() => start(p.id)}
-                disabled={!!upgrading}
-                className={`w-full py-3 px-3.5 rounded-xl font-bold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-between gap-2 ${
-                  isEntry
-                    ? 'bg-[#CDFF00] text-black hover:bg-[#d9ff33]'
-                    : 'bg-white/5 text-white border border-white/10 hover:bg-white/10'
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  {p.label}
-                  {isBest && (
-                    <span className={`text-[9px] font-extrabold tracking-wide px-1.5 py-0.5 rounded ${
-                      isEntry ? 'bg-black/20' : 'bg-white/10'
-                    }`}>
-                      Best value
-                    </span>
-                  )}
-                </span>
-                {busy ? (
-                  <span className={`w-4 h-4 border-2 rounded-full animate-spin ${
-                    isEntry ? 'border-black/30 border-t-black' : 'border-white/30 border-t-white'
-                  }`} />
-                ) : (
-                  <span className="text-right leading-tight">
-                    <span className="block">{formatPrice(Number(p.price), currency)}</span>
-                    {p.months > 1 && (
-                      <span className={`block text-[9px] font-medium ${isEntry ? 'text-black/60' : 'text-gray-400'}`}>
-                        {formatPrice(Number(p.pricePerMonth), currency)}/mo
-                      </span>
-                    )}
-                  </span>
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Prepaid terms, not a rolling subscription — there is nothing to cancel, and saying
-          "cancel anytime" would describe a plan that does not exist. */}
-      <p className="flex items-center justify-center gap-1.5 text-[10px] text-gray-500 mt-3">
-        <CircleCheck className="w-3 h-3" /> One-off payment. Access ends when the term does.
-      </p>
-
-      {onCancel && (
-        <button
-          onClick={onCancel}
-          className="w-full mt-2.5 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-sm hover:bg-white/10 transition-colors"
-        >
-          {cancelLabel}
-        </button>
-      )}
-    </div>
-  );
+  return <section className="w-full max-w-5xl mx-auto text-white p-4 sm:p-6">
+    <p className="text-xs font-bold uppercase tracking-[.2em] text-[#CDFF00] mb-3">Membership</p>
+    <h2 className="text-3xl sm:text-4xl font-black tracking-tight">{title}</h2>
+    <p className="text-sm text-gray-400 mt-3 mb-8 max-w-xl">{blurb}</p>
+    {error && <div role="alert" className="mb-4 rounded-xl p-4 bg-red-500/10 text-red-200 text-sm">{error} {!data && <button className="ml-3 underline" onClick={() => { setError(''); setAttempt(a => a + 1); }}>Retry</button>}</div>}
+    {!data && !error && <p role="status" className="py-8 text-gray-400">Loading plans…</p>}
+    {data && <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+      {tiers.map(tier => {
+        const plan = data.plans.find(p => p.id === tier.id);
+        const selected = current === tier.id;
+        return <article key={tier.id} className={`flex flex-col rounded-3xl border p-6 ${tier.featured ? 'border-[#CDFF00]/60 bg-[#CDFF00]/[0.06]' : 'border-white/10 bg-[#141414]'}`}>
+          <div className="flex items-center justify-between gap-2 min-h-6"><h3 className="font-bold text-lg">{tier.name}</h3>{selected ? <span className="text-[10px] rounded-full px-2 py-1 bg-white/10">Current plan</span> : tier.featured && <span className="text-[10px] text-[#CDFF00] font-bold">EVERY FEATURE</span>}</div>
+          <p className="text-gray-400 text-xs mt-2 min-h-8">{tier.description}</p>
+          <div className="mt-5 mb-1"><span className="text-4xl font-black tracking-tight">{new Intl.NumberFormat('pl-PL', { style: 'currency', currency: data.currency || 'PLN', maximumFractionDigits: 0 }).format(plan?.price ?? 0)}</span></div>
+          <p className="text-xs text-gray-500 mb-6">{plan ? 'per month · paid once, no auto-renewal' : 'No payment required'}</p>
+          <ul className="space-y-3 flex-1 mb-6">{tier.features.map(feature => <li key={feature} className="flex gap-2 text-sm text-gray-300"><Check size={16} className="text-[#CDFF00] shrink-0 mt-0.5" />{feature}</li>)}</ul>
+          {tier.excluded && <p className="text-xs text-gray-500 mb-5">{tier.excluded}</p>}
+          <button disabled={!!busy || tier.id === 'FREE'} onClick={() => start(tier.id)} className={`rounded-xl py-3 px-3 font-bold text-sm disabled:opacity-50 ${tier.featured ? 'bg-[#CDFF00] text-black' : 'bg-white/10 text-white'}`}>
+            {busy === tier.id ? 'Opening secure checkout…' : tier.id === 'FREE' ? selected ? 'Your current plan' : 'Free when your plan expires' : selected ? `Extend ${tier.name}` : `Choose ${tier.name}`}
+          </button>
+        </article>;
+      })}
+    </div>}
+    <div className="mt-6 text-xs text-gray-400 leading-relaxed flex gap-2"><ShieldCheck size={18} className="shrink-0" /><p>Secure payment through Stripe. Paid plans last one month. Renewing extends your term; switching tiers converts remaining paid time at the relative plan prices. Marketplace transaction fees are separate from membership. Bank verification is required before payouts.</p></div>
+    {onCancel && <button className="mt-5 text-sm text-gray-400 underline" onClick={onCancel}>{cancelLabel}</button>}
+  </section>;
 }
 
-/**
- * The compact form, for places that already have a layout of their own and need only the
- * call to action — a dashboard banner rather than a full page.
- */
 export function SellerUpgradeButton({ onClick, label = 'Start selling' }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all shrink-0"
-    >
-      <Store className="w-3.5 h-3.5" strokeWidth={2.5} /> {label} <MoveRight className="w-3.5 h-3.5" />
-    </button>
-  );
+  return <button onClick={onClick} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-sm"><Store size={16} />{label}<MoveRight size={16} /></button>;
 }

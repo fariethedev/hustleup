@@ -3,14 +3,14 @@ import { motion, AnimatePresence, useMotionValue, useTransform, useAnimationCont
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { datingApi, subscriptionsApi, dispatchToast } from '../api/client';
-import { isPremiumActive } from '../utils/premium';
+import SellerUpgrade from '../components/SellerUpgrade';
+import { isAllAccessActive } from '../utils/premium';
 import {
   ThumbsUp, CircleX, WandSparkles, MessageCircleMore, CircleUserRound, Aperture, Gem,
   Sparkle, Undo, Timer, BadgeInfo, ChartLine, CircleCheck, MoveLeft, MoveRight,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import BondCard from '../components/BondCard';
-import { formatPrice } from '../utils/constants';
 import { uploadUrl } from '../config';
 import { displayName, shortName } from '../utils/displayName';
 
@@ -510,93 +510,8 @@ function ProfileSetupModal({ currentUser, existing, mandatory = false, onClose, 
  * @param upgrading   the plan id currently being started, or null
  * @param plans       price list from GET /subscriptions/plans; null while loading
  */
-function PremiumPaywall({ onUpgrade, upgrading, plans }) {
-  const plusPlan = plans?.find((p) => p.id === 'MONTHLY') || plans?.[0];
-  const allAccessPlan = plans?.find((p) => p.id === 'ALL_ACCESS') || plans?.[1];
-  const tiers = [
-    {
-      id: 'FREE',
-      name: 'Free',
-      price: '0 zł',
-      description: 'Get started and find your people.',
-      features: ['Browse the marketplace', 'Basic profile and messaging', 'Community feed'],
-    },
-    {
-      id: plusPlan?.id || 'MONTHLY',
-      name: 'Plus',
-      price: plusPlan ? `${formatPrice(Number(plusPlan.price), 'PLN')}/mo` : '9 zł/mo',
-      description: 'More visibility for your hustle.',
-      features: ['Everything in Free', 'Unlimited marketplace activity', 'Priority profile placement'],
-    },
-    {
-      id: allAccessPlan?.id || 'ALL_ACCESS',
-      name: 'All Access',
-      price: allAccessPlan ? `${formatPrice(Number(allAccessPlan.price), 'PLN')}/mo` : '20 zł/mo',
-      description: 'Unlock the full HustleSpace experience.',
-      features: ['Everything in Plus', 'Hustle Bond matching and swipes', 'Leaderboards and full insights'],
-      featured: true,
-    },
-  ];
-
-  return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-2 overflow-y-auto">
-      <div className="text-center mb-5">
-        <div className="w-11 h-11 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-3">
-          <Gem className="w-5 h-5 text-[#CDFF00]" />
-        </div>
-        <h2 className="text-xl font-black text-white mb-1">Choose your HustleSpace plan</h2>
-        <p className="text-xs text-gray-400 leading-relaxed max-w-md mx-auto">
-          Start free, upgrade when you need more reach, or unlock Bond and leaderboards with All Access.
-        </p>
-      </div>
-
-      {!plans ? (
-        <div className="py-6 flex justify-center">
-          <span className="w-5 h-5 border-2 border-white/20 border-t-[#CDFF00] rounded-full animate-spin" />
-        </div>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-3 items-stretch">
-          {tiers.map((tier) => {
-            const paid = tier.id !== 'FREE';
-            const busy = upgrading === tier.id;
-            return (
-              <div
-                key={tier.id}
-                className={`relative flex flex-col text-left rounded-2xl border p-4 ${
-                  tier.featured ? 'border-[#CDFF00]/70 bg-[#CDFF00]/[0.08] shadow-[0_0_30px_-14px_#CDFF00]' : 'border-white/10 bg-white/[0.03]'
-                }`}
-              >
-                {tier.featured && <span className="absolute -top-2.5 right-4 px-2 py-1 rounded-full bg-[#CDFF00] text-[9px] font-black tracking-widest text-black">FULL ACCESS</span>}
-                <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500 font-black">{tier.name}</p>
-                <p className="text-2xl font-black text-white mt-2">{tier.price}</p>
-                <p className="text-xs text-gray-400 mt-1 min-h-8">{tier.description}</p>
-                <div className="space-y-2 mt-4 mb-5 flex-1">
-                  {tier.features.map((feature) => (
-                    <div key={feature} className="flex items-start gap-2 text-xs text-gray-300">
-                      <CircleCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0 mt-0.5" />
-                      <span>{feature}</span>
-                    </div>
-                  ))}
-                </div>
-                {paid ? (
-                  <button
-                    onClick={() => onUpgrade(tier.id)}
-                    disabled={!!upgrading || !plans.find((p) => p.id === tier.id)}
-                    className={`w-full py-2.5 rounded-xl font-black text-xs transition-all disabled:opacity-50 ${tier.featured ? 'bg-[#CDFF00] text-black hover:bg-[#d9ff33]' : 'bg-white/10 text-white border border-white/10 hover:bg-white/15'}`}
-                  >
-                    {busy ? 'Opening checkout…' : `Choose ${tier.name}`}
-                  </button>
-                ) : (
-                  <div className="w-full py-2.5 rounded-xl border border-white/10 text-center text-xs font-black text-gray-500">Current starting tier</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <p className="text-[10px] text-gray-500 mt-4 text-center">One-off payment. Access ends when the selected term does.</p>
-      </div>
-  );
+function PremiumPaywall() {
+  return <div className="w-full overflow-y-auto"><SellerUpgrade title="Find your people with All Access" /></div>;
 }
 
 // ── Deck furniture ───────────────────────────────────────────────────────────
@@ -1018,10 +933,8 @@ export default function Dating() {
   const [premium, setPremium] = useState(false);
   // Holds the plan id currently being started, not a boolean — the paywall needs to know
   // which tier button to show a spinner on.
-  const [upgrading, setUpgrading] = useState(null);
   // Price list from the server. Null means "not loaded yet" so the paywall can show a
   // spinner rather than briefly rendering an empty plan list.
-  const [plans, setPlans] = useState(null);
 
   const [deck, setDeck] = useState([]);
   // undefined = not resolved yet; null = the server has confirmed there is none; an object =
@@ -1065,48 +978,20 @@ export default function Dating() {
     checkAccess();
   }, [isAuthenticated]);
 
-  // Bond is gated to All Access: Plus can still be purchased for marketplace visibility,
+  // Bond is gated to All Access: Plus enables marketplace selling,
   // while the 20 zł tier unlocks the matching deck and leaderboards.
   const checkAccess = async () => {
     setCheckingAccess(true);
     try {
       const res = await subscriptionsApi.my();
-      const active = isPremiumActive(res.data);
-      const allAccess = active && Number(res.data?.pricePerMonth) >= 20;
+      const allAccess = isAllAccessActive(res.data);
       setPremium(allAccess);
       if (allAccess) await loadData();
-      else {
-        // Plus subscribers also need to see the upgrade tiers so they can move to All Access.
-        subscriptionsApi.plans()
-          .then((r) => setPlans(r.data?.plans ?? []))
-          .catch(() => setPlans(null));
-      }
-    } catch (e) {
+
+    } catch {
       setPremium(false);
     } finally {
       setCheckingAccess(false);
-    }
-  };
-
-  /**
-   * Sends the buyer to Stripe Checkout for the chosen plan.
-   *
-   * Deliberately does NOT flip `premium` locally. Premium is granted only by Stripe's
-   * signed webhook once the charge clears; setting it here would show the feature to
-   * someone who abandoned the payment page, and the API would refuse them anyway.
-   * On success the browser leaves this page entirely, so `upgrading` stays set —
-   * clearing it would briefly re-enable the buttons mid-redirect.
-   */
-  const handleUpgrade = async (planId) => {
-    setUpgrading(planId);
-    try {
-      const res = await subscriptionsApi.checkout(planId);
-      const url = res.data?.checkoutUrl;
-      if (!url) throw new Error('No checkout URL returned');
-      window.location.assign(url);
-    } catch (e) {
-      dispatchToast('Could not start checkout — try again', 'error');
-      setUpgrading(null);
     }
   };
 
@@ -1311,7 +1196,7 @@ export default function Dating() {
 
       {!premium ? (
         <div className="flex-1 min-h-0 flex items-center justify-center">
-          <PremiumPaywall onUpgrade={handleUpgrade} upgrading={upgrading} plans={plans} />
+          <PremiumPaywall />
         </div>
       ) : loading ? (
         <div className="flex-1 flex items-center justify-center">

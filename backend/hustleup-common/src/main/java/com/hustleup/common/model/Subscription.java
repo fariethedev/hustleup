@@ -86,7 +86,7 @@ public class Subscription {
     // Plan details
     // -------------------------------------------------------------------------
 
-    // The subscription tier. Possible values: "FREE", "VERIFIED".
+    // FREE, PLUS (selling), VERIFIED (All Access; retained for legacy compatibility).
     // @Builder.Default is required when using Lombok's @Builder alongside a field
     // initialiser — without it, the builder would set the field to null instead of
     // the specified default value.

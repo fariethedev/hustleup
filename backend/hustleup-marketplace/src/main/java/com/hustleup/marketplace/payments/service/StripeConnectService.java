@@ -89,6 +89,10 @@ public class StripeConnectService {
         Stripe.apiKey = secretKey;
     }
 
+    public BigDecimal getPlatformFeePercent() {
+        return platformFeePercent;
+    }
+
     /**
      * Finds (or creates) the seller's Stripe Express account and returns a fresh onboarding
      * link URL. The seller completes the actual bank/ID details on Stripe's own hosted page —
@@ -147,11 +151,35 @@ public class StripeConnectService {
      */
     public SellerPayoutAccount refreshAccountStatus(SellerPayoutAccount payoutAccount) throws StripeException {
         Account account = Account.retrieve(payoutAccount.getStripeAccountId());
+        return syncAccountStatus(payoutAccount, account);
+    }
+
+    private SellerPayoutAccount syncAccountStatus(SellerPayoutAccount payoutAccount, Account account) {
         payoutAccount.setChargesEnabled(Boolean.TRUE.equals(account.getChargesEnabled()));
         payoutAccount.setPayoutsEnabled(Boolean.TRUE.equals(account.getPayoutsEnabled()));
         payoutAccount.setDetailsSubmitted(Boolean.TRUE.equals(account.getDetailsSubmitted()));
         payoutAccount.setUpdatedAt(LocalDateTime.now());
         return payoutAccountRepository.save(payoutAccount);
+    }
+
+    public java.util.Map<String, Object> accountStatus(SellerPayoutAccount payoutAccount) throws StripeException {
+        Account account = Account.retrieve(payoutAccount.getStripeAccountId());
+        syncAccountStatus(payoutAccount, account);
+        var requirements = account.getRequirements();
+        return java.util.Map.of(
+                "platformFeePercent", platformFeePercent,
+                "connected", true,
+                "payoutsEnabled", Boolean.TRUE.equals(account.getPayoutsEnabled()),
+                "chargesEnabled", Boolean.TRUE.equals(account.getChargesEnabled()),
+                "detailsSubmitted", Boolean.TRUE.equals(account.getDetailsSubmitted()),
+                "transfersEnabled", account.getCapabilities() != null && "active".equals(account.getCapabilities().getTransfers()),
+                "requirementsDue", requirements == null || requirements.getCurrentlyDue() == null ? java.util.List.of() : requirements.getCurrentlyDue(),
+                "pendingVerification", requirements == null || requirements.getPendingVerification() == null ? java.util.List.of() : requirements.getPendingVerification());
+    }
+
+    public String createDashboardLink(SellerPayoutAccount payoutAccount) throws StripeException {
+        return com.stripe.model.LoginLink.createOnAccount(payoutAccount.getStripeAccountId(),
+                com.stripe.param.LoginLinkCreateOnAccountParams.builder().build()).getUrl();
     }
 
     /**
@@ -427,7 +455,8 @@ public class StripeConnectService {
 
         applySourceCharge(params, booking.getPaymentIntentId(), "booking " + booking.getId());
 
-        return Transfer.create(params.build()).getId();
+        return Transfer.create(params.build(), RequestOptions.builder()
+                .setIdempotencyKey("booking-payout-" + booking.getId()).build()).getId();
     }
 
     /**
@@ -462,7 +491,8 @@ public class StripeConnectService {
 
         applySourceCharge(params, order.getPaymentIntentId(), "order " + order.getId());
 
-        return Transfer.create(params.build()).getId();
+        return Transfer.create(params.build(), RequestOptions.builder()
+                .setIdempotencyKey("shop-order-payout-" + order.getId()).build()).getId();
     }
 
     /**

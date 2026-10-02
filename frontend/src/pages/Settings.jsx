@@ -424,12 +424,14 @@ function AccountPanel({ user, onSignOut }) {
             <p className="px-4 py-2.5 rounded-xl bg-[#CDFF00]/[0.07] border border-[#CDFF00]/25 text-sm text-[#CDFF00] font-bold">
               {user.role === 'ADMIN' ? 'Admin' : 'Seller'}
               <span className="block text-[11px] text-gray-400 font-medium mt-0.5">
-                {premium ? 'Selling is on through Premium.' : 'Selling is on for this account.'}
+                {premium ? `Your plan: ${subscription?.plan === 'PLUS' ? 'Plus' : 'All Access'}. Selling is enabled.` : 'Selling is on for this account.'}
               </span>
             </p>
 
             {/* Only a real, paid subscription has anything to cancel — a grandfathered
                 SELLER/ADMIN role was never billed, so there's no term to end early. */}
+            <Link to="/plans" className="inline-block text-sm text-[#CDFF00] underline">Compare plans or extend membership</Link>
+            <Link to="/payouts" className="block text-sm text-gray-300 underline">Manage bank account and payments</Link>
             {premium && (
               <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3 flex-wrap">
                 <div className="min-w-0 flex-1">
@@ -549,7 +551,7 @@ function SellingPanel() {
   const [publisher, setPublisher] = useState(null);
 
   useEffect(() => {
-    payoutsApi.status().then((r) => setPayout(r.data)).catch(() => setPayout({ connected: false }));
+    payoutsApi.status().then((r) => setPayout(r.data)).catch(() => setPayout({ unavailable: true }));
     publishersApi.me().then((r) => setPublisher(r.data || {})).catch(() => setPublisher({}));
   }, []);
 
@@ -561,10 +563,10 @@ function SellingPanel() {
         ) : (
           <div className="flex items-center justify-between gap-3">
             <span className={`text-sm font-bold ${payout.payoutsEnabled ? 'text-[#CDFF00]' : 'text-gray-400'}`}>
-              {payout.payoutsEnabled ? 'Connected and enabled' : payout.connected ? 'Connected — setup unfinished' : 'Not connected'}
+              {payout.unavailable ? 'Status unavailable — open payments to retry' : payout.payoutsEnabled ? 'Connected and enabled' : payout.connected ? 'Connected — setup unfinished' : 'Not connected'}
             </span>
             <Link
-              to="/dashboard?tab=payouts"
+              to="/payouts"
               className="px-4 py-2 rounded-lg bg-white/10 border border-white/10 text-white text-xs font-bold hover:bg-white/15 transition-colors flex items-center gap-1.5 shrink-0"
             >
               Manage <SquareArrowOutUpRight className="w-3 h-3" />

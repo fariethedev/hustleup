@@ -30,6 +30,7 @@ import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 // checkout clears, and a stale "no" is what locks a paying seller out.
 let cache = null;
 let cachedAt = 0;
+let cacheUserId = null;
 const TTL_MS = 15_000;
 
 /**
@@ -43,7 +44,8 @@ export function invalidateSellerAccess() {
   cachedAt = 0;
 }
 
-function fetchSubscription() {
+function fetchSubscription(userId) {
+  if (cacheUserId !== userId) { invalidateSellerAccess(); cacheUserId = userId; }
   const fresh = cache && Date.now() - cachedAt < TTL_MS;
   if (!fresh) {
     cachedAt = Date.now();
@@ -80,18 +82,20 @@ export function useSellerAccess() {
   // undefined = not answered yet. Distinct from false: a failed lookup must not be
   // indistinguishable from a confirmed "not subscribed" while the request is still in
   // flight, or the upgrade wall flashes over a subscriber's dashboard on every load.
-  const [premium, setPremium] = useState(undefined);
-  const [subscription, setSubscription] = useState(undefined);
+  const [result, setResult] = useState(null);
+  const loaded = isAuthenticated && result?.userId === user?.id;
+  const subscription = loaded ? result.subscription : undefined;
+  const premium = loaded && isPremiumActive(subscription);
 
   const load = useCallback((force = false) => {
-    if (!isAuthenticated) { setPremium(false); setSubscription(undefined); return undefined; }
+    if (!isAuthenticated) return undefined;
     if (force) invalidateSellerAccess();
     let cancelled = false;
-    fetchSubscription()
-      .then((sub) => { if (!cancelled) { setPremium(isPremiumActive(sub)); setSubscription(sub); } })
-      .catch(() => { if (!cancelled) setPremium(false); });
+    fetchSubscription(user?.id)
+      .then((sub) => { if (!cancelled) setResult({ userId: user?.id, subscription: sub }); })
+      .catch(() => { if (!cancelled) setResult({ userId: user?.id, subscription: null }); });
     return () => { cancelled = true; };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id]);
 
   // Asked even for grandfathered accounts: a legacy seller who also subscribed should see
   // themselves as a subscriber, and the role clause is meant to be deleted once those
@@ -103,7 +107,7 @@ export function useSellerAccess() {
     premium: premium === true,
     grandfathered,
     subscription,
-    loading: isAuthenticated && !grandfathered && premium === undefined,
+    loading: isAuthenticated && !grandfathered && !loaded,
     refresh: () => load(true),
   };
 }

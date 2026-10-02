@@ -64,4 +64,5 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
      * code, since a lapsed row keeps status ACTIVE until something sweeps it.
      */
     List<Subscription> findByPlanAndStatus(String plan, String status);
+    List<Subscription> findByPlanInAndStatus(Collection<String> plans, String status);
 }

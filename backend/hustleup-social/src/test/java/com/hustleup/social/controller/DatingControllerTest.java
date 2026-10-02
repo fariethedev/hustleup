@@ -366,7 +366,7 @@ class DatingControllerTest {
                 new UsernamePasswordAuthenticationToken(currentUser.getEmail(), null, List.of())
         );
         when(userRepository.findByEmail(currentUser.getEmail())).thenReturn(Optional.of(currentUser));
-        when(premiumAccess.isPremium(currentUser.getId())).thenReturn(false);
+        when(premiumAccess.isAllAccess(currentUser.getId())).thenReturn(false);
 
         ResponseEntity<?> response = datingController.getProfiles();
 
@@ -390,7 +390,7 @@ class DatingControllerTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(user.getEmail(), null, List.of())
         );
-        when(premiumAccess.isPremium(user.getId())).thenReturn(true);
+        when(premiumAccess.isAllAccess(user.getId())).thenReturn(true);
     }
 
     /**

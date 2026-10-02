@@ -1,3 +1,4 @@
+import BankConnection from '../components/BankConnection';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -60,7 +61,6 @@ export default function Dashboard() {
   /** Set when the orders call itself failed, so an empty page can say why. */
   const [loadError, setLoadError] = useState('');
   const [payoutStatus, setPayoutStatus] = useState(null); // { connected, payoutsEnabled, chargesEnabled, detailsSubmitted }
-  const [payoutBusy, setPayoutBusy] = useState(false);
   const [payingBookingId, setPayingBookingId] = useState(null);
   const [counteringId, setCounteringId] = useState(null); // booking currently showing its counter-price input, or null
   const [counterValue, setCounterValue] = useState('');
@@ -173,24 +173,13 @@ export default function Dashboard() {
           }
         })
         .catch(() => setListings([]));
-      payoutsApi.status().then((r) => setPayoutStatus(r.data)).catch(() => setPayoutStatus({ connected: false }));
+      payoutsApi.status().then((r) => setPayoutStatus(r.data)).catch(() => setPayoutStatus(null));
       shopsApi.receivedOrders().then((r) => setShopSales(r.data || [])).catch(() => setShopSales([]));
     }
 
     setLoading(false);
   };
 
-  const handleConnectPayouts = async () => {
-    setPayoutBusy(true);
-    try {
-      const res = await payoutsApi.connect();
-      window.location.href = res.data.url;
-    } catch (e) {
-      dispatchToast(e.response?.data?.error || 'Could not start payout setup', 'error');
-    } finally {
-      setPayoutBusy(false);
-    }
-  };
 
   const handlePayNow = async (bookingId) => {
     setPayingBookingId(bookingId);
@@ -347,7 +336,7 @@ export default function Dashboard() {
       key: 'account',
       label: 'Account',
       tabs: [
-        ...(isSeller ? [{ id: 'payouts', label: 'Payouts', icon: Building, count: payoutStatus?.payoutsEnabled ? 0 : 1 }] : []),
+        { id: 'payouts', label: 'Payments', icon: Building, count: 0 },
         { id: 'notifications', label: 'Alerts', icon: BellDot, count: notifications.filter((n) => !n.read).length },
       ],
     },
@@ -1091,54 +1080,7 @@ export default function Dashboard() {
               )}
 
               {/* Payouts Tab */}
-              {tab === 'payouts' && (
-                <div className="max-w-lg mx-auto space-y-4">
-                  <div className="glass rounded-2xl p-5 border border-white/5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-[#CDFF00]/10 flex items-center justify-center shrink-0">
-                        <Building className="w-5 h-5 text-[#CDFF00]" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white">Bank account</p>
-                        <p className="text-xs text-gray-500">Payouts are handled securely by Stripe — we never see or store your bank details.</p>
-                      </div>
-                    </div>
-
-                    {payoutStatus?.payoutsEnabled ? (
-                      <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/20">
-                        <ShieldPlus className="w-4 h-4 text-[#CDFF00] shrink-0" />
-                        <p className="text-xs font-bold text-[#CDFF00]">Connected — you'll be paid out automatically when bookings are completed.</p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 mb-3">
-                          <span className="text-xs text-gray-400">
-                            {payoutStatus?.connected
-                              ? "You've started setup but Stripe still needs a bit more information before payouts can begin."
-                              : "You haven't connected a payout account yet — do this before your bookings can be paid out."}
-                          </span>
-                        </div>
-                        <button
-                          onClick={handleConnectPayouts}
-                          disabled={payoutBusy}
-                          className="w-full py-2.5 rounded-xl bg-[#CDFF00] text-black font-bold text-sm hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-                        >
-                          {payoutBusy ? 'Redirecting…' : payoutStatus?.connected ? 'Finish setup with Stripe' : 'Connect bank account'}
-                        </button>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="glass rounded-2xl p-4 border border-white/5">
-                    <p className="text-[10px] font-black tracking-widest text-gray-500 mb-2">How payouts work</p>
-                    <ul className="text-xs text-gray-400 space-y-1.5 leading-relaxed list-disc list-inside">
-                      <li>Buyers pay when a booking is confirmed.</li>
-                      <li>You get paid automatically once you mark the booking Complete.</li>
-                      <li>HustleSpace keeps a small platform fee — you receive the rest.</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
+              {tab === 'payouts' && <BankConnection embedded />}
 
               {/* Notifications Tab */}
               {tab === 'notifications' && (

@@ -220,6 +220,7 @@ public class StripeService {
         // subscription lifecycle. All others are safely ignored.
         switch (event.getType()) {
             case "checkout.session.completed":
+            case "checkout.session.async_payment_succeeded":
                 // The only path that grants Premium. Reached only after Stripe has taken
                 // the money AND the signature above verified, so a forged request cannot
                 // upgrade an account.
@@ -368,11 +369,21 @@ public class StripeService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime base = (sub.getExpiresAt() != null && sub.getExpiresAt().isAfter(now))
+        LocalDateTime base = (com.hustleup.common.subscription.PremiumAccess.isActivePremium(sub) && sub.getExpiresAt() != null && sub.getExpiresAt().isAfter(now))
                 ? sub.getExpiresAt()   // still active — stack the new term on the end
                 : now;                 // new, lapsed or cancelled — start from today
 
-        sub.setPlan(com.hustleup.common.subscription.PremiumAccess.PREMIUM_PLAN);
+        String nextPlan = p == SubscriptionPlan.MONTHLY ? "PLUS"
+                : com.hustleup.common.subscription.PremiumAccess.PREMIUM_PLAN;
+        // A tier change carries monetary value, not full-price days from a cheaper tier.
+        if (!nextPlan.equals(sub.getPlan()) && base.isAfter(now)) {
+            long remainingSeconds = java.time.Duration.between(now, base).getSeconds();
+            java.math.BigDecimal oldPrice = sub.getPricePerMonth();
+            long creditedSeconds = oldPrice == null ? 0 : java.math.BigDecimal.valueOf(remainingSeconds)
+                    .multiply(oldPrice).divide(p.getPricePerMonth(), 0, java.math.RoundingMode.DOWN).longValue();
+            base = now.plusSeconds(Math.max(0, creditedSeconds));
+        }
+        sub.setPlan(nextPlan);
         sub.setStatus("ACTIVE");
         sub.setCurrency(SubscriptionPlan.CURRENCY);
         sub.setPricePerMonth(p.getPricePerMonth());

@@ -187,10 +187,10 @@ public class SubscriptionController {
     public ResponseEntity<?> checkout(@RequestBody(required = false) Map<String, String> body) {
         String requested = body == null ? null : body.get("plan");
         Optional<SubscriptionPlan> plan = SubscriptionPlan.from(requested);
-        if (plan.isEmpty()) {
+        if (plan.isEmpty() || plan.get().isLegacy()) {
             return ResponseEntity.badRequest().body(Map.of(
                     "error", "Unknown plan",
-                    "validPlans", Arrays.stream(SubscriptionPlan.values()).map(Enum::name).toList()));
+                    "validPlans", Arrays.stream(SubscriptionPlan.values()).filter(p -> !p.isLegacy()).map(Enum::name).toList()));
         }
 
         try {
