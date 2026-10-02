@@ -23,14 +23,18 @@ import java.util.Optional;
  */
 public enum SubscriptionPlan {
 
-    /** 9.99 zł for one month. */
-    MONTHLY("Monthly", 999, 1),
+    /** 9 zł for one month of Plus access. */
+    MONTHLY("Plus", 900, 1),
 
-    /** 25 zł for three months — works out cheaper per month than MONTHLY. */
-    QUARTERLY("3 Months", 2500, 3),
+    /** 20 zł for one month of full HustleSpace access. */
+    ALL_ACCESS("All Access", 2000, 1),
 
-    /** 100 zł for a full year. */
-    ANNUAL("12 Months", 10_000, 12);
+    /**
+     * Legacy checkout identifiers kept readable so old Stripe webhook metadata can still be
+     * confirmed. They are intentionally omitted from the public plan list.
+     */
+    @Deprecated QUARTERLY("3 Months", 2500, 3, true),
+    @Deprecated ANNUAL("12 Months", 10_000, 12, true);
 
     /** ISO 4217 code. Poland is the primary market, so everything is priced in złoty. */
     public static final String CURRENCY = "PLN";
@@ -39,17 +43,23 @@ public enum SubscriptionPlan {
 
     /**
      * Price in grosze. Stripe takes amounts in a currency's minor unit, and PLN has two
-     * decimal places, so 9.99 zł is 999 — holding it as an integer avoids ever rounding a
+     * decimal places, so 9 zł is 900 — holding it as an integer avoids ever rounding a
      * price at charge time.
      */
     private final long amountMinorUnits;
 
     private final int months;
+    private final boolean legacy;
 
     SubscriptionPlan(String label, long amountMinorUnits, int months) {
+        this(label, amountMinorUnits, months, false);
+    }
+
+    SubscriptionPlan(String label, long amountMinorUnits, int months, boolean legacy) {
         this.label = label;
         this.amountMinorUnits = amountMinorUnits;
         this.months = months;
+        this.legacy = legacy;
     }
 
     public String getLabel() { return label; }
@@ -57,6 +67,8 @@ public enum SubscriptionPlan {
     public long getAmountMinorUnits() { return amountMinorUnits; }
 
     public int getMonths() { return months; }
+
+    public boolean isLegacy() { return legacy; }
 
     /** The price as a decimal, for display and for the stored subscription record. */
     public BigDecimal getAmount() {

@@ -153,7 +153,7 @@ public class SubscriptionController {
     public ResponseEntity<?> plans() {
         return ResponseEntity.ok(Map.of(
                 "currency", SubscriptionPlan.CURRENCY,
-                "plans", Arrays.stream(SubscriptionPlan.values())
+                "plans", Arrays.stream(SubscriptionPlan.values()).filter(p -> !p.isLegacy())
                         .map(p -> Map.of(
                                 "id", p.name(),
                                 "label", p.getLabel(),
@@ -168,7 +168,7 @@ public class SubscriptionController {
      *
      * <ul>
      *   <li><b>Path:</b> {@code POST /api/v1/subscriptions/checkout}</li>
-     *   <li><b>Body:</b> {@code {"plan":"MONTHLY"|"QUARTERLY"|"ANNUAL"}}</li>
+     *   <li><b>Body:</b> {@code {"plan":"MONTHLY"|"ALL_ACCESS"}}</li>
      *   <li><b>Response 200:</b> {@code {"checkoutUrl":"https://checkout.stripe.com/..."}}</li>
      * </ul>
      *

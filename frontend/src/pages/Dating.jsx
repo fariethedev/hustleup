@@ -5,8 +5,8 @@ import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { datingApi, subscriptionsApi, dispatchToast } from '../api/client';
 import { isPremiumActive } from '../utils/premium';
 import {
-  ThumbsUp, CircleX, WandSparkles, MessageCircleMore, CircleUserRound, Aperture, Gem, UserRound,
-  Rocket, Sparkle, Undo, Timer, BadgeInfo, ChartLine, CircleCheck, MoveLeft, MoveRight,
+  ThumbsUp, CircleX, WandSparkles, MessageCircleMore, CircleUserRound, Aperture, Gem,
+  Sparkle, Undo, Timer, BadgeInfo, ChartLine, CircleCheck, MoveLeft, MoveRight,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import BondCard from '../components/BondCard';
@@ -506,101 +506,96 @@ function ProfileSetupModal({ currentUser, existing, mandatory = false, onClose, 
 
 // ── Premium Paywall ──────────────────────────────────────────────────────────
 /**
- * @param onUpgrade   called with a plan id ('MONTHLY' | 'QUARTERLY' | 'ANNUAL')
+ * @param onUpgrade   called with a plan id ('MONTHLY' | 'ALL_ACCESS')
  * @param upgrading   the plan id currently being started, or null
  * @param plans       price list from GET /subscriptions/plans; null while loading
  */
 function PremiumPaywall({ onUpgrade, upgrading, plans }) {
-  const perks = [
-    { icon: ThumbsUp, text: 'Unlimited swipes on creatives near you' },
-    { icon: UserRound, text: 'See mutual matches and message instantly' },
-    { icon: Rocket, text: 'Priority placement in other members’ stacks' },
+  const plusPlan = plans?.find((p) => p.id === 'MONTHLY') || plans?.[0];
+  const allAccessPlan = plans?.find((p) => p.id === 'ALL_ACCESS') || plans?.[1];
+  const tiers = [
+    {
+      id: 'FREE',
+      name: 'Free',
+      price: '0 zł',
+      description: 'Get started and find your people.',
+      features: ['Browse the marketplace', 'Basic profile and messaging', 'Community feed'],
+    },
+    {
+      id: plusPlan?.id || 'MONTHLY',
+      name: 'Plus',
+      price: plusPlan ? `${formatPrice(Number(plusPlan.price), 'PLN')}/mo` : '9 zł/mo',
+      description: 'More visibility for your hustle.',
+      features: ['Everything in Free', 'Unlimited marketplace activity', 'Priority profile placement'],
+    },
+    {
+      id: allAccessPlan?.id || 'ALL_ACCESS',
+      name: 'All Access',
+      price: allAccessPlan ? `${formatPrice(Number(allAccessPlan.price), 'PLN')}/mo` : '20 zł/mo',
+      description: 'Unlock the full HustleSpace experience.',
+      features: ['Everything in Plus', 'Hustle Bond matching and swipes', 'Leaderboards and full insights'],
+      featured: true,
+    },
   ];
 
-  // The longest term is the best per-month value, so it is worth pointing at. Derived
-  // from the returned prices rather than hardcoded, so it stays correct if they change.
-  const bestValueId = plans?.length
-    ? plans.reduce((best, p) => (Number(p.pricePerMonth) < Number(best.pricePerMonth) ? p : best)).id
-    : null;
-
   return (
-    <div className="w-full max-w-sm mx-auto px-4">
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-center">
+    <div className="w-full max-w-4xl mx-auto px-4 py-2 overflow-y-auto">
+      <div className="text-center mb-5">
         <div className="w-11 h-11 rounded-full bg-[#CDFF00]/10 border border-[#CDFF00]/30 flex items-center justify-center mx-auto mb-3">
           <Gem className="w-5 h-5 text-[#CDFF00]" />
         </div>
-        <h2 className="text-base font-bold text-white mb-1">Bond is a Premium feature</h2>
-        <p className="text-xs text-gray-400 leading-relaxed mb-4">
-          Upgrade to connect with creatives and hustlers near you.
-        </p>
-
-        <div className="space-y-2 text-left mb-4">
-          {perks.map((p) => (
-            <div key={p.text} className="flex items-start gap-2.5">
-              <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
-                <p.icon className="w-3 h-3 text-[#CDFF00]" />
-              </div>
-              <span className="text-xs text-gray-300 leading-snug">{p.text}</span>
-            </div>
-          ))}
-        </div>
-
-        {!plans ? (
-          <div className="py-6 flex justify-center">
-            <span className="w-5 h-5 border-2 border-white/20 border-t-[#CDFF00] rounded-full animate-spin" />
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {plans.map((p) => {
-              const isBest = p.id === bestValueId && plans.length > 1;
-              const busy = upgrading === p.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => onUpgrade(p.id)}
-                  // Any in-flight checkout locks all three: a second click would open a
-                  // second Stripe session and risk charging twice.
-                  disabled={!!upgrading}
-                  className={`w-full py-2.5 px-3 rounded-xl font-bold text-sm active:scale-[0.99] transition-all disabled:opacity-60 flex items-center justify-between gap-2 ${
-                    isBest
-                      ? 'bg-[#CDFF00] text-black hover:bg-[#d9ff33]'
-                      : 'bg-white/5 text-white border border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    {p.label}
-                    {isBest && (
-                      <span className="text-[9px] font-extrabold tracking-wide px-1.5 py-0.5 rounded bg-black/20">
-                        Best value
-                      </span>
-                    )}
-                  </span>
-                  {busy ? (
-                    <span className={`w-4 h-4 border-2 rounded-full animate-spin ${
-                      isBest ? 'border-black/30 border-t-black' : 'border-white/30 border-t-white'
-                    }`} />
-                  ) : (
-                    <span className="text-right leading-tight">
-                      <span className="block">{formatPrice(Number(p.price), 'PLN')}</span>
-                      {p.months > 1 && (
-                        <span className={`block text-[9px] font-medium ${isBest ? 'text-black/60' : 'text-gray-400'}`}>
-                          {formatPrice(Number(p.pricePerMonth), 'PLN')}/mo
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {/* Prepaid terms, so there is nothing to cancel — the old "Cancel anytime"
-            line described a recurring plan that does not exist. */}
-        <p className="text-[10px] text-gray-500 mt-2.5">
-          One-off payment. Access ends when the term does.
+        <h2 className="text-xl font-black text-white mb-1">Choose your HustleSpace plan</h2>
+        <p className="text-xs text-gray-400 leading-relaxed max-w-md mx-auto">
+          Start free, upgrade when you need more reach, or unlock Bond and leaderboards with All Access.
         </p>
       </div>
-    </div>
+
+      {!plans ? (
+        <div className="py-6 flex justify-center">
+          <span className="w-5 h-5 border-2 border-white/20 border-t-[#CDFF00] rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-3 items-stretch">
+          {tiers.map((tier) => {
+            const paid = tier.id !== 'FREE';
+            const busy = upgrading === tier.id;
+            return (
+              <div
+                key={tier.id}
+                className={`relative flex flex-col text-left rounded-2xl border p-4 ${
+                  tier.featured ? 'border-[#CDFF00]/70 bg-[#CDFF00]/[0.08] shadow-[0_0_30px_-14px_#CDFF00]' : 'border-white/10 bg-white/[0.03]'
+                }`}
+              >
+                {tier.featured && <span className="absolute -top-2.5 right-4 px-2 py-1 rounded-full bg-[#CDFF00] text-[9px] font-black tracking-widest text-black">FULL ACCESS</span>}
+                <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500 font-black">{tier.name}</p>
+                <p className="text-2xl font-black text-white mt-2">{tier.price}</p>
+                <p className="text-xs text-gray-400 mt-1 min-h-8">{tier.description}</p>
+                <div className="space-y-2 mt-4 mb-5 flex-1">
+                  {tier.features.map((feature) => (
+                    <div key={feature} className="flex items-start gap-2 text-xs text-gray-300">
+                      <CircleCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+                {paid ? (
+                  <button
+                    onClick={() => onUpgrade(tier.id)}
+                    disabled={!!upgrading || !plans.find((p) => p.id === tier.id)}
+                    className={`w-full py-2.5 rounded-xl font-black text-xs transition-all disabled:opacity-50 ${tier.featured ? 'bg-[#CDFF00] text-black hover:bg-[#d9ff33]' : 'bg-white/10 text-white border border-white/10 hover:bg-white/15'}`}
+                  >
+                    {busy ? 'Opening checkout…' : `Choose ${tier.name}`}
+                  </button>
+                ) : (
+                  <div className="w-full py-2.5 rounded-xl border border-white/10 text-center text-xs font-black text-gray-500">Current starting tier</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p className="text-[10px] text-gray-500 mt-4 text-center">One-off payment. Access ends when the selected term does.</p>
+      </div>
   );
 }
 
@@ -1022,7 +1017,7 @@ export default function Dating() {
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [premium, setPremium] = useState(false);
   // Holds the plan id currently being started, not a boolean — the paywall needs to know
-  // WHICH of the three buttons to show a spinner on.
+  // which tier button to show a spinner on.
   const [upgrading, setUpgrading] = useState(null);
   // Price list from the server. Null means "not loaded yet" so the paywall can show a
   // spinner rather than briefly rendering an empty plan list.
@@ -1070,19 +1065,18 @@ export default function Dating() {
     checkAccess();
   }, [isAuthenticated]);
 
-  // Bond is Premium-gated: only load the discovery feed once an active
-  // subscription is confirmed. Anyone else sees the paywall instead.
+  // Bond is gated to All Access: Plus can still be purchased for marketplace visibility,
+  // while the 20 zł tier unlocks the matching deck and leaderboards.
   const checkAccess = async () => {
     setCheckingAccess(true);
     try {
       const res = await subscriptionsApi.my();
       const active = isPremiumActive(res.data);
-      setPremium(active);
-      if (active) await loadData();
+      const allAccess = active && Number(res.data?.pricePerMonth) >= 20;
+      setPremium(allAccess);
+      if (allAccess) await loadData();
       else {
-        // Only needed for the paywall, so it is not fetched for subscribers. A failure
-        // here leaves `plans` null and the paywall showing its spinner rather than an
-        // empty, un-buyable panel.
+        // Plus subscribers also need to see the upgrade tiers so they can move to All Access.
         subscriptionsApi.plans()
           .then((r) => setPlans(r.data?.plans ?? []))
           .catch(() => setPlans(null));
@@ -1281,8 +1275,8 @@ export default function Dating() {
 
   return (
     <div className="h-[calc(100vh-8.5rem-env(safe-area-inset-bottom))] md:h-[calc(100vh-4rem)] text-white font-sans flex flex-col overflow-hidden">
-      {/* Header: your profile, the section, your matches — the three places to go from here. */}
-      <header className="shrink-0 w-full max-w-sm mx-auto px-5 pt-3 pb-2.5 flex items-center justify-between">
+      {/* Compact discovery header: the deck stays the hero, not a full-height empty panel. */}
+      <header className="shrink-0 w-full max-w-md mx-auto px-5 pt-3 pb-2 flex items-center justify-between">
         <button
           onClick={() => setShowSetup(true)}
           aria-label={myProfile ? 'Edit your Bond profile' : 'Create your Bond profile'}
@@ -1299,10 +1293,12 @@ export default function Dating() {
           </span>
         </button>
 
-        <h1 className="flex items-center gap-2 text-lg sm:text-xl font-heading font-black text-white tracking-tight">
-          <ThumbsUp className="w-4 h-4 text-[#CDFF00] fill-[#CDFF00]" />
-          Bond
-        </h1>
+        <div className="text-center">
+          <h1 className="flex items-center justify-center gap-2 text-lg sm:text-xl font-heading font-black text-white tracking-tight">
+            <ThumbsUp className="w-4 h-4 text-[#CDFF00] fill-[#CDFF00]" /> Bond
+          </h1>
+          <p className="text-[9px] text-gray-500 font-bold tracking-[0.16em] uppercase mt-1">Swipe to connect</p>
+        </div>
 
         <Link
           to="/dm"
@@ -1338,7 +1334,8 @@ export default function Dating() {
           )}
 
           {/* ── The deck ──────────────────────────────────────────────────── */}
-          <div className="relative flex-1 min-h-0">
+          <div className="relative flex-1 min-h-0 flex items-center justify-center">
+            <div className="relative w-full max-w-[380px] h-full max-h-[min(62vh,560px)] aspect-[0.72]">
             {deck.length === 0 ? (
               <div className="w-full h-full flex flex-col items-center justify-center bg-white/[0.02] border border-dashed border-white/10 rounded-3xl p-6 text-center">
                 <div className="w-14 h-14 rounded-full bg-white/[0.04] flex items-center justify-center mb-4">
@@ -1381,6 +1378,7 @@ export default function Dating() {
                 )}
               </>
             )}
+            </div>
           </div>
 
           {/* ── Controls ──────────────────────────────────────────────────── */}
@@ -1421,6 +1419,9 @@ export default function Dating() {
               fill
             />
           </div>
+          <p className="shrink-0 text-center text-[9px] text-gray-600 font-bold tracking-wide pt-2">
+            Swipe left to pass · right to like · up for a super like
+          </p>
         </div>
       )}
 

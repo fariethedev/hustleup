@@ -377,7 +377,9 @@ export const directMessagesApi = {
     formData.append('image', file);
     if (caption) formData.append('caption', caption);
     return api.post(`/direct-messages/${partnerId}/media`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      // Let the browser/Axios add the multipart boundary. Setting this header manually can
+      // omit the boundary in some mobile browsers, so the server receives no image part.
+      headers: { 'Content-Type': undefined },
     });
   },
   // In-app share: sends a rich listing card (not a text link) into the DM thread.
@@ -641,7 +643,7 @@ export const subscriptionsApi = {
    * with no payment. Premium is now granted only by Stripe's signed webhook, after the
    * money clears — so the caller must send the buyer to `checkoutUrl` and wait.
    *
-   * @param {'MONTHLY'|'QUARTERLY'|'ANNUAL'} plan
+   * @param {'MONTHLY'|'ALL_ACCESS'} plan
    */
   checkout: (plan) => api.post('/subscriptions/checkout', { plan }),
   /**

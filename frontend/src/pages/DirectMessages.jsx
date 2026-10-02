@@ -92,10 +92,10 @@ function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
       {/* Kept deliberately short. This sits above the conversations, so every pixel it takes
           is one fewer row of actual chat visible on a phone — it is an entry point, not a
           section of its own. */}
-      <div className="relative rounded-2xl border border-[#FF4E8E]/30 bg-gradient-to-b from-[#FF4E8E]/[0.12] via-[#FF4E8E]/[0.04] to-transparent p-2.5 overflow-hidden">
+      <div className="relative rounded-2xl border border-[#FF4E8E]/30 bg-gradient-to-b from-[#FF4E8E]/[0.12] via-[#FF4E8E]/[0.04] to-transparent px-2.5 py-2 overflow-hidden">
         <HeartField count={6} />
 
-        <div className="relative flex items-center gap-1.5 mb-2">
+        <div className="relative flex items-center gap-1.5 mb-1.5">
           <motion.span
             animate={reduceMotion ? {} : { scale: [1, 1.18, 1] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
@@ -114,7 +114,7 @@ function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
           </span>
         </div>
 
-        <div className="relative flex gap-3 overflow-x-auto overscroll-x-contain scrollbar-hide">
+        <div className="relative flex gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide">
           {matches.map((m) => (
             <motion.button
               key={m.id}
@@ -122,11 +122,11 @@ function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
               whileHover={reduceMotion ? {} : { y: -2 }}
               whileTap={{ scale: 0.94 }}
               transition={SOFT_SPRING}
-              className="shrink-0 w-[50px] flex flex-col items-center gap-1"
+              className="shrink-0 w-[40px] flex items-center justify-center"
               aria-label={`Open your match with ${m.name || m.fullName}`}
             >
               <span
-                className="relative w-[46px] h-[46px] rounded-full p-[2px]"
+                className="relative w-[38px] h-[38px] rounded-full p-[2px]"
                 style={{ background: `linear-gradient(135deg, ${ROSE}, ${BLUSH})` }}
               >
                 <span className="block w-full h-full rounded-full overflow-hidden border-2 border-[#0A0A0A] bg-black">
@@ -137,14 +137,11 @@ function NewMatchesStrip({ matches, onOpen, reduceMotion }) {
                       </span>}
                 </span>
                 <span
-                  className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] rounded-full border-2 border-[#0A0A0A] flex items-center justify-center"
+                  className="absolute -bottom-0.5 -right-0.5 w-[15px] h-[15px] rounded-full border-2 border-[#0A0A0A] flex items-center justify-center"
                   style={{ backgroundColor: ROSE }}
                 >
-                  <ThumbsUp className="w-2.5 h-2.5 text-white fill-white" />
+                  <ThumbsUp className="w-2 h-2 text-white fill-white" />
                 </span>
-              </span>
-              <span className="text-[10px] font-bold text-white/85 truncate w-full text-center">
-                {firstNameOf(m)}
               </span>
             </motion.button>
           ))}
@@ -502,7 +499,12 @@ export default function DirectMessages() {
     setSendingIds((prev) => new Set(prev).add(tempId));
     try {
       const res = await request();
-      setMessages((prev) => prev.map((m) => (m.id === tempId ? res.data : m)));
+      // Keep the local preview if an older gateway returns the persisted message without
+      // mediaUrl. Newer responses replace it with the durable server URL immediately.
+      const serverMessage = optimisticFields.messageType === 'IMAGE' && !res.data?.mediaUrl
+        ? { ...res.data, mediaUrl: optimisticFields.mediaUrl }
+        : res.data;
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? serverMessage : m)));
       return true;
     } catch (err) {
       console.error(err);
@@ -1775,9 +1777,10 @@ export default function DirectMessages() {
                                     // nothing of the kind — the photo sends fine and then shows
                                     // as a broken bubble. Every other image on this page already
                                     // goes through uploadUrl; this one was missed.
-                                    src={uploadUrl(msg.mediaUrl)}
+                                    src={msg.mediaUrl}
                                     alt="Photo"
                                     onClick={() => setLightboxUrl(msg.mediaUrl)}
+                                    loading="eager"
                                     className={`rounded-xl max-h-[320px] w-full min-w-[180px] aspect-[4/3] object-cover cursor-pointer ${pending ? 'opacity-60' : ''}`}
                                   />
                                   {msg.content && (

@@ -9,7 +9,7 @@ import GlobalSearch from './GlobalSearch';
 import { timeAgo } from '../utils/time';
 import { displayName } from '../utils/displayName';
 import PendingSalesButton from './PendingSalesButton';
-import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, BellRing, CheckCheck, MoreHorizontal, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
+import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, BellRing, CheckCheck, MoreHorizontal, LayoutGrid, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { uploadUrl } from '../config';
 
@@ -541,9 +541,8 @@ export default function Navbar() {
       </nav>
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
-      {/* Floating rounded island centred above the safe area (Instagram-style)
-          rather than a full-bleed bar welded to the screen edge. Icon-only so the
-          pill stays narrow enough to sit centred on small phones. */}
+      {/* Floating rounded island centred above the safe area. The account avatar remains in
+          the top bar, so the bottom island only contains destinations and More. */}
       <div className={`md:hidden fixed inset-x-3 bottom-[calc(0.5rem+env(safe-area-inset-bottom))] z-[250] flex justify-center pointer-events-none transition-transform duration-200 motion-reduce:transition-none ${navHidden && !moreOpen ? 'translate-y-[calc(100%+2rem+env(safe-area-inset-bottom))]' : ''}`}>
         {moreOpen && (
           <>
@@ -569,7 +568,7 @@ export default function Navbar() {
             </div>
           </>
         )}
-        <div className="pointer-events-auto flex items-center justify-around w-full max-w-sm h-[58px] px-1 rounded-full bg-[#0a0a0a] border border-white/15 shadow-lg">
+        <div className="pointer-events-auto flex items-center justify-around w-full max-w-[310px] h-[56px] px-1 rounded-full bg-[#0a0a0a] border border-white/15 shadow-lg">
           {visibleTabs.map((item) => {
             const { to, icon: Icon, label, badge, accent } = item;
             const active = isActive(to);
@@ -598,7 +597,7 @@ export default function Navbar() {
             );
           })}
 
-          {/* More — Jobs & Gigs, Campus News */}
+          {/* More — secondary destinations, Bond, account tools */}
           <button
             onClick={() => setMoreOpen((v) => !v)}
             aria-label="More"
@@ -607,34 +606,8 @@ export default function Navbar() {
               moreOpen ? 'bg-white/10' : ''
             }`}
           >
-            <MoreHorizontal className={`w-[22px] h-[22px] ${moreOpen ? 'text-[#CDFF00]' : 'text-gray-400'}`} strokeWidth={moreOpen ? 2.5 : 1.9} />
+            <LayoutGrid className={`w-[21px] h-[21px] ${moreOpen ? 'text-[#CDFF00]' : 'text-gray-400'}`} strokeWidth={moreOpen ? 2.5 : 1.9} />
           </button>
-
-          {/* Profile */}
-          {isAuthenticated ? (
-            <Link
-              to={`/profile/${user?.id}`}
-              aria-label="Profile"
-              className="flex items-center justify-center w-[46px] h-[46px] rounded-full transition-transform active:scale-90"
-            >
-              <div className={`w-[26px] h-[26px] rounded-full overflow-hidden ${
-                location.pathname.startsWith('/profile') ? 'ring-2 ring-[#CDFF00]' : 'ring-1 ring-white/25'
-              }`}>
-                {user?.avatarUrl
-                  ? <img src={uploadUrl(user.avatarUrl)} alt="" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full bg-gray-800 flex items-center justify-center text-[#CDFF00] font-black text-[9px]">{displayName(user)[0]?.toUpperCase() || 'U'}</div>
-                }
-              </div>
-            </Link>
-          ) : (
-            <Link
-              to="/register"
-              aria-label="Join"
-              className="flex items-center justify-center w-[46px] h-[46px] rounded-full transition-transform active:scale-90"
-            >
-              <User className="w-[22px] h-[22px] text-gray-400" strokeWidth={1.9} />
-            </Link>
-          )}
         </div>
       </div>
 

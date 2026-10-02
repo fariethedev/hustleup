@@ -4,7 +4,9 @@ import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { Medal, Banknote, Cigarette, ShieldCheck, Loader, ChartLine, Recycle } from 'lucide-react';
 import { leaderboardApi } from '../api/client';
+import { subscriptionsApi, dispatchToast } from '../api/client';
 import { selectIsAuthenticated } from '../store/authSlice';
+import { isPremiumActive } from '../utils/premium';
 import { formatPrice } from '../utils/constants';
 import { uploadUrl } from '../config';
 
@@ -51,14 +53,32 @@ export default function Leaderboard() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myScore, setMyScore] = useState(null);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [allAccess, setAllAccess] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setCheckingAccess(false);
+      return;
+    }
+    subscriptionsApi.my()
+      .then((r) => setAllAccess(isPremiumActive(r.data) && Number(r.data?.pricePerMonth) >= 20))
+      .catch(() => setAllAccess(false))
+      .finally(() => setCheckingAccess(false));
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (checkingAccess || !allAccess) {
+      if (!checkingAccess) setLoading(false);
+      return;
+    }
     setLoading(true);
     leaderboardApi.board(metric, window_, 25)
       .then((r) => setRows(r.data || []))
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
-  }, [metric, window_]);
+  }, [metric, window_, checkingAccess, allAccess]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -72,6 +92,44 @@ export default function Leaderboard() {
     if (metric === 'score') return e.hustleScore;
     return `${e.salesCount} sale${e.salesCount === 1 ? '' : 's'}`;
   };
+
+  const unlockLeaderboards = async () => {
+    setUpgrading(true);
+    try {
+      const res = await subscriptionsApi.checkout('ALL_ACCESS');
+      if (!res.data?.checkoutUrl) throw new Error('No checkout URL returned');
+      window.location.assign(res.data.checkoutUrl);
+    } catch {
+      dispatchToast('Could not start checkout — try again', 'error');
+      setUpgrading(false);
+    }
+  };
+
+  if (checkingAccess || (!isAuthenticated && checkingAccess)) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-500"><Loader className="w-6 h-6 animate-spin" /></div>;
+  }
+
+  if (!allAccess) {
+    return (
+      <div className="min-h-screen text-white font-sans pb-24 px-4 pt-16">
+        <div className="max-w-md mx-auto rounded-3xl border border-[#CDFF00]/30 bg-[#CDFF00]/[0.06] p-7 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[#CDFF00] flex items-center justify-center mx-auto mb-4">
+            <Medal className="w-7 h-7 text-black" strokeWidth={3} />
+          </div>
+          <p className="text-[10px] text-[#CDFF00] font-black tracking-[0.2em] uppercase">All Access feature</p>
+          <h1 className="text-2xl font-black mt-2">See who’s leading the hustle</h1>
+          <p className="text-sm text-gray-400 leading-relaxed mt-3">Unlock leaderboards, Bond matching, and the complete HustleSpace experience for 20 zł/month.</p>
+          {isAuthenticated ? (
+            <button onClick={unlockLeaderboards} disabled={upgrading} className="w-full mt-6 py-3 rounded-xl bg-[#CDFF00] text-black text-sm font-black hover:bg-[#d9ff33] disabled:opacity-50">
+              {upgrading ? 'Opening checkout…' : 'Unlock All Access · 20 zł'}
+            </button>
+          ) : (
+            <Link to="/login" className="block w-full mt-6 py-3 rounded-xl bg-[#CDFF00] text-black text-sm font-black hover:bg-[#d9ff33]">Sign in to unlock</Link>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen text-white font-sans pb-24">

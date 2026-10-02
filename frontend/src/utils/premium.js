@@ -21,7 +21,7 @@ export const PREMIUM_PLAN = 'VERIFIED';
  * Stripe charges. This is only the set of valid identifiers, for validating what a caller
  * passes before it reaches the server.
  */
-export const PLAN_IDS = ['MONTHLY', 'QUARTERLY', 'ANNUAL'];
+export const PLAN_IDS = ['MONTHLY', 'ALL_ACCESS'];
 
 /**
  * Whether a subscription record grants Premium right now.
