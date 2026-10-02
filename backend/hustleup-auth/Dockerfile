@@ -27,8 +27,8 @@ RUN mvn -B -pl hustleup-auth -am package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=build /build/hustleup-auth/target/hustleup-auth-1.0.0.jar app.jar
-# preferIPv6Addresses: Railway private networking is IPv6; Java otherwise picks IPv4
-# when a hostname resolves to both, which breaks *.railway.internal lookups.
-ENV JAVA_OPTS="-Xmx400m -XX:+UseSerialGC -Djava.net.preferIPv6Addresses=true"
+# Prefer IPv4 for public endpoints; keep dual-stack sockets for Railway's IPv6 private network.
+# Forcing IPv6 picks unreachable public addresses when outbound IPv6 is disabled.
+ENV JAVA_OPTS="-Xmx400m -XX:+UseSerialGC -Djava.net.preferIPv6Addresses=false"
 EXPOSE 8081
 ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar app.jar"]

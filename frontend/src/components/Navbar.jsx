@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectUser, selectIsAuthenticated, logout } from '../store/authSlice';
 import { notificationsApi, directMessagesApi } from '../api/client';
@@ -21,6 +21,7 @@ import { uploadUrl } from '../config';
 // before — it had no mobile entry point at all).
 const MORE_LINKS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', auth: true },
+  { to: '/dashboard?tab=sales', icon: ShoppingBag, label: 'My sales', auth: true, mobileOnly: true },
   { to: '/settings', icon: SettingsIcon, label: 'Settings', auth: true },
   // Bond is a top-level tab on desktop but lives in here on a phone. The bottom bar holds
   // a handful of targets, and Home / Explore / Feed / Messages are the ones people move
@@ -62,18 +63,23 @@ export default function Navbar() {
   useEffect(() => {
     lastScrollY.current = window.scrollY;
     const onScroll = () => {
-      const current = Math.max(0, window.scrollY);
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const current = Math.min(maxScroll, Math.max(0, window.scrollY));
       const delta = current - lastScrollY.current;
       setScrolled(current > 20);
 
       // Facebook-style behaviour: give the page room while reading down, then bring
       // the controls back as soon as the user reverses direction. The small threshold
       // prevents a touchpad's one-pixel jitter from making the bar flicker.
-      if (current <= 24 || delta < -6) setNavHidden(false);
-      else if (delta > 6) setNavHidden(true);
-      lastScrollY.current = current;
+      if (current <= 24) {
+        setNavHidden(false);
+        lastScrollY.current = current;
+      } else if (Math.abs(delta) >= 12) {
+        setNavHidden(delta > 0);
+        lastScrollY.current = current;
+      }
     };
-    window.addEventListener('scroll', onScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
@@ -127,9 +133,6 @@ export default function Navbar() {
       document.removeEventListener('keydown', onKey);
     };
   }, [accountOpen]);
-
-  // Navigating away should never leave the sheet hanging open behind the new page.
-  useEffect(() => { setAccountOpen(false); }, [location]);
 
   const handleLogout = () => {
     setAccountOpen(false);
@@ -254,7 +257,7 @@ export default function Navbar() {
       {/* ── TOP NAV BAR ── */}
       <nav
         id="main-navbar"
-        className={`fixed top-0 left-0 right-0 z-[200] will-change-transform transition-all duration-300 ${navHidden ? '-translate-y-full' : 'translate-y-0'} ${
+        className={`fixed top-0 left-0 right-0 z-[200] transition-transform duration-200 motion-reduce:transition-none ${navHidden && !moreOpen && !notifOpen && !accountOpen && !searchOpen ? '-translate-y-full pointer-events-none' : ''} ${
           scrolled ? 'glass bg-black/60 border-b border-white/5 shadow-sm backdrop-blur-2xl' : 'bg-transparent'
         }`}
       >
@@ -274,7 +277,8 @@ export default function Navbar() {
             {/* Desktop Nav — icon + word label so the active section is never a guess */}
             <div className="hidden md:flex flex-1 items-center justify-center">
               <div className="flex items-center gap-0.5 bg-white/5 border border-white/10 p-1 rounded-xl backdrop-blur-xl">
-                {visibleItems.map(({ to, icon: Icon, label, accent, badge }) => {
+                {visibleItems.map((item) => {
+                  const { to, icon: Icon, label, accent, badge } = item;
                   const active = isActive(to);
                   return (
                     <Link
@@ -320,7 +324,9 @@ export default function Navbar() {
                         {/* mobileOnly entries are excluded: they exist to reach something the
                             phone's bottom bar has no room for, and desktop already has it as
                             a top-level tab. */}
-                        {MORE_LINKS.filter((l) => !l.mobileOnly).map(({ to, icon: Icon, label }) => (
+                        {MORE_LINKS.filter((l) => !l.mobileOnly).map((item) => {
+                          const { to, icon: Icon, label } = item;
+                          return (
                           <Link
                             key={to}
                             to={to}
@@ -329,7 +335,8 @@ export default function Navbar() {
                           >
                             <Icon className="w-4 h-4" /> {label}
                           </Link>
-                        ))}
+                          );
+                        })}
                       </div>
                     </>
                   )}
@@ -488,7 +495,7 @@ export default function Navbar() {
 
                   <AnimatePresence>
                     {accountOpen && (
-                      <motion.div
+                      <Motion.div
                         initial={{ opacity: 0, y: -6, scale: 0.97 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -6, scale: 0.97 }}
@@ -518,7 +525,7 @@ export default function Navbar() {
                         >
                           <LogOut className="w-3.5 h-3.5 mr-2" /> Sign Out
                         </button>
-                      </motion.div>
+                      </Motion.div>
                     )}
                   </AnimatePresence>
                 </div>
@@ -537,12 +544,14 @@ export default function Navbar() {
       {/* Floating rounded island centred above the safe area (Instagram-style)
           rather than a full-bleed bar welded to the screen edge. Icon-only so the
           pill stays narrow enough to sit centred on small phones. */}
-      <div className="md:hidden fixed left-1/2 -translate-x-1/2 bottom-[calc(0.875rem+env(safe-area-inset-bottom))] z-[250]">
+      <div className={`md:hidden fixed inset-x-3 bottom-[calc(0.5rem+env(safe-area-inset-bottom))] z-[250] flex justify-center pointer-events-none transition-transform duration-200 motion-reduce:transition-none ${navHidden && !moreOpen ? 'translate-y-[calc(100%+2rem+env(safe-area-inset-bottom))]' : ''}`}>
         {moreOpen && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 py-1.5 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl z-50 backdrop-blur-3xl">
-              {MORE_LINKS.filter((l) => !l.auth || isAuthenticated).map(({ to, icon: Icon, label }) => (
+            <div className="fixed inset-0 z-40 pointer-events-auto" onClick={() => setMoreOpen(false)} />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 max-h-[70dvh] overflow-y-auto overscroll-contain py-1.5 bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl z-50 pointer-events-auto">
+              {MORE_LINKS.filter((l) => !l.auth || isAuthenticated).map((item) => {
+                const { to, icon: Icon, label } = item;
+                return (
                 <Link
                   key={to}
                   to={to}
@@ -551,7 +560,8 @@ export default function Navbar() {
                 >
                   <Icon className="w-4 h-4" /> {label}
                 </Link>
-              ))}
+                );
+              })}
               {/* No profile link here. It was duplicating the one in the avatar menu at the
                   top of the screen, which is where people look for their own account and
                   which also holds Sign Out — so this menu stays about places to go, not
@@ -559,8 +569,9 @@ export default function Navbar() {
             </div>
           </>
         )}
-        <div className="flex items-center gap-0.5 h-[58px] px-2 rounded-full bg-[#0a0a0a]/85 border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
-          {visibleTabs.map(({ to, icon: Icon, label, badge, accent }) => {
+        <div className="pointer-events-auto flex items-center justify-around w-full max-w-sm h-[58px] px-1 rounded-full bg-[#0a0a0a] border border-white/15 shadow-lg">
+          {visibleTabs.map((item) => {
+            const { to, icon: Icon, label, badge, accent } = item;
             const active = isActive(to);
             return (
               <Link
@@ -598,9 +609,6 @@ export default function Navbar() {
           >
             <MoreHorizontal className={`w-[22px] h-[22px] ${moreOpen ? 'text-[#CDFF00]' : 'text-gray-400'}`} strokeWidth={moreOpen ? 2.5 : 1.9} />
           </button>
-
-          {/* Seller's outstanding orders — same component, sized for the tab island. */}
-          {isAuthenticated && <PendingSalesButton compact />}
 
           {/* Profile */}
           {isAuthenticated ? (

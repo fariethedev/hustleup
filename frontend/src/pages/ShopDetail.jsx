@@ -175,7 +175,7 @@ export default function ShopDetail() {
   return (
     <div className="min-h-screen text-white">
       {/* Immersive Shop Banner & Header */}
-      <section className="relative h-[260px] sm:h-[320px] overflow-hidden media-overlay">
+      <section className="relative h-[320px] sm:h-[380px] overflow-hidden media-overlay border-b border-white/10">
         <Motion.div
           initial={{ scale: 1.1 }}
           animate={{ scale: 1 }}
@@ -209,7 +209,7 @@ export default function ShopDetail() {
 
             The icons also carry `w-4 h-4` now: the two buttons asked for `w-4.5`, which is
             not a Tailwind size, so they were rendering at whatever the SVG default was. */}
-        <div className="absolute top-16 sm:top-20 left-0 right-0 px-4 sm:px-12 flex items-center justify-between gap-2 z-20">
+        <div className="absolute top-4 sm:top-6 left-0 right-0 max-w-7xl mx-auto px-4 sm:px-12 flex items-center justify-between gap-2 z-20">
           <Link
             to="/explore/shops"
             aria-label="All shops"
@@ -222,7 +222,7 @@ export default function ShopDetail() {
                 seeing the page is usually what prompts wanting to change it. */}
             {isOwner && (
               <Link
-                to="/dashboard"
+                to="/dashboard?tab=shop"
                 aria-label="Edit shop"
                 className="flex items-center justify-center gap-2 h-10 w-10 sm:w-auto sm:px-4 rounded-2xl bg-[#CDFF00] text-black font-black text-[10px] tracking-widest hover:scale-105 transition-transform active:scale-95"
               >
@@ -313,8 +313,9 @@ export default function ShopDetail() {
                 <Navigation className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#CDFF00] shrink-0" /> {displayCity(shop.city)}
               </span>
               {shop.ownerName && (
-                <Link to={`/profile/${shop.ownerId}`} className="flex items-center gap-1.5 sm:gap-2 min-w-0 hover:text-white transition-colors">
-                  <span className="opacity-50 shrink-0">by</span> <span className="truncate">{shop.ownerName}</span>
+                <Link to={`/profile/${shop.ownerId}`} className="flex items-center gap-2 min-w-0 rounded-full bg-white/5 px-2 py-1 hover:bg-white/10 transition-colors">
+                  <SmartImage src={uploadUrl(shop.ownerAvatarUrl)} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                  <span className="text-gray-400 shrink-0">By</span><span className="truncate">{shop.ownerName}</span>
                 </Link>
               )}
             </Motion.div>
@@ -324,7 +325,7 @@ export default function ShopDetail() {
 
       {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-10">
-        <div className="grid lg:grid-cols-[1fr_320px] gap-6 lg:gap-10 items-start">
+        <div className={`grid gap-6 lg:gap-10 items-start ${isOwner || shop.appointmentBased || isAppointmentBusiness(shop.businessType) ? 'lg:grid-cols-[minmax(0,1fr)_280px]' : ''}`}>
 
           {/* Left Column: Feed & Explore */}
           <div className="order-2 lg:order-1 min-w-0">
@@ -349,10 +350,9 @@ export default function ShopDetail() {
             )}
 
             {/* Breadcrumb Navigation */}
-            <div className="flex items-center gap-3 text-[10px] font-black tracking-widest text-gray-500 mb-6">
-              <Link to="/explore/shops" className="hover:text-[#CDFF00] transition-colors">Shops</Link>
-              <CircleChevronRight className="w-3 h-3" />
-              <span className="text-[#CDFF00]">{shop.name}</span>
+            <div className="flex items-center justify-between gap-3 mb-5">
+              <h2 className="text-xl font-bold tracking-tight text-white">Shop the collection</h2>
+              <span className="text-xs text-gray-400 shrink-0">{products.length} products</span>
             </div>
 
             {products.length > 0 && (
@@ -406,7 +406,7 @@ export default function ShopDetail() {
                       aria-disabled={!isProductInStock(product) || isOwner}
                       className="flex flex-col h-full"
                     >
-                      <div className="relative aspect-[4/5] overflow-hidden bg-black shrink-0">
+                      <div className="relative aspect-square overflow-hidden bg-[#141414] shrink-0">
                         <SmartImage
                           src={uploadUrl(product.imageUrl)}
                           alt={product.name}
@@ -512,7 +512,7 @@ export default function ShopDetail() {
           {/* Right Column: Sidebar. `order-1` on mobile puts the booking widget and the
               message button directly under the hero instead of below every product; sticky
               is desktop-only, where there is actually a second column to stick beside. */}
-          <aside className="order-1 lg:order-2 lg:sticky lg:top-32 flex flex-col gap-5 lg:gap-8 w-full min-w-0">
+          {(isOwner || shop.appointmentBased || isAppointmentBusiness(shop.businessType)) && <aside className="order-1 lg:order-2 lg:sticky lg:top-24 flex flex-col gap-5 lg:gap-8 w-full min-w-0">
              {isOwner && (
                <div className="p-5 rounded-3xl sm:rounded-[32px] bg-[#CDFF00]/5 border border-[#CDFF00]/30">
                   <h5 className="text-[10px] font-black tracking-widest text-[#CDFF00] mb-1.5">This is your shop</h5>
@@ -521,7 +521,7 @@ export default function ShopDetail() {
                     is yours to change.
                   </p>
                   <Link
-                    to="/dashboard"
+                    to="/dashboard?tab=shop"
                     className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] transition-colors"
                   >
                     <SquarePen className="w-3.5 h-3.5" /> Edit shop
@@ -531,27 +531,7 @@ export default function ShopDetail() {
 
              {(shop.appointmentBased || isAppointmentBusiness(shop.businessType)) && <AppointmentBooking key={shop.id} shop={shop} />}
 
-             {/* "Run by" used to live here as a full panel ending in a Message owner button.
-                 Messaging moved to the action row in the hero; who runs the shop is one line
-                 rather than a card, and still links to their profile. */}
-             {!isOwner && (
-               <Link
-                 to={`/profile/${shop.ownerId}`}
-                 className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/15 transition-colors group"
-               >
-                 <div className="w-8 h-8 rounded-full overflow-hidden bg-black border border-white/10 shrink-0">
-                   <SmartImage src={shop.ownerAvatarUrl} alt={shop.ownerName} className="w-full h-full object-cover" />
-                 </div>
-                 <div className="min-w-0 flex-1">
-                   <p className="text-[9px] font-black tracking-widest text-gray-500">Run by</p>
-                   <p className="text-xs font-bold text-white truncate group-hover:text-[#CDFF00] transition-colors">
-                     {shop.ownerName || 'Seller'}
-                   </p>
-                 </div>
-                 <CircleChevronRight className="w-3.5 h-3.5 text-gray-600 shrink-0 group-hover:text-white transition-colors" />
-               </Link>
-             )}
-          </aside>
+          </aside>}
         </div>
 
         {/* The owner's marketplace listings — the other half of what this seller offers. */}

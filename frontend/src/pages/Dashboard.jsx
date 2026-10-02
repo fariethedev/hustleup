@@ -30,12 +30,17 @@ export default function Dashboard() {
   // Availability and Payouts from everyone who had paid for exactly those things.
   const { canSell: isSeller, loading: checkingAccess } = useSellerAccess();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Deep-linkable tab. Stripe returns a buyer here after a storefront purchase with
   // ?tab=orders, so the first thing they see is the order they just paid for rather than a
   // dashboard they have to go looking through.
-  const [tab, setTab] = useState(() => searchParams.get('tab') || 'bookings');
+  const tab = searchParams.get('tab') || 'bookings';
+  const setTab = (next) => setSearchParams((previous) => {
+    const params = new URLSearchParams(previous);
+    params.set('tab', next);
+    return params;
+  }, { replace: true });
   const [bookings, setBookings] = useState([]);
   const [listings, setListings] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -357,6 +362,7 @@ export default function Dashboard() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-14">
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
+          <div className={tab === 'shop' ? 'hidden' : ''}>
           <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0B0B0B] mb-6 shadow-[0_24px_70px_rgba(0,0,0,0.35)]">
             <div className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-[#CDFF00]/10 blur-3xl pointer-events-none" />
             <div className="absolute -left-20 bottom-0 w-56 h-32 rounded-full bg-[#FF00FF]/[0.08] blur-3xl pointer-events-none" />
@@ -472,6 +478,7 @@ export default function Dashboard() {
             </div>
           )}
 
+          </div>
           {/* Control row: tabs grouped by who they serve, plus actions.
               A seller can have Bookings/Tickets/Door/Listings/Sales/Availability/Payouts/
               Alerts tabs plus Post New and Settings all at once — flex-wrap with no scroll

@@ -69,9 +69,9 @@ export default function App() {
       <CrispChat />
       <BookingAlertListener />
       <VerifyEmailPrompt />
-      <Navbar />
+      <Navbar key={location.pathname} />
       <CartDrawer />
-      <main className={`flex-1 ${location.pathname === '/' ? 'pt-0 pb-0' : noFooter ? 'pt-14 md:pt-16 pb-0' : 'pt-14 md:pt-16 pb-16 md:pb-0'}`}>
+      <main className={`flex-1 ${location.pathname === '/' ? 'pt-0 pb-0' : noFooter ? 'pt-14 md:pt-16 pb-0' : 'pt-14 md:pt-16 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0'}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route element={<GuestOnlyRoute />}>

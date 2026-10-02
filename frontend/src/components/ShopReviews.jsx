@@ -134,8 +134,7 @@ export default function ShopReviews({ shopId, ownerId, ownerName, rating = 0, re
       <div className="mb-8 flex items-center gap-3 p-4 rounded-2xl bg-white/[0.02] border border-white/10 border-dashed">
         <Quote className="w-5 h-5 text-white/25 shrink-0" />
         <p className="text-xs text-gray-500">
-          No reviews yet — {ownerName || 'this seller'} hasn&apos;t completed a transaction on
-          HustleSpace so far. Ratings appear here automatically once they do.
+          No reviews yet. Customer ratings will appear here after purchases are reviewed.
         </p>
       </div>
     );

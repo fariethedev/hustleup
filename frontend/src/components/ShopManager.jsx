@@ -60,6 +60,7 @@ export default function ShopManager({ user }) {
   const [appointmentBusy, setAppointmentBusy] = useState(null);
   const [productSearch, setProductSearch] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
+  const [section, setSection] = useState('products');
 
   const loadBookingData = useCallback(async (shopId) => {
     setBookingLoading(true);
@@ -299,21 +300,41 @@ export default function ShopManager({ user }) {
       || (stockFilter === 'untracked' && p.stockQuantity == null)));
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-end justify-between gap-4 px-1">
-        <div>
-          <p className="text-[9px] font-black tracking-[0.24em] text-[#CDFF00] uppercase">Storefront workspace</p>
-          <h2 className="mt-1 text-2xl sm:text-3xl font-black tracking-[-0.05em] text-white">Edit your shop</h2>
-          <p className="mt-1 text-xs text-gray-500">Shape the storefront customers see, then keep the shelf and schedule moving.</p>
+    <div className="space-y-5 min-w-0">
+      <div className="rounded-3xl border border-white/10 bg-[#101010] p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-[#CDFF00]">Manage shop</p>
+          <h2 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-white break-words">{shop.name}</h2>
+          <p className="mt-2 text-sm text-gray-400">Your products, storefront and customer bookings.</p>
         </div>
-        <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[9px] font-black tracking-widest text-gray-400">
-          {dirty ? 'Unsaved changes' : 'All changes saved'}
-        </span>
+        <Link to={`/shop/${shop.slug || shop.id}`} className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-xs font-semibold text-white hover:bg-white/5">
+          <SquareArrowOutUpRight className="w-4 h-4" /> View shop
+        </Link>
       </div>
-
-      <div className="grid lg:grid-cols-[minmax(0,1.12fr)_minmax(280px,0.88fr)] gap-4 items-start">
+      <div className="grid grid-cols-3 gap-3 mt-5 pt-5 border-t border-white/10">
+        <div><p className="text-lg font-bold text-white">{products.length}</p><p className="text-xs text-gray-400">Products</p></div>
+        <div><p className="text-lg font-bold text-white">{products.filter((p) => p.stockQuantity === 0).length}</p><p className="text-xs text-gray-400">Out of stock</p></div>
+        <div><p className={`text-lg font-bold ${shop.published ? 'text-[#CDFF00]' : 'text-gray-400'}`}>{shop.published ? 'Live' : 'Hidden'}</p><p className="text-xs text-gray-400">Visibility</p></div>
+      </div>
+      </div>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Shop sections">
+        {[
+          { id: 'products', label: 'Products', icon: Box },
+          { id: 'storefront', label: 'Edit storefront', icon: Paintbrush },
+          ...(isAppointmentBusiness(shop.businessType) ? [{ id: 'bookings', label: 'Appointments', icon: CalendarClock }] : []),
+        ].map((item) => {
+              const { id, label, icon: Icon } = item;
+              return (
+          <button key={id} onClick={() => setSection(id)} aria-pressed={section === id} className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${section === id ? 'bg-[#CDFF00] text-black' : 'bg-white/5 text-gray-400 hover:text-white'}`}>
+            <Icon className="w-4 h-4" /> {label}{id === 'storefront' && dirty && <span className="w-2 h-2 rounded-full bg-amber-400" aria-label="Unsaved changes" />}
+          </button>
+        ); })}
+      </div>
+      <div className={section === 'storefront' ? 'grid lg:grid-cols-[minmax(0,1.2fr)_minmax(240px,0.8fr)] gap-5 items-start' : 'hidden'}>
       {/* ── Live preview of the card buyers see, so edits have an obvious target ── */}
-      <div className="glass rounded-2xl border border-white/5 overflow-hidden lg:order-2 lg:sticky lg:top-24">
+      <div className="rounded-2xl bg-[#101010] border border-white/10 overflow-hidden order-2 lg:sticky lg:top-24">
+        <p className="px-4 py-3 text-xs font-semibold text-gray-400 border-b border-white/10">Storefront preview · {dirty ? 'Unsaved changes' : 'Saved'}</p>
         <div className="relative h-32 bg-black media-overlay">
           <SmartImage
             src={uploadUrl(form.bannerUrl)}
@@ -357,7 +378,7 @@ export default function ShopManager({ user }) {
       </div>
 
       {/* ── Shop details ── */}
-      <div className="glass rounded-2xl p-4 sm:p-5 border border-white/5 space-y-3 lg:order-1">
+      <div className="rounded-2xl bg-[#101010] p-4 sm:p-6 border border-white/10 space-y-5 order-1 min-w-0">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-black tracking-widest text-gray-500">Storefront details</p>
@@ -464,12 +485,13 @@ export default function ShopManager({ user }) {
           <button
             onClick={saveShop}
             disabled={saving || uploadingBanner || !dirty || !form.name.trim()}
-            className="flex-1 py-2.5 rounded-xl bg-[#CDFF00] text-black font-black text-xs tracking-widest hover:bg-[#d9ff33] active:scale-[0.99] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+            className="px-5 py-3 rounded-xl bg-[#CDFF00] text-black font-bold text-xs hover:bg-[#d9ff33] transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
           >
             {saving ? <><Loader className="w-4 h-4 animate-spin" /> Saving…</> : dirty ? <><CircleCheck className="w-4 h-4" /> Save changes</> : 'Saved'}
           </button>
           <button
             onClick={deleteShop}
+            aria-label="Delete shop"
             className="px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-black tracking-widest hover:bg-red-500/20 transition-colors"
           >
             <Eraser className="w-4 h-4" />
@@ -485,13 +507,13 @@ export default function ShopManager({ user }) {
       {isAppointmentBusiness(form.businessType) && !isAppointmentBusiness(shop.businessType) && (
         <p className="text-sm text-[#CDFF00]">Save your shop category to start adding services and appointments.</p>
       )}
-      {isAppointmentBusiness(shop.businessType) && (
+      {section === 'bookings' && isAppointmentBusiness(shop.businessType) && (
         <div className="flex items-center justify-between gap-3 text-xs text-gray-400">
           <span role={bookingError ? 'alert' : undefined}>{bookingError ? 'Could not refresh services and appointments.' : bookingLoading ? 'Loading services and appointments…' : 'Manage your services, availability and customers.'}</span>
           <button disabled={bookingLoading} onClick={() => loadBookingData(shop.id)} className="text-[#CDFF00] disabled:opacity-50">Refresh</button>
         </div>
       )}
-      {isAppointmentBusiness(shop.businessType) && !bookingLoading && (
+      {section === 'bookings' && isAppointmentBusiness(shop.businessType) && !bookingLoading && (
         <ServicesAndAppointments
           services={services}
           slots={slots}
@@ -516,14 +538,14 @@ export default function ShopManager({ user }) {
       )}
 
       {/* ── Products ── */}
-      <div className="glass rounded-2xl p-4 border border-white/5">
+      <div className={section === 'products' ? 'rounded-2xl bg-[#101010] p-4 sm:p-6 border border-white/10' : 'hidden'}>
         <div className="flex items-center justify-between gap-3 mb-3">
-          <h4 className="text-[10px] font-black tracking-widest text-gray-500">
+          <h4 className="text-base font-bold text-white">
             Products & inventory <span className="text-gray-600">({products.length})</span>
           </h4>
           <button
             onClick={() => setEditingProduct('new')}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black text-[9px] font-black tracking-widest hover:bg-[#d9ff33] active:scale-95 transition-all"
+            className="shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#CDFF00] text-black text-xs font-bold hover:bg-[#d9ff33] transition-colors"
           >
             <CirclePlus className="w-3.5 h-3.5" /> Add product
           </button>
@@ -846,46 +868,19 @@ function CityField({ value, onChange, fallback }) {
   );
 }
 
-/**
- * What kind of business this is — the one choice that decides whether the seller gets a
- * booking calendar alongside their shelf. A grid rather than a `<select>`: there are only
- * fifteen options and every one of them is more recognisable as an icon-plus-label than as
- * one more line of text in a dropdown a seller has to open to even see the choices.
- */
+/** Category controls whether appointment tools are available. */
 function BusinessTypeField({ value, onChange }) {
+  const id = useId();
   return (
     <div>
-      <label className="block text-[10px] font-black tracking-widest text-gray-500 mb-1.5">
-        Shop category — pick one
-      </label>
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-        {SHOP_BUSINESS_TYPES.map((t) => {
-          const Icon = t.icon;
-          const active = (value || 'GENERAL') === t.value;
-          return (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => onChange(t.value)}
-              title={t.label}
-              aria-pressed={active}
-              className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border text-center transition-all ${
-                active
-                  ? 'bg-[#CDFF00]/10 border-[#CDFF00] text-[#CDFF00]'
-                  : 'bg-black/50 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="text-[8.5px] font-bold leading-tight line-clamp-2">{t.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      <label htmlFor={id} className="block text-xs font-semibold text-gray-400 mb-2">Shop category</label>
+      <select id={id} value={value || 'GENERAL'} onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-[#CDFF00]">
+        {SHOP_BUSINESS_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+      </select>
       {isAppointmentBusiness(value) && (
-        <p className="mt-2 text-[10px] text-gray-500 leading-relaxed flex items-start gap-1.5">
-          <CalendarClock className="w-3 h-3 mt-0.5 shrink-0 text-[#CDFF00]" />
-          Adds a Services & Appointments panel below, so customers can book a time instead of
-          just messaging you to ask.
+        <p className="mt-2 text-xs text-gray-400 leading-relaxed">
+          Customers can book your services. Manage your schedule in Appointments.
         </p>
       )}
     </div>
