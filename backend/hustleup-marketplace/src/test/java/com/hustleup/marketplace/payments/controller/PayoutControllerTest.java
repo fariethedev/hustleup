@@ -2,6 +2,7 @@ package com.hustleup.marketplace.payments.controller;
 
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
+import com.hustleup.common.security.EmailVerificationGuard;
 import com.hustleup.marketplace.payments.model.SellerPayoutAccount;
 import com.hustleup.marketplace.payments.repository.SellerPayoutAccountRepository;
 import com.hustleup.marketplace.payments.service.StripeConnectService;
@@ -23,7 +24,8 @@ class PayoutControllerTest {
     private final StripeConnectService stripe = mock(StripeConnectService.class);
     private final SellerPayoutAccountRepository accounts = mock(SellerPayoutAccountRepository.class);
     private final UserRepository users = mock(UserRepository.class);
-    private final PayoutController controller = new PayoutController(stripe, accounts, users, null, null, null, null, null, null, null);
+    private final EmailVerificationGuard emailGuard = mock(EmailVerificationGuard.class);
+    private final PayoutController controller = new PayoutController(stripe, accounts, users, null, null, null, null, null, emailGuard, null);
     private final UUID userId = UUID.randomUUID();
 
     @BeforeEach void authenticatedOwner() {
@@ -60,5 +62,24 @@ class PayoutControllerTest {
         assertEquals(502, response.getStatusCode().value());
         assertEquals(true, ((Map<?, ?>) response.getBody()).get("statusUnavailable"));
         assertFalse(((Map<?, ?>) response.getBody()).containsKey("payoutsEnabled"));
+    }
+
+    @Test void accountsV1PolicyBlockIsConfigurationErrorNotTemporaryOutage() throws Exception {
+        StripeException failure = mock(StripeException.class);
+        when(failure.getMessage()).thenReturn("Enable Accounts v1 support: https://dashboard.stripe.com/settings/developers/api-policies/feat_accounts_v1_support");
+        when(stripe.createOnboardingLink(userId)).thenThrow(failure);
+        var response = controller.connect();
+        assertEquals(503, response.getStatusCode().value());
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertEquals("PAYOUT_SETUP_CONFIGURATION_REQUIRED", body.get("code"));
+        assertTrue(body.get("error").toString().contains("administrator must enable Accounts v1"));
+        assertEquals("no-store", response.getHeaders().getFirst("Cache-Control"));
+        verify(emailGuard).require(any(User.class), eq("set up payouts"));
+    }
+
+    @Test void unrelatedStripeFailureRemainsRetryable() throws Exception {
+        StripeException failure = mock(StripeException.class);
+        when(stripe.createOnboardingLink(userId)).thenThrow(failure);
+        assertEquals(502, controller.connect().getStatusCode().value());
     }
 }

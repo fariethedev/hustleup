@@ -36,6 +36,14 @@ At inspection, the payout endpoint subscribed only to `account.updated` and `che
 
 ## Release verification
 
+### Confirmed onboarding blocker — 2026-10-03
+
+A test-mode account-creation request matching the backend's Express/PL/capabilities parameters and SDK API version (`2025-01-27.acacia`) returned HTTP 400. Stripe explicitly requires enabling Accounts v1 compatibility support for this platform. No diagnostic account was created.
+
+The Stripe account owner must open [Accounts v1 support](https://dashboard.stripe.com/settings/developers/api-policies/feat_accounts_v1_support) in the correct platform account/environment and enable support for this existing integration. Then retry bank setup. This is an account-level policy, not an expired onboarding link, bad seller bank information or an SDK version to bypass. Check the corresponding setting before enabling live onboarding as well.
+
+Until that setting is enabled, the backend returns `503 PAYOUT_SETUP_CONFIGURATION_REQUIRED` instead of incorrectly calling it a temporary provider outage. A migration to Accounts v2 is a separate integration change; do not silently change account responsibilities, replace seller accounts or switch payment flows to work around the policy.
+
 - Deploy frontend, common library and dependent social, marketplace and subscription services together so Plus permissions agree.
 - Set each service's correct Stripe secret and each endpoint's distinct signing secret; never interchange test and live credentials.
 - Verify the externally reachable webhook URLs, required event subscriptions and successful delivery responses in Stripe.

@@ -94,11 +94,18 @@ public class PayoutController {
             String url = stripeConnectService.createOnboardingLink(seller.getId());
             return ResponseEntity.ok().header("Cache-Control", "no-store").body(Map.of("url", url));
         } catch (StripeException e) {
-            // Stripe's message is written for whoever integrated the API, not for the seller
-            // staring at a toast — the Accounts v1 deprecation notice, for instance, is three
-            // lines of docs links. Log it in full where it is useful and tell the seller
-            // something true and actionable instead.
             log.error("Stripe Connect onboarding failed for seller", e);
+            // This platform setting is not a temporary outage and cannot be resolved by
+            // sellers entering their bank details again. Do not leak Stripe's raw response.
+            String message = e.getMessage();
+            if (message != null && message.contains("feat_accounts_v1_support")) {
+                log.error("Payout setup requires Accounts v1 compatibility support in the platform's Stripe Dashboard. Stripe request: {}", e.getRequestId());
+                return ResponseEntity.status(503).header("Cache-Control", "no-store").body(Map.of(
+                        "code", "PAYOUT_SETUP_CONFIGURATION_REQUIRED",
+                        "error", "Bank setup is blocked by HustleSpace's Stripe configuration. "
+                                + "The platform administrator must enable Accounts v1 support in Stripe. "
+                                + "Your bank details are not the problem; please contact support."));
+            }
             return ResponseEntity.status(502).body(Map.of(
                     "error", "Payout setup is temporarily unavailable. Please try again shortly — "
                             + "if it keeps happening, contact support."));
