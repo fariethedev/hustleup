@@ -455,8 +455,7 @@ public class StripeConnectService {
 
         applySourceCharge(params, booking.getPaymentIntentId(), "booking " + booking.getId());
 
-        return Transfer.create(params.build(), RequestOptions.builder()
-                .setIdempotencyKey("booking-payout-" + booking.getId()).build()).getId();
+        return createSellerTransfer(params, booking.getId().toString(), "booking-payout-" + booking.getId());
     }
 
     /**
@@ -491,8 +490,31 @@ public class StripeConnectService {
 
         applySourceCharge(params, order.getPaymentIntentId(), "order " + order.getId());
 
-        return Transfer.create(params.build(), RequestOptions.builder()
-                .setIdempotencyKey("shop-order-payout-" + order.getId()).build()).getId();
+        return createSellerTransfer(params, order.getId().toString(), "shop-order-payout-" + order.getId());
+    }
+
+    private String createSellerTransfer(TransferCreateParams.Builder params, String legacyGroup,
+                                        String key) throws StripeException {
+        RequestOptions options = RequestOptions.builder().setIdempotencyKey(key).build();
+        try {
+            return Transfer.create(params.build(), options).getId();
+        } catch (com.stripe.exception.IdempotencyException conflict) {
+            if (params.build().getSourceTransaction() == null || params.build().getTransferGroup() != null) throw conflict;
+            // Replaying the old request first returns any existing successful transfer.
+            // Only the known, rejected group conflict permits a new corrected request key.
+            try {
+                return Transfer.create(params.setTransferGroup(legacyGroup).build(), options).getId();
+            } catch (com.stripe.exception.InvalidRequestException previousFailure) {
+                String message = previousFailure.getMessage();
+                if (message == null || !message.contains("You cannot use `transfer_group` if the `source_transaction` already has one set")) {
+                    throw previousFailure;
+                }
+            } finally {
+                params.setTransferGroup((String) null);
+            }
+            return Transfer.create(params.build(), RequestOptions.builder()
+                    .setIdempotencyKey(key + "-source-group-v2").build()).getId();
+        }
     }
 
     /**

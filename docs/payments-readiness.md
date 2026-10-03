@@ -45,6 +45,7 @@ The Stripe account owner must open [Accounts v1 support](https://dashboard.strip
 Until that setting is enabled, the backend returns `503 PAYOUT_SETUP_CONFIGURATION_REQUIRED` instead of incorrectly calling it a temporary provider outage. A migration to Accounts v2 is a separate integration change; do not silently change account responsibilities, replace seller accounts or switch payment flows to work around the policy.
 
 - Deploy frontend, common library and dependent social, marketplace and subscription services together so Plus permissions agree.
+- Railway backend services track `deploy/railway`, while the frontend tracks `main`. A push to `main` alone does not release backend endpoints. Advance the deployment branch to the verified release commit and confirm Railway reports successful startup; do not assume the frontend deployment updated the API.
 - Set each service's correct Stripe secret and each endpoint's distinct signing secret; never interchange test and live credentials.
 - Verify the externally reachable webhook URLs, required event subscriptions and successful delivery responses in Stripe.
 - In test mode, complete onboarding and a buyer checkout, confirm webhook processing, fulfil an order, then confirm receipt. Verify one seller transfer, fee/postage amounts, retry safety and dashboard access. Exercise incomplete verification, a failed provider request and an open dispute.

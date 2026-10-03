@@ -84,4 +84,55 @@ class StripeConnectServiceTest {
             assertEquals("tr_legacy", service.transferToSeller(order, "acct_owner"));
         }
     }
+
+    @Test void cachedSuccessfulTransferIsReusedWithoutAnotherPayment() throws Exception {
+        assertOldRequestRecovery(true, false);
+    }
+
+    @Test void knownCachedGroupFailureCanRetryWithStableCorrectedKey() throws Exception {
+        assertOldRequestRecovery(false, true);
+    }
+
+    @Test void unknownOriginalFailureDoesNotPermitANewPaymentKey() throws Exception {
+        assertOldRequestRecovery(false, false);
+    }
+
+    private void assertOldRequestRecovery(boolean alreadyPaid, boolean knownGroupFailure) throws Exception {
+        ReflectionTestUtils.setField(service, "platformFeePercent", new BigDecimal("8"));
+        UUID id = UUID.randomUUID();
+        Booking booking = Booking.builder().id(id).agreedPrice(new BigDecimal("100"))
+                .currency("PLN").paymentIntentId("pi_paid").build();
+        PaymentIntent intent = new PaymentIntent(); intent.setLatestCharge("ch_paid");
+        Transfer result = new Transfer(); result.setId("tr_safe");
+        var oldFailure = mock(com.stripe.exception.InvalidRequestException.class);
+        when(oldFailure.getMessage()).thenReturn(knownGroupFailure
+                ? "You cannot use `transfer_group` if the `source_transaction` already has one set."
+                : "A different request was rejected");
+        var newKeyCalls = new java.util.concurrent.atomic.AtomicInteger();
+        var replays = new java.util.concurrent.atomic.AtomicInteger();
+        try (var intents = mockStatic(PaymentIntent.class); var transfers = mockStatic(Transfer.class)) {
+            intents.when(() -> PaymentIntent.retrieve("pi_paid")).thenReturn(intent);
+            transfers.when(() -> Transfer.create(any(TransferCreateParams.class), any(RequestOptions.class)))
+                    .thenAnswer(call -> {
+                        TransferCreateParams params = call.getArgument(0);
+                        RequestOptions options = call.getArgument(1);
+                        if (options.getIdempotencyKey().endsWith("-source-group-v2")) {
+                            newKeyCalls.incrementAndGet();
+                            assertNull(params.getTransferGroup());
+                            assertEquals("ch_paid", params.getSourceTransaction());
+                            return result;
+                        }
+                        assertEquals("booking-payout-" + id, options.getIdempotencyKey());
+                        if (params.getTransferGroup() == null) throw new com.stripe.exception.IdempotencyException("conflict", null, null, 400);
+                        assertEquals(id.toString(), params.getTransferGroup());
+                        replays.incrementAndGet();
+                        if (alreadyPaid) return result;
+                        throw oldFailure;
+                    });
+            if (alreadyPaid || knownGroupFailure) assertEquals("tr_safe", service.transferToSeller(booking, "acct_owner"));
+            else assertThrows(com.stripe.exception.InvalidRequestException.class, () -> service.transferToSeller(booking, "acct_owner"));
+            assertEquals(1, replays.get());
+            assertEquals(!alreadyPaid && knownGroupFailure ? 1 : 0, newKeyCalls.get());
+        }
+    }
 }
