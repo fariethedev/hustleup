@@ -42,6 +42,7 @@ class StripeConnectServiceTest {
                         assertEquals("pln", params.getCurrency());
                         assertEquals("acct_owner", params.getDestination());
                         assertEquals("ch_paid", params.getSourceTransaction());
+                        assertNull(params.getTransferGroup(), "Source-funded transfers inherit the charge group");
                         assertTrue(options.getIdempotencyKey().equals("shop-order-payout-" + id)
                                 || options.getIdempotencyKey().equals("booking-payout-" + id));
                         return transfer;
@@ -63,6 +64,24 @@ class StripeConnectServiceTest {
                     .thenReturn(link);
             assertEquals(link.getUrl(), service.createDashboardLink(
                     SellerPayoutAccount.builder().stripeAccountId("acct_owner").build()));
+        }
+    }
+
+    @Test void legacyBalanceFundedTransferRetainsItsOrderGroup() throws Exception {
+        ReflectionTestUtils.setField(service, "platformFeePercent", new BigDecimal("8"));
+        UUID id = UUID.randomUUID();
+        ShopOrder order = ShopOrder.builder().id(id).totalPrice(new BigDecimal("100")).currency("PLN").build();
+        Transfer result = new Transfer(); result.setId("tr_legacy");
+        try (var transfers = mockStatic(Transfer.class)) {
+            transfers.when(() -> Transfer.create(any(TransferCreateParams.class), any(RequestOptions.class)))
+                    .thenAnswer(call -> {
+                        TransferCreateParams params = call.getArgument(0);
+                        assertNull(params.getSourceTransaction());
+                        assertEquals(id.toString(), params.getTransferGroup());
+                        assertEquals(9200L, params.getAmount());
+                        return result;
+                    });
+            assertEquals("tr_legacy", service.transferToSeller(order, "acct_owner"));
         }
     }
 }

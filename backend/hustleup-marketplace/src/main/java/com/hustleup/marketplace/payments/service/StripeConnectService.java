@@ -533,6 +533,9 @@ public class StripeConnectService {
                 return;
             }
             params.setSourceTransaction(chargeId);
+            // Stripe inherits the source charge's transfer group. A cart charge can
+            // cover several bookings, so supplying an individual order's group conflicts.
+            params.setTransferGroup((String) null);
         } catch (StripeException e) {
             // Not fatal. Falling through leaves a balance-funded transfer, which either works
             // or fails loudly at Transfer.create — better than refusing a payout here over a
