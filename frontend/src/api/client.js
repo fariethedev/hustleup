@@ -1,22 +1,13 @@
 import axios from 'axios';
 import { clearStoredSession } from '../utils/session';
 import { API_URL } from '../config';
+import { stripeHostedUrl } from '../utils/stripeUrls';
+export { stripeHostedUrl } from '../utils/stripeUrls';
 
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
-
-// Validate the destination before sending a buyer or seller off-site.
-export const stripeHostedUrl = (value, kind = 'connect') => {
-  let url;
-  try { url = new URL(value); } catch { throw new Error('Stripe did not return a valid secure link. Please try again.'); }
-  const host = kind === 'checkout' ? 'checkout.stripe.com' : kind === 'dashboard' ? 'stripe.com' : 'connect.stripe.com';
-  if (url.protocol !== 'https:' || url.hostname !== host || url.port || url.username || url.password) {
-    throw new Error('Stripe did not return a valid secure link. Please try again.');
-  }
-  return url.href;
-};
 
 let refreshRequest;
 

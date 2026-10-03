@@ -15,6 +15,7 @@ const errors = [], calls = [];
 let subscription = { plan: 'FREE' };
 let payout = { connected: false, payoutsEnabled: false, detailsSubmitted: false, chargesEnabled: false, platformFeePercent: 8 };
 let statusError = false, plansError = false;
+let dashboardUrl = null;
 const user = { id: 'payment-review', role: 'BUYER', fullName: 'Payment Review', email: 'review@example.test', emailVerified: true };
 socket.onmessage = async event => {
   const message = JSON.parse(event.data);
@@ -22,6 +23,11 @@ socket.onmessage = async event => {
   if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.text);
   if (message.method !== 'Fetch.requestPaused') return;
   const { requestId, request } = message.params;
+  const requestUrl = new URL(request.url);
+  if (['connect.stripe.com', 'stripe.com'].includes(requestUrl.hostname)) {
+    await send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'text/html' }], body: Buffer.from('<main>Stripe dashboard navigation fixture</main>').toString('base64') });
+    return;
+  }
   const route = new URL(request.url).pathname.replace('/api/v1', '');
   calls.push(request.method + ' ' + route);
   let data = [], responseCode = 200;
@@ -33,6 +39,7 @@ socket.onmessage = async event => {
   }
   if (route === '/payouts/status') { data = payout; if (statusError) { responseCode = 502; data = { error: 'Could not verify your bank connection with Stripe. Please retry.' }; } }
   if (route === '/payouts/connect' || route === '/payouts/dashboard') { responseCode = 502; data = { error: 'Fixture: Stripe temporarily unavailable. Retry safely.' }; }
+  if (route === '/payouts/dashboard' && dashboardUrl) { responseCode = 200; data = { url: dashboardUrl }; }
   if (route === '/subscriptions/checkout') { responseCode = 502; data = { error: 'Fixture: checkout unavailable.' }; }
   if (route === '/notifications/unread-count') data = { count: 0 };
   await send('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify(data)).toString('base64') });
@@ -52,8 +59,8 @@ const shot = async name => { const r=await send('Page.captureScreenshot',{format
 try {
   await mkdir('artifacts/payments-review',{recursive:true});
   await send('Runtime.enable'); await send('Page.enable');
-  await send('Fetch.enable',{patterns:[{urlPattern:'*://*/api/v1/*'}]});
-  await send('Page.addScriptToEvaluateOnNewDocument',{source:'localStorage.setItem("hustleup_token","fixture-only");localStorage.setItem("hustleup_user",'+JSON.stringify(JSON.stringify(user))+');'});
+  await send('Fetch.enable',{patterns:[{urlPattern:'*://*/api/v1/*'}, {urlPattern:'https://connect.stripe.com/*'}, {urlPattern:'https://stripe.com/*'}]});
+  await send('Page.addScriptToEvaluateOnNewDocument',{source:'if(location.origin === "http://127.0.0.1:5173") {localStorage.setItem("hustleup_token","fixture-only");localStorage.setItem("hustleup_user",'+JSON.stringify(JSON.stringify(user))+');}'});
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await go('/plans'); await waitFor(has('Choose All Access')); await fit(); await shot('plans-mobile');
   assert(await evaluate('document.querySelectorAll("article").length === 3'));
@@ -80,7 +87,18 @@ try {
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await go('/plans'); await waitFor(has('Extend Plus')); await fit(); await shot('plans-desktop');
   await go('/payouts'); await waitFor(has('Stripe has enabled payouts.')); await fit(); await shot('payments-desktop');
+  for (const host of ['connect.stripe.com', 'stripe.com']) {
+    dashboardUrl = 'https://' + host + '/express/acct_fixture/login';
+    await go('/payouts'); await waitFor(has('Manage bank & view payouts'));
+    await click('Manage bank & view payouts');
+    await waitFor('location.href === ' + JSON.stringify(dashboardUrl));
+    await waitFor(has('Stripe dashboard navigation fixture'));
+  }
+  dashboardUrl = 'https://connect.stripe.com.evil.example/express/login';
+  await go('/payouts'); await waitFor(has('Manage bank & view payouts'));
+  await click('Manage bank & view payouts'); await waitFor(has('Stripe did not return a valid secure link.'));
+  assert(await evaluate('location.pathname === "/payouts"'));
   assert.equal(errors.length,0,errors.join('\n'));
-  console.log('PASS: 3 tiers; Plus gating; checkout error; bank setup, return, pending, enabled and unavailable states; recovery; dashboard action; mobile and desktop overflow.');
+  console.log('PASS: 3 tiers; Plus gating; checkout error; bank setup, return, pending, enabled and unavailable states; recovery; dashboard navigation on both Stripe hosts; unsafe redirect rejection; mobile and desktop overflow.');
   console.log('Fixtures only: no payment, bank account or Stripe account was created.');
 } finally { await send('Fetch.disable'); socket.close(); }
