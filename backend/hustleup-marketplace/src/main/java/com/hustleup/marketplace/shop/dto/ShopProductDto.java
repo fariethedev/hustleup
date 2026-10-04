@@ -19,6 +19,7 @@ public class ShopProductDto {
     private String category;
     private String imageUrl;
     private int sortOrder;
+    private java.time.LocalDateTime createdAt;
     private Integer stockQuantity;
     private boolean stockTracked;
     private boolean inStock;
@@ -40,6 +41,7 @@ public class ShopProductDto {
                 .category(p.getCategory())
                 .imageUrl(p.getImageUrl())
                 .sortOrder(p.getSortOrder())
+                .createdAt(p.getCreatedAt())
                 .stockQuantity(p.getStockQuantity())
                 .stockTracked(p.getStockQuantity() != null)
                 .inStock(p.getStockQuantity() == null || p.getStockQuantity() > 0)

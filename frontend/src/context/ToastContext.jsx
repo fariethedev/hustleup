@@ -96,13 +96,13 @@ const Toast = ({ toast, onRemove }) => {
       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
       className={`pointer-events-auto flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl shadow-2xl border ${
         isError
-          ? 'bg-[#7D39EB] border-white/20 text-white'
+          ? 'bg-[var(--surface-card)] border-red-500/40 text-[var(--ink-primary)]'
           : 'bg-[#CDFF00] border-black/10 text-black'
-      } glass-strong backdrop-blur-xl`}
+      } backdrop-blur-xl`}
     >
       <div className="shrink-0">
         {isError ? (
-          <CircleAlert className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+          <CircleAlert className="w-5 h-5 sm:w-6 sm:h-6 text-red-400" />
         ) : (
           <CircleCheckBig className="w-5 h-5 sm:w-6 sm:h-6 text-black" />
         )}
@@ -117,7 +117,7 @@ const Toast = ({ toast, onRemove }) => {
       <button
         onClick={onRemove}
         aria-label="Dismiss notification"
-        className={`shrink-0 p-1 rounded-full hover:bg-white/10 transition-colors ${isError ? 'text-white' : 'text-black'}`}
+        className={`shrink-0 p-1 rounded-full hover:bg-white/10 transition-colors ${isError ? 'text-[var(--ink-primary)]' : 'text-black'}`}
       >
         <CircleX className="w-4 h-4" />
       </button>

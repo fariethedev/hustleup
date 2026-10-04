@@ -14,7 +14,7 @@ export default function TrendingCard({ item, index = 0 }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ delay: index * 0.1, duration: 0.6 }}
-      className="group relative aspect-[4/5] rounded-[3.5rem] overflow-hidden border border-white/5 bg-gray-900 shadow-2xl hover:border-white/20 transition-all duration-500 hover:-translate-y-2"
+      className="media-overlay group relative aspect-[4/5] rounded-[3.5rem] overflow-hidden border border-white/5 bg-gray-900 shadow-2xl hover:border-white/20 transition-all duration-500 hover:-translate-y-2"
     >
       <Link to={link || "#"} className="block w-full h-full">
         {/* Background Image */}

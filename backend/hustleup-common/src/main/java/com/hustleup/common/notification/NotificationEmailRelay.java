@@ -51,6 +51,9 @@ public class NotificationEmailRelay {
 
     private final EmailService emailService;
     private final UserRepository userRepository;
+    private final MessageEmailGate messageEmailGate;
+    @Value("${app.frontend.url:https://hustlespace.space}")
+    private String frontendUrl;
 
     /**
      * Types that are emailed by something else, so must never be emailed from here.
@@ -76,9 +79,11 @@ public class NotificationEmailRelay {
 
     public NotificationEmailRelay(EmailService emailService,
                                   UserRepository userRepository,
+                                  MessageEmailGate messageEmailGate,
                                   @Value("${app.notifications.email.exclude:}") String exclude) {
         this.emailService = emailService;
         this.userRepository = userRepository;
+        this.messageEmailGate = messageEmailGate;
         this.excludedTypes = exclude == null || exclude.isBlank()
                 ? Set.of()
                 : new HashSet<>(Arrays.stream(exclude.split(","))
@@ -100,6 +105,8 @@ public class NotificationEmailRelay {
 
             User user = userRepository.findById(n.getUserId()).orElse(null);
             if (user == null || user.getEmail() == null || user.getEmail().isBlank()) return;
+            if ("DIRECT_MESSAGE".equalsIgnoreCase(n.getNotificationType()) && n.getReferenceId() != null
+                    && !messageEmailGate.claim(n.getUserId(), n.getReferenceId())) return;
 
             String subject = n.getTitle() != null && !n.getTitle().isBlank()
                     ? n.getTitle() : "New activity on HustleSpace";
@@ -121,19 +128,27 @@ public class NotificationEmailRelay {
     private String body(Notification n) {
         String title = escape(n.getTitle() == null ? "" : n.getTitle());
         String message = escape(n.getMessage() == null ? "" : n.getMessage());
+        String type = n.getNotificationType() == null ? "" : n.getNotificationType();
+        String path = type.equals("DIRECT_MESSAGE") && n.getReferenceId() != null ? "/dm/" + n.getReferenceId()
+                : type.equals("FOLLOW_REQUEST") ? "/settings?tab=privacy"
+                : type.startsWith("BOOKING") || type.contains("PAYOUT") ? "/dashboard" : "/";
+        String help = type.equals("DIRECT_MESSAGE") ? "Open the conversation to read and reply. We send one email while this conversation is unread; further messages stay in the app until you open it."
+                : type.startsWith("BOOKING") ? "Review the latest agreed price, booking status and payment details in your dashboard before taking the next step. An accepted offer is not proof of payment."
+                : type.equals("FOLLOW_REQUEST") ? "You decide who can follow your private account. Approve or decline this request in Privacy settings."
+                : "Open HustleSpace to see the full details and available next steps.";
+        String link = escape(frontendUrl.replaceAll("/+$", "") + path);
         return """
                 <div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:520px">
-                  <h2 style="margin:0 0 8px;font-size:18px;color:#111">%s</h2>
+                  <p style="margin:0 0 8px;font-size:12px;color:#626859">%s</p>
                   <p style="margin:0 0 16px;font-size:15px;line-height:1.5;color:#333">%s</p>
-                  <p style="margin:0;font-size:13px;color:#888">
-                    You're receiving this because of activity on your HustleSpace account.
-                  </p>
+                  <p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#626859">%s</p>
+                  <a href="%s" style="display:inline-block;padding:14px 22px;background:#cdff00;border-radius:10px;color:#111;font-weight:bold;text-decoration:none">View in HustleSpace →</a>
                 </div>
-                """.formatted(title, message);
+                """.formatted(title, message, help, link);
     }
 
     /** Notification text can contain a listing title someone else typed, so it is escaped. */
     private static String escape(String s) {
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        return com.hustleup.common.email.EmailLayout.escape(s);
     }
 }

@@ -971,7 +971,7 @@ export default function DirectMessages() {
                     // A thread where a price is being agreed. Kept distinct from `unread`,
                     // which is also lime but deliberately far fainter: unread is a state that
                     // clears the moment you open the chat, a negotiation is what the thread is.
-                    const negotiating = !!p.negotiating && !bond;
+                    const negotiating = !!p.negotiating;
                     // No `layout` prop here on purpose: a layout animation and the
                     // whileHover x-offset drive the same transform and visibly fight
                     // when the pointer rests on a row mid-reflow.
@@ -995,13 +995,13 @@ export default function DirectMessages() {
                         // heart texture clips itself instead.
                         className={`relative w-full text-left px-3 py-3 rounded-2xl flex items-center gap-3 mb-1 border transition-colors ${
                           isActive
-                            ? bond
+                            ? bond && !negotiating
                               ? 'bg-[#FF4E8E]/[0.14] border-[#FF4E8E]/45'
-                              : 'bg-[#FF00FF]/10 border-[#FF00FF]/30'
-                            : bond
+                              : negotiating ? 'bg-green-500/15 border-green-500/50' : 'bg-white/10 border-white/20'
+                            : bond && !negotiating
                               ? 'bg-[#FF4E8E]/[0.06] border-[#FF4E8E]/25 hover:bg-[#FF4E8E]/[0.11]'
                               : negotiating
-                                ? 'bg-[#CDFF00]/[0.09] border-[#CDFF00]/45 hover:bg-[#CDFF00]/[0.14]'
+                                ? 'bg-green-500/10 border-green-500/40 hover:bg-green-500/15'
                                 : unread
                                   ? 'bg-[#CDFF00]/[0.055] border-[#CDFF00]/20 hover:bg-[#CDFF00]/[0.09]'
                                   : 'border-transparent hover:bg-white/[0.05]'

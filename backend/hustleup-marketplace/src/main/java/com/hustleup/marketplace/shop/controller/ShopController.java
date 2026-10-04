@@ -193,6 +193,11 @@ public class ShopController {
         if (body.getAccentColor() != null) shop.setAccentColor(trimToNull(body.getAccentColor()));
         if (body.getCity() != null)        shop.setCity(trimToNull(body.getCity()));
         if (body.getPublished() != null)   shop.setPublished(body.getPublished());
+        if (body.getHighlights() != null) {
+            try { ShopHighlight.validate(body.getHighlights()); }
+            catch (IllegalArgumentException invalid) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, invalid.getMessage()); }
+            shop.setHighlights(body.getHighlights());
+        }
 
         return ResponseEntity.ok(shopService.detail(shopRepository.save(shop)));
     }

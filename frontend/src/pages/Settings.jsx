@@ -9,6 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { POLISH_CITIES } from '../utils/constants';
 import { formatDateTime } from '../utils/time';
 import SmartImage from '../components/SmartImage';
+import AccountPrivacySettings from '../components/AccountPrivacySettings';
 import HeroBrief from '../components/HeroBrief';
 import SellerUpgrade, { SellerUpgradeButton } from '../components/SellerUpgrade';
 import { useSellerAccess } from '../hooks/useSellerAccess';
@@ -98,7 +99,7 @@ export default function Settings() {
                 {tab === 'appearance' && <AppearancePanel />}
                 {tab === 'profile' && <ProfilePanel user={user} onSaved={() => dispatch(loadUserProfile())} />}
                 {tab === 'account' && <AccountPanel user={user} onSignOut={() => { dispatch(logout()); navigate('/'); }} />}
-                {tab === 'privacy' && <PrivacyPanel />}
+                {tab === 'privacy' && <><AccountPrivacySettings /><PrivacyPanel /></>}
                 {tab === 'selling' && <SellingPanel />}
               </motion.div>
             </AnimatePresence>

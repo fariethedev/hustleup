@@ -49,6 +49,7 @@ public class ShopDto {
 
     /** Populated on the single-shop endpoint; null on the browse list to keep it light. */
     private List<ShopProductDto> products;
+    private List<ShopHighlight> highlights;
 
     /**
      * Maps the persistent fields only. Owner details and derived counts are filled in by
@@ -69,6 +70,7 @@ public class ShopDto {
                 .accentColor(shop.getAccentColor())
                 .city(shop.getCity())
                 .published(shop.isPublished())
+                .highlights(shop.getHighlights())
                 .ownerId(shop.getOwnerId())
                 .build();
     }

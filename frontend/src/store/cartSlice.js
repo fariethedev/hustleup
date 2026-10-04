@@ -48,7 +48,8 @@ const cartSlice = createSlice({
       if (!line) return;
       const existing = state.items.find((i) => i.listingId === line.listingId);
       if (existing) {
-        Object.assign(existing, line, { quantity: Math.min(999, existing.quantity + line.quantity) });
+        // A regular listing card must not overwrite an accepted deal's price or quantity.
+        if (!existing.bookingId || line.bookingId) Object.assign(existing, line, { quantity: line.bookingId ? 1 : Math.min(999, existing.quantity + line.quantity) });
       } else {
         state.items.push(line);
       }
@@ -61,7 +62,7 @@ const cartSlice = createSlice({
     },
     updateQuantity(state, { payload: { listingId, quantity } }) {
       const item = state.items.find((i) => i.listingId === String(listingId));
-      if (item) item.quantity = positiveQuantity(quantity);
+      if (item && !item.bookingId) item.quantity = positiveQuantity(quantity);
       persist(state.items);
     },
     setNegotiatedPrice(state, { payload: { listingId, price } }) {

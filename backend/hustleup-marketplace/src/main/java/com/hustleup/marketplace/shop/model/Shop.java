@@ -22,9 +22,11 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import com.hustleup.marketplace.shop.dto.ShopHighlight;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.List;
 
 @Entity
 @Table(
@@ -102,6 +104,11 @@ public class Shop {
     @Column(nullable = false)
     @Builder.Default
     private boolean published = true;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb", nullable = false)
+    @Builder.Default
+    private List<ShopHighlight> highlights = List.of();
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

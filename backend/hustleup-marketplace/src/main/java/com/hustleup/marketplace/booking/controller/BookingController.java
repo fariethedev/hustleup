@@ -115,8 +115,11 @@ public class BookingController {
             @PathVariable UUID id, // {id} extracted from URL
             @RequestBody Map<String, Object> body) {
         // counterPrice is required for a counter-offer; if missing this will throw NullPointerException
-        BigDecimal counterPrice = new BigDecimal(body.get("counterPrice").toString());
-        return ResponseEntity.ok(bookingService.counterOffer(id, counterPrice));
+        BigDecimal counterPrice;
+        try { counterPrice = new BigDecimal(String.valueOf(body.get("counterPrice"))); }
+        catch (NumberFormatException invalid) { throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Enter a valid counter price"); }
+        Long version = body.get("version") instanceof Number n ? n.longValue() : null;
+        return ResponseEntity.ok(bookingService.counterOffer(id, counterPrice, version));
     }
 
     /**
@@ -131,8 +134,9 @@ public class BookingController {
      * @return 200 OK with the updated {@link BookingDto} in BOOKED state
      */
     @PatchMapping("/{id}/accept") // handles PATCH /api/v1/bookings/uuid/accept
-    public ResponseEntity<BookingDto> accept(@PathVariable UUID id) {
-        return ResponseEntity.ok(bookingService.accept(id));
+    public ResponseEntity<BookingDto> accept(@PathVariable UUID id, @RequestBody(required = false) Map<String, Object> body) {
+        Long version = body != null && body.get("version") instanceof Number n ? n.longValue() : null;
+        return ResponseEntity.ok(bookingService.accept(id, version));
     }
 
     /**

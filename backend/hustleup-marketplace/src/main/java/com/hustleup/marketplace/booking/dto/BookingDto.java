@@ -46,6 +46,9 @@ public class BookingDto {
     // --- Three-price negotiation trail ---
     private BigDecimal offeredPrice;  // buyer's opening offer (may equal listing price if not customised)
     private BigDecimal counterPrice;  // seller's counter-proposal (null until NEGOTIATING state)
+    private UUID lastOfferBy;
+    private Long version;
+    private java.util.List<com.hustleup.marketplace.booking.model.NegotiationRound> negotiationHistory;
     private BigDecimal agreedPrice;   // final price both parties agreed on (null until BOOKED state)
     private String currency;          // ISO 4217 code (e.g. "GBP")
 
@@ -121,6 +124,9 @@ public class BookingDto {
                 .listingId(booking.getListingId())
                 .offeredPrice(booking.getOfferedPrice())
                 .counterPrice(booking.getCounterPrice())
+                .lastOfferBy(booking.getLastOfferBy() != null ? booking.getLastOfferBy() : booking.getStatus() == com.hustleup.marketplace.booking.model.BookingStatus.NEGOTIATING ? booking.getSellerId() : booking.getBuyerId())
+                .version(booking.getVersion())
+                .negotiationHistory(booking.getNegotiationHistory())
                 .agreedPrice(booking.getAgreedPrice())
                 .currency(booking.getCurrency())
                 .scheduledAt(booking.getScheduledAt())

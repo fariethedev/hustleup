@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { listingsApi, usersApi } from '../../api/client';
 import { convertToPLN } from '../../utils/constants';
+import { useShops } from '../../hooks/useShops';
+import { storeListing } from '../../utils/storeListings';
 
 export const listingSorts = [
   { value: 'latest', label: 'Newest first' },
@@ -29,6 +31,7 @@ export function matchesSearch(query, ...fields) {
 }
 
 export function useExploreListings({ q = '', type = '', city = '', sort = 'latest' } = {}) {
+  const stores = useShops();
   const [retry, setRetry] = useState(0);
   const key = JSON.stringify([q, type, city, sort, retry]);
   const [result, setResult] = useState({ key: null, data: [], error: false });
@@ -42,10 +45,17 @@ export function useExploreListings({ q = '', type = '', city = '', sort = 'lates
     }, q ? 300 : 0);
     return () => { active = false; clearTimeout(timer); };
   }, [q, type, city, sort, key]);
-  const items = [...result.data];
+  const products = stores.shops.flatMap(shop => (shop.products || []).map(product => storeListing(shop, product)))
+    .filter(item => item.status === 'ACTIVE' && (!city || item.locationCity === city) && (!type || item.listingType === type)
+      && matchesSearch(q, item.title, item.description, item.sellerName, item.category));
+  const items = [...result.data, ...products];
+  if (sort === 'latest') items.sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
   if (sort === 'price_asc' || sort === 'price_desc') items.sort((a, b) => (convertToPLN(a.price, a.currency) - convertToPLN(b.price, b.currency)) * (sort === 'price_desc' ? -1 : 1));
   if (sort === 'rating') items.sort((a, b) => Number(b.avgRating || 0) - Number(a.avgRating || 0));
-  return { items, loading: result.key !== key, error: result.key === key && result.error, reload: () => setRetry((n) => n + 1) };
+  const listingError = result.key === key && result.error;
+  return { items, loading: result.key !== key || stores.loading, error: listingError && stores.error,
+    partialError: listingError !== stores.error,
+    reload: () => { setRetry((n) => n + 1); stores.reload(); } };
 }
 
 export function useExploreCreators(currentUserId) {

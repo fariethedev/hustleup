@@ -113,6 +113,7 @@ export default function Checkout() {
       const { data } = await bookingsApi.cartCheckout(
         bookableItems.map((item) => ({
           listingId: item.listingId,
+          bookingId: item.bookingId,
           quantity: item.quantity ?? 1,
         })),
         // Carried onto every booking this creates. Without it the seller received an order

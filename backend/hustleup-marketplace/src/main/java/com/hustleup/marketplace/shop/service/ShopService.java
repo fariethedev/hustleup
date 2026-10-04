@@ -8,6 +8,7 @@ import com.hustleup.marketplace.listing.repository.ListingRepository;
 import com.hustleup.marketplace.review.repository.ReviewRepository;
 import com.hustleup.marketplace.shop.dto.ShopDto;
 import com.hustleup.marketplace.shop.dto.ShopProductDto;
+import com.hustleup.marketplace.shop.dto.ShopHighlight;
 import com.hustleup.marketplace.shop.model.Shop;
 import com.hustleup.marketplace.shop.model.ShopProduct;
 import com.hustleup.marketplace.shop.repository.ShopProductRepository;
@@ -76,6 +77,9 @@ public class ShopService {
         ShopDto dto = ShopDto.from(shop);
 
         dto.setBannerUrl(fileStorageService.refreshUrl(dto.getBannerUrl()));
+        dto.setHighlights((shop.getHighlights() == null ? List.<ShopHighlight>of() : shop.getHighlights()).stream()
+                .map(h -> new ShopHighlight(h.id(), h.title(), h.items().stream()
+                        .map(m -> new ShopHighlight.Media(fileStorageService.refreshUrl(m.url()), m.type())).toList())).toList());
         dto.setProducts(products.stream().map(product -> {
             ShopProductDto item = ShopProductDto.from(product);
             item.setImageUrl(fileStorageService.refreshUrl(item.getImageUrl()));

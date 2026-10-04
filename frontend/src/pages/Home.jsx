@@ -322,7 +322,6 @@ export default function Home() {
             transition={{ duration: 0.7 }}
             className="max-w-xl"
           >
-            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-2 text-xs text-gray-300"><span className="h-1.5 w-1.5 rounded-full bg-[#CDFF00]" /> Your community. Your marketplace.</p>
             <h1 className="mb-5 text-[42px] font-heading font-extrabold leading-[1.06] tracking-tight text-white sm:text-6xl lg:text-7xl">
               Find your people.<br /><span className="text-[#CDFF00]">Make it happen.</span>
             </h1>

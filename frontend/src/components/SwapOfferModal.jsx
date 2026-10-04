@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { CircleX, Recycle, Box, WandSparkles, Loader, MoveUp, MoveDown, Banknote, Camera, X } from 'lucide-react';
@@ -37,10 +37,25 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
   // Cash top-up. Direction defaults to "I add", the overwhelmingly common case — someone
   // trading up. Nothing is sent unless an amount is actually typed.
   const [cashAmount, setCashAmount] = useState('');
+  const dialogRef = useRef(null);
   const [cashDirection, setCashDirection] = useState('PROPOSER_PAYS');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => lockBodyScroll(), []);
+  useEffect(() => {
+    const previous = document.activeElement;
+    dialogRef.current?.focus();
+    const keyboard = (event) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); }
+      if (event.key !== 'Tab') return;
+      const controls = [...dialogRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled)')].filter(el => el.getClientRects().length);
+      const first = controls[0], last = controls.at(-1);
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener('keydown', keyboard);
+    return () => { document.removeEventListener('keydown', keyboard); previous?.focus(); };
+  }, [onClose]);
 
   // Revoke the previous object URL whenever the picked file changes (including on unmount) —
   // otherwise each reselect leaks the last preview's blob for the life of the tab.
@@ -68,8 +83,13 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
 
   const canSubmit = useMemo(() => {
     if (submitting) return false;
+    if (cashAmount !== '' && (!Number.isFinite(Number(cashAmount)) || Number(cashAmount) < 0 || Number(cashAmount) > 50000 || !/^\d+(\.\d{0,2})?$/.test(cashAmount))) return false;
     return mode === 'listing' ? Boolean(selectedId) : offeredText.trim().length >= 3;
-  }, [mode, selectedId, offeredText, submitting]);
+  }, [mode, selectedId, offeredText, submitting, cashAmount]);
+
+  const selected = myListings.find(item => item.id === selectedId);
+  const comparable = mode === 'listing' && selected && (selected.currency || 'PLN') === (listing.currency || 'PLN');
+  const suggested = comparable ? Math.round((Number(listing.price) - Number(selected.price)) * 100) / 100 : null;
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -106,7 +126,8 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
       <motion.div
         initial={{ y: 40, scale: 0.98 }} animate={{ y: 0, scale: 1 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto scrollbar-hide bg-[#0A0A0A] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl"
+        ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Make an item and cash offer"
+        className="relative w-full sm:max-w-xl max-h-[92dvh] overflow-y-auto scrollbar-hide bg-[#0A0A0A] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl"
       >
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-[#0A0A0A]/95 backdrop-blur-xl border-b border-white/5">
@@ -115,11 +136,11 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
               <Recycle className="w-4 h-4 text-black" strokeWidth={3} />
             </div>
             <div>
-              <h2 className="text-sm font-black text-white tracking-tight leading-none">Propose a swap</h2>
-              <p className="text-[10px] text-gray-500 font-bold mt-1">Trade, and top up if it needs it.</p>
+              <h2 className="text-lg font-bold text-white tracking-tight leading-none">Make a trade</h2>
+              <p className="text-xs text-gray-400 mt-1">Your item + an optional top-up. Their listing.</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+          <button onClick={onClose} aria-label="Close offer" className="w-11 h-11 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
             <CircleX className="w-4 h-4" />
           </button>
         </div>
@@ -275,12 +296,15 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
               })}
             </div>
 
+            {Number.isFinite(suggested) && suggested !== 0 && <button type="button" onClick={() => { setCashAmount(String(Math.abs(suggested))); setCashDirection(suggested > 0 ? 'PROPOSER_PAYS' : 'OWNER_PAYS'); }} className="min-h-11 text-xs text-[#CDFF00] mb-2">Use listed-price difference: {formatPrice(Math.abs(suggested), listing.currency)} {suggested > 0 ? 'from you' : 'from them'}</button>}
             <div className="relative">
               <Banknote className="w-4 h-4 text-gray-600 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="number"
                 min="0"
-                step="1"
+                max="50000"
+                step="0.01"
+                aria-label="Cash top-up amount"
                 inputMode="decimal"
                 value={cashAmount}
                 onChange={(e) => setCashAmount(e.target.value)}
@@ -316,6 +340,12 @@ export default function SwapOfferModal({ listing, onClose, onSuccess }) {
             />
           </div>
 
+          <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-sm space-y-2" aria-live="polite">
+            <p className="font-bold">Your offer at a glance</p>
+            <p>You give: {mode === 'listing' ? selected?.title || 'Choose your item above' : offeredText.trim() || 'Describe your item above'}{Number(cashAmount) > 0 && cashDirection === 'PROPOSER_PAYS' ? ` + ${formatPrice(Number(cashAmount), listing.currency)}` : ''}</p>
+            <p>You receive: {listing.title}{Number(cashAmount) > 0 && cashDirection === 'OWNER_PAYS' ? ` + ${formatPrice(Number(cashAmount), listing.currency)}` : ''}</p>
+            <p className="text-xs text-gray-400">The seller can accept or decline. Agree delivery and settle any top-up directly; this offer does not charge a card.</p>
+          </div>
           <button
             onClick={submit}
             disabled={!canSubmit}

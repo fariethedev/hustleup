@@ -98,6 +98,13 @@ public class Booking {
     @Column(name = "counter_price", precision = 12, scale = 4)
     private BigDecimal counterPrice; // seller's counter-proposal (may be null)
 
+    private UUID lastOfferBy;
+
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb", nullable = false)
+    @Builder.Default
+    private java.util.List<NegotiationRound> negotiationHistory = java.util.List.of();
+
     // The price that both parties agreed on; set when the booking is accepted (BOOKED state).
     // This is the value that would be charged in a payment integration.
     @Column(name = "agreed_price", precision = 12, scale = 4)

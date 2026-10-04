@@ -813,13 +813,13 @@ export default function ListingDetail() {
                       </button>
                     )}
 
-                    {/* Swap Mode — only when the seller opted this listing in to barter */}
-                    {listing.swapEnabled && (
+                    {/* Offers do not reserve a listing; the seller must accept the trade. */}
+                    {listing.status === 'ACTIVE' && (
                       <button
                         onClick={() => (currentUser ? setSwapOpen(true) : navigate('/login'))}
                         className="w-full py-2.5 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 bg-[#CDFF00]/10 hover:bg-[#CDFF00]/20 transition-all"
                       >
-                        <Recycle className="w-4 h-4" /> Offer a swap
+                        <Recycle className="w-4 h-4" /> Offer an item + money
                       </button>
                     )}
                   </div>

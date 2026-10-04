@@ -240,9 +240,7 @@ public class BookingService {
      */
     private void notifyEverywhere(UUID userId, String title, String message, String type, UUID referenceId) {
         notifyInApp(userId, title, message, type, referenceId);
-        notifyByEmail(userId, title,
-                "<p>" + escapeHtml(message) + "</p>"
-                        + "<p>Open your HustleSpace dashboard to act on it.</p>");
+        // NotificationEmailRelay delivers the email once after this transaction commits.
         notifyByPush(userId, title, message);
     }
 
@@ -459,6 +457,7 @@ public class BookingService {
         // Construct the booking entity. @Builder.Default on the entity sets the initial status
         // to POSTED, but we explicitly override it to INQUIRED here to indicate a real request.
         BigDecimal offer = offeredPrice != null ? offeredPrice : listing.getPrice();
+        if (offeredPrice != null) NegotiationRules.price(offeredPrice);
         Booking booking = Booking.builder()
                 .buyerId(buyer.getId())
                 .sellerId(listing.getSellerId())
@@ -534,9 +533,21 @@ public class BookingService {
             // Reuse create() rather than duplicating its rules — it owns "cannot book your
             // own listing", slot reservation, ticket issuing and the instant-vs-negotiated
             // decision. Duplicating any of that here is how the two paths drift apart.
-            BookingDto dto = create(listingId, null, when, null, qty, false);
-            Booking booking = bookingRepository.findById(dto.getId())
-                    .orElseThrow(() -> new RuntimeException("Booking vanished mid-checkout"));
+            Booking booking;
+            if (item.get("bookingId") != null) {
+                booking = bookingRepository.findById(UUID.fromString(item.get("bookingId").toString()))
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Agreement not found"));
+                if (!booking.getBuyerId().equals(getCurrentUser().getId()) || !booking.getListingId().equals(listingId))
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This agreement is not yours");
+                if (booking.getStatus() != BookingStatus.BOOKED || booking.getAgreedPrice() == null || !"PENDING".equals(booking.getPaymentStatus()))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "This agreement is not ready for payment");
+                UUID agreedBookingId = booking.getId();
+                if (payable.stream().anyMatch(b -> b.getId().equals(agreedBookingId)))
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate agreement in cart");
+            } else {
+                BookingDto dto = create(listingId, null, when, null, qty, false);
+                booking = bookingRepository.findById(dto.getId()).orElseThrow(() -> new RuntimeException("Booking vanished mid-checkout"));
+            }
 
             // Stamp the buyer's details onto every line. Written here rather than inside
             // create() because create() is also reached from the listing page and the
@@ -638,25 +649,33 @@ public class BookingService {
      */
     @Transactional
     public BookingDto counterOffer(UUID bookingId, BigDecimal counterPrice) {
+        return counterOffer(bookingId, counterPrice, null);
+    }
+
+    @Transactional
+    public BookingDto counterOffer(UUID bookingId, BigDecimal counterPrice, Long expectedVersion) {
         User seller = getCurrentUser();
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        // Only the seller who owns this booking may counter-offer
-        if (!booking.getSellerId().equals(seller.getId())) {
-            throw new RuntimeException("Only the seller can counter-offer");
-        }
+        NegotiationRules.respond(booking, seller.getId(), expectedVersion);
+        NegotiationRules.price(counterPrice);
+        var history = new java.util.ArrayList<>(booking.getNegotiationHistory());
+        if (history.isEmpty()) history.add(new com.hustleup.marketplace.booking.model.NegotiationRound(booking.getBuyerId(), booking.getOfferedPrice(), booking.getCreatedAt()));
+        history.add(new com.hustleup.marketplace.booking.model.NegotiationRound(seller.getId(), counterPrice, LocalDateTime.now()));
+        booking.setNegotiationHistory(history);
+        booking.setLastOfferBy(seller.getId());
 
         // Set the counter price and move to NEGOTIATING state
         booking.setCounterPrice(counterPrice);
         booking.setStatus(BookingStatus.NEGOTIATING);
         booking.setUpdatedAt(LocalDateTime.now()); // record when this change was made
-        Booking saved = bookingRepository.save(booking);
+        Booking saved = bookingRepository.saveAndFlush(booking);
 
         String listingTitle = listingRepository.findById(booking.getListingId())
                 .map(Listing::getTitle).orElse("your booking");
         String sellerName = seller.displayName();
-        notifyEverywhere(booking.getBuyerId(),
+        notifyEverywhere(seller.getId().equals(booking.getBuyerId()) ? booking.getSellerId() : booking.getBuyerId(),
                 sellerName + " countered on " + listingTitle,
                 sellerName + " proposed " + counterPrice + " " + booking.getCurrency() + " for \"" + listingTitle + "\".",
                 "BOOKING_COUNTER", saved.getId());
@@ -685,6 +704,11 @@ public class BookingService {
      */
     @Transactional
     public BookingDto accept(UUID bookingId) {
+        return accept(bookingId, null);
+    }
+
+    @Transactional
+    public BookingDto accept(UUID bookingId, Long expectedVersion) {
         User user = getCurrentUser();
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
@@ -693,6 +717,8 @@ public class BookingService {
         if (!booking.getBuyerId().equals(user.getId()) && !booking.getSellerId().equals(user.getId())) {
             throw new RuntimeException("Not authorized");
         }
+
+        NegotiationRules.respond(booking, user.getId(), expectedVersion);
 
         // The other door into an event: an organiser accepting a request to join. Without this
         // check the capacity only guards the buy button, and an organiser working through a
@@ -719,7 +745,7 @@ public class BookingService {
             booking.setAgreedPrice(agreed);   // lock in the agreed price
             booking.setStatus(BookingStatus.BOOKED);
             booking.setUpdatedAt(LocalDateTime.now());
-            Booking saved = bookingRepository.save(booking);
+            Booking saved = bookingRepository.saveAndFlush(booking);
 
             // The other route into an event. A ticket is still only for someone who has
             // paid: a free event has nothing to charge, so the booking arrives PAID and is
@@ -730,9 +756,6 @@ public class BookingService {
             }
 
             String listingTitle = bookedListing != null ? bookedListing.getTitle() : "your booking";
-            notifyByEmail(booking.getBuyerId(), "Booking confirmed: " + listingTitle,
-                    "<p>Your booking for <b>" + listingTitle + "</b> is confirmed at "
-                            + agreed + " " + booking.getCurrency() + ".</p>");
             notifyByPush(booking.getBuyerId(), "Booking confirmed",
                     listingTitle + " is confirmed at " + agreed + " " + booking.getCurrency() + ".");
 

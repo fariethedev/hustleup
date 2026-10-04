@@ -218,11 +218,18 @@ export default function Swaps() {
             <Recycle className="w-5 h-5 text-black" strokeWidth={3} />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tight leading-none">Swap &amp; Top</h1>
-            <p className="text-[11px] text-gray-500 font-bold mt-1">Trade what you have — add cash if it needs it.</p>
+            <h1 className="text-2xl font-bold tracking-tight leading-none">Swap &amp; Top</h1>
+            <p className="text-sm text-gray-400 mt-2">Something you have. Something you want.</p>
           </div>
         </div>
 
+        <section className="mb-6 rounded-2xl border border-white/15 bg-white/5 p-5">
+          <h2 className="text-lg font-bold mb-2">Turn your item into your next find</h2>
+          <p className="text-sm text-gray-400 mb-4">Open a listing, offer one of your items or upload a photo, then add money to balance the deal. The seller decides whether to accept.</p>
+          <ol className="grid grid-cols-3 gap-3 text-xs mb-5"><li><span className="text-[#CDFF00] block font-bold mb-1">01 / Offer</span>Item + optional cash</li><li><span className="text-[#CDFF00] block font-bold mb-1">02 / Agree</span>Both sides confirm terms</li><li><span className="text-[#CDFF00] block font-bold mb-1">03 / Exchange</span>Arrange handover and confirm receipt</li></ol>
+          <Link to="/explore/listings" className="inline-flex min-h-11 items-center px-5 rounded-xl bg-[#CDFF00] text-black font-semibold text-sm">Find something to swap for</Link>
+          <p className="text-xs text-gray-400 mt-3">Top-ups are settled directly between you and the seller, not charged through the app.</p>
+        </section>
         {/* Tabs */}
         <div className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/10 mb-5">
           {[

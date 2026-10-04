@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+:root {
+  --surface-page: #090909;
+  --surface-card: #191919;
+  --ink-primary: #f5f5f5;
+  --ink-muted: #a3a3a3;
+  --line-subtle: #ffffff18;
+  --line-strong: #ffffff30;
+}
+[data-theme="light"] {
+  --surface-page: #f7f7f5;
+  --surface-card: #ffffff;
+  --ink-primary: #18181b;
+  --ink-muted: #52525b;
+  --line-subtle: #18181b20;
+  --line-strong: #18181b40;
+}
+
 @theme {
   --font-heading: 'Montserrat', system-ui, -apple-system, sans-serif;
   --font-body: 'Poppins', system-ui, -apple-system, sans-serif;
@@ -229,8 +246,23 @@
   [data-theme="light"] .text-gray-300 { color: #3F3F46; }
   [data-theme="light"] .text-gray-400 { color: #52525B; }
   [data-theme="light"] .text-gray-500 { color: #6B6B74; }
-  [data-theme="light"] .text-gray-600 { color: #8A8A93; }
-  [data-theme="light"] .text-gray-700 { color: #A1A1AA; }
+  [data-theme="light"] .text-gray-600 { color: #61616b; }
+  [data-theme="light"] .text-gray-700 { color: #61616b; }
+
+  /* Legacy opaque/translucent surfaces share the same light palette. Photo
+     overlays and full-screen backdrops remain dark so media stays readable. */
+  [data-theme="light"] :is([class*="bg-[#0A0A0A]/"], [class*="bg-[#0a0a0a]/"], [class*="bg-[#090909]/"], [class*="bg-[#050505]/"], [class*="bg-[#111]/"]):not(.media-overlay *) {
+    background-color: rgb(255 255 255 / 96%);
+  }
+  [data-theme="light"] :is(.text-green-400, .text-emerald-400) { color: #167040; }
+  [data-theme="light"] .text-red-400 { color: #b42338; }
+  [data-theme="light"] .text-yellow-400 { color: #806000; }
+  [data-theme="light"] .text-blue-400 { color: #245ab5; }
+  [data-theme="light"] :is(input, textarea)::placeholder { color: #686873; }
+  [data-theme="light"] :is(input, textarea, select) { color-scheme: light; }
+  [data-theme="light"] ::-webkit-scrollbar-track { background: #f7f7f5; }
+  [data-theme="light"] ::-webkit-scrollbar-thumb { background: #b6b6bd; }
+  [data-theme="light"] :is(button, a):focus-visible { outline: 2px solid #526b00; outline-offset: 3px; }
 
   /* ── Surfaces ───────────────────────────────────────────────────────────
      Cards are white on a faintly grey page, which is what gives them an edge
@@ -246,6 +278,9 @@
   [data-theme="light"] .bg-\[\#111111\],
   [data-theme="light"] .bg-\[\#121212\],
   [data-theme="light"] .bg-\[\#141414\],
+  [data-theme="light"] .bg-\[\#090909\],
+  [data-theme="light"] .bg-\[\#0c0c0c\],
+  [data-theme="light"] .bg-\[\#191919\],
   [data-theme="light"] .bg-\[\#1E1E1E\] { background-color: #FFFFFF; }
 
   [data-theme="light"] .bg-black\/40,
@@ -313,6 +348,10 @@
      image, its scrim and everything laid over it, opts that content back out: inside
      it, colours stay exactly what they were before this file ran at all. */
   [data-theme="light"] .media-overlay .text-white  { color: #FFFFFF; }
+  [data-theme="light"] .media-overlay .text-\[\#CDFF00\] { color: #CDFF00; }
+  [data-theme="light"] .media-overlay .text-\[\#00FFFF\] { color: #00FFFF; }
+  [data-theme="light"] :is(.bg-black\/70, .bg-black\/80, .bg-\[\#7D39EB\], .bg-blue-600, .bg-red-600, .bg-green-600).text-white { color: #fff; }
+  [data-theme="light"] :is(.text-white\/15, .text-white\/20, .text-white\/25):not(.media-overlay *) { color: #777780; }
   [data-theme="light"] .media-overlay .text-gray-300 { color: #D1D5DB; }
   [data-theme="light"] .media-overlay .text-gray-400 { color: #9CA3AF; }
   [data-theme="light"] .media-overlay .text-gray-500 { color: #6B7280; }

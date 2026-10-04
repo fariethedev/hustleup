@@ -69,6 +69,8 @@ public class UserDto {
      * messages. May be {@code null} for users who haven't completed onboarding.
      */
     private String username;
+    private Boolean privateAccount;
+    private Boolean profileRestricted;
 
     /**
      * The user's role as a string (e.g. "BUYER", "SELLER", "ADMIN").
@@ -235,6 +237,7 @@ public class UserDto {
         return UserDto.builder()
                 .id(user.getId())
                 .email(user.getEmail())
+                .privateAccount(user.isPrivateAccount())
                 .fullName(user.getFullName())
                 .username(user.getUsername())
                 .role(user.getRole() != null ? user.getRole().name() : null) // Enum → String conversion
@@ -282,8 +285,15 @@ public class UserDto {
      * @return a {@link UserDto} containing only publicly-safe profile fields
      */
     public static UserDto publicView(User user) {
+        return publicView(user, user != null && !user.isPrivateAccount());
+    }
+
+    public static UserDto publicView(User user, boolean canView) {
         if (user == null) return new UserDto();
+        if (user.isPrivateAccount() && !canView) return UserDto.builder().id(user.getId()).fullName(user.getFullName())
+                .username(user.getUsername()).avatarUrl(user.getAvatarUrl()).privateAccount(true).profileRestricted(true).build();
         return UserDto.builder()
+                .privateAccount(user.isPrivateAccount()).profileRestricted(false)
                 .id(user.getId())
                 .fullName(user.getFullName())
                 .username(user.getUsername())

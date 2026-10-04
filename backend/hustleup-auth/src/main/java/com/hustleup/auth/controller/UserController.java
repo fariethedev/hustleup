@@ -65,6 +65,7 @@ public class UserController {
     // Turns a city/address string into coordinates for the "X km away" distance feature.
     // No-ops (returns empty) until GOOGLE_MAPS_SERVER_KEY is configured.
     private final GeocodingService geocodingService;
+    private final com.hustleup.common.security.AccountPrivacy accountPrivacy;
 
     // -------------------------------------------------------------------------
     // Private utility
@@ -183,7 +184,7 @@ public class UserController {
             // isSelf stays false here, so a failure degrades to the *safer* public view.
         }
 
-        return ResponseEntity.ok(isSelf ? UserDto.fromEntity(user) : UserDto.publicView(user));
+        return ResponseEntity.ok(isSelf ? UserDto.fromEntity(user) : UserDto.publicView(user, accountPrivacy.canView(user.getId())));
     }
 
     /**
@@ -339,6 +340,7 @@ public class UserController {
         if (profileData.getFullName() != null)      user.setFullName(profileData.getFullName());
         if (profileData.getUsername() != null)      user.setUsername(profileData.getUsername());
         if (profileData.getBio() != null)           user.setBio(profileData.getBio());
+        if (profileData.getPrivateAccount() != null) user.setPrivateAccount(profileData.getPrivateAccount());
         if (profileData.getPhone() != null)         user.setPhone(profileData.getPhone());
         if (profileData.getCity() != null)          user.setCity(profileData.getCity());
         if (profileData.getAddressLine1() != null)  user.setAddressLine1(profileData.getAddressLine1());

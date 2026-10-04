@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScanSearch, CalendarDays, MoveLeft, BookOpenText, ShieldCheck, CirclePlus, ShieldPlus, Timer, ScanEye, Grid2x2, CircleX, SquareArrowOutUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -6,8 +6,7 @@ import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { newsApi, publishersApi } from '../api/client';
 import { SECTIONS } from '../utils/taxonomy';
-import HeroBrief from '../components/HeroBrief';
-import MobileFilterBar from '../components/MobileFilterBar';
+import EditorialHeader from '../components/EditorialHeader';
 import ArticleComposer from '../components/news/ArticleComposer';
 
 
@@ -21,6 +20,8 @@ export default function News() {
 
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const requestRef = useRef(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [section, setSection] = useState('all');
   const [selected, setSelected] = useState(null);   // the article being read (full body)
@@ -30,16 +31,18 @@ export default function News() {
   const [composerOpen, setComposerOpen] = useState(false);
 
   const load = useCallback(() => {
+    const request = ++requestRef.current;
     setLoading(true);
+    setError(false);
     newsApi.feed({ category: section, q: searchQuery || undefined })
-      .then((res) => setArticles(res.data?.content || []))
-      .catch(() => setArticles([]))
-      .finally(() => setLoading(false));
+      .then((res) => { if (request === requestRef.current) setArticles(res.data?.content || []); })
+      .catch(() => { if (request === requestRef.current) { setArticles([]); setError(true); } })
+      .finally(() => { if (request === requestRef.current) setLoading(false); });
   }, [section, searchQuery]);
 
   useEffect(() => {
     const t = setTimeout(load, searchQuery ? 350 : 0);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); requestRef.current++; };
   }, [load, searchQuery]);
 
   // Sets state only from the async callback. An early `setCanPost(false)` in the
@@ -56,23 +59,19 @@ export default function News() {
   const openArticle = (article) => {
     setSelected({ ...article, body: null });
     newsApi.one(article.id)
-      .then((res) => setSelected(res.data))
-      .catch(() => setSelected({ ...article, body: 'This article could not be loaded.' }));
+      .then((res) => setSelected(current => current?.id === article.id ? res.data : current))
+      .catch(() => setSelected(current => current?.id === article.id ? { ...article, body: 'This article could not be loaded.' } : current));
   };
 
   return (
     <div className="min-h-screen text-white">
-      <HeroBrief
-        eyebrow="News"
-        title="What's moving in the hustle economy"
-        subtitle="Reported by verified outlets."
-      />
+      <EditorialHeader section="News" title="Stay curious. Stay ahead." description="Ideas, stories and useful perspectives for your next move. Explore the headlines, then make time for a deeper read." />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-20">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500">
             <ShieldPlus className="w-4 h-4 text-[#CDFF00]" />
-            Verified outlets only
+            Stories from publishers and selected sources
           </div>
           {canPost ? (
             <motion.button
@@ -93,55 +92,22 @@ export default function News() {
         </div>
 
         {/* Mobile: search and sections collapse behind icons */}
-        <MobileFilterBar
-          query={searchQuery}
-          onQueryChange={setSearchQuery}
-          placeholder="Search stories or outlets…"
-          activeFilters={section !== 'all' ? 1 : 0}
-          resultLabel={`${articles.length} stor${articles.length === 1 ? 'y' : 'ies'}`}
-          onClear={() => { setSearchQuery(''); setSection('all'); }}
-        >
-          <div className="flex gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide pb-0.5">
-            <button
-              onClick={() => setSection('all')}
-              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
-                section === 'all'
-                  ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
-                  : 'bg-white/5 border-white/10 text-gray-400'
-              }`}
-            >
-              <Grid2x2 className="w-3.5 h-3.5" /> All
-            </button>
-            {SECTIONS.map((sec) => (
-              <button
-                key={sec.id}
-                onClick={() => setSection(section === sec.id ? 'all' : sec.id)}
-                className={`shrink-0 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
-                  section === sec.id
-                    ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
-                    : 'bg-white/5 border-white/10 text-gray-400'
-                }`}
-              >
-                {sec.name}
-              </button>
-            ))}
-          </div>
-        </MobileFilterBar>
 
         {/* Desktop: unchanged inline layout */}
-        <div className="hidden sm:flex items-center gap-2.5 bg-white/5 border border-white/10 focus-within:border-[#CDFF00]/50 rounded-xl px-4 py-2.5 mb-4 transition-colors">
+        <div className="flex items-center gap-3 bg-white/5 border border-white/15 focus-within:border-[#CDFF00]/50 rounded-2xl px-4 py-4 mb-4 transition-colors">
           <ScanSearch className="w-4 h-4 text-gray-500 shrink-0" />
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             type="text"
             placeholder="Search stories or outlets…"
+            aria-label="Search stories or outlets"
             className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"
           />
         </div>
 
         {/* Sections */}
-        <div className="hidden sm:flex flex-wrap items-center gap-2 mb-8">
+        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 [&>button]:shrink-0">
           <button
             onClick={() => setSection('all')}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
@@ -168,10 +134,11 @@ export default function News() {
         </div>
 
         {/* Grid */}
+        {error && <div role="alert" className="p-5 rounded-2xl border border-red-400/30 mb-5 text-sm">We couldn't load the news. <button className="underline min-h-11" onClick={load}>Try again</button></div>}
         {loading ? (
-          <div className="flex sm:grid overflow-x-auto overscroll-x-contain sm:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 sm:gap-4 pb-1 sm:pb-0 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-72 shrink-0 w-[calc((100%-0.75rem)/2)] sm:w-auto snap-start rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse" />
+              <div key={i} className="h-72 rounded-2xl bg-white/[0.03] border border-white/5 animate-pulse" />
             ))}
           </div>
         ) : articles.length === 0 ? (
@@ -187,9 +154,9 @@ export default function News() {
             </div>
           </div>
         ) : (
-          <div className="flex sm:grid overflow-x-auto overscroll-x-contain sm:overflow-visible snap-x snap-mandatory scrollbar-hide gap-3 sm:gap-4 pb-1 sm:pb-0 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <AnimatePresence mode="popLayout">
-              {articles.map((a) => (
+              {articles.map((a, index) => (
                 <motion.button
                   key={a.id}
                   layout
@@ -198,9 +165,9 @@ export default function News() {
                   exit={{ opacity: 0, scale: 0.97 }}
                   whileHover={{ y: -4 }}
                   onClick={() => openArticle(a)}
-                  className="shrink-0 w-[calc((100%-0.75rem)/2)] sm:w-auto snap-start text-left bg-white/[0.02] border border-white/10 hover:border-[#CDFF00]/30 rounded-2xl overflow-hidden transition-colors flex flex-col"
+                  className={`text-left bg-white/[0.03] border border-white/15 hover:border-[#CDFF00]/40 rounded-3xl overflow-hidden transition-colors flex flex-col ${index === 0 ? 'sm:col-span-2 sm:grid sm:grid-cols-2' : ''}`}
                 >
-                  <div className="aspect-[16/10] sm:aspect-auto sm:h-40 bg-black/40 overflow-hidden shrink-0">
+                  <div className={`aspect-[16/10] bg-black/40 overflow-hidden shrink-0 ${index === 0 ? 'sm:aspect-auto sm:min-h-72' : ''}`}>
                     {a.coverImageUrl
                       ? <img src={a.coverImageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
                       : <div className="w-full h-full flex items-center justify-center">
@@ -213,7 +180,7 @@ export default function News() {
                         {a.category}
                       </span>
                     )}
-                    <h2 className="text-sm font-black text-white leading-snug mb-1.5">{a.title}</h2>
+                    <h2 className={`${index === 0 ? 'text-2xl sm:text-3xl' : 'text-xl'} font-bold text-white leading-tight mb-3`}>{a.title}</h2>
                     {a.summary && (
                       <p className="text-xs text-gray-500 leading-relaxed line-clamp-3 mb-3">{a.summary}</p>
                     )}

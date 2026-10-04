@@ -1,207 +1,61 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { CircleCheck, BadgeDollarSign, SquarePen, CircleX } from 'lucide-react';
-import { bookingsApi, dispatchToast } from '../api/client';
-import { formatPrice, BOOKING_STATUS_MAP } from '../utils/constants';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { bookingsApi, listingsApi } from '../api/client';
+import { selectUser } from '../store/authSlice';
+import { addToCart, closeCart } from '../store/cartSlice';
+import { formatPrice } from '../utils/constants';
 
-const LIME = '#CDFF00';
-// Statuses where the negotiation itself is over — the card stops polling and drops
-// its action buttons for a plain confirmation line.
-const TERMINAL = ['BOOKED', 'COMPLETED', 'CANCELLED'];
-
-/**
- * The live, in-chat negotiation card for a single Booking — sent once (as an OFFER
- * message) when a buyer proposes a price, then re-rendered forever after: accept,
- * counter and decline are all PATCHes to the same booking, not new chat messages, so
- * this polls the booking by id rather than trusting anything snapshotted on the
- * message itself. Same lime accent as every other marketplace surface in the app —
- * see the palette comment at the top of DirectMessages.jsx for why Bond gets rose
- * instead and this doesn't.
- */
 export default function OfferMessageCard({ bookingId }) {
-  const [booking, setBooking] = useState(null);
-  const [notFound, setNotFound] = useState(false);
-  const [countering, setCountering] = useState(false);
-  const [counterValue, setCounterValue] = useState('');
-  const [busy, setBusy] = useState(false);
-  const mountedRef = useRef(true);
-
-  useEffect(() => () => { mountedRef.current = false; }, []);
-
-  const load = () => {
-    bookingsApi.getById(bookingId)
-      .then((res) => { if (mountedRef.current) setBooking(res.data); })
-      .catch(() => { if (mountedRef.current) setNotFound(true); });
-  };
-
+  const user = useSelector(selectUser), dispatch = useDispatch(), navigate = useNavigate();
+  const [booking, setBooking] = useState(null), [error, setError] = useState('');
+  const [countering, setCountering] = useState(false), [price, setPrice] = useState('');
+  const [busy, setBusy] = useState(false), [retry, setRetry] = useState(0);
+  const pending = useRef(false);
   useEffect(() => {
-    if (!bookingId) return undefined;
-    load();
-    // Matches the BookingAlertListener poll cadence used elsewhere for booking state.
-    const interval = setInterval(() => {
-      // booking is read fresh via the functional setState below, so this closure
-      // never needs booking?.status in its dependency array.
-      setBooking((current) => {
-        if (current && TERMINAL.includes(current.status)) {
-          clearInterval(interval);
-          return current;
-        }
-        load();
-        return current;
-      });
-    }, 8000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookingId]);
-
-  const act = async (fn, successMessage) => {
+    let active = true;
+    const load = async () => {
+      if (pending.current) return;
+      try { const { data } = await bookingsApi.getById(bookingId); if (active && !pending.current) { setBooking(current => current && (current.version ?? 0) > (data.version ?? 0) ? current : data); setError(''); } }
+      catch { if (active) setError('Could not refresh this offer. Retry before responding.'); }
+    };
+    load(); const timer = setInterval(load, 6000);
+    return () => { active = false; clearInterval(timer); };
+  }, [bookingId, retry]);
+  const act = async action => {
+    if (pending.current) return;
+    pending.current = true;
+    setBusy(true); setError('');
+    try { const { data } = await action(); setBooking(data); setCountering(false); setPrice(''); }
+    catch (e) { setError(e.response?.data?.message || e.response?.data?.error || 'The offer may have changed. Refresh and retry.'); }
+    finally { pending.current = false; setBusy(false); }
+  };
+  const addAgreement = async checkout => {
     setBusy(true);
     try {
-      const res = await fn();
-      setBooking(res.data);
-      if (successMessage) dispatchToast(successMessage, 'success');
-    } catch (err) {
-      dispatchToast(err.response?.data?.error || 'Could not update that offer.', 'error');
-    } finally {
-      setBusy(false);
-    }
+      const { data: fresh } = await bookingsApi.getById(bookingId);
+      if (fresh.status !== 'BOOKED' || ['PAID','TRANSFERRED','REFUNDED'].includes(fresh.paymentStatus)) throw new Error('This agreement is no longer awaiting payment.');
+      const { data: listing } = await listingsApi.getById(fresh.listingId);
+      dispatch(addToCart({ listingId: fresh.listingId, bookingId, quantity: 1, title: fresh.listingTitle, price: Number(fresh.agreedPrice), currency: fresh.currency, sellerId: fresh.sellerId, sellerName: fresh.sellerName, image: listing.mediaUrls?.[0], shippingMethod: listing.shippingMethod, shippingPrice: Number(listing.shippingPrice) || 0, checkoutFields: listing.checkoutFields }));
+      if (checkout) { dispatch(closeCart()); navigate('/checkout'); }
+    } catch (e) { setError(e.message || 'Could not open this agreement.'); }
+    finally { setBusy(false); }
   };
-
-  const submitCounter = async () => {
-    const price = parseFloat(counterValue);
-    if (!price || price <= 0) return;
-    setBusy(true);
-    try {
-      const res = await bookingsApi.counterOffer(bookingId, price);
-      setBooking(res.data);
-      setCountering(false);
-      setCounterValue('');
-    } catch (err) {
-      // Left open on failure — the price the seller typed shouldn't vanish along with the error.
-      dispatchToast(err.response?.data?.error || 'Could not send counter-offer.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (notFound) return null; // deleted/inaccessible booking — fail quiet, not with a broken card
-
-  if (!booking) {
-    return (
-      <div className="w-[260px] rounded-2xl border border-white/10 bg-white/[0.03] p-3 animate-pulse">
-        <div className="h-3 w-2/3 bg-white/10 rounded mb-2" />
-        <div className="h-5 w-1/2 bg-white/10 rounded" />
-      </div>
-    );
-  }
-
-  const isBuyer = booking.role === 'buyer';
-  const status = BOOKING_STATUS_MAP[booking.status] || { label: booking.status, color: 'bg-gray-800 text-gray-400' };
-  // A pending INQUIRED request reads as something to "decline"; anything already
-  // moving (negotiating/booked) reads as something to "cancel" — same endpoint either way.
-  const isPendingRequest = booking.status === 'INQUIRED' && !isBuyer;
-
-  const price = booking.agreedPrice ?? booking.counterPrice ?? booking.offeredPrice;
-  const priceLabel = booking.agreedPrice
-    ? 'Agreed price'
-    : booking.status === 'NEGOTIATING' && booking.counterPrice
-      ? 'Countered'
-      : 'Offered';
-
-  return (
-    <div
-      className="w-[280px] rounded-2xl border p-3"
-      style={{ borderColor: `${LIME}40`, backgroundColor: `${LIME}0d` }}
-    >
-      <div className="flex items-center gap-2 mb-2">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: LIME }}>
-          <BadgeDollarSign className="w-3.5 h-3.5 text-black" />
-        </div>
-        <span className="text-xs font-black text-white truncate flex-1">{booking.listingTitle || 'Negotiation'}</span>
-        <span className={`px-1.5 py-0.5 rounded text-[8px] font-black tracking-[0.1em] shrink-0 ${status.color}`}>
-          {status.label}
-        </span>
-      </div>
-
-      <div className="flex items-baseline gap-1.5 mb-2.5">
-        <span className="text-[9px] font-bold tracking-[0.15em] text-gray-500">{priceLabel}</span>
-        <span className="text-lg font-black" style={{ color: LIME }}>{formatPrice(price, booking.currency)}</span>
-        {booking.status === 'NEGOTIATING' && booking.counterPrice && (
-          <span className="text-[10px] text-gray-500">(was {formatPrice(booking.offeredPrice, booking.currency)})</span>
-        )}
-      </div>
-
-      {!TERMINAL.includes(booking.status) && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {booking.status === 'INQUIRED' && !isBuyer && (
-            <>
-              <button
-                disabled={busy}
-                onClick={() => act(() => bookingsApi.accept(bookingId), 'Offer accepted')}
-                className="px-2.5 py-1.5 rounded-lg font-black text-[9px] tracking-widest text-black hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-1"
-                style={{ backgroundColor: LIME }}
-              >
-                <CircleCheck className="w-3 h-3" /> Accept
-              </button>
-              <button
-                disabled={busy}
-                onClick={() => { setCountering((v) => !v); setCounterValue(''); }}
-                className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white font-black text-[9px] tracking-widest hover:bg-white/10 transition-all flex items-center gap-1"
-              >
-                <SquarePen className="w-3 h-3" /> Counter
-              </button>
-            </>
-          )}
-
-          {booking.status === 'NEGOTIATING' && isBuyer && (
-            <button
-              disabled={busy}
-              onClick={() => act(() => bookingsApi.accept(bookingId), 'Deal agreed')}
-              className="px-2.5 py-1.5 rounded-lg font-black text-[9px] tracking-widest text-black hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-1"
-              style={{ backgroundColor: LIME }}
-            >
-              <CircleCheck className="w-3 h-3" /> Accept {formatPrice(booking.counterPrice, booking.currency)}
-            </button>
-          )}
-
-          <button
-            disabled={busy}
-            onClick={() => { if (confirm(isPendingRequest ? 'Decline this offer?' : 'Cancel this negotiation?')) act(() => bookingsApi.cancel(bookingId, 'Declined in chat')); }}
-            className="px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 font-black text-[9px] tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-1"
-          >
-            <CircleX className="w-3 h-3" /> {isPendingRequest ? 'Decline' : 'Cancel'}
-          </button>
-        </div>
-      )}
-
-      {countering && (
-        <div className="mt-2 pt-2 border-t border-white/10 flex items-center gap-1.5">
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            autoFocus
-            value={counterValue}
-            onChange={(e) => setCounterValue(e.target.value)}
-            placeholder={`Counter (${booking.currency})`}
-            className="flex-1 min-w-0 bg-white/[0.04] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs focus:outline-none"
-          />
-          <button
-            disabled={busy || !counterValue}
-            onClick={submitCounter}
-            className="px-2.5 py-1.5 rounded-lg font-black text-[9px] tracking-widest text-black disabled:opacity-50 shrink-0"
-            style={{ backgroundColor: LIME }}
-          >
-            Send
-          </button>
-        </div>
-      )}
-
-      {booking.status === 'BOOKED' && (
-        <Link to="/dashboard" className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] font-bold text-gray-400 hover:text-white transition-colors">
-          Manage in Dashboard →
-        </Link>
-      )}
-    </div>
-  );
+  const open = ['INQUIRED', 'NEGOTIATING'].includes(booking?.status);
+  const lastBy = booking?.lastOfferBy || (booking?.status === 'NEGOTIATING' ? booking?.sellerId : booking?.buyerId);
+  const myTurn = open && lastBy !== user?.id;
+  const value = booking?.agreedPrice ?? booking?.counterPrice ?? booking?.offeredPrice;
+  const validPrice = /^\d+(\.\d{1,2})?$/.test(price) && Number(price) > 0 && Number(price) <= 1000000;
+  return <article className={'w-[min(320px,75vw)] rounded-2xl border p-4 space-y-4 ' + (open ? 'border-green-500/40 bg-green-500/10' : 'border-white/15 bg-white/5')} aria-label="Price negotiation">
+    <div><p className="text-xs font-semibold text-green-400 mb-1">{open ? 'NEGOTIATION' : booking?.status === 'BOOKED' ? 'DEAL AGREED' : booking?.status || 'Loading offer…'}</p><h3 className="font-bold text-sm">{booking?.listingTitle || 'Your offer'}</h3></div>
+    {error && <p role="alert" className="text-xs text-red-400">{error} <button className="underline min-h-11" onClick={() => setRetry(n => n + 1)}>Refresh</button></p>}
+    {booking && <>
+      <div><p className="text-2xl font-bold">{formatPrice(value, booking.currency)}</p><p className="text-xs text-gray-400 mt-1">{open ? myTurn ? 'Their offer · your turn to respond' : 'Your offer · waiting for their reply' : booking.status === 'BOOKED' ? 'Both sides agreed. Payment is separate.' : 'This negotiation is closed.'}</p></div>
+      {!!booking.negotiationHistory?.length && <details className="text-xs text-gray-400"><summary className="cursor-pointer min-h-8">Offer history ({booking.negotiationHistory.length})</summary><ol className="space-y-2 max-h-40 overflow-y-auto">{booking.negotiationHistory.map((round, i) => <li key={i} className="flex justify-between gap-2"><span>{round.offeredBy === user?.id ? 'You' : 'Them'}</span><span>{formatPrice(round.price, booking.currency)}</span></li>)}</ol></details>}
+      {myTurn && <div className="grid grid-cols-2 gap-2"><button disabled={busy || !!error} onClick={() => act(() => bookingsApi.accept(bookingId, booking.version))} className="min-h-11 rounded-xl bg-green-500 text-black text-sm font-semibold disabled:opacity-50">Accept price</button><button disabled={busy || !!error} onClick={() => { setCountering(v => !v); setPrice(String(value)); }} className="min-h-11 rounded-xl border border-white/20 text-sm">Counter offer</button></div>}
+      {myTurn && countering && <form onSubmit={e => { e.preventDefault(); if (validPrice) act(() => bookingsApi.counterOffer(bookingId, Number(price), booking.version)); }} className="space-y-2"><label className="text-xs block">Your counter ({booking.currency})<input autoFocus type="number" min="0.01" max="1000000" step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="mt-2 w-full min-h-11 px-3 rounded-xl border border-white/20 bg-white/5" /></label><button disabled={busy || !validPrice} className="min-h-11 w-full bg-green-500 text-black rounded-xl text-sm font-semibold disabled:opacity-40">Send counter offer</button></form>}
+      {open && <button disabled={busy} onClick={() => { if (window.confirm('Close this negotiation?')) act(() => bookingsApi.cancel(bookingId, 'Closed in chat')); }} className="min-h-11 text-xs text-gray-400 underline">{myTurn ? 'Decline negotiation' : 'Withdraw offer'}</button>}
+      {booking.status === 'BOOKED' && booking.buyerId === user?.id && !['PAID','TRANSFERRED','REFUNDED'].includes(booking.paymentStatus) && <div className="space-y-2"><button disabled={busy} onClick={() => addAgreement(true)} className="w-full min-h-11 rounded-xl bg-[#CDFF00] text-black font-semibold text-sm">Continue to payment</button><button disabled={busy} onClick={() => addAgreement(false)} className="w-full min-h-11 rounded-xl border border-white/20 text-sm">Add agreed deal to cart</button></div>}
+    </>}
+  </article>;
 }

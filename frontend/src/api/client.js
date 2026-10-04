@@ -258,9 +258,9 @@ export const bookingsApi = {
   // Single booking by id, role-tagged for the caller. Powers the live offer card embedded
   // in a DM thread — the card polls this instead of trusting a point-in-time snapshot.
   getById: (id) => api.get(`/bookings/${id}`),
-  counterOffer: (id, counterPrice) =>
-    api.patch(`/bookings/${id}/counter`, { counterPrice }),
-  accept: (id) => api.patch(`/bookings/${id}/accept`),
+  counterOffer: (id, counterPrice, version) =>
+    api.patch(`/bookings/${id}/counter`, { counterPrice, version }),
+  accept: (id, version) => api.patch(`/bookings/${id}/accept`, { version }),
   // The buyer confirming they got what they paid for. This is what releases the seller's
   // money — marking a booking complete is the seller's own account of the sale and no
   // longer moves anything on its own.
@@ -579,6 +579,10 @@ export const communitiesApi = {
 // These live in the social service under /follows (NOT /users — the old
 // usersApi.followUser endpoints never existed on the backend).
 export const followsApi = {
+  requests: () => api.get('/follows/requests'),
+  approveRequest: (id) => api.post(`/follows/requests/${id}/accept`),
+  declineRequest: (id) => api.delete(`/follows/requests/${id}`),
+  removeFollower: (id) => api.delete(`/follows/followers/${id}`),
   follow: (userId) => api.post(`/follows/${userId}`),
   unfollow: (userId) => api.delete(`/follows/${userId}`),
   relationship: (userId) => api.get(`/follows/${userId}/relationship`),

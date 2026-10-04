@@ -15,6 +15,7 @@ import { uploadUrl } from '../config';
  */
 export default function CreatorCard({ user: u, index = 0, variant = 'compact' }) {
   const [following, setFollowing] = useState(false);
+  const [requested, setRequested] = useState(false);
   const [busy, setBusy] = useState(false);
   // null while loading, so the card doesn't flash "0 followers" before the real number
   // arrives — a beat of nothing there reads better than a wrong number that self-corrects.
@@ -26,6 +27,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
     followsApi.counts(u.id)
       .then((r) => { if (!cancelled) setFollowerCount(r.data?.followers ?? 0); })
       .catch(() => { if (!cancelled) setFollowerCount(0); });
+    followsApi.relationship(u.id).then(r => { if (!cancelled) { setFollowing(!!r.data.isFollowing); setRequested(!!r.data.followRequested); } }).catch(() => {});
     return () => { cancelled = true; };
   }, [u?.id]);
 
@@ -37,13 +39,15 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
     e.stopPropagation();
     if (busy) return;
     setBusy(true);
-    const next = !following;
+    const next = !following && !requested;
     setFollowing(next); // optimistic
     try {
-      if (next) await followsApi.follow(u.id);
-      else await followsApi.unfollow(u.id);
+      if (next) {
+        const { data } = await followsApi.follow(u.id);
+        setRequested(data.status === 'requested'); setFollowing(data.status !== 'requested');
+      } else { await followsApi.unfollow(u.id); setRequested(false); }
     } catch {
-      setFollowing(!next); // roll back on failure
+      setFollowing(following); // Restore the accepted relationship, not a pending request.
     } finally {
       setBusy(false);
     }
@@ -64,7 +68,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
     >
       {following
         ? <><CircleCheck className="w-3.5 h-3.5" /> Following</>
-        : <><UserRoundPlus className="w-3.5 h-3.5" /> Follow</>}
+        : <><UserRoundPlus className="w-3.5 h-3.5" /> {requested ? 'Requested' : 'Follow'}</>}
     </button>
   );
 

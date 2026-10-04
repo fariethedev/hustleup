@@ -53,13 +53,29 @@ export default function FollowListModal({ mode, onClose, onCountChange }) {
    */
   const toggle = async (person) => {
     if (busy.has(person.id)) return;
+    if (person.followRequested) {
+      setBusy(b => new Set(b).add(person.id));
+      try {
+        await followsApi.unfollow(person.id);
+        setRows(list => list.map(p => p.id === person.id ? { ...p, followRequested: false } : p));
+      } catch { dispatchToast('Could not cancel your request', 'error'); }
+      finally { setBusy(b => { const next = new Set(b); next.delete(person.id); return next; }); }
+      return;
+    }
     const wasFollowing = !!person.isFollowing;
     setBusy((b) => new Set(b).add(person.id));
     setRows((list) => list.map((p) => (p.id === person.id ? { ...p, isFollowing: !wasFollowing } : p)));
     onCountChange?.(wasFollowing ? -1 : 1);
     try {
       if (wasFollowing) await followsApi.unfollow(person.id);
-      else await followsApi.follow(person.id);
+      else {
+        const { data } = await followsApi.follow(person.id);
+        if (data.status === 'requested') {
+          setRows(list => list.map(p => p.id === person.id ? { ...p, isFollowing: false, followRequested: true } : p));
+          onCountChange?.(-1);
+          dispatchToast('Follow request sent', 'success');
+        }
+      }
     } catch {
       setRows((list) => list.map((p) => (p.id === person.id ? { ...p, isFollowing: wasFollowing } : p)));
       onCountChange?.(wasFollowing ? 1 : -1);
@@ -158,7 +174,7 @@ export default function FollowListModal({ mode, onClose, onCountChange }) {
                   {/* "Follow back" only means anything about somebody who follows you. In the
                       following list the same state is just "follow", usually after an
                       accidental unfollow a moment earlier. */}
-                  {u.isFollowing ? 'FOLLOWING' : mode === 'followers' ? 'FOLLOW BACK' : 'FOLLOW'}
+                  {u.followRequested ? 'CANCEL REQUEST' : u.isFollowing ? 'FOLLOWING' : mode === 'followers' ? 'FOLLOW BACK' : 'FOLLOW'}
                 </button>
               </div>
             ))

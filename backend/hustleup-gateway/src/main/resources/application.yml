@@ -35,6 +35,14 @@ spring:
               - "Authorization"
             maxAge: 3600
       routes:
+        # Local chat attachments belong to notification, not auth's upload directory.
+        - id: message-uploads-service
+          uri: ${NOTIFICATION_URI:http://localhost:8085}
+          predicates:
+            - Path=/uploads/messages/**
+          filters:
+            - RewritePath=/uploads/messages/(?<file>[^/]+), /uploads/$\{file}
+
         - id: uploads-service
           uri: ${AUTH_URI:http://localhost:8081}
           predicates:

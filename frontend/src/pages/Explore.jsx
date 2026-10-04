@@ -41,13 +41,14 @@ export default function Explore() {
         {hasFilters && <button className="discover-clear" onClick={clear}>Reset</button>}
       </div>
     </>}>
+      <ExploreSection title={q ? `Listings for “${q}”` : 'Discover something good'} subtitle={city ? `From your community in ${city}` : 'Fresh finds from the student community'} to={collectionLink('listings')}>
+        {!listings.loading && listings.partialError && <p role="status" className="text-sm text-gray-400 mb-3">Some listings could not be loaded. Showing available results. <button onClick={listings.reload} className="underline min-h-11">Retry</button></p>}
+        <ExploreResults key={params.toString()} items={listings.items.slice(0, 12)} loading={listings.loading} error={listings.error} onRetry={listings.reload} onReset={hasFilters ? clear : undefined} emptyTitle="No listings found" renderItem={(listing, i) => <ListingCard listing={listing} index={i} />} />
+      </ExploreSection>
       {!hasFilters && shops.length > 0 && <div className="discover-shop-stories" aria-label="Discover student shops">
         {shops.slice(0, 12).map((shop) => <Link key={shop.id} to={`/shop/${shop.slug || shop.id}`} className="discover-shop-story"><div><SmartImage src={shop.logoUrl || shop.bannerUrl} alt="" fallbackIcon={Store} /></div><span>{shop.name}</span></Link>)}
         <Link className="discover-shop-story" to="/explore/shops"><div className="discover-story-all"><Store size={24} /></div><span>All shops</span></Link>
       </div>}
-      <ExploreSection title={q ? `Listings for “${q}”` : 'Discover something good'} subtitle={city ? `From your community in ${city}` : 'Fresh finds from the student community'} to={collectionLink('listings')}>
-        <ExploreResults key={params.toString()} items={listings.items.slice(0, 12)} loading={listings.loading} error={listings.error} onRetry={listings.reload} onReset={hasFilters ? clear : undefined} emptyTitle="No listings found" renderItem={(listing, i) => <ListingCard listing={listing} index={i} />} />
-      </ExploreSection>
       <ExploreSection title="Shops with a point of view" subtitle="Small businesses worth getting to know" to={collectionLink('shops')}>
         <ExploreResults key={`shops:${params}`} variant="shops" items={shops.slice(0, 3)} loading={shopsLoading} error={shopsError} onRetry={reloadShops} onReset={hasFilters ? clear : undefined} emptyTitle="No shops found" renderItem={(shop, i) => <ShopCard shop={shop} index={i} />} />
       </ExploreSection>

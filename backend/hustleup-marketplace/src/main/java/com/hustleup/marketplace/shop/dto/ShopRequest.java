@@ -22,4 +22,5 @@ public class ShopRequest {
     private String accentColor;
     private String city;
     private Boolean published;
+    private java.util.List<ShopHighlight> highlights;
 }

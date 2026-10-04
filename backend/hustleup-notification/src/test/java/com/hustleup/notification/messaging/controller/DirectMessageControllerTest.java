@@ -52,11 +52,39 @@ class DirectMessageControllerTest {
     @Mock private UserRepository userRepo;
     @Mock private NotificationRepository notificationRepo;
     @Mock private FileStorageService fileStorageService;
+    @Mock private com.hustleup.common.storage.PrivateR2Storage privateMedia;
     @Mock private ChatStreakRepository streakRepo;
     @Mock private ExpoPushService expoPushService;
     @Mock private MatchRepository matchRepo;
 
     @InjectMocks private DirectMessageController controller;
+
+    @Test void routesLocalChatImagesToMessagingService() {
+        DirectMessage message = DirectMessage.builder().mediaUrl("/uploads/photo.jpg").build();
+        when(privateMedia.downloadUrl(message.getMediaUrl())).thenReturn(message.getMediaUrl());
+        when(fileStorageService.refreshUrl(message.getMediaUrl())).thenReturn(message.getMediaUrl());
+        DirectMessage result = org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller, "withDownloadUrl", message);
+        assertEquals("/uploads/messages/photo.jpg", result.getMediaUrl());
+        assertEquals("/uploads/photo.jpg", message.getMediaUrl());
+    }
+
+    @Test void refreshesLegacyMediaWithoutReplacingStoredReference() {
+        DirectMessage message = DirectMessage.builder().mediaUrl("https://storage.test/expired").build();
+        when(privateMedia.downloadUrl(message.getMediaUrl())).thenReturn(message.getMediaUrl());
+        when(fileStorageService.refreshUrl(message.getMediaUrl())).thenReturn("https://storage.test/fresh");
+        DirectMessage result = org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller, "withDownloadUrl", message);
+        assertEquals("https://storage.test/fresh", result.getMediaUrl());
+        assertEquals("https://storage.test/expired", message.getMediaUrl());
+    }
+
+    @Test void preservesPrivateSignedUrlAndDurableKey() {
+        DirectMessage message = DirectMessage.builder().mediaUrl("r2-private:messages/key.jpg").build();
+        when(privateMedia.downloadUrl(message.getMediaUrl())).thenReturn("https://private.test/signed");
+        DirectMessage result = org.springframework.test.util.ReflectionTestUtils.invokeMethod(controller, "withDownloadUrl", message);
+        assertEquals("https://private.test/signed", result.getMediaUrl());
+        assertEquals("r2-private:messages/key.jpg", message.getMediaUrl());
+        org.mockito.Mockito.verifyNoInteractions(fileStorageService);
+    }
 
     @AfterEach
     void clearSecurityContext() {

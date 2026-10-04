@@ -1,12 +1,12 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform, useAnimationControls } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { datingApi, subscriptionsApi, dispatchToast } from '../api/client';
 import SellerUpgrade from '../components/SellerUpgrade';
 import { isAllAccessActive } from '../utils/premium';
 import {
-  ThumbsUp, CircleX, WandSparkles, MessageCircleMore, CircleUserRound, Aperture, Gem,
+  Heart, ThumbsUp, CircleX, WandSparkles, MessageCircleMore, CircleUserRound, Aperture, Gem,
   Sparkle, Undo, Timer, BadgeInfo, ChartLine, CircleCheck, MoveLeft, MoveRight,
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -553,7 +553,7 @@ function ActionButton({ icon: Icon, label, onClick, disabled, color, glow, large
   const scale = useTransform(source, [0, 1], [1, 1.18]);
   const haloOpacity = useTransform(source, [0, 1], [0, 0.4]);
 
-  const size = large ? 'w-14 h-14' : 'w-11 h-11';
+  const size = large ? 'w-16 h-16' : 'w-11 h-11';
   const iconSize = large ? 'w-6 h-6' : 'w-5 h-5';
 
   // The gesture-driven scale lives on the wrapper so the press-down scale can stay on the
@@ -573,7 +573,7 @@ function ActionButton({ icon: Icon, label, onClick, disabled, color, glow, large
         // Border and icon share the colour of the stamp its swipe reveals, so the button and
         // the gesture read as the same action.
         style={{ borderColor: color }}
-        className={`relative ${size} rounded-full bg-[#0E0E0E] border-2 flex items-center justify-center transition-transform active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100`}
+        className={`relative ${size} rounded-full bg-[var(--surface-card)] shadow-lg border flex items-center justify-center transition-transform active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100`}
       >
         <Icon className={iconSize} style={{ color, fill: fill ? color : 'none' }} />
       </button>
@@ -850,7 +850,7 @@ function SpeedDateGame({ initialDeck, currentUser, onFinish }) {
           <div className="shrink-0 py-5 flex justify-center items-center gap-4">
             <ActionButton icon={CircleX} label="Skip" color="#FF4458" onClick={() => commit('pass')} disabled={!top || busy || !!matchFlash} large />
             <ActionButton icon={Sparkle} label="Super like" color="#00E0FF" onClick={() => commit('superlike')} disabled={!top || busy || !!matchFlash} fill />
-            <ActionButton icon={ThumbsUp} label="Like" color="#CDFF00" onClick={() => commit('like')} disabled={!top || busy || !!matchFlash} large fill />
+            <ActionButton icon={Heart} label="Like" color="#CDFF00" onClick={() => commit('like')} disabled={!top || busy || !!matchFlash} large fill />
           </div>
         </>
       ) : (
@@ -937,6 +937,9 @@ export default function Dating() {
   // spinner rather than briefly rendering an empty plan list.
 
   const [deck, setDeck] = useState([]);
+  const [deckError, setDeckError] = useState(false);
+  const swipePending = useRef(false);
+  const reducedMotion = useReducedMotion();
   // undefined = not resolved yet; null = the server has confirmed there is none; an object =
   // the saved profile. The gate below only ever fires on the strict `null`, so a fetch that
   // merely failed (a network blip, a 500) can never lock an existing member out of Bond
@@ -997,6 +1000,7 @@ export default function Dating() {
 
   const loadData = async () => {
     setLoading(true);
+    setDeckError(false);
     try {
       const [profilesRes, myRes] = await Promise.all([
         datingApi.getProfiles(),
@@ -1009,6 +1013,7 @@ export default function Dating() {
       setMyProfile(myRes.data);
     } catch (e) {
       console.error(e);
+      setDeckError(true);
       setDeck([]);
     } finally {
       setLoading(false);
@@ -1032,15 +1037,15 @@ export default function Dating() {
   }, [deck]);
 
   /**
-   * Commits to a swipe: flies the card off in the direction of the gesture, drops it from the
-   * deck, then tells the server. The animation is awaited but the request is not — a like that
-   * takes 300ms to acknowledge should never hold up the next card.
+   * Saves a swipe before removing its card. Failed requests spring back for retry;
+   * the ref lock prevents double taps from submitting the same decision twice.
    *
    * @param {'like'|'pass'|'superlike'} action
    */
   const decide = useCallback(async (action) => {
     const target = deck[0];
-    if (!target || busy) return;
+    if (!target || busy || swipePending.current) return;
+    swipePending.current = true;
     setBusy(true);
     buzz(action === 'pass' ? 8 : [12, 40, 12]);
 
@@ -1053,28 +1058,21 @@ export default function Dating() {
         : action === 'pass' ? { x: -offX, y: -60 }
           : { x: 0, y: -offY };
 
-    await controls.start({ ...flight, transition: { duration: 0.34, ease: [0.32, 0, 0.67, 0] } });
-
-    setDeck((d) => d.slice(1));
-    // Recentre for the card that takes its place. Framer flushes motion value writes on the
-    // next frame, by which point the flown card has already unmounted.
-    x.set(0);
-    y.set(0);
-    setBusy(false);
-
-    if (action === 'pass') {
-      datingApi.pass(target.id).catch(() => {});
-      return;
+    try {
+      const result = await (action === 'pass' ? datingApi.pass(target.id) : datingApi.like(target.id, action === 'superlike'));
+      await controls.start({ ...flight, transition: { duration: reducedMotion ? 0 : 0.28, ease: 'easeIn' } });
+      setDeck(d => d.filter(profile => profile.id !== target.id));
+      x.set(0); y.set(0);
+      if (result.data?.matched) setMatch({ profile: target, superLike: action === 'superlike' });
+      else if (action === 'superlike') dispatchToast(`Super liked ${firstName(target)}`, 'success');
+    } catch {
+      await controls.start({ x: 0, y: 0, transition: { duration: reducedMotion ? 0 : 0.2 } });
+      dispatchToast('Swipe was not saved. Your card is still here — try again.', 'error');
+    } finally {
+      swipePending.current = false;
+      setBusy(false);
     }
-
-    const superLike = action === 'superlike';
-    datingApi.like(target.id, superLike)
-      .then((res) => {
-        if (res.data?.matched) setMatch({ profile: target, superLike });
-        else if (superLike) dispatchToast(`Super liked ${firstName(target)} — they'll know right away`, 'success');
-      })
-      .catch(() => dispatchToast('Swipe failed to save — check your connection', 'error'));
-  }, [deck, busy, controls, x, y]);
+  }, [deck, busy, controls, x, y, reducedMotion]);
 
   /** Rules on a released drag, then either commits to it or springs the card back to centre. */
   const handleDragEnd = (_event, info) => {
@@ -1153,13 +1151,13 @@ export default function Dating() {
   }, [top?.id, x, y]);
 
   if (checkingAccess) return (
-    <div className="h-[calc(100vh-8.5rem-env(safe-area-inset-bottom))] md:h-[calc(100vh-4rem)] flex items-center justify-center">
+    <div className="h-[calc(100dvh-8.5rem-env(safe-area-inset-bottom))] md:h-[calc(100dvh-4rem)] flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="h-[calc(100vh-8.5rem-env(safe-area-inset-bottom))] md:h-[calc(100vh-4rem)] text-white font-sans flex flex-col overflow-hidden">
+    <div className="h-[calc(100dvh-8.5rem-env(safe-area-inset-bottom))] md:h-[calc(100dvh-4rem)] text-white font-sans flex flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,rgba(255,68,88,0.09),transparent_65%)]">
       {/* Compact discovery header: the deck stays the hero, not a full-height empty panel. */}
       <header className="shrink-0 w-full max-w-md mx-auto px-5 pt-3 pb-2 flex items-center justify-between">
         <button
@@ -1180,9 +1178,9 @@ export default function Dating() {
 
         <div className="text-center">
           <h1 className="flex items-center justify-center gap-2 text-lg sm:text-xl font-heading font-black text-white tracking-tight">
-            <ThumbsUp className="w-4 h-4 text-[#CDFF00] fill-[#CDFF00]" /> Bond
+            <Heart className="w-6 h-6 text-[#FF4458] fill-[#FF4458]" /> Bond
           </h1>
-          <p className="text-[9px] text-gray-500 font-bold tracking-[0.16em] uppercase mt-1">Swipe to connect</p>
+          <p className="text-[9px] text-gray-500 font-bold tracking-[0.16em] uppercase mt-1">A little spark starts here</p>
         </div>
 
         <Link
@@ -1203,14 +1201,14 @@ export default function Dating() {
           <div className="w-8 h-8 border-2 border-[#CDFF00]/20 border-t-[#CDFF00] rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col w-full max-w-sm mx-auto px-4 pb-2">
+        <div className="flex-1 min-h-0 flex flex-col w-full max-w-md mx-auto px-3 sm:px-5 pb-2">
           {/* A profile is no longer optional to reach here at all — see needsSetup below —
               so the old nudge banner has nothing left to nudge. This is its replacement: a
               faster, gamified way through the same deck, for whenever the slow one drags. */}
           {deck.length > 0 && (
             <button
               onClick={() => setSpeedMode(true)}
-              className="shrink-0 mb-2.5 w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-[#CDFF00]/[0.07] border border-[#CDFF00]/25 hover:border-[#CDFF00]/50 transition-all text-left"
+              className="shrink-0 mb-2 w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl bg-transparent border border-transparent hover:border-white/15 transition-all text-left"
             >
               <Timer className="w-4 h-4 text-[#CDFF00] shrink-0" />
               <span className="text-xs font-bold text-white">Speed Round</span>
@@ -1220,22 +1218,21 @@ export default function Dating() {
 
           {/* ── The deck ──────────────────────────────────────────────────── */}
           <div className="relative flex-1 min-h-0 flex items-center justify-center">
-            <div className="relative w-full max-w-[380px] h-full max-h-[min(62vh,560px)] aspect-[0.72]">
+            <div className="relative w-full max-w-[420px] h-full max-h-[min(65dvh,620px)] aspect-[0.72]">
             {deck.length === 0 ? (
               <div className="w-full h-full flex flex-col items-center justify-center bg-white/[0.02] border border-dashed border-white/10 rounded-3xl p-6 text-center">
                 <div className="w-14 h-14 rounded-full bg-white/[0.04] flex items-center justify-center mb-4">
                   <WandSparkles className="w-6 h-6 text-gray-600" />
                 </div>
-                <h3 className="text-sm font-bold text-white mb-1">You're all caught up</h3>
+                <h3 className="text-sm font-bold text-white mb-1">{deckError ? 'Could not load your discovery deck' : "You're all caught up"}</h3>
                 <p className="text-xs text-gray-500 mb-5 max-w-[15rem] leading-relaxed">
-                  No one new to show right now. Widen who you're shown, or take back your last
-                  swipe with the undo button below.
+                  {deckError ? 'Check your connection and try again. Your saved profile and matches are unchanged.' : "No one new right now. Try updating your preferences, or undo your last swipe."}
                 </p>
                 <button
-                  onClick={() => setShowSetup(true)}
+                  onClick={() => deckError ? loadData() : setShowSetup(true)}
                   className="px-4 py-2 rounded-xl bg-[#CDFF00] text-black text-xs font-bold hover:bg-[#d9ff33] active:scale-95 transition-all"
                 >
-                  Preferences
+                  {deckError ? 'Try again' : 'Preferences'}
                 </button>
               </div>
             ) : (
@@ -1294,7 +1291,7 @@ export default function Dating() {
               fill
             />
             <ActionButton
-              icon={ThumbsUp}
+              icon={Heart}
               label="Like"
               color="#CDFF00"
               glow={likeGlow}
@@ -1305,7 +1302,7 @@ export default function Dating() {
             />
           </div>
           <p className="shrink-0 text-center text-[9px] text-gray-600 font-bold tracking-wide pt-2">
-            Swipe left to pass · right to like · up for a super like
+            {busy ? 'Saving your choice…' : 'Left to pass · right to like · up to stand out'}
           </p>
         </div>
       )}

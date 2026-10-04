@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectUser, selectIsAuthenticated, loadUserProfile } from '../store/authSlice';
@@ -15,6 +15,7 @@ import { uploadUrl } from '../config';
 import { Navigation, ShieldCheck, CircleUser, MessageCircleMore, Cog, Aperture, Images as ImageIcon, CircleCheck, CircleX, Hash, Earth, LayoutPanelLeft, Sparkle, Flame, Ellipsis, CircleSlash, Milestone, ShieldBan, FileType, CirclePlus } from 'lucide-react';
 
 export default function Profile() {
+  const navigate = useNavigate();
   const { id } = useParams();
   const dispatch = useDispatch();
   const currentUser = useSelector(selectUser);
@@ -146,14 +147,12 @@ export default function Profile() {
   const toggleFollow = async () => {
     if (followBusy || !currentUser) return;
     setFollowBusy(true);
-    const wasFollowing = rel.isFollowing;
-    // Optimistic flip
-    setRel((r) => ({ ...r, isFollowing: !wasFollowing, followers: r.followers + (wasFollowing ? -1 : 1) }));
     try {
-      if (wasFollowing) await followsApi.unfollow(id);
+      if (rel.isFollowing || rel.followRequested) await followsApi.unfollow(id);
       else await followsApi.follow(id);
+      const { data } = await followsApi.relationship(id);
+      setRel(data);
     } catch (e) {
-      setRel((r) => ({ ...r, isFollowing: wasFollowing, followers: r.followers + (wasFollowing ? 1 : -1) }));
       showToast('Could not update follow — try again', 'error');
     } finally {
       setFollowBusy(false);
@@ -231,6 +230,7 @@ export default function Profile() {
 
   if (loading) return (
     <div className="max-w-4xl mx-auto px-4 py-10 animate-pulse">
+      <button type="button" onClick={() => window.history.state?.idx > 0 ? navigate(-1) : navigate('/explore')} className="mb-4 min-h-11 px-4 rounded-xl border border-white/15 text-sm font-semibold" aria-label="Go back">← Back</button>
       <div className="flex items-center gap-8">
         <div className="w-24 h-24 sm:w-36 sm:h-36 rounded-full bg-white/5 shrink-0" />
         <div className="flex-1 space-y-4">
@@ -244,6 +244,7 @@ export default function Profile() {
 
   if (!profile) return (
     <div className="text-center py-32 text-gray-500 font-bold">
+      <button type="button" onClick={() => window.history.state?.idx > 0 ? navigate(-1) : navigate('/explore')} className="mb-4 min-h-11 px-4 rounded-xl border border-white/15 text-sm font-semibold" aria-label="Go back">← Back</button>
       <CircleUser className="w-16 h-16 mx-auto mb-4 opacity-50" /> Profile not found
     </div>
   );
@@ -257,6 +258,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 pt-4 pb-16">
+      <button type="button" onClick={() => window.history.state?.idx > 0 ? navigate(-1) : navigate('/explore')} className="mb-4 min-h-11 px-4 rounded-xl border border-white/15 text-sm font-semibold" aria-label="Go back">← Back</button>
       {/* ── BANNER ──────────────────────────────────────────────────────────
           Always rendered, with a brand wash standing in when the user has not set
           one. It exists to give the avatar something to sit against: previously a
@@ -366,7 +368,7 @@ export default function Profile() {
                       : 'bg-[#CDFF00] hover:bg-[#d9ff33] text-black'
                   }`}
                 >
-                  {rel.isFollowing ? 'Following' : 'Follow'}
+                  {rel.isFollowing ? 'Following' : rel.followRequested ? 'Requested · Cancel' : profile.privateAccount ? 'Request to follow' : 'Follow'}
                 </button>
                 <Link
                   to={`/dm/${profile.id}`}
@@ -479,6 +481,7 @@ export default function Profile() {
 
       {/* ── CONTENT ── */}
       <div className="mt-5 min-h-[300px]">
+        {profile.profileRestricted && <div className="mb-5 rounded-2xl border border-white/15 p-5 text-center"><h2 className="font-bold">This account is private</h2><p className="text-sm text-gray-400 mt-2">Request to follow to see their profile details, posts and stories. Marketplace listings remain public.</p></div>}
         {tab === 'listings' && (
           listings.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -489,7 +492,7 @@ export default function Profile() {
           ) : <EmptyTab icon={FileType} text="No listings yet" />
         )}
 
-        {tab === 'posts' && (
+        {tab === 'posts' && !profile.profileRestricted && (
           posts.length > 0 ? (
             <div className="grid grid-cols-3 gap-1 sm:gap-2">
               {posts.map((post) => <PostTile key={post.id} post={post} onOpen={setViewingPost} />)}

@@ -88,7 +88,7 @@ import java.time.LocalDateTime;
  * This is more readable than calling a constructor with positional arguments
  * and avoids accidentally swapping {@code senderId} and {@code receiverId}.
  */
-@Builder
+@Builder(toBuilder = true)
 public class DirectMessage {
 
     /**

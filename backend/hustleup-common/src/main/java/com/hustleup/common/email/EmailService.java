@@ -131,6 +131,7 @@ public class EmailService {
      * @param htmlBody  HTML body; sent as text/html
      */
     public void send(String to, String subject, String htmlBody) {
+        htmlBody = EmailLayout.wrap(subject, htmlBody);
         if (sesClient != null) {
             sendViaSes(to, subject, htmlBody);
             return;

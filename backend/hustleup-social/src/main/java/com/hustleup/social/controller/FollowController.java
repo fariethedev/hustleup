@@ -63,6 +63,8 @@ public class FollowController {
     /** Repositories backing the block/report safety features. */
     private final UserBlockRepository userBlockRepository;
     private final UserReportRepository userReportRepository;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public FollowController(FollowRepository followRepository, UserRepository userRepository,
                             NotificationRepository notificationRepository,
@@ -117,8 +119,8 @@ public class FollowController {
         m.put("username", u.getUsername() != null && !u.getUsername().isBlank()
                 ? u.getUsername() : u.getFullName());
         m.put("avatarUrl", u.getAvatarUrl());               // profile picture URL
-        m.put("bio", u.getBio());                           // short biography
-        m.put("city", u.getCity());                         // location
+        m.put("bio", u.isPrivateAccount() && !isFollowing ? null : u.getBio());
+        m.put("city", u.isPrivateAccount() && !isFollowing ? null : u.getCity());
         m.put("role", u.getRole() != null ? u.getRole().name() : "BUYER"); // BUYER / SELLER / ADMIN
         m.put("isFollowing", isFollowing);                  // computed field: does current user follow this person?
         return m;
@@ -196,14 +198,25 @@ public class FollowController {
      * @return 200 OK with {@code {"status": "following"}} or {@code {"status": "already_following"}}
      */
     @PostMapping("/{targetId}")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> follow(@PathVariable String targetId) {
         UUID me = currentUserId();
         UUID target = UUID.fromString(targetId);
         // Prevent self-follow — meaningless and would pollute the social graph.
         if (me.equals(target)) return ResponseEntity.badRequest().body("Cannot follow yourself");
+        User targetUser = userRepository.findById(target).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));
+        if (userBlockRepository.existsByBlockerIdAndBlockedId(me, target) || userBlockRepository.existsByBlockerIdAndBlockedId(target, me))
+            return ResponseEntity.status(403).body(Map.of("error", "This follow is not available"));
+        boolean privateAccount = Boolean.TRUE.equals(jdbc.queryForObject("SELECT private_account FROM users WHERE id=? FOR UPDATE", Boolean.class, target));
         // Idempotency check — don't create a duplicate row.
         if (followRepository.existsByFollowerIdAndFollowingId(me, target)) {
             return ResponseEntity.ok(Map.of("status", "already_following"));
+        }
+        if (privateAccount) {
+            int inserted = jdbc.update("INSERT INTO follow_requests(follower_id,following_id) VALUES (?,?) ON CONFLICT DO NOTHING", me, target);
+            if (inserted == 1) notificationRepository.save(Notification.builder().userId(target).title("Follow request")
+                    .message("Someone has requested to follow your private account. Review it in Settings → Privacy.").notificationType("FOLLOW_REQUEST").referenceId(me).build());
+            return ResponseEntity.ok(Map.of("status", "requested"));
         }
         // Create the Follow record.
         Follow f = new Follow();
@@ -244,6 +257,7 @@ public class FollowController {
     public ResponseEntity<?> unfollow(@PathVariable String targetId) {
         UUID me = currentUserId();
         UUID target = UUID.fromString(targetId);
+        jdbc.update("DELETE FROM follow_requests WHERE follower_id=? AND following_id=?", me, target);
         // findByFollowerIdAndFollowingId returns Optional<Follow> — delete only if present.
         followRepository.findByFollowerIdAndFollowingId(me, target)
                 .ifPresent(followRepository::delete);
@@ -351,6 +365,9 @@ public class FollowController {
         out.put("followers", followRepository.countByFollowingId(target));
         out.put("following", followRepository.countByFollowerId(target));
         out.put("isFollowing", isFollowing);
+        UUID viewer = null;
+        try { viewer = currentUserId(); } catch (Exception ignored) { }
+        out.put("followRequested", viewer != null && Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM follow_requests WHERE follower_id=? AND following_id=?)", Boolean.class, viewer, target)));
         out.put("blocked", blocked);
         out.put("blockedBy", blockedBy);
         return ResponseEntity.ok(out);
@@ -362,6 +379,40 @@ public class FollowController {
      *
      * <p><b>POST /api/v1/follows/{targetId}/block</b> — auth required.
      */
+    @GetMapping("/requests")
+    public ResponseEntity<?> requests() {
+        UUID me = currentUserId();
+        List<UUID> ids = jdbc.query("SELECT follower_id FROM follow_requests WHERE following_id=? ORDER BY created_at DESC", (rs, n) -> rs.getObject(1, UUID.class), me);
+        return ResponseEntity.ok(userRepository.findAllById(ids).stream().map(u -> com.hustleup.common.dto.UserDto.publicView(u)).toList());
+    }
+
+    @PostMapping("/requests/{requester}/accept")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<?> acceptRequest(@PathVariable UUID requester) {
+        UUID me = currentUserId();
+        jdbc.queryForObject("SELECT id FROM users WHERE id=? FOR UPDATE", UUID.class, me);
+        if (userBlockRepository.existsByBlockerIdAndBlockedId(me, requester) || userBlockRepository.existsByBlockerIdAndBlockedId(requester, me))
+            return ResponseEntity.status(403).build();
+        int removed = jdbc.update("DELETE FROM follow_requests WHERE follower_id=? AND following_id=?", requester, me);
+        if (removed == 0) return ResponseEntity.notFound().build();
+        if (!followRepository.existsByFollowerIdAndFollowingId(requester, me)) {
+            Follow follow = new Follow(); follow.setFollowerId(requester); follow.setFollowingId(me); followRepository.save(follow);
+        }
+        return ResponseEntity.ok(Map.of("status", "accepted"));
+    }
+
+    @DeleteMapping("/requests/{requester}")
+    public ResponseEntity<?> declineRequest(@PathVariable UUID requester) {
+        jdbc.update("DELETE FROM follow_requests WHERE follower_id=? AND following_id=?", requester, currentUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/followers/{follower}")
+    public ResponseEntity<?> removeFollower(@PathVariable UUID follower) {
+        followRepository.findByFollowerIdAndFollowingId(follower, currentUserId()).ifPresent(followRepository::delete);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{targetId}/block")
     public ResponseEntity<?> block(@PathVariable String targetId) {
         UUID me = currentUserId();

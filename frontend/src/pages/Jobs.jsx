@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BriefcaseBusiness, Navigation, Timer, ScanSearch, UserRound, Rocket, CircleCheck, Grid2x2, CirclePlus, ShieldCheck, Images as ImageIcon, ShieldPlus, PiggyBank, Earth, CircleX, Loader, SquareArrowOutUpRight } from 'lucide-react';
 import { jobsApi, publishersApi, dispatchToast } from '../api/client';
 import { JOB_CATEGORIES } from '../utils/taxonomy';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
-import MobileFilterBar from '../components/MobileFilterBar';
 import { Link } from 'react-router-dom';
-import HeroBrief from '../components/HeroBrief';
+import EditorialHeader from '../components/EditorialHeader';
 import { timeAgoLong as timeAgo } from '../utils/time';
 import JobComposer from '../components/jobs/JobComposer';
 import JobApplyModal from '../components/jobs/JobApplyModal';
@@ -30,6 +29,9 @@ export default function Jobs() {
 
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [remoteOnly, setRemoteOnly] = useState(false);
+  const requestRef = useRef(0);
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   // Server-side publishing rights. Never derived client-side — the server owns this rule.
@@ -40,17 +42,19 @@ export default function Jobs() {
   const [applyTo, setApplyTo] = useState(null);
 
   const load = useCallback(() => {
+    const request = ++requestRef.current;
     setLoading(true);
+    setError(false);
     jobsApi.board({ category: activeCategory, q: searchQuery || undefined })
-      .then((res) => setJobs(res.data?.content || []))
-      .catch(() => setJobs([]))
-      .finally(() => setLoading(false));
+      .then((res) => { if (request === requestRef.current) setJobs(res.data?.content || []); })
+      .catch(() => { if (request === requestRef.current) { setJobs([]); setError(true); } })
+      .finally(() => { if (request === requestRef.current) setLoading(false); });
   }, [activeCategory, searchQuery]);
 
   // Debounced so typing in the search box doesn't fire a request per keystroke.
   useEffect(() => {
     const t = setTimeout(load, searchQuery ? 350 : 0);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); requestRef.current++; };
   }, [load, searchQuery]);
 
   // Sets state only from the async callback. An early `setCanPost(false)` in the
@@ -73,18 +77,14 @@ export default function Jobs() {
 
   return (
     <div className="min-h-screen text-white">
-      <HeroBrief
-        eyebrow="Jobs & Gigs"
-        title="Work worth showing up for"
-        subtitle="Every advert here comes from a verified hiring company."
-      />
+      <EditorialHeader section="Jobs" title="Make your next move." description="Find a first role, a flexible gig, or the next step. Clear details, real opportunities, and a direct way to apply." />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-20">
         {/* Publisher call-to-action: either compose, or find out how to be allowed to. */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500">
             <ShieldPlus className="w-4 h-4 text-[#CDFF00]" />
-            Verified employers only
+            Roles from employers and selected job boards
           </div>
           {canPost ? (
             <motion.button
@@ -105,49 +105,16 @@ export default function Jobs() {
         </div>
 
         {/* Mobile: search and categories collapse behind icons */}
-        <MobileFilterBar
-          query={searchQuery}
-          onQueryChange={setSearchQuery}
-          placeholder="Search roles or companies…"
-          activeFilters={activeCategory !== 'all' ? 1 : 0}
-          resultLabel={`${jobs.length} role${jobs.length === 1 ? '' : 's'}`}
-          onClear={() => { setSearchQuery(''); setActiveCategory('all'); }}
-        >
-          <div className="flex gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide pb-0.5">
-            <button
-              onClick={() => setActiveCategory('all')}
-              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
-                activeCategory === 'all'
-                  ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
-                  : 'bg-white/5 border-white/10 text-gray-400'
-              }`}
-            >
-              <Grid2x2 className="w-3.5 h-3.5" /> All
-            </button>
-            {JOB_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(activeCategory === cat.id ? 'all' : cat.id)}
-                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
-                  activeCategory === cat.id
-                    ? 'bg-[#CDFF00] text-black border-[#CDFF00]'
-                    : 'bg-white/5 border-white/10 text-gray-400'
-                }`}
-              >
-                <cat.icon className="w-3.5 h-3.5" /> {cat.name}
-              </button>
-            ))}
-          </div>
-        </MobileFilterBar>
 
         {/* Desktop: unchanged inline layout */}
-        <div className="hidden sm:flex items-center gap-2.5 bg-white/5 border border-white/10 focus-within:border-[#CDFF00]/50 rounded-xl px-4 py-2.5 mb-4 transition-colors">
+        <div className="flex items-center gap-3 bg-white/5 border border-white/15 focus-within:border-[#CDFF00]/50 rounded-2xl px-4 py-4 mb-4 transition-colors">
           <ScanSearch className="w-4 h-4 text-gray-500 shrink-0" />
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             type="text"
             placeholder="Search roles or companies…"
+            aria-label="Search roles or companies"
             className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"
           />
           {searchQuery && (
@@ -158,7 +125,7 @@ export default function Jobs() {
         </div>
 
         {/* Category filter */}
-        <div className="hidden sm:flex flex-wrap items-center justify-center gap-2 mb-8">
+        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 [&>button]:shrink-0">
           <button
             onClick={() => setActiveCategory('all')}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[10px] font-black tracking-widest border transition-all ${
@@ -185,6 +152,8 @@ export default function Jobs() {
         </div>
 
         {/* Board */}
+        <div className="flex items-center justify-between gap-3 mb-5"><h2 className="text-lg font-bold">{loading ? 'Finding opportunities…' : `${jobs.filter(j => !remoteOnly || j.remote).length} opportunities`}</h2><label className="flex items-center gap-2 text-sm text-gray-400 min-h-11"><input type="checkbox" checked={remoteOnly} onChange={e => setRemoteOnly(e.target.checked)} className="accent-[#CDFF00]" />Remote only</label></div>
+        {error && <div role="alert" className="p-5 rounded-2xl border border-red-400/30 mb-5 text-sm">We couldn't load jobs. <button className="underline min-h-11" onClick={load}>Try again</button></div>}
         <div className="space-y-3">
           {loading ? (
             [...Array(4)].map((_, i) => (
@@ -192,7 +161,7 @@ export default function Jobs() {
             ))
           ) : (
             <AnimatePresence mode="popLayout">
-              {jobs.length > 0 ? jobs.map((job) => {
+              {jobs.filter(j => !remoteOnly || j.remote).length > 0 ? jobs.filter(j => !remoteOnly || j.remote).map((job) => {
                 const catInfo = JOB_CATEGORIES.find((c) => c.id === job.category);
                 const pay = formatPay(job);
                 const applied = job.appliedByCurrentUser;
@@ -203,7 +172,7 @@ export default function Jobs() {
                     initial={{ opacity: 0, scale: 0.97 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.97 }}
-                    className="bg-white/[0.02] border border-white/10 hover:border-[#CDFF00]/30 rounded-2xl overflow-hidden transition-all"
+                    className="bg-white/[0.03] border border-white/15 hover:border-[#CDFF00]/40 rounded-3xl overflow-hidden transition-colors"
                   >
                     {/* Media strip — the reason job cards exist visually at all. Horizontally
                         scrollable so a company can show a workplace without the card growing
@@ -244,7 +213,8 @@ export default function Jobs() {
                             )}
                           </div>
 
-                          <h2 className="text-base font-black text-white mb-1.5 leading-tight">{job.title}</h2>
+                          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 leading-tight">{job.title}</h2>
+                          <p className="text-base font-semibold text-[#CDFF00] mb-3">{pay || 'Salary not provided'}</p>
 
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400 font-semibold mb-3">
                             <span className="flex items-center gap-1.5">

@@ -35,6 +35,7 @@ import com.hustleup.common.repository.MatchRepository;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.common.storage.FileStorageService;
+import com.hustleup.common.storage.PrivateR2Storage;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -51,6 +52,7 @@ import java.util.*;
 /** All endpoints in this controller share the {@code /api/v1/direct-messages} prefix. */
 @RequestMapping("/api/v1/direct-messages")
 public class DirectMessageController {
+    private final PrivateR2Storage privateMedia;
 
     /**
      * Repository for {@link DirectMessage} entities.
@@ -70,6 +72,8 @@ public class DirectMessageController {
      * see the "New message" badge even if they are not currently in the chat.
      */
     private final NotificationRepository notificationRepo;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.hustleup.common.notification.MessageEmailGate messageEmailGate;
 
     /**
      * Shared storage abstraction (local ./uploads or S3) used to persist images
@@ -108,7 +112,8 @@ public class DirectMessageController {
                                    FileStorageService fileStorageService,
                                    ChatStreakRepository streakRepo,
                                    ExpoPushService expoPushService,
-                                   MatchRepository matchRepo) {
+                                   MatchRepository matchRepo, PrivateR2Storage privateMedia) {
+        this.privateMedia = privateMedia;
         this.dmRepo = dmRepo;
         this.userRepo = userRepository;
         this.notificationRepo = notificationRepo;
@@ -409,12 +414,13 @@ public class DirectMessageController {
         // @Transactional is required: @Modifying queries must run inside a transaction,
         // and it also makes the mark-read and the read-back below atomic.
         dmRepo.markConversationRead(partnerId, currentUserId, LocalDateTime.now());
+        messageEmailGate.opened(UUID.fromString(currentUserId), UUID.fromString(partnerId));
 
         // findConversation returns messages for BOTH directions (sent and received)
         // ordered by createdAt ASC so the UI can render them top-to-bottom.
         // Read after the update so the returned rows carry their new readAt.
         List<DirectMessage> messages = dmRepo.findConversation(currentUserId, partnerId);
-        return ResponseEntity.ok(messages);
+        return ResponseEntity.ok(messages.stream().map(this::withDownloadUrl).toList());
     }
 
     /**
@@ -687,7 +693,11 @@ public class DirectMessageController {
         String currentUserId = getCurrentUserId();
         if (currentUserId == null) return ResponseEntity.status(401).build();
 
-        String mediaUrl = fileStorageService.store(image);
+        UUID recipientId;
+        try { recipientId = UUID.fromString(partnerId); }
+        catch (IllegalArgumentException e) { return ResponseEntity.badRequest().body(Map.of("error", "Invalid recipient")); }
+        if (!userRepo.existsById(recipientId)) return ResponseEntity.notFound().build();
+        String mediaUrl = privateMedia.isEnabled() ? privateMedia.storeImage(image) : fileStorageService.store(image);
 
         DirectMessage saved = dmRepo.save(DirectMessage.builder()
                 .senderId(currentUserId)
@@ -720,6 +730,16 @@ public class DirectMessageController {
         } catch (Exception ignored) {
         }
 
-        return ResponseEntity.ok(saved);
+        return ResponseEntity.ok(withDownloadUrl(saved));
+    }
+
+    private DirectMessage withDownloadUrl(DirectMessage message) {
+        // Copy: never replace the durable key on a managed entity with an expiring URL.
+        String reference = message.getMediaUrl();
+        String url = privateMedia.downloadUrl(reference);
+        if (java.util.Objects.equals(reference, url)) url = fileStorageService.refreshUrl(reference);
+        if (url != null && url.startsWith("/uploads/") && !url.startsWith("/uploads/messages/"))
+            url = "/uploads/messages/" + url.substring("/uploads/".length());
+        return message.toBuilder().mediaUrl(url).build();
     }
 }

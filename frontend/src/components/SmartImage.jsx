@@ -50,7 +50,7 @@ export default function SmartImage({
         aria-label={alt}
         className={`flex items-center justify-center bg-white/[0.04] ${className} ${fallbackClassName}`}
       >
-        <FallbackIcon className="w-1/4 h-1/4 max-w-10 max-h-10 min-w-4 min-h-4 text-white/15" />
+        <FallbackIcon className="w-1/4 h-1/4 max-w-10 max-h-10 min-w-4 min-h-4 text-gray-500" />
       </div>
     );
   }

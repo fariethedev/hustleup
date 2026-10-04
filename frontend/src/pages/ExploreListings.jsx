@@ -9,7 +9,7 @@ export default function ExploreListings() {
   const type = params.get('type') || '';
   const city = params.get('city') || '';
   const sort = params.get('sort') || 'latest';
-  const { items, loading, error, reload } = useExploreListings({ q, type, city, sort });
+  const { items, loading, error, partialError, reload } = useExploreListings({ q, type, city, sort });
   const hasFilters = !!(q || type || city || sort !== 'latest');
   return (
     <ExploreShell title="Find your next good thing." description="Everyday finds. Independent sellers. A little closer to you." query={q} onQueryChange={(value) => setParam('q', value)} searchLabel="Search listings…" filters={<>
@@ -24,6 +24,7 @@ export default function ExploreListings() {
       </div>
     </>}>
       <div className="discover-results-heading"><h2>{LISTING_TYPES.find((t) => t.value === type)?.label || 'All listings'}</h2><span role="status">{loading ? 'Finding your next favourite…' : error ? 'Unavailable' : `${items.length} results`}</span></div>
+      {!loading && partialError && <p role="status" className="text-sm text-gray-400">Some listings could not be loaded. Showing available results. <button onClick={reload} className="underline min-h-11">Retry</button></p>}
       <ExploreResults key={params.toString()} items={items} loading={loading} error={error} onRetry={reload} onReset={hasFilters ? clear : undefined} emptyTitle="No listings found" renderItem={(listing, i) => <ListingCard listing={listing} index={i} />} />
     </ExploreShell>
   );

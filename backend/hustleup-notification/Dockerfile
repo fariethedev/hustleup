@@ -27,8 +27,7 @@ RUN mvn -B -pl hustleup-notification -am package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=build /build/hustleup-notification/target/hustleup-notification-1.0.0.jar app.jar
-# preferIPv6Addresses: Railway private networking is IPv6; Java otherwise picks IPv4
-# when a hostname resolves to both, which breaks *.railway.internal lookups.
-ENV JAVA_OPTS="-Xmx320m -XX:+UseSerialGC -Djava.net.preferIPv6Addresses=true"
+# Use IPv4 for public R2 endpoints while retaining IPv6 private networking.
+ENV JAVA_OPTS="-Xmx320m -XX:+UseSerialGC -Djava.net.preferIPv6Addresses=false"
 EXPOSE 8085
 ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar app.jar"]

@@ -175,6 +175,10 @@ public class User {
      */
     private String bio;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean privateAccount = false;
+
     /**
      * City or town the user is based in — used for local discovery / search filtering.
      */

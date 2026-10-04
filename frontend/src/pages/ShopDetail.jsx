@@ -1,23 +1,23 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion as Motion } from "framer-motion";
-import { useSelector, useDispatch } from 'react-redux';
-import { addToCart } from '../store/cartSlice';
+import { useSelector } from 'react-redux';
 import { useShop, useShops } from '../hooks/useShops';
 import { listingsApi, followsApi } from '../api/client';
-import { formatPrice, displayCity } from '../utils/constants';
+import { displayCity } from '../utils/constants';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
-import { Sparkle, Navigation, MoveLeft, BaggageClaim, Box, CircleChevronRight, Forward, ThumbsUp, ShoppingBasket, SquarePen, ClipboardCheck, BadgeDollarSign, MessagesSquare } from 'lucide-react';
+import { Sparkle, Navigation, MoveLeft, Box, Forward, ThumbsUp, SquarePen, ClipboardCheck, MessagesSquare } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import SmartImage from '../components/SmartImage';
 import ListingCard from '../components/ListingCard';
+import ShopHighlights from '../components/ShopHighlights';
+import { storeListing } from '../utils/storeListings';
 import ShopReviews from '../components/ShopReviews';
 import AppointmentBooking from '../components/AppointmentBooking';
 import { uploadUrl } from '../config';
-import { isAppointmentBusiness, isProductInStock, stockLabel } from '../utils/shopCategories';
+import { isAppointmentBusiness, isProductInStock } from '../utils/shopCategories';
 
 export default function ShopDetail() {
-  const dispatch = useDispatch();
   const { id } = useParams();
   const { shop, loading } = useShop(id);
   const { shops: allShops } = useShops();
@@ -45,13 +45,14 @@ export default function ShopDetail() {
   // separate "saved shops" list would be a second, weaker one that nothing else reads. This
   // way the shop's posts show up in the follower's feed, which is what following it should do.
   const [following, setFollowing] = useState(false);
+  const [followRequested, setFollowRequested] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated || !shop?.ownerId || isOwner) { setFollowing(false); return undefined; }
     let cancelled = false;
     followsApi.relationship(shop.ownerId)
-      .then((r) => { if (!cancelled) setFollowing(!!r.data?.isFollowing); })
+      .then((r) => { if (!cancelled) { setFollowing(!!r.data?.isFollowing); setFollowRequested(!!r.data?.followRequested); } })
       .catch(() => { if (!cancelled) setFollowing(false); });
     return () => { cancelled = true; };
   }, [isAuthenticated, shop?.ownerId, isOwner]);
@@ -59,14 +60,15 @@ export default function ShopDetail() {
   const toggleFollowShop = async () => {
     if (!isAuthenticated) { navigate('/login'); return; }
     if (!shop?.ownerId) return;
-    const next = !following;
+    const next = !following && !followRequested;
     setFollowing(next);          // optimistic — the button should answer the tap immediately
     setFollowBusy(true);
     try {
-      await (next ? followsApi.follow(shop.ownerId) : followsApi.unfollow(shop.ownerId));
-      showToast(next ? `Following ${shop.name}` : `Unfollowed ${shop.name}`, 'success');
+      const { data } = await (next ? followsApi.follow(shop.ownerId) : followsApi.unfollow(shop.ownerId));
+      setFollowRequested(data.status === 'requested'); setFollowing(next && data.status !== 'requested');
+      showToast(data.status === 'requested' ? 'Follow request sent' : next ? `Following ${shop.name}` : 'Follow removed', 'success');
     } catch (e) {
-      setFollowing(!next);       // put it back — the server said no
+      setFollowing(following);   // Restore the accepted relationship, not a pending request.
       showToast(e.response?.data?.error || 'Could not update that', 'error');
     } finally {
       setFollowBusy(false);
@@ -96,39 +98,6 @@ export default function ShopDetail() {
     }
   };
 
-  /**
-   * Straight to this shop's own checkout, at the listed price.
-   *
-   * This replaces an add-to-cart that could not end in a purchase: it wrote a
-   * "shop:<shopId>:<productId>" line into the marketplace basket, and that basket is paid
-   * for through the bookings checkout, which has no listing row to charge against for a
-   * storefront product and drops those lines. Both routes off this page led there — the
-   * tile linked to /negotiate, which also finished by adding to the same basket — so the
-   * shop had no working buy button at all and the only way to actually pay for something
-   * was to find it through Explore.
-   *
-   * ShopCheckout reads quantity/offer/notes from this sessionStorage draft, which is how
-   * the negotiate page hands over a haggled price. Buying outright seeds the plain version
-   * of the same draft: one unit, no offer, no note.
-   */
-  const buyNow = (product) => {
-    if (!isProductInStock(product) || isOwner) return;
-    try {
-      sessionStorage.setItem(
-        'hustleup_shop_checkout_draft',
-        JSON.stringify({ quantity: 1, notes: '' }),
-      );
-    } catch {
-      // A private-mode browser with storage blocked still gets a working checkout —
-      // ShopCheckout defaults to a quantity of one and the listed price when the draft
-      // is missing, which is exactly what this was writing.
-    }
-    navigate(`/shop/${shop.slug || shop.id}/product/${product.id}/checkout`);
-  };
-  const addProduct = (product) => {
-    if (!isProductInStock(product) || isOwner) return;
-    dispatch(addToCart({ listingId: `shop:${shop.id}:${product.id}`, shopSlug: shop.slug || shop.id, productId: product.id, title: product.name, price: Number(product.price), currency: product.currency || 'PLN', image: product.imageUrl, sellerId: shop.ownerId, sellerName: shop.name, shippingMethod: product.shippingMethod, shippingPrice: Number(product.shippingPrice) || 0, stockQuantity: product.stockQuantity }));
-  };
 
   if (loading) {
     return (
@@ -169,7 +138,7 @@ export default function ShopDetail() {
   // Cross-sell: a handful of other live storefronts, and one product from each.
   const otherShops = allShops.filter((s) => s.id !== shop.id).slice(0, 4);
   const suggestedProducts = otherShops
-    .map((s) => ({ ...(s.products || []).find(isProductInStock), shopId: s.slug || s.id, shopName: s.name, shopAccent: s.accentColor }))
+    .map((s) => ({ ...(s.products || []).find(isProductInStock), shop: s }))
     .filter((p) => p.id);
 
   return (
@@ -259,7 +228,7 @@ export default function ShopDetail() {
               <button
                 onClick={toggleFollowShop}
                 disabled={followBusy}
-                aria-label={following ? 'Unfollow this shop' : 'Follow this shop'}
+                aria-label={following ? 'Unfollow this shop' : followRequested ? 'Cancel follow request' : 'Follow this shop'}
                 aria-pressed={following}
                 className={`w-10 h-10 rounded-2xl backdrop-blur-md border flex items-center justify-center hover:scale-110 transition-transform active:scale-95 disabled:opacity-50 ${
                   following
@@ -324,7 +293,8 @@ export default function ShopDetail() {
       </section>
 
       {/* Main Content Area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-10">
+      <div className="max-w-[1120px] mx-auto px-4 sm:px-6 py-8 sm:py-10">
+        <ShopHighlights key={shop.id} shop={shop} isOwner={isOwner} />
         <div className={`grid gap-6 lg:gap-10 items-start ${isOwner || shop.appointmentBased || isAppointmentBusiness(shop.businessType) ? 'lg:grid-cols-[minmax(0,1fr)_280px]' : ''}`}>
 
           {/* Left Column: Feed & Explore */}
@@ -385,103 +355,7 @@ export default function ShopDetail() {
                 seller's shelf and the browse pages read as one catalogue rather than two
                 different products. */}
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
-              {filteredProducts.map((product, i) => (
-                <Motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(i * 0.04, 0.3), duration: 0.4 }}
-                  whileHover={{ y: -4 }}
-                  className="h-full"
-                >
-                  {/* Deliberately the same card as ListingCard on Explore: same surface and
-                      hover, same 4:5 image with a scrim, same floating round action, same
-                      price-then-title body. A shop product and a marketplace listing are the
-                      same kind of thing to a shopper, and having them look like two different
-                      apps was the tell that they were built at different times. */}
-                  <div className="group relative flex flex-col h-full bg-[#0A0A0A] border border-white/10 hover:border-[#00FFFF]/60 rounded-2xl overflow-hidden transition-colors duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.4)] hover:shadow-[0_8px_24px_rgba(0,255,255,0.15)]">
-                    <Link
-                      to={`/shop/${shop.slug || shop.id}/product/${product.id}/checkout`}
-                      onClick={(e) => { e.preventDefault(); buyNow(product); }}
-                      aria-disabled={!isProductInStock(product) || isOwner}
-                      className="flex flex-col h-full"
-                    >
-                      <div className="relative aspect-square overflow-hidden bg-[#141414] shrink-0">
-                        <SmartImage
-                          src={uploadUrl(product.imageUrl)}
-                          alt={product.name}
-                          fallbackIcon={ShoppingBasket}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                          loading="lazy"
-                        />
-                        {/* Keeps the buy button legible over a bright photo. */}
-                        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
-
-                        {/* Both controls sit on the image, in the same places the listing card
-                            puts its cart button and its negotiable badge. Buttons rather than
-                            links because they are inside one — an anchor nested in an anchor
-                            is invalid and behaves unpredictably — so each stops the tile's own
-                            navigation and routes itself, exactly as ListingCard's cart does. */}
-                        <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); addProduct(product); }}
-                          aria-label={`Add ${product.name} to cart`}
-                          disabled={!isProductInStock(product) || isOwner}
-                          className="absolute bottom-2 right-2 min-h-11 px-3 rounded-full flex items-center justify-center gap-2 bg-white text-black text-xs font-semibold hover:bg-[#CDFF00] disabled:opacity-50"
-                        >
-                          <BaggageClaim className="w-4 h-4" /> Add to cart
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault(); e.stopPropagation();
-                            navigate(`/dm/${shop.ownerId}`);
-                          }}
-                          title="Message shop"
-                          aria-label={`Message shop about ${product.name}`}
-                          disabled={!isProductInStock(product) || isOwner}
-                          className="absolute top-2 right-2 w-11 h-11 rounded-full bg-black/70 text-white flex items-center justify-center"
-                        >
-                          <MessagesSquare className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      <div className="flex flex-col flex-1 p-3">
-                        <span className="text-lg sm:text-xl font-black text-[#CDFF00] tracking-tight leading-none truncate">
-                          {formatPrice(product.price, product.currency)}
-                        </span>
-
-                        <h3 className="mt-1.5 text-[13px] font-black text-white leading-snug line-clamp-2 group-hover:text-[#00FFFF] transition-colors">
-                          {product.name}
-                        </h3>
-                        {product.stockQuantity != null && <p className={`text-xs mt-1.5 ${isProductInStock(product) ? 'text-gray-400' : 'text-red-400'}`}>{stockLabel(product)}</p>}
-
-                        {product.description && (
-                          <p className="hidden sm:block text-xs text-gray-400 mt-1 line-clamp-2 leading-relaxed">
-                            {product.description}
-                          </p>
-                        )}
-
-                        {/* Bottom row matches the listing card's seller/place line: the shop
-                            stands in for the seller, and postage for the city, since what it
-                            costs to receive is this page's equivalent of how far away it is. */}
-                        <div className="mt-auto pt-2.5 flex items-center gap-1.5 min-w-0">
-                          <div className="shrink-0 w-5 h-5 rounded-full overflow-hidden bg-black border border-[#FF00FF]/60 flex items-center justify-center text-[8px] font-black text-[#FF00FF]">
-                            {(shop.name || 'S')[0]}
-                          </div>
-                          <span className="text-[10px] text-gray-300 font-bold truncate min-w-0">{shop.name}</span>
-                          {product.shippingMethod && product.shippingMethod !== 'NONE' && (
-                            <span className="ml-auto text-[9px] font-bold text-gray-500 tracking-wider shrink-0">
-                              {Number(product.shippingPrice) > 0
-                                ? `+${formatPrice(product.shippingPrice, product.currency)}`
-                                : 'Free'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-
-                  </div>
-                </Motion.div>
-              ))}
+              {filteredProducts.map(product => <ListingCard key={product.id} listing={storeListing(shop, product)} />)}
             </div>
 
             {filteredProducts.length === 0 && (
@@ -555,33 +429,8 @@ export default function ShopDetail() {
         {suggestedProducts.length > 0 && (
           <div className="mt-10 sm:mt-16">
             <h4 className="text-[10px] font-black tracking-widest text-gray-500 mb-5">Products you may also like</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5">
-              {suggestedProducts.map((product) => (
-                <Link
-                  key={`${product.shopId}-${product.id}`}
-                  to={`/shop/${product.shopId}/product/${product.id}/checkout`}
-                  className="group flex flex-col h-full rounded-2xl overflow-hidden bg-black/40 border border-white/10 hover:border-[#CDFF00]/40 transition-all duration-300"
-                >
-                  <div className="h-24 shrink-0 relative overflow-hidden bg-black/40 border-b border-white/5">
-                    <SmartImage
-                      src={uploadUrl(product.imageUrl)}
-                      alt={product.name}
-                      fallbackIcon={ShoppingBasket}
-                      className="w-full h-full object-cover z-10 group-hover:scale-110 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                    <div
-                      className="absolute inset-0 z-20 opacity-20 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none"
-                      style={{ background: `radial-gradient(circle at center, ${product.shopAccent || '#CDFF00'} 0%, transparent 70%)` }}
-                    />
-                  </div>
-                  <div className="p-3.5 flex flex-col flex-1">
-                    <span className="text-[9px] font-bold text-gray-500 tracking-widest truncate mb-1">{product.shopName}</span>
-                    <h5 className="text-xs font-bold text-white line-clamp-2 mb-2 group-hover:text-[#CDFF00] transition-colors">{product.name}</h5>
-                    <span className="mt-auto text-sm font-black text-white">{formatPrice(product.price, product.currency)}</span>
-                  </div>
-                </Link>
-              ))}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-5">
+              {suggestedProducts.map(product => <ListingCard key={product.id} listing={storeListing(product.shop, product)} />)}
             </div>
           </div>
         )}

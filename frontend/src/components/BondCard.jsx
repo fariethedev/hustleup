@@ -91,7 +91,7 @@ export default function BondCard({
         onDragEnd(event, info);
       }}
     >
-      <div className="relative w-full h-full rounded-3xl overflow-hidden bg-[#0A0A0A] border border-white/10 shadow-2xl shadow-black/70 select-none">
+      <div className="media-overlay relative w-full h-full rounded-3xl overflow-hidden bg-[#0A0A0A] border border-white/10 shadow-2xl shadow-black/70 select-none">
         <img
           src={uploadUrl(profile.imageUrl || fallback)}
           alt={profile.fullName}
