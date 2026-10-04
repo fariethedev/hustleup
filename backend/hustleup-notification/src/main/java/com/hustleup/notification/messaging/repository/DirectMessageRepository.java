@@ -207,7 +207,7 @@ public interface DirectMessageRepository extends JpaRepository<DirectMessage, St
      * @param user2 the other participant
      * @return true when at least one OFFER message exists in either direction
      */
-    @Query(value = "SELECT EXISTS(SELECT 1 FROM direct_messages m JOIN bookings b ON CAST(b.id AS text) = m.offer_booking_id " +
+    @Query(value = "SELECT EXISTS(SELECT 1 FROM direct_messages m JOIN bookings b ON b.id = m.offer_booking_id " +
            "WHERE m.message_type = 'OFFER' AND b.status IN ('INQUIRED','NEGOTIATING') " +
            "AND ((m.sender_id = :user1 AND m.receiver_id = :user2) OR (m.sender_id = :user2 AND m.receiver_id = :user1)))", nativeQuery = true)
     boolean hasNegotiation(String user1, String user2);

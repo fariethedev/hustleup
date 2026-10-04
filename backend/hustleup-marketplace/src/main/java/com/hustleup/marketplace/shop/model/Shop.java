@@ -106,7 +106,7 @@ public class Shop {
     private boolean published = true;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb", nullable = false)
+    @Column(columnDefinition = "json", nullable = false)
     @Builder.Default
     private List<ShopHighlight> highlights = List.of();
 

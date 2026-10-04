@@ -20,7 +20,7 @@ class AccountPrivacyTest {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("viewer", ""));
         when(users.findByEmail("viewer")).thenReturn(Optional.of(User.builder().id(viewer).build()));
         String query="SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id=? AND following_id=?)";
-        when(jdbc.queryForObject(query,Boolean.class,viewer,owner)).thenReturn(false,true);
+        when(jdbc.queryForObject(query,Boolean.class,viewer.toString(),owner.toString())).thenReturn(false,true);
         assertFalse(privacy.canView(owner)); assertTrue(privacy.canView(owner));
         when(users.findByEmail("viewer")).thenReturn(Optional.of(privateUser));
         assertTrue(privacy.canView(owner));

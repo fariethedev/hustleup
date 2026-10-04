@@ -10,10 +10,10 @@ public class MessageEmailGate {
     private final JdbcTemplate jdbc;
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean claim(UUID recipient, UUID sender) {
-        return jdbc.update("INSERT INTO message_email_gates(recipient_id,sender_id) VALUES (?,?) ON CONFLICT DO NOTHING", recipient, sender) == 1;
+        return jdbc.update("INSERT IGNORE INTO message_email_gates(recipient_id,sender_id) VALUES (?,?)", recipient.toString(), sender.toString()) == 1;
     }
     @Transactional
     public void opened(UUID recipient, UUID sender) {
-        jdbc.update("DELETE FROM message_email_gates WHERE recipient_id=? AND sender_id=?", recipient, sender);
+        jdbc.update("DELETE FROM message_email_gates WHERE recipient_id=? AND sender_id=?", recipient.toString(), sender.toString());
     }
 }

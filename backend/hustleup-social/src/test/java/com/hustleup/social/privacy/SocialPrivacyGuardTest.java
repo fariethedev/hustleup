@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class SocialPrivacyGuardTest {
     @Test void repostCannotExposePrivateOriginal() {
         JdbcTemplate jdbc=mock(JdbcTemplate.class); AccountPrivacy privacy=mock(AccountPrivacy.class);
-        String query="SELECT author_id,repost_of_id FROM posts WHERE id::text=?";
+        String query="SELECT author_id,repost_of_id FROM posts WHERE id=?";
         when(jdbc.queryForList(query,"repost")).thenReturn(List.of(Map.of("author_id","public", "repost_of_id","original")));
         when(jdbc.queryForList(query,"original")).thenReturn(List.of(Map.of("author_id","private")));
         when(privacy.canView("public")).thenReturn(true);

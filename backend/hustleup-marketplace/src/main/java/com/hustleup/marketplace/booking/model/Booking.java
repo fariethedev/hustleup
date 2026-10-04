@@ -98,10 +98,12 @@ public class Booking {
     @Column(name = "counter_price", precision = 12, scale = 4)
     private BigDecimal counterPrice; // seller's counter-proposal (may be null)
 
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.VARCHAR)
+    @Column(name = "last_offer_by", columnDefinition = "VARCHAR(36)")
     private UUID lastOfferBy;
 
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb", nullable = false)
+    @Column(columnDefinition = "json", nullable = false)
     @Builder.Default
     private java.util.List<NegotiationRound> negotiationHistory = java.util.List.of();
 

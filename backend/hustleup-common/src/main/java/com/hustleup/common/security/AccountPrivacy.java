@@ -25,6 +25,6 @@ public class AccountPrivacy {
         UUID viewer = viewer();
         if (owner.equals(viewer)) return true;
         return viewer != null && Boolean.TRUE.equals(jdbc.queryForObject(
-                "SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id=? AND following_id=?)", Boolean.class, viewer, owner));
+                "SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id=? AND following_id=?)", Boolean.class, viewer.toString(), owner.toString()));
     }
 }
