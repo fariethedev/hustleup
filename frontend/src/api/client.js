@@ -207,12 +207,13 @@ export const shopsApi = {
    *           estimatedDelivery?, note? }
    */
   updateFulfilment: (id, update) => api.patch(`/shops/orders/${id}/fulfilment`, update),
+  confirmReceipt: (id) => api.patch(`/shops/orders/${id}/received`),
   // Shared by the banner and product photos; returns { url }.
   uploadMedia: (id, file) => {
     const formData = new FormData();
     formData.append('file', file);
     return api.post(`/shops/${id}/media`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
     });
   },
   addProduct: (id, data) => api.post(`/shops/${id}/products`, data),
@@ -493,7 +494,7 @@ export const feedApi = {
   // FormData fields: content, media[], anonymous, linkedListingId?, communityId?.
   // communityId posts into a community instead of the open feed; the server refuses it
   // unless you have joined that community.
-  createPost: (formData) => api.post('/feed', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  createPost: (formData) => api.post('/feed', formData, { headers: { 'Content-Type': undefined } }),
   /**
    * A post's comments, threaded one level: each top-level comment carries a `replies`
    * array. Also returns likesCount and likedByCurrentUser per comment, so the client does

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { CircleX, Loader, Forklift, CircleSlash } from 'lucide-react';
+import { motion as Motion } from 'framer-motion';
+import { CircleX, Loader, Forklift, CircleSlash, Package, PackageCheck, Truck, CheckCircle, MapPin, CreditCard } from 'lucide-react';
 import { getMethod, stepsFor, stepLabel, stepIndex } from '../utils/shipping';
 import { dispatchToast } from '../api/client';
 
@@ -63,22 +63,23 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
-      <div onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-      <motion.div
+      <div onClick={() => { if (!saving) onClose(); }} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+      <Motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
+        role="dialog" aria-modal="true" aria-labelledby="delivery-title"
         className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0">
-            <h3 className="text-sm font-black text-white tracking-tight truncate">
+            <h3 id="delivery-title" className="text-sm font-black text-white tracking-tight truncate">
               Update delivery
             </h3>
             <p className="text-[10px] font-bold text-gray-500 tracking-widest mt-1 truncate">
               {title}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 shrink-0">
+          <button disabled={saving} onClick={onClose} aria-label="Close delivery update" className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 shrink-0">
             <CircleX className="w-4 h-4" />
           </button>
         </div>
@@ -94,10 +95,14 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
               Where is it now?
             </label>
             <div className="grid grid-cols-2 gap-2">
-              {steps.map((step) => (
+              {steps.map((step) => {
+                const Icon = ({ CONFIRMED: CreditCard, PREPARING: Package, SHIPPED: Truck, OUT_FOR_DELIVERY: Forklift, READY_FOR_PICKUP: MapPin, DELIVERED: PackageCheck, COLLECTED: CheckCircle })[step] || Package;
+                return (
                 <button
                   key={step}
                   type="button"
+                  aria-pressed={status === step}
+                  disabled={saving || steps.indexOf(step) < currentIndex}
                   onClick={() => setStatus(step)}
                   className={`px-3 py-2.5 rounded-xl border text-[10px] font-black tracking-widest transition-all ${
                     status === step
@@ -105,9 +110,9 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
                       : 'bg-black/50 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
                   }`}
                 >
-                  {stepLabel(method, step)}
+                  <Icon className="w-6 h-6 mx-auto mb-2" />{stepLabel(method, step)}
                 </button>
-              ))}
+              ); })}
               {/* Cancelling is always reachable but never sits with the happy path — it is
                   not "the next step", it is abandoning the track. */}
               <button
@@ -198,7 +203,7 @@ export default function TrackingUpdateModal({ order, title, onSubmit, onDone, on
             {saving ? 'Saving' : 'Save & notify'}
           </button>
         </div>
-      </motion.div>
+      </Motion.div>
     </div>
   );
 }

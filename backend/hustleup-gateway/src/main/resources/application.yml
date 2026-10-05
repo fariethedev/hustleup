@@ -35,6 +35,20 @@ spring:
               - "Authorization"
             maxAge: 3600
       routes:
+        - id: social-uploads-service
+          uri: ${SOCIAL_URI:http://localhost:8082}
+          predicates:
+            - Path=/uploads/social/**
+          filters:
+            - RewritePath=/uploads/social/(?<file>[^/]+), /uploads/$\{file}
+
+        - id: marketplace-uploads-service
+          uri: ${MARKETPLACE_URI:http://localhost:8083}
+          predicates:
+            - Path=/uploads/marketplace/**
+          filters:
+            - RewritePath=/uploads/marketplace/(?<file>[^/]+), /uploads/$\{file}
+
         # Local chat attachments belong to notification, not auth's upload directory.
         - id: message-uploads-service
           uri: ${NOTIFICATION_URI:http://localhost:8085}

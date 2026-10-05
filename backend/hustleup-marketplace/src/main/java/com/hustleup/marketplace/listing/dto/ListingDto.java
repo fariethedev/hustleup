@@ -41,6 +41,7 @@ public class ListingDto {
     private UUID sellerId;   // UUID of the seller who owns this listing
 
     // --- Seller enrichment (not on the entity — added by ListingService.enrichDto) ---
+    private boolean sellerPremium;
     private String sellerName;      // seller's display name, looked up from the User table
     private String sellerAvatarUrl; // pre-signed or refreshed URL to the seller's profile photo
     private boolean sellerVerified; // true if the seller has completed identity verification
@@ -231,6 +232,7 @@ public class ListingDto {
         // Return an empty list immediately if there is nothing to parse
         if (mediaUrls == null || mediaUrls.isBlank()) return List.of();
         return Arrays.stream(mediaUrls.split(","))  // split on comma delimiter
+                .filter(url -> !com.hustleup.marketplace.listing.service.ListingMediaLibrary.isGeneratedPadding(url.trim()))
                 .map(String::trim)                  // remove surrounding whitespace from each token
                 // Strip any accidental JSON array characters that may have crept in
                 .map(value -> value.replace("[", "").replace("]", "").replace("\"", ""))

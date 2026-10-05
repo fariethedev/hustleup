@@ -1,3 +1,5 @@
+import SmartImage from './SmartImage';
+import { uploadUrl } from '../config';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMediaAspect } from '../hooks/useMediaAspect';
@@ -410,18 +412,17 @@ export default function PostMediaGallery({ media = [], className = '' }) {
             <div key={`${item.url}-${index}`} className="relative h-full w-full flex-shrink-0">
               {item.type === 'VIDEO' ? (
                 <VideoPlayer
-                  src={item.url}
+                  src={uploadUrl(item.url)}
                   isMuted={isMuted}
                   onMuteToggle={() => setIsMuted((m) => !m)}
                   isActive={index === current}
                 />
               ) : (
                 <div className="w-full h-full bg-black">
-                  <img
+                  <SmartImage
                     src={item.url}
                     alt={`Post media ${index + 1}`}
                     className="w-full h-full object-cover"
-                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=60'; }}
                     draggable={false}
                   />
                 </div>

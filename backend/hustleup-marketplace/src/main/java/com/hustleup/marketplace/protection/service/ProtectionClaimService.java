@@ -89,17 +89,24 @@ public class ProtectionClaimService {
     @Transactional
     public ProtectionClaim raise(ClaimOrderType orderType, UUID orderId, ClaimReason reason, String detail) {
         User buyer = currentUser();
+        if (orderType == null || reason == null || detail == null || detail.trim().length() < 10 || detail.trim().length() > 1000)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a reason and describe the problem in 10–1000 characters");
+        detail = detail.trim();
 
         UUID sellerId;
         if (orderType == ClaimOrderType.BOOKING) {
             Booking booking = bookingRepository.findById(orderId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
             requireBuyer(booking.getBuyerId(), buyer.getId());
+            if (!"PAID".equals(booking.getPaymentStatus()) && !"TRANSFERRED".equals(booking.getPaymentStatus()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Only a paid purchase can be reported");
             sellerId = booking.getSellerId();
         } else {
             ShopOrder order = shopOrderRepository.findById(orderId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
             requireBuyer(order.getBuyerId(), buyer.getId());
+            if (order.getStatus() != ShopOrder.ShopOrderStatus.PAID && order.getStatus() != ShopOrder.ShopOrderStatus.FULFILLED)
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Only a paid purchase can be reported");
             sellerId = order.getSellerId();
         }
 
@@ -122,9 +129,9 @@ public class ProtectionClaimService {
         // The seller is told, because a claim freezes money they were expecting and finding
         // that out from a missing payout is the worst way to learn it.
         notify(sellerId, "A buyer opened a claim",
-                "Payment for this order is on hold while we review it. You'll be told the outcome.");
+                "A problem with this order is under review. Any payout not already released is on hold.");
         notify(buyer.getId(), "Claim received",
-                "We've put the payment on hold and will review it. Nothing is released to the seller meanwhile.");
+                "We will review your report. Any payout not already released is on hold; funds already transferred cannot be frozen retroactively.");
 
         log.info("Protection claim {} opened on {} {} by buyer {}", claim.getId(), orderType, orderId, buyer.getId());
         return claim;
@@ -180,6 +187,8 @@ public class ProtectionClaimService {
         if (claim.getOrderType() == ClaimOrderType.BOOKING) {
             Booking booking = bookingRepository.findById(claim.getOrderId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+            if ("TRANSFERRED".equals(booking.getPaymentStatus()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "The seller has already been paid. Review and recover the transfer before refunding this claim");
             attemptRefund(booking.getPaymentIntentId(), claim.getOrderId());
             booking.setPaymentStatus("REFUNDED");
             booking.setStatus(com.hustleup.marketplace.booking.model.BookingStatus.CANCELLED);
@@ -189,6 +198,8 @@ public class ProtectionClaimService {
         } else {
             ShopOrder order = shopOrderRepository.findById(claim.getOrderId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+            if ("RELEASED".equals(order.getPayoutStatus()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "The seller has already been paid. Review and recover the transfer before refunding this claim");
             attemptRefund(order.getPaymentIntentId(), claim.getOrderId());
             order.setStatus(ShopOrder.ShopOrderStatus.REFUNDED);
             // Takes it out of findReleasable for good, so no later sweep can pay a seller for
@@ -223,7 +234,8 @@ public class ProtectionClaimService {
     }
 
     public List<ProtectionClaim> mine() {
-        return claimRepository.findByBuyerIdOrderByCreatedAtDesc(currentUser().getId());
+        UUID userId = currentUser().getId();
+        return claimRepository.findByBuyerIdOrSellerIdOrderByCreatedAtDesc(userId, userId);
     }
 
     private void requireBuyer(UUID orderBuyerId, UUID callerId) {

@@ -53,18 +53,27 @@ class CloudflareR2StorageTest {
         assertThrows(IllegalArgumentException.class, () -> CloudflareR2Storage.validatePublicBaseUrl("https://images.example.test/?token=x"));
     }
 
-    @Test void imageRoutingKeepsVideosLocalAndValidatesBeforeWriting() throws Exception {
+    @Test void publicPhotosAndVideosUseR2ButPrivateMediaDoesNot() throws Exception {
         var r2 = mock(CloudflareR2Storage.class);
         when(r2.isEnabled()).thenReturn(true);
+        when(r2.storeMedia(any(), anyString())).thenReturn("https://r2.example/upload");
         var files = new FileStorageService(directory.toString(), "", "", "us-east-1", "", "", r2);
         String video = files.storePublicMedia(new MockMultipartFile("file", "clip.mp4", "video/mp4", new byte[]{1}));
-        assertTrue(video.startsWith("/uploads/"));
+        assertEquals("https://r2.example/upload", video);
         assertTrue(files.store(new MockMultipartFile("file", "private.png", "image/png", new byte[]{1})).startsWith("/uploads/"));
         assertThrows(IllegalArgumentException.class, () -> files.storePublicMedia(new MockMultipartFile("file", "attack.svg", "image/svg+xml", new byte[]{1})));
         assertEquals("https://external.test/image.png?signature=keep", files.refreshUrl("https://external.test/image.png?signature=keep"));
-        verify(r2, never()).storeImage(any(), anyString());
-        when(r2.storeImage(any(), anyString())).thenReturn("https://r2.example/signed");
-        assertEquals("https://r2.example/signed", files.storePublicMedia(new MockMultipartFile("file", "image.png", "image/png", new byte[]{1})));
+        verify(r2, times(1)).storeMedia(any(), anyString());
+        assertEquals("https://r2.example/upload", files.storePublicMedia(new MockMultipartFile("file", "image.png", "image/png", new byte[]{1})));
+        verify(r2, times(2)).storeMedia(any(), anyString());
+    }
+
+    @Test void videoKeepsItsContentTypeAndPermanentUrl() throws Exception {
+        try (var fixture = new Fixture()) {
+            String result = fixture.storage.storeMedia(new MockMultipartFile("file", "clip.mp4", "video/mp4", new byte[]{1,2}), "clip.mp4");
+            assertEquals("https://images.example.test/uploads/clip.mp4", result);
+            verify(fixture.client).putObject(argThat((PutObjectRequest request) -> request.contentType().equals("video/mp4") && request.key().equals("uploads/clip.mp4")), any(RequestBody.class));
+        }
     }
 
     private class Fixture implements AutoCloseable {

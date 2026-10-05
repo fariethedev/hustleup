@@ -364,3 +364,10 @@
   [data-theme="light"] .media-overlay .border-white\/15,
   [data-theme="light"] .media-overlay .border-white\/20,
   [data-theme="light"] .media-overlay .border-white\/25 { border-color: rgba(255, 255, 255, 0.2); }
+/* Gold membership stars remain distinct from identity verification. */
+.premium-badge { color: #ffd66b; background: #493400; }
+[data-theme="light"] .premium-badge { color: #825800; background: #fff0bf; }
+[data-theme="light"] .listing-card-media { background: #f4f4f1; }
+[data-theme="light"] .listing-card-shade { display: none; }
+[data-theme="light"] .listing-card-caption { background: var(--surface-card); border-top: 1px solid var(--line-subtle); }
+[data-theme="light"] .listing-card-caption .text-white { color: var(--ink-primary); }

@@ -71,6 +71,8 @@ public class UserDto {
     private String username;
     private Boolean privateAccount;
     private Boolean profileRestricted;
+    // Server-derived paid membership, never accepted as a profile edit.
+    private boolean premium;
 
     /**
      * The user's role as a string (e.g. "BUYER", "SELLER", "ADMIN").

@@ -4,13 +4,13 @@ import { mkdir, writeFile } from 'node:fs/promises';
 const page = await fetch('http://127.0.0.1:9222/json/new?about:blank', { method: 'PUT' }).then(r => r.json());
 const socket = new WebSocket(page.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
-let id = 0, offer;
+let id = 0, offer, videoFixture, videoUpload;
 const pending = new Map(), errors = [];
 const user = { id: 'reviewer', fullName: 'Store Reviewer', email: 'reviewer@example.test', emailVerified: true, role: 'BUYER' };
 const product = { id: 'product', name: 'Store jacket', price: 90, currency: 'PLN', stockQuantity: 2, category: 'Clothing' };
 const pixel = 'https://fixture.example/photo.png';
-let shop = { id: 'shop', slug: 'review-shop', name: 'Review shop', ownerId: 'seller', ownerName: 'Seller', city: 'Warsaw', published: true, businessType: 'FASHION', rating: 0, reviewCount: 0, products: [product], highlights: [{ id: 'arrivals', title: 'New arrivals', items: [{ url: pixel, type: 'image' }, { url: pixel, type: 'image' }] }] };
-const listing = { id: 'listing', sellerId: 'seller', title: 'Marketplace jacket', price: 140, currency: 'PLN', listingType: 'GOODS', status: 'ACTIVE', mediaUrls: [], locationCity: 'Warsaw', swapEnabled: false };
+let shop = { id: 'shop', slug: 'review-shop', name: 'Review shop', ownerId: 'seller', ownerName: 'Seller', ownerPremium: true, city: 'Warsaw', published: true, businessType: 'FASHION', rating: 0, reviewCount: 0, products: [product], highlights: [{ id: 'arrivals', title: 'New arrivals', items: [{ url: pixel, type: 'image' }, { url: pixel, type: 'image' }] }] };
+const listing = { id: 'listing', sellerId: 'seller', sellerPremium: true, title: 'Marketplace jacket', price: 140, currency: 'PLN', listingType: 'GOODS', status: 'ACTIVE', mediaUrls: [], locationCity: 'Warsaw', swapEnabled: false };
 const send = (method, params = {}) => new Promise((resolve, reject) => { pending.set(++id, { resolve, reject }); socket.send(JSON.stringify({ id, method, params })); });
 socket.onmessage = async ({ data }) => {
   const m = JSON.parse(data);
@@ -24,15 +24,18 @@ socket.onmessage = async ({ data }) => {
   if (path === '/api/v1/shops') body = [shop];
   if (path === '/api/v1/shops/review-shop' || path === '/api/v1/shops/shop') body = shop;
   if (request.method === 'PATCH' && path === '/api/v1/shops/shop') { shop = { ...shop, ...JSON.parse(request.postData) }; body = shop; }
-  if (path === '/api/v1/shops/shop/media') body = { url: pixel };
+  if (path === '/api/v1/shops/shop/media') { videoUpload = request; body = { url: 'https://fixture.example/video.webm' }; }
   if (path === '/api/v1/listings') body = [listing, { ...listing, id: 'event', title: 'Community meetup', listingType: 'EVENT', eventStartsAt: '2026-11-12T18:00:00' }];
   if (path === '/api/v1/listings/listing') body = listing;
   if (path === '/api/v1/listings/my') body = [{ ...listing, id: 'mine', sellerId: user.id, title: 'My headphones', price: 40 }];
-  if (path.includes('/users/')) body = { ...user, id: 'seller', fullName: 'Seller' };
+  if (path.includes('/users/')) body = { ...user, id: 'seller', fullName: 'Seller', premium: true };
   if (path.includes('/relationship')) body = { isFollowing: false, followersCount: 0, followingCount: 0 };
   if (path.includes('/unread-count')) body = { count: 0 };
   if (path === '/api/v1/subscriptions/my') body = { plan: 'ALL_ACCESS', status: 'ACTIVE' };
   if (request.method === 'POST' && path === '/api/v1/swaps') { offer = request.postData; body = { id: 'offer' }; }
+  if (request.url === 'https://fixture.example/video.webm' && videoFixture) {
+    await send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'video/webm' }], body: videoFixture }); return;
+  }
   if (request.url === pixel) {
     await send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'image/png' }], body: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWQAAAABJRU5ErkJggg==' }); return;
   }
@@ -56,6 +59,9 @@ try {
     assert(await evaluate(`!!document.querySelector('a[href="/shop/review-shop/product/product/checkout"]')`));
     assert(await evaluate(`getComputedStyle(document.querySelector('.discover-page')).backgroundColor === 'rgb(247, 247, 245)'`));
     assert(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'));
+    assert(await evaluate(`document.querySelector('.discover-sell').getBoundingClientRect().height >= 44 && document.querySelector('.discover-sell').textContent.includes('Add a listing')`));
+    assert(await evaluate(`document.querySelectorAll('article [aria-label="Premium member"]').length >= 2`));
+    assert(await evaluate(`getComputedStyle(document.querySelector('.listing-card-media')).backgroundColor === 'rgb(244, 244, 241)'`));
     const shot = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(`artifacts/storefront-review/explore-light-${width}.png`, Buffer.from(shot.data, 'base64'));
     await go('/shop/review-shop'); await waitFor(has('Store jacket'));
     assert(await evaluate(`Math.abs(document.querySelector('article a').getBoundingClientRect().height / document.querySelector('article a').getBoundingClientRect().width - 1.25) < .05`));
@@ -79,6 +85,24 @@ try {
   await evaluate('window.confirm=()=>true'); await click('Delete collection'); await waitFor(`!document.querySelector('dialog[open]')`);
   assert.equal(shop.highlights.length, 1);
   console.log('PASS named photo/video collection creation and deletion (mocked uploads)');
+
+  videoFixture = await evaluate(`new Promise(resolve=>{const c=document.createElement('canvas');c.width=160;c.height=120;const ctx=c.getContext('2d');const stream=c.captureStream(10);const r=new MediaRecorder(stream,{mimeType:'video/webm'});const chunks=[];r.ondataavailable=e=>chunks.push(e.data);r.onstop=()=>{stream.getTracks().forEach(t=>t.stop());const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.readAsDataURL(new Blob(chunks,{type:'video/webm'}));};r.start();let n=0;const timer=setInterval(()=>{ctx.fillStyle=n++%2?'#CDFF00':'#333';ctx.fillRect(0,0,160,120);if(n===12){clearInterval(timer);r.stop();}},100);})`);
+  await click('New highlight'); await input('dialog input[maxlength="40"]', 'Video advert');
+  await evaluate(`(()=>{const e=document.querySelector('dialog input[type="file"]');const dt=new DataTransfer();dt.items.add(new File([Uint8Array.from(atob(${JSON.stringify(videoFixture)}),c=>c.charCodeAt(0))],'advert.webm',{type:'video/webm'}));e.files=dt.files;e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await waitFor(`document.querySelectorAll('dialog [aria-label^="Remove slide"]').length === 1 && !document.querySelector('dialog input').disabled`);
+  await click('Save highlight'); await waitFor(has('Video advert'));
+  assert(/multipart\/form-data;.*boundary=/i.test(videoUpload.headers['Content-Type'] || videoUpload.headers['content-type']));
+  await click('Video advert'); await waitFor(`document.querySelector('dialog video')?.readyState >= 2`);
+  assert(await evaluate(`document.querySelector('dialog video').controls && document.querySelector('dialog video').playsInline`));
+  await evaluate(`document.querySelector('dialog video').dispatchEvent(new Event('error'))`);
+  await waitFor(has('This video couldn’t load.')); await click('Retry video');
+  await waitFor(`document.querySelector('dialog video')?.readyState >= 2`);
+  await evaluate(`document.querySelector('[aria-label="Close highlights"]').click()`);
+  shop.ownerPremium = false; listing.sellerPremium = false;
+  await go('/explore/listings'); await waitFor(has('Store jacket'));
+  assert(await evaluate(`!document.querySelector('article [aria-label="Premium member"]')`));
+  console.log('PASS real WebM highlight upload/playback/retry and paid-only premium badges');
+
   await go('/profile/seller'); await waitFor(`!!document.querySelector('[aria-label="Go back"]')`);
   await evaluate(`document.querySelector('[aria-label="Go back"]').click()`); await waitFor(`location.pathname === '/explore'`);
   await go('/listing/listing'); await click('Offer an item + money'); await waitFor(has('My headphones')); await evaluate(`[...document.querySelectorAll('[role="dialog"] button')].find(b=>b.textContent.includes('My headphones')).click()`);

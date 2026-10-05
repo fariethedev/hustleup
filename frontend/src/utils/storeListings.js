@@ -8,6 +8,7 @@ export function storeListing(shop, product) {
     title: product.name,
     sellerId: shop.ownerId,
     sellerName: shop.name,
+    sellerPremium: shop.ownerPremium,
     locationCity: shop.city,
     listingType: /fashion|clothing/i.test(shop.businessType || shop.category) ? 'FASHION' : /food|bakery/i.test(shop.businessType || shop.category) ? 'FOOD' : 'GOODS',
     mediaUrls: product.imageUrl ? [product.imageUrl] : [],

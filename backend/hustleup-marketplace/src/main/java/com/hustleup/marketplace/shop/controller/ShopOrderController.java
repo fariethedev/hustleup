@@ -55,6 +55,7 @@ public class ShopOrderController {
     private final OrderPayoutService orderPayoutService;
     private final EmailVerificationGuard emailVerificationGuard;
     private final ShopInventoryService inventoryService;
+    private final com.hustleup.marketplace.protection.service.ProtectionClaimService protectionClaimService;
 
     /** Platform default — {@link ShopProduct} carries a price with no currency of its own. */
     private static final String CURRENCY = "PLN";
@@ -293,7 +294,11 @@ public class ShopOrderController {
                     "error", "Only a paid order can be confirmed as received"));
         }
 
-        if (order.getFulfilment() != null && order.getFulfilment().getBuyerConfirmedAt() == null) {
+        if (protectionClaimService.isFrozen(com.hustleup.marketplace.protection.model.ProtectionClaim.ClaimOrderType.SHOP_ORDER, id)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Resolve the open problem report before confirming receipt"));
+        }
+        if (order.getFulfilment() == null) order.setFulfilment(new com.hustleup.marketplace.shipping.Fulfilment());
+        if (order.getFulfilment().getBuyerConfirmedAt() == null) {
             order.getFulfilment().setBuyerConfirmedAt(java.time.LocalDateTime.now());
         }
         order.setStatus(ShopOrder.ShopOrderStatus.FULFILLED);

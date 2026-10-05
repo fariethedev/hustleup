@@ -122,6 +122,13 @@ public class ShipmentService {
         if (previous == FulfilmentStatus.AWAITING_PAYMENT && target != FulfilmentStatus.CANCELLED) {
             return "This order has not been paid for yet, so there is nothing to send.";
         }
+        if (fulfilment.getBuyerConfirmedAt() != null && target != previous)
+            return "The buyer already confirmed receipt. Delivery status cannot be changed.";
+        if (previous == FulfilmentStatus.CANCELLED && target != previous)
+            return "A cancelled delivery cannot be restarted.";
+        if (previous != null && target != FulfilmentStatus.CANCELLED
+                && method.steps().indexOf(target) < method.steps().indexOf(previous))
+            return "Delivery cannot move backwards. Add a note if a correction is needed.";
 
         if (request.getCarrier() != null)        fulfilment.setCarrier(blankToNull(request.getCarrier()));
         if (request.getTrackingNumber() != null) fulfilment.setTrackingNumber(blankToNull(request.getTrackingNumber()));

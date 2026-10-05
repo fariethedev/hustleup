@@ -54,6 +54,7 @@ public class UserController {
 
     // CRUD access for User entities — backed by Spring Data JPA auto-generated SQL.
     private final UserRepository userRepository;
+    private final com.hustleup.common.subscription.PremiumAccess premiumAccess;
 
     // Persists and queries profile-view audit records (who viewed whose profile, when).
     private final ProfileViewRepository profileViewRepository;
@@ -118,8 +119,10 @@ public class UserController {
         // UserDto.publicView() and not UserDto.fromEntity(). fromEntity() includes the
         // account's email, phone number and full postal address — mapping it here turned
         // a single anonymous GET into a dump of every registered user's personal data.
-        return ResponseEntity.ok(userRepository.findAll().stream()
-                .map(UserDto::publicView)    // method reference: equivalent to u -> UserDto.publicView(u)
+        var users = userRepository.findAll();
+        var premiumIds = premiumAccess.premiumAmong(users.stream().map(User::getId).toList());
+        return ResponseEntity.ok(users.stream()
+                .map(u -> { var dto = UserDto.publicView(u); dto.setPremium(premiumIds.contains(u.getId())); return dto; })    // method reference: equivalent to u -> UserDto.publicView(u)
                 .collect(Collectors.toList()));
     }
 
@@ -184,7 +187,9 @@ public class UserController {
             // isSelf stays false here, so a failure degrades to the *safer* public view.
         }
 
-        return ResponseEntity.ok(isSelf ? UserDto.fromEntity(user) : UserDto.publicView(user, accountPrivacy.canView(user.getId())));
+        var dto = isSelf ? UserDto.fromEntity(user) : UserDto.publicView(user, accountPrivacy.canView(user.getId()));
+        dto.setPremium(premiumAccess.isPremium(user.getId()));
+        return ResponseEntity.ok(dto);
     }
 
     /**

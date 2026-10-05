@@ -1011,6 +1011,10 @@ public class BookingService {
         }
 
         Fulfilment delivery = booking.getFulfilment();
+        if (!java.util.List.of("PAID", "TRANSFERRED").contains(java.util.Objects.toString(booking.getPaymentStatus(), "")))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only a paid booking can be confirmed as received");
+        if (protectionClaimService.isFrozen(ClaimOrderType.BOOKING, bookingId))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Your problem report must be resolved before confirming receipt");
         if (delivery != null && delivery.getBuyerConfirmedAt() == null) {
             delivery.setBuyerConfirmedAt(LocalDateTime.now());
             delivery.setUpdatedAt(LocalDateTime.now());

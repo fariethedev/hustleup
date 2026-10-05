@@ -1,3 +1,4 @@
+import PremiumBadge from './PremiumBadge';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -95,7 +96,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
           </motion.div>
 
           <span className="mt-2.5 flex items-center gap-1 text-[11px] font-black text-white leading-tight line-clamp-1 group-hover:text-[#00FFFF] transition-colors">
-            {u.fullName}
+            {u.fullName} <PremiumBadge active={u.premium} />
             {u.idVerified && <ShieldCheck className="w-3 h-3 text-[#CDFF00] shrink-0" />}
           </span>
           <span className="flex items-center gap-1.5 text-[8px] font-bold tracking-wider text-gray-500">
@@ -149,7 +150,7 @@ export default function CreatorCard({ user: u, index = 0, variant = 'compact' })
         </div>
 
         <h3 className="mt-3 flex items-center gap-1 text-sm font-black text-white leading-tight line-clamp-1 group-hover:text-[#00FFFF] transition-colors">
-          {u.fullName}
+          {u.fullName} <PremiumBadge active={u.premium} />
           {u.idVerified && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
         </h3>
 

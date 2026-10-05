@@ -36,6 +36,7 @@ public class ShopService {
     private final ListingRepository listingRepository;
     private final ReviewRepository reviewRepository;
     private final UserRepository userRepository;
+    private final com.hustleup.common.subscription.PremiumAccess premiumAccess;
     private final FileStorageService fileStorageService;
 
     /**
@@ -97,6 +98,7 @@ public class ShopService {
             dto.setOwnerName(owner.displayName());
             dto.setOwnerAvatarUrl(fileStorageService.refreshUrl(owner.getAvatarUrl()));
             dto.setOwnerVerified(owner.isIdVerified());
+            dto.setOwnerPremium(premiumAccess.isPremium(owner.getId()));
         }
         return dto;
     }

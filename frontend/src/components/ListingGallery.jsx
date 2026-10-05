@@ -154,7 +154,7 @@ export default function ListingGallery({ media = [], title = '', typeLabel }) {
                 {/* The gradient scrim would swallow clicks on the video's controls, so it's
                     only drawn over stills. */}
                 {!isVideo && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                  <div className="listing-card-shade absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
                 )}
               </div>
             );

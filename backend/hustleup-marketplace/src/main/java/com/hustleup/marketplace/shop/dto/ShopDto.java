@@ -46,6 +46,7 @@ public class ShopDto {
     private String ownerName;
     private String ownerAvatarUrl;
     private boolean ownerVerified;
+    private boolean ownerPremium;
 
     /** Populated on the single-shop endpoint; null on the browse list to keep it light. */
     private List<ShopProductDto> products;

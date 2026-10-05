@@ -5,6 +5,7 @@ import { selectUser } from '../store/authSlice';
 import { LISTING_TYPES, formatPrice, displayCity } from '../utils/constants';
 import { addToCart, openCart, selectCartItems } from '../store/cartSlice';
 import { coverImage, mediaList } from '../utils/media';
+import PremiumBadge from './PremiumBadge';
 import CardCarousel from './CardCarousel';
 
 export default function ListingCard({ listing, onDelete }) {
@@ -25,7 +26,7 @@ export default function ListingCard({ listing, onDelete }) {
   };
   return (
     <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111] transition-colors hover:border-white/25">
-      <Link to={own && listing.shopId ? `/shop/${listing.shopSlug}` : detailUrl} aria-label={`View ${listing.title}`} className="media-overlay relative block aspect-[4/5] overflow-hidden bg-[#191919]">
+      <Link to={own && listing.shopId ? `/shop/${listing.shopSlug}` : detailUrl} aria-label={`View ${listing.title}`} className="listing-card-media media-overlay relative block aspect-[4/5] overflow-hidden bg-[var(--surface-card)]">
         <CardCarousel media={media.length ? media : [cover].filter(Boolean)} title={listing.title} fallbackIcon={category.icon} fallbackClassName={category.color} imageClassName="h-full w-full object-contain" />
         {listing.listingType === 'EVENT' && listing.eventStartsAt && <span className="absolute top-3 left-3 rounded-full bg-black/70 px-3 py-1.5 text-xs font-semibold text-white">{new Date(listing.eventStartsAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>}
         {!available && <span className="absolute bottom-3 left-3 rounded-full bg-black/80 px-3 py-1 text-xs text-white">Unavailable</span>}
@@ -34,7 +35,7 @@ export default function ListingCard({ listing, onDelete }) {
         <p className="truncate text-[11px] text-gray-500">{category.label}</p>
         <Link to={own && listing.shopId ? `/shop/${listing.shopSlug}` : detailUrl} className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-white hover:underline">{listing.title}</Link>
         <div className="flex flex-wrap items-center justify-between gap-1"><p className="text-base font-bold text-white">{formatPrice(listing.price, listing.currency)}</p>{listing.avgRating > 0 && <span className="flex items-center gap-1 text-xs text-gray-300"><Star className="h-3 w-3 fill-[#CDFF00] text-[#CDFF00]" />{Number(listing.avgRating).toFixed(1)}</span>}</div>
-        <p className="truncate text-xs text-gray-400">{listing.sellerName || 'Local seller'}</p>
+        <p className="flex items-center gap-1.5 text-xs text-gray-400"><span className="truncate">{listing.sellerName || 'Local seller'}</span><PremiumBadge active={listing.sellerPremium} /></p>
         <p className="flex items-center gap-1 text-xs text-gray-500"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{displayCity(listing.locationCity)}</span></p>
         <div className="mt-auto pt-2">
           {own ? onDelete ? <button type="button" onClick={() => onDelete(listing.id)} aria-label={`Delete ${listing.title}`} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-500/20 text-xs text-red-300"><Trash2 className="h-4 w-4" />Delete</button> : <span className="flex min-h-11 items-center text-xs text-gray-500">Your listing</span> : instant && available ? (

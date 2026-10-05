@@ -1,3 +1,4 @@
+import PremiumBadge from '../components/PremiumBadge';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion as Motion } from "framer-motion";
 import { useSelector } from 'react-redux';
@@ -284,7 +285,7 @@ export default function ShopDetail() {
               {shop.ownerName && (
                 <Link to={`/profile/${shop.ownerId}`} className="flex items-center gap-2 min-w-0 rounded-full bg-white/5 px-2 py-1 hover:bg-white/10 transition-colors">
                   <SmartImage src={uploadUrl(shop.ownerAvatarUrl)} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
-                  <span className="text-gray-400 shrink-0">By</span><span className="truncate">{shop.ownerName}</span>
+                  <span className="text-gray-400 shrink-0">By</span><span className="truncate">{shop.ownerName}</span><PremiumBadge active={shop.ownerPremium} />
                 </Link>
               )}
             </Motion.div>

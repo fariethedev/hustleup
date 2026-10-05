@@ -50,6 +50,8 @@ import java.util.UUID;
 @Service // Marks this as a Spring-managed service bean — can be @Autowired / constructor-injected
 public class FileStorageService {
     private final CloudflareR2Storage r2;
+    @Value("${spring.application.name:}")
+    private String applicationName;
 
     /**
      * File extensions accepted by {@link #store}. Everything else is rejected outright.
@@ -296,7 +298,7 @@ public class FileStorageService {
         return storeValidated(file, false);
     }
 
-    /** Public avatars, listing/feed photos and shop images only. Never use for private attachments. */
+    /** Public photos and videos only. Never use for private attachments. */
     public String storePublicMedia(MultipartFile file) {
         return storeValidated(file, true);
     }
@@ -324,8 +326,8 @@ public class FileStorageService {
             // pick an extension out of the allowlist above.
             String filename = UUID.randomUUID() + "." + extension;
 
-            if (publicMedia && r2.isEnabled() && contentType.startsWith("image/")) {
-                return r2.storeImage(file, filename);
+            if (publicMedia && r2.isEnabled()) {
+                return r2.storeMedia(file, filename);
             }
             if (s3Client != null) {
                 return uploadToS3(file, filename);
@@ -440,6 +442,11 @@ public class FileStorageService {
         }
 
         Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-        return "/uploads/" + filename; // Return web-accessible relative URL
+        String namespace = switch (applicationName == null ? "" : applicationName) {
+            case "hustleup-social" -> "social/";
+            case "hustleup-marketplace" -> "marketplace/";
+            default -> "";
+        };
+        return "/uploads/" + namespace + filename;
     }
 }

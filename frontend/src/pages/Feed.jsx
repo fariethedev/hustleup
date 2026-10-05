@@ -21,7 +21,6 @@ import { lockBodyScroll } from '../utils/lockBodyScroll';
 import { timeAgo, formatDateTime } from '../utils/time';
 import { uploadUrl } from '../config';
 
-const POST_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1920&q=80';
 
 const extractUrl = (text) => {
   if (!text) return null;
@@ -426,11 +425,10 @@ function PostCard({ post, likeInProgress, onLike, onSave, onOpenComments, onOpen
           // Shaped by the picture instead of forced square. A square crop takes the top and
           // bottom off every portrait photo posted from a phone, which is most of them.
           <div className="relative w-full bg-black" style={{ aspectRatio: singleAspect }}>
-            <img
+            <SmartImage
               src={singleImage}
               alt="Post"
               className="w-full h-full object-cover"
-              onError={(e) => { e.target.onerror = null; e.target.src = POST_FALLBACK_IMAGE; }}
             />
           </div>
         )}
@@ -467,7 +465,7 @@ function ListingPromoCard({ listing, onSave, onShare }) {
   // square crop buys no grid alignment and only costs the top and bottom of a portrait
   // product shot. The quoted-post preview further up keeps its fixed 16:10 — that one is a
   // thumbnail of another post and is meant to stay small rather than lead the card.
-  const cover = uploadUrl(listing.mediaUrls?.[0] || POST_FALLBACK_IMAGE);
+  const cover = uploadUrl(listing.mediaUrls?.[0]);
   const aspect = useMediaAspect(cover);
   return (
     <Motion.div
@@ -494,11 +492,10 @@ function ListingPromoCard({ listing, onSave, onShare }) {
         className="block relative bg-black group overflow-hidden"
         style={{ aspectRatio: aspect }}
       >
-        <img
+        <SmartImage
           src={cover}
           alt={listing.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          onError={(e) => { e.target.onerror = null; e.target.src = POST_FALLBACK_IMAGE; }}
         />
         <div className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-black/80 backdrop-blur-xl border border-[#CDFF00]/40 text-[#CDFF00] font-bold text-sm">
           {formatPrice(listing.price, listing.currency)}
@@ -928,7 +925,7 @@ export default function Feed() {
         setPremium(false);
         setShowUpgrade(true);
       } else {
-        dispatchToast('Failed to post', 'error');
+        dispatchToast(err.response?.data?.message || err.response?.data?.error || 'Could not upload your post. Use an MP4 or WebM video under 50 MB and try again.', 'error');
       }
     } finally {
       setPosting(false);

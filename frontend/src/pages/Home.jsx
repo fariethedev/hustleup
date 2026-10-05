@@ -212,12 +212,11 @@ function EventCarousel({ events }) {
               <div className="group flex flex-col h-full rounded-3xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-[#CDFF00]/40 transition-all">
                 <Link to={`/listing/${event.id}`} className="block">
                   <div className="aspect-square sm:aspect-[4/5] overflow-hidden relative">
-                    <img
-                      src={uploadUrl(event.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=60')}
+                    <SmartImage
+                      src={uploadUrl(event.mediaUrls?.[0])}
                       alt={event.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       loading="lazy"
-                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=60'; }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                     {/* One badge, and only when it says something true. Every card used to be
@@ -473,18 +472,17 @@ export default function Home() {
                     className="group block rounded-3xl overflow-hidden border border-white/10 bg-white/[0.03] hover:border-[#CDFF00]/40 transition-all"
                   >
                     <div className="aspect-[3/4] overflow-hidden relative">
-                      <img
-                        src={uploadUrl(listing.mediaUrls?.[0] || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60')}
+                      <SmartImage
+                        src={uploadUrl(listing.mediaUrls?.[0])}
                         alt={listing.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
-                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&q=60'; }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                      <div className="listing-card-shade absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                       {listing.negotiable && (
                         <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-[#CDFF00] text-black text-[10px] font-bold">Negotiable</span>
                       )}
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                      <div className="listing-card-caption absolute bottom-0 left-0 right-0 p-4">
                         <h4 className="text-sm font-bold text-white truncate mb-1">{listing.title}</h4>
                         <div className="flex items-center justify-between">
                           <span className="text-[#CDFF00] font-bold text-sm">{formatPrice(listing.price, listing.currency)}</span>

@@ -10,7 +10,7 @@ export function ExploreShell({ title, description, query, onQueryChange, searchL
       <div className="discover-container">
         <header className="discover-heading">
           <div><span className="discover-eyebrow">The student marketplace</span><h1>{title}</h1><p>{description}</p></div>
-          <Link to="/create" className="discover-button discover-button-secondary discover-sell">Start selling <ArrowRight size={16} /></Link>
+          <Link to="/create" className="discover-button discover-sell">Add a listing <ArrowRight size={16} /></Link>
         </header>
         <div className="discover-toolbar">
           <div className="discover-search" role="search">

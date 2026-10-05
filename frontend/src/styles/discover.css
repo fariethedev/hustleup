@@ -54,7 +54,9 @@
 @media (max-width: 767px) {
   .discover-container { padding: 16px 16px 40px; }
   .discover-heading { margin-bottom: 12px; }
-  .discover-eyebrow, .discover-sell { display: none; }
+  .discover-eyebrow { display: none; }
+  .discover-heading { flex-wrap: wrap; }
+  .discover-sell { min-height: 44px; }
   .discover-heading h1 { font-size: 22px; }
   .discover-heading p { display: none; }
   .discover-toolbar { margin: 0 -16px; padding: 8px 16px 0; }
@@ -66,3 +68,4 @@
   .discover-content { gap: 28px; }
 }
 @media (prefers-reduced-motion: reduce) { .discover-page * { scroll-behavior: auto !important; } }
+.discover-sell { background: #cdff00; color: #151900; border: 1px solid #89a800; font-weight: 750; white-space: nowrap; }

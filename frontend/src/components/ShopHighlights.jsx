@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Plus, X, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { shopsApi } from '../api/client';
 import { invalidateShops } from '../hooks/useShops';
+import HighlightVideo from './HighlightVideo';
 import { uploadUrl } from '../config';
 
 export default function ShopHighlights({ shop, isOwner }) {
@@ -50,7 +51,7 @@ export default function ShopHighlights({ shop, isOwner }) {
         const { data } = await shopsApi.uploadMedia(shop.id, file);
         setItems(previous => [...previous, { url: data.url, type: file.type.startsWith('video/') ? 'video' : 'image' }]);
       }
-    } catch { setError('Some uploads failed. Uploaded media is kept; retry the remaining files.'); }
+    } catch (e) { setError(e.response?.data?.message || e.response?.data?.error || 'Some uploads failed. Uploaded media is kept; retry the remaining files.'); }
     finally { setBusy(false); }
   };
   const collection = collections.find(c => c.id === active);
@@ -70,7 +71,7 @@ export default function ShopHighlights({ shop, isOwner }) {
       </button>)}
       {isOwner && collections.length < 12 && <button onClick={() => edit(null)} className="w-20 shrink-0 text-xs"><span className="flex items-center justify-center w-20 h-20 rounded-full border border-white/20"><Plus /></span><span className="block mt-2">New highlight</span></button>}
     </div>
-    {open && <dialog ref={dialog} onCancel={e => { e.preventDefault(); close(); }} className="m-auto w-[calc(100%-2rem)] max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl p-5 bg-[#111] text-white border border-white/15 backdrop:bg-black/80" aria-label={editing ? 'Edit highlight' : collection?.title} onKeyDown={e => {
+    {open && <dialog ref={dialog} onCancel={e => { e.preventDefault(); close(); }} className="media-overlay m-auto w-[calc(100%-2rem)] max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl p-5 bg-[#111] text-white border border-white/15 backdrop:bg-black/80" aria-label={editing ? 'Edit highlight' : collection?.title} onKeyDown={e => {
       if (editing || e.target.closest('input, video')) return;
       if (e.key === 'ArrowRight') setSlide(n => Math.min(n + 1, collection.items.length - 1));
       if (e.key === 'ArrowLeft') setSlide(n => Math.max(0, n - 1));
@@ -84,13 +85,13 @@ export default function ShopHighlights({ shop, isOwner }) {
           <button type="button" disabled={busy} onClick={() => setItems(items.filter((_, index) => i !== index))} aria-label={`Remove slide ${i + 1}`} className="absolute top-0 right-0 min-h-11 min-w-11 bg-black/70 text-white flex items-center justify-center"><X size={16} /></button>
         </div>)}</div>
         <label className="block text-sm mb-5">Add photos or videos (20 MB each)<input type="file" multiple accept="image/*,video/*" disabled={busy || items.length >= 20} className="block w-full mt-2 text-sm" onChange={e => { upload([...e.target.files]); e.target.value = ''; }} /></label>
-        <p className="text-xs text-gray-400 mb-4">Slides play in upload order. Highlights stay on your storefront until you remove them.</p>
+        <p className="text-xs text-gray-400 mb-4">For reliable video playback, use MP4 (H.264) or WebM. Slides play in upload order. Highlights stay on your storefront until you remove them.</p>
         <button disabled={busy || !title.trim() || !items.length} className="w-full min-h-11 rounded-xl bg-[#CDFF00] text-black font-bold disabled:opacity-50">{busy ? 'Saving…' : 'Save highlight'}</button>
         {editId && <button type="button" disabled={busy} onClick={() => { if (window.confirm('Delete this highlight collection?')) save(collections.filter(c => c.id !== editId)); }} className="flex items-center justify-center gap-2 w-full min-h-11 text-red-400 mt-2"><Trash2 size={16} />Delete collection</button>}
       </form> : <>
         <div className="flex gap-1 mb-3" aria-label={`Slide ${slide + 1} of ${collection?.items.length}`}>{collection?.items.map((_, i) => <button key={i} onClick={() => setSlide(i)} aria-label={`Go to slide ${i + 1}`} className={`h-2 flex-1 rounded-full ${i === slide ? 'bg-[#CDFF00]' : 'bg-gray-500'}`} />)}</div>
         <div className="aspect-[9/16] max-h-[60dvh] bg-black rounded-xl overflow-hidden flex justify-center">
-          {media?.type === 'video' ? <video key={media.url} src={uploadUrl(media.url)} controls autoPlay playsInline muted className="w-full h-full object-contain" onEnded={() => setSlide(n => Math.min(n + 1, collection.items.length - 1))} /> : <img src={uploadUrl(media?.url)} alt={`${collection?.title}, slide ${slide + 1}`} className="w-full h-full object-contain" />}
+          {media?.type === 'video' ? <HighlightVideo key={`${active}-${slide}-${media.url}`} url={media.url} onEnded={() => setSlide(n => Math.min(n + 1, collection.items.length - 1))} /> : <img src={uploadUrl(media?.url)} alt={`${collection?.title}, slide ${slide + 1}`} className="w-full h-full object-contain" />}
         </div>
         <div className="flex items-center justify-between mt-3"><button aria-label="Previous slide" disabled={slide === 0} onClick={() => setSlide(n => n - 1)} className="min-h-11 min-w-11 disabled:opacity-30"><ChevronLeft /></button><span className="text-sm">{slide + 1} / {collection?.items.length}</span><button aria-label="Next slide" disabled={slide === collection?.items.length - 1} onClick={() => setSlide(n => n + 1)} className="min-h-11 min-w-11 disabled:opacity-30"><ChevronRight /></button></div>
         {media?.type === 'image' && <button onClick={() => setPaused(p => !p)} className="min-h-11 w-full text-sm" aria-pressed={paused}>{paused ? 'Resume slideshow' : 'Pause slideshow'}</button>}

@@ -1,3 +1,4 @@
+import PremiumBadge from './PremiumBadge';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkle, Navigation, MoveUpRight, ShieldPlus, Box, ClipboardCheck } from 'lucide-react';
@@ -67,7 +68,7 @@ export default function ShopCard({ shop, index = 0 }) {
           {/* Name sits on the image so the body below is all substance */}
           <div className="absolute bottom-3 left-4 right-4">
             <h3 className="text-xl font-black text-white tracking-tight leading-tight line-clamp-1 group-hover:text-[#CDFF00] transition-colors duration-300">
-              {shop.name}
+              {shop.name} <PremiumBadge active={shop.ownerPremium} />
             </h3>
           </div>
         </div>

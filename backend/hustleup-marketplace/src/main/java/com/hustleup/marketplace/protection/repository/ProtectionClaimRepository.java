@@ -31,4 +31,5 @@ public interface ProtectionClaimRepository extends JpaRepository<ProtectionClaim
 
     /** A buyer's own claims, so the dashboard can show one is open on an order. */
     List<ProtectionClaim> findByBuyerIdOrderByCreatedAtDesc(UUID buyerId);
+    List<ProtectionClaim> findByBuyerIdOrSellerIdOrderByCreatedAtDesc(UUID buyerId, UUID sellerId);
 }

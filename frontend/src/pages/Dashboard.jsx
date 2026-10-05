@@ -1,4 +1,6 @@
 import BankConnection from '../components/BankConnection';
+import OrderJourney from '../components/OrderJourney';
+import NavigationGuide from '../components/NavigationGuide';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -6,7 +8,7 @@ import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { useSellerAccess } from '../hooks/useSellerAccess';
 import SellerUpgrade, { SellerUpgradeButton } from '../components/SellerUpgrade';
-import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, feedbackApi, dispatchToast } from '../api/client';
+import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, feedbackApi, claimsApi, dispatchToast } from '../api/client';
 import { BOOKING_STATUS_MAP, LISTING_TYPES, POLISH_CITIES, formatPrice } from '../utils/constants';
 import { ChevronDown, Cog, CirclePlus, Archive, ClipboardCheck, CircleCheck, CircleX, MessagesSquare, ListChecks, Boxes, BellDot, ChartLine, CalendarRange, SquarePen, Building2, Eraser, CircleSlash, Building, WalletCards, ShieldPlus, ShieldX, TicketCheck, QrCode, MoveRight, Sparkle, Forklift, Box, Speech, CircleUser, Store, ArrowUpRight, Activity } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
@@ -43,6 +45,9 @@ export default function Dashboard() {
     return params;
   }, { replace: true });
   const [bookings, setBookings] = useState([]);
+  const [claims, setClaims] = useState([]);
+  const [claimsError, setClaimsError] = useState(false);
+  const [receivingOrderId, setReceivingOrderId] = useState(null);
   const [listings, setListings] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [slots, setSlots] = useState([]);
@@ -57,7 +62,12 @@ export default function Dashboard() {
    * status, one flat run. So "Needs reply: 3" led to forty rows with nothing marking the
    * three. The count was the only part that worked.
    */
-  const [bookingView, setBookingView] = useState(() => searchParams.get('view') || 'all');
+  const bookingView = searchParams.get('view') || 'all';
+  const setBookingView = (view) => setSearchParams(previous => {
+    const next = new URLSearchParams(previous);
+    next.set('tab', 'bookings'); next.set('view', view);
+    return next;
+  }, { replace: true });
   /** Set when the orders call itself failed, so an empty page can say why. */
   const [loadError, setLoadError] = useState('');
   const [payoutStatus, setPayoutStatus] = useState(null); // { connected, payoutsEnabled, chargesEnabled, detailsSubmitted }
@@ -134,6 +144,7 @@ export default function Dashboard() {
 
   const loadData = async () => {
     setLoading(true);
+    claimsApi.mine().then(r => { setClaims(r.data || []); setClaimsError(false); }).catch(() => setClaimsError(true));
 
     // allSettled, not all.
     //
@@ -210,14 +221,14 @@ export default function Dashboard() {
    */
   const applyTracked = (updated) => {
     if (!updated) return;
-    const swap = (list) => list.map((o) => (o.id === updated.id ? updated : o));
+    const swap = (list) => list.map((o) => (o.id === updated.id ? { ...o, ...updated, role: o.role } : o));
     if (tracking?.kind === 'booking') setBookings(swap);
     else setShopSales(swap);
   };
 
   const handleBookingAction = async (id, action) => {
     try {
-      if (action === 'accept') await bookingsApi.accept(id);
+      if (action === 'accept') await bookingsApi.accept(id, bookings.find(b => b.id === id)?.version);
       else if (action === 'cancel') await bookingsApi.cancel(id, 'Cancelled by user');
       else if (action === 'received') await bookingsApi.confirmReceipt(id);
       // 'complete' no longer routes through here — it opens the review dialog first.
@@ -232,7 +243,7 @@ export default function Dashboard() {
     if (!price || price <= 0) return;
     setCounterBusy(true);
     try {
-      await bookingsApi.counterOffer(id, price);
+      await bookingsApi.counterOffer(id, price, bookings.find(b => b.id === id)?.version);
       setCounteringId(null);
       setCounterValue('');
       loadData();
@@ -274,7 +285,7 @@ export default function Dashboard() {
    * in a bucket nobody opens.
    */
   const viewedBookings = bookings.filter((b) => {
-    if (bookingView === 'needsReply') return b.role === 'seller' && ['INQUIRED', 'NEGOTIATING'].includes(b.status);
+    if (bookingView === 'needsReply') return b.role === 'seller' && ['INQUIRED', 'NEGOTIATING'].includes(b.status) && (b.lastOfferBy || (b.status === 'NEGOTIATING' ? b.sellerId : b.buyerId)) !== user?.id;
     if (bookingView === 'inProgress') return b.role === 'seller' && b.status === 'BOOKED';
     if (bookingView === 'selling') return b.role === 'seller';
     if (bookingView === 'buying') return b.role !== 'seller';
@@ -282,7 +293,7 @@ export default function Dashboard() {
   });
 
   /** Requests from buyers a seller has not yet accepted or declined — their real to-do list. */
-  const pendingRequests = bookings.filter((b) => b.role === 'seller' && b.status === 'INQUIRED');
+  const pendingRequests = bookings.filter((b) => b.role === 'seller' && ['INQUIRED', 'NEGOTIATING'].includes(b.status) && (b.lastOfferBy || (b.status === 'NEGOTIATING' ? b.sellerId : b.buyerId)) !== user?.id);
   /** Sold and paid for, but not yet delivered and marked complete. */
   const inProgress = bookings.filter((b) => b.role === 'seller' && b.status === 'BOOKED');
 
@@ -344,6 +355,12 @@ export default function Dashboard() {
 
   const firstName = user?.fullName?.trim()?.split(/\s+/)[0] || user?.username || 'there';
   const openTasks = pendingRequests.length + awaitingReview.length + openShopOrders;
+  const reviewActivity = () => {
+    const next = pendingRequests.length ? 'bookings' : openShopOrders ? 'orders' : 'bookings';
+    const view = pendingRequests.length ? 'needsReply' : 'all';
+    setSearchParams({ tab: next, view });
+    requestAnimationFrame(() => document.getElementById('dashboard-activity')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
 
   return (
     <div className="min-h-screen text-white">
@@ -376,7 +393,7 @@ export default function Dashboard() {
                       <Link to="/create" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#E0FF4D] transition-colors">
                         <CirclePlus className="w-3.5 h-3.5" /> Post a listing
                       </Link>
-                      <button onClick={() => setTab(openTasks ? 'bookings' : 'shop')} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-[10px] font-black tracking-widest hover:bg-white/10 transition-colors">
+                      <button onClick={() => openTasks ? reviewActivity() : setTab('shop')} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-[10px] font-black tracking-widest hover:bg-white/10 transition-colors">
                         {openTasks ? 'Review activity' : 'Edit your shop'} <ArrowUpRight className="w-3.5 h-3.5" />
                       </button>
                     </>
@@ -603,9 +620,12 @@ export default function Dashboard() {
             </div>
           ) : (
             <>
+              <div id="dashboard-activity" className="scroll-mt-24" tabIndex={-1}><NavigationGuide /></div>
+              {claimsError && <p role="alert" className="my-3 text-sm text-red-400">Problem reports could not be loaded. <button className="underline" onClick={loadData}>Retry</button></p>}
               {/* Bookings Tab */}
               {tab === 'bookings' && (
                 <div className="space-y-2.5">
+                  <header className="py-5"><p className="text-xs uppercase tracking-widest text-gray-400">Your order centre</p><h2 className="text-3xl font-bold mt-2">From purchase to received.</h2><p className="text-sm text-gray-400 mt-3 max-w-xl">Track your goods, check delivery and approve receipt. Sellers can update shipping here; delivery updates alone do not release payouts.</p><Link to="/dashboard?tab=orders" className="inline-flex min-h-11 items-center text-sm underline text-[#CDFF00]">Bought from a store? View store orders →</Link></header>
                   {loadError && (
                     <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-red-500/10 border border-red-500/30">
                       <p className="text-xs text-red-300 font-medium">{loadError}</p>
@@ -624,7 +644,7 @@ export default function Dashboard() {
                     {[
                       { id: 'all', label: 'All', n: bookings.length },
                       ...(isSeller ? [
-                        { id: 'needsReply', label: 'Needs reply', n: bookings.filter((b) => b.role === 'seller' && ['INQUIRED', 'NEGOTIATING'].includes(b.status)).length },
+                        { id: 'needsReply', label: 'Needs reply', n: pendingRequests.length },
                         { id: 'inProgress', label: 'To fulfil', n: inProgress.length },
                         { id: 'selling', label: 'Selling', n: bookings.filter((b) => b.role === 'seller').length },
                       ] : []),
@@ -657,9 +677,11 @@ export default function Dashboard() {
                     viewedBookings.map((booking) => {
                       const status = BOOKING_STATUS_MAP[booking.status] || { label: booking.status, color: 'bg-gray-800 text-gray-400' };
                       const isBuyer = user?.id === booking.buyerId;
+                      const claim = claims.find(c => c.orderType === 'BOOKING' && c.orderId === booking.id);
+                      const canRespond = ['INQUIRED', 'NEGOTIATING'].includes(booking.status) && (booking.lastOfferBy || (booking.status === 'NEGOTIATING' ? booking.sellerId : booking.buyerId)) !== user?.id;
 
                       return (
-                        <div key={booking.id} className="glass rounded-2xl p-4 border border-white/5 hover:border-[#CDFF00]/20 transition-all">
+                        <article key={booking.id} aria-label={booking.listingTitle || 'Order'} className="rounded-3xl p-5 sm:p-6 border border-white/15 bg-[var(--surface-card)] shadow-sm">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1.5">
@@ -671,7 +693,7 @@ export default function Dashboard() {
                               </span>
                             </div>
 
-                            <Link to={`/listing/${booking.listingId}`} className="text-sm font-black text-white hover:text-[#CDFF00] transition-colors tracking-tight block truncate">
+                            <Link to={`/listing/${booking.listingId}`} className="text-xl font-bold text-white hover:text-[#CDFF00] transition-colors tracking-tight block">
                               {booking.listingTitle || 'Project Title'}
                             </Link>
 
@@ -707,7 +729,7 @@ export default function Dashboard() {
                               <MessagesSquare className="w-3 h-3" /> DM
                             </Link>
 
-                            {booking.status === 'INQUIRED' && !isBuyer && (
+                            {canRespond && (
                               <>
                                 <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
                                   <CircleCheck className="w-3 h-3" /> Approve
@@ -721,14 +743,7 @@ export default function Dashboard() {
                               </>
                             )}
 
-                            {/* Buyer accepting the seller's counter-offer */}
-                            {booking.status === 'NEGOTIATING' && isBuyer && (
-                              <button onClick={() => handleBookingAction(booking.id, 'accept')} className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1">
-                                <CircleCheck className="w-3 h-3" /> Accept {formatPrice(booking.counterPrice, booking.currency)}
-                              </button>
-                            )}
-
-                            {booking.status === 'BOOKED' && isBuyer && !['PAID', 'TRANSFERRED'].includes(booking.paymentStatus) && (
+                            {booking.status === 'BOOKED' && isBuyer && (!booking.paymentStatus || booking.paymentStatus === 'PENDING') && (
                               <button
                                 onClick={() => handlePayNow(booking.id)}
                                 disabled={payingBookingId === booking.id}
@@ -747,6 +762,8 @@ export default function Dashboard() {
                                 of the sale, not the buyer's. */}
                             {isBuyer
                               && ['BOOKED', 'COMPLETED'].includes(booking.status)
+                              && ['PAID', 'TRANSFERRED'].includes(booking.paymentStatus)
+                              && claim?.status !== 'OPEN' && !claimsError
                               && !booking.fulfilment?.buyerConfirmedAt && (
                               <button
                                 onClick={() => { if (confirm('Confirm you received this? It releases the seller\'s payment.')) handleBookingAction(booking.id, 'received'); }}
@@ -764,6 +781,7 @@ export default function Dashboard() {
                               && ['BOOKED', 'COMPLETED'].includes(booking.status)
                               && ['PAID', 'TRANSFERRED'].includes(booking.paymentStatus) && (
                               <button
+                                disabled={claim?.status === 'OPEN'}
                                 onClick={() => setClaiming({ orderType: 'BOOKING', orderId: booking.id, title: booking.listingTitle })}
                                 className="px-3.5 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 font-black text-[9px] tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center gap-1.5"
                               >
@@ -790,12 +808,11 @@ export default function Dashboard() {
                               </button>
                             )}
 
-                            {booking.status === 'BOOKED' && !isBuyer && (
+                            {booking.status === 'BOOKED' && !isBuyer && ['PAID', 'TRANSFERRED'].includes(booking.paymentStatus) && (
                               <button
                                 onClick={async () => {
-                                  // Complete first, ask second. The sale and the payout must
-                                  // not wait on an opinion: if the feedback request fails or
-                                  // is dismissed, the order is already done.
+                                  // Seller fulfilment is separate from buyer receipt approval.
+                                  // Optional platform feedback never controls the payout.
                                   try {
                                     await bookingsApi.complete(booking.id);
                                     loadData();
@@ -808,7 +825,7 @@ export default function Dashboard() {
                                 }}
                                 className="px-3.5 py-2 rounded-lg bg-[#CDFF00] text-black font-black text-[9px] tracking-widest hover:scale-105 transition-all flex items-center gap-1"
                               >
-                                <CircleCheck className="w-3 h-3" /> Complete
+                                <CircleCheck className="w-3 h-3" /> Mark fulfilled
                               </button>
                             )}
 
@@ -832,6 +849,7 @@ export default function Dashboard() {
                         {/* Who to contact and what they told you. Shown to the seller, who
                             is the one who has to act on it — and to the buyer, because a typo
                             in a delivery address is only findable if it is shown back. */}
+                        <OrderJourney order={booking} forBuyer={isBuyer} claim={claim} />
                         <BuyerDetails booking={booking} />
 
                         {/* Renders itself away for anything with no delivery track — an
@@ -865,7 +883,7 @@ export default function Dashboard() {
                             </button>
                           </div>
                         )}
-                        </div>
+                        </article>
                       );
                     })
                   )}
@@ -885,7 +903,7 @@ export default function Dashboard() {
                       </h3>
                       <div className="space-y-2.5">
                         {shopOrders.map((order) => (
-                          <ShopOrderCard key={order.id} order={order} forBuyer />
+                          <ShopOrderCard key={order.id} order={order} forBuyer receiptDisabled={claimsError || receivingOrderId === order.id} claim={claims.find(c => c.orderType === 'SHOP_ORDER' && c.orderId === order.id)} onReport={() => setClaiming({ orderType: 'SHOP_ORDER', orderId: order.id, title: order.productName })} onReceive={async () => { if (receivingOrderId) return; if (!confirm('Only confirm after checking your goods. This approves release of the seller payment, subject to open claims and payout checks.')) return; setReceivingOrderId(order.id); try { await shopsApi.confirmReceipt(order.id); await loadData(); } catch (e) { dispatchToast(e.response?.data?.error || e.response?.data?.message || 'Could not confirm receipt', 'error'); } finally { setReceivingOrderId(null); } }} />
                         ))}
                       </div>
                     </div>
@@ -901,6 +919,7 @@ export default function Dashboard() {
                           <ShopOrderCard
                             key={order.id}
                             order={order}
+                            claim={claims.find(c => c.orderType === 'SHOP_ORDER' && c.orderId === order.id)}
                             // Only a paid order can be sent, so the control appears with the
                             // money rather than with the order.
                             onTrack={order.status === 'PAID' || order.status === 'FULFILLED'
@@ -1370,7 +1389,7 @@ function AvailabilityTab({ listings, slots, onChange }) {
  * cost, and where it is. The only difference is the seller's update control, which is
  * passed in rather than decided here — the parent knows which orders are theirs to fulfil.
  */
-function ShopOrderCard({ order, onTrack, forBuyer = false }) {
+function ShopOrderCard({ order, onTrack, forBuyer = false, claim, onReport, onReceive, receiptDisabled }) {
   const shipping = Number(order.fulfilment?.shippingPrice) || 0;
   const goods = Number(order.totalPrice) || 0;
   const paidState = SHOP_ORDER_STATES[order.status] || { label: order.status, color: 'bg-gray-800 text-gray-400' };
@@ -1417,7 +1436,9 @@ function ShopOrderCard({ order, onTrack, forBuyer = false }) {
         )}
       </div>
 
+      <OrderJourney order={order} forBuyer={forBuyer} claim={claim} />
       <OrderTracker fulfilment={order.fulfilment} forBuyer={forBuyer} />
+      {forBuyer && ['PAID', 'FULFILLED'].includes(order.status) && <div className="flex flex-wrap gap-3 mt-4">{!order.fulfilment?.buyerConfirmedAt && claim?.status !== 'OPEN' && <button disabled={receiptDisabled} onClick={onReceive} className="min-h-11 px-4 rounded-xl bg-[#CDFF00] text-black text-sm font-semibold">Confirm received</button>}<button disabled={claim?.status === 'OPEN'} onClick={onReport} className="min-h-11 px-4 rounded-xl border border-white/20 text-sm disabled:opacity-50">{claim?.status === 'OPEN' ? 'Problem under review' : 'Report a problem'}</button></div>}
     </div>
   );
 }

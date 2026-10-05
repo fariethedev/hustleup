@@ -42,6 +42,7 @@ public class ListingService {
 
     private final ListingRepository listingRepository;
     private final UserRepository userRepository;
+    private final com.hustleup.common.subscription.PremiumAccess premiumAccess;
     private final ReviewRepository reviewRepository;
     private final FileStorageService fileStorageService;
     private final NotificationRepository notificationRepository;
@@ -60,7 +61,8 @@ public class ListingService {
                           AlgoliaIndexService algoliaIndexService, ListingMediaLibrary mediaLibrary,
                           EventAvailabilityService eventAvailabilityService,
                           LuggageAvailabilityService luggageAvailabilityService,
-                          EmailVerificationGuard emailVerificationGuard) {
+                          EmailVerificationGuard emailVerificationGuard,
+                          com.hustleup.common.subscription.PremiumAccess premiumAccess) {
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
         this.reviewRepository = reviewRepository;
@@ -72,6 +74,7 @@ public class ListingService {
         this.eventAvailabilityService = eventAvailabilityService;
         this.luggageAvailabilityService = luggageAvailabilityService;
         this.emailVerificationGuard = emailVerificationGuard;
+        this.premiumAccess = premiumAccess;
     }
 
     public List<ListingDto> getAll(String q, ListingType type, String city, BigDecimal maxPrice, Boolean negotiable) {
@@ -399,6 +402,7 @@ public class ListingService {
         try {
             userRepository.findById(listing.getSellerId()).ifPresent(seller -> {
                 dto.setSellerName(seller.displayName());
+                dto.setSellerPremium(premiumAccess.isPremium(seller.getId()));
                 String avatarUrl = seller.getAvatarUrl();
                 dto.setSellerAvatarUrl(avatarUrl != null ? fileStorageService.refreshUrl(avatarUrl) : null);
                 dto.setSellerVerified(seller.isIdVerified());

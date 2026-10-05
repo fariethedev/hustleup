@@ -1,30 +1,4 @@
-/**
- * Guarantees that every listing carries a full gallery of supporting media.
- *
- * <p>A listing with a single photo looks half-finished next to one with a real gallery, and
- * the detail page's thumbnail strip only appears once there is more than one item. Sellers
- * frequently upload one image and stop, so this class tops every listing's media list up to
- * {@link #MIN_MEDIA} entries using a curated, category-matched pool of supporting shots.
- *
- * <h3>How the padding works</h3>
- * <ul>
- *   <li>Whatever the seller actually uploaded always comes <b>first</b> — their own photos and
- *       videos are the hero images, and padding only ever appends behind them.</li>
- *   <li>The pool is picked by {@link ListingType}, so a FOOD listing is padded with food shots
- *       and a RENTAL listing with interiors.</li>
- *   <li>The starting offset into the pool is derived from the listing's own id, so two listings
- *       of the same category don't end up with an identical gallery, and any given listing gets
- *       the same supporting shots every time it is padded (the choice is stable, not random).</li>
- *   <li>Entries the listing already has are skipped, so padding never duplicates an image.</li>
- * </ul>
- *
- * <h3>Dead URLs</h3>
- * <p>{@link #DEAD_URL_FRAGMENTS} lists media that used to exist upstream but now 404s. Those
- * entries are dropped whenever a listing's media passes through here, so a broken thumbnail
- * heals itself rather than needing a manual database edit. Every URL in the pools below was
- * checked as reachable when it was added — add to the dead list rather than silently swapping
- * a URL, so the reason a link disappeared stays visible in the source.
- */
+/** Legacy media cleanup and identification of old generated padding. Never adds media. */
 package com.hustleup.marketplace.listing.service;
 
 import com.hustleup.marketplace.listing.model.ListingType;
@@ -32,18 +6,14 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Component
 public class ListingMediaLibrary {
 
     /**
-     * Minimum number of supporting images/videos every listing is guaranteed to expose.
-     * Five is enough to fill the detail page's thumbnail strip without the gallery
-     * turning into an endless scroll.
+     * Historical padding threshold. Retained for compatibility; padding is now disabled.
      */
     public static final int MIN_MEDIA = 5;
 
@@ -112,36 +82,15 @@ public class ListingMediaLibrary {
                 .toList();
     }
 
-    /**
-     * Returns the listing's media as a comma-separated string containing at least
-     * {@link #MIN_MEDIA} entries, with dead URLs removed and the seller's own uploads kept
-     * at the front.
-     *
-     * @param existingCsv the {@code media_urls} value currently on the listing (may be null/blank)
-     * @param type        the listing's category, which selects the supporting-media pool
-     * @param variantSeed any stable per-listing string (its id once saved, otherwise its title).
-     *                    Only used to pick the entry point into the pool, so that two listings in
-     *                    the same category don't get an identical gallery. Null starts at the top.
-     * @return a CSV of at least {@link #MIN_MEDIA} media URLs
-     */
+    /** Compatibility entry point: preserves supplied live URLs without adding stock media. */
     public String padToMinimum(String existingCsv, ListingType type, String variantSeed) {
-        // LinkedHashSet: preserves the seller's original ordering while making the
-        // "don't add something that's already here" check a cheap lookup.
-        Set<String> media = new LinkedHashSet<>(liveUrls(existingCsv));
+        // Compatibility only: never invent media, even if an old caller invokes this method.
+        return String.join(",", liveUrls(existingCsv));
+    }
 
-        List<String> pool = GALLERIES.getOrDefault(type, GALLERIES.get(ListingType.GOODS));
-        // Math.floorMod (not %) because hashCode() is frequently negative and a negative
-        // index would blow up on the first pool lookup.
-        int offset = variantSeed == null ? 0 : Math.floorMod(variantSeed.hashCode(), pool.size());
-
-        // Walk the whole pool once from the offset. Bounding the loop by pool.size() rather
-        // than "until we have MIN_MEDIA" means a pool smaller than MIN_MEDIA (or one whose
-        // entries the listing already has) terminates instead of spinning forever.
-        for (int i = 0; i < pool.size() && media.size() < MIN_MEDIA; i++) {
-            media.add(pool.get((offset + i) % pool.size()));
-        }
-
-        return String.join(",", media);
+    /** Exact historical padding URLs only; uploaded files and other external URLs are untouched. */
+    public static boolean isGeneratedPadding(String url) {
+        return GALLERIES.values().stream().anyMatch(pool -> pool.contains(url));
     }
 
     /**
@@ -178,18 +127,8 @@ public class ListingMediaLibrary {
         return DEAD_URL_FRAGMENTS.stream().anyMatch(url::contains);
     }
 
-    /**
-     * Whether a listing's stored media needs rewriting — either it is short of
-     * {@link #MIN_MEDIA} live entries, or it contains something {@link #padToMinimum} would
-     * strip (a dead URL, a blank token). Used by the startup backfill so listings that are
-     * already healthy are left untouched and the runner is a no-op after its first pass.
-     */
+    /** Padding is disabled, including for legacy callers. */
     public boolean needsPadding(String existingCsv) {
-        List<String> live = liveUrls(existingCsv);
-        if (live.size() < MIN_MEDIA) return true;
-        // Fewer live entries than raw tokens means padToMinimum would drop something, so the
-        // stored value is stale even though it's long enough.
-        int rawTokens = existingCsv == null || existingCsv.isBlank() ? 0 : existingCsv.split(",").length;
-        return live.size() != rawTokens;
+        return false;
     }
 }

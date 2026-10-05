@@ -1,3 +1,4 @@
+import PremiumBadge from '../components/PremiumBadge';
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -320,7 +321,7 @@ export default function Profile() {
                 something: for an account with no username, displayName() has already
                 fallen back to it, and repeating it would print the same string twice. */}
             <h1 className="text-2xl sm:text-3xl font-black text-white truncate leading-tight">
-              {displayName(profile)}
+              {displayName(profile)} <PremiumBadge active={profile.premium} />
             </h1>
             {profile?.username && profile?.fullName && (
               <p className="text-sm text-gray-400 truncate mt-0.5">{profile.fullName}</p>

@@ -16,7 +16,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import java.io.IOException;
 import java.net.URI;
 
-/** Opt-in R2 storage for explicitly public images. Sensitive uploads remain on the existing backend. */
+/** Opt-in R2 storage for public photos and videos. The legacy R2_IMAGES_ENABLED flag enables both. */
 @Service
 public class CloudflareR2Storage {
     private final S3Client client;
@@ -86,6 +86,10 @@ public class CloudflareR2Storage {
 
     /** Called only after FileStorageService validates size, extension and media type. */
     public String storeImage(MultipartFile file, String filename) throws IOException {
+        return storeMedia(file, filename);
+    }
+
+    public String storeMedia(MultipartFile file, String filename) throws IOException {
         if (!isEnabled()) throw new IllegalStateException("R2 image storage is disabled");
         String key = "uploads/" + filename;
         var request = PutObjectRequest.builder().bucket(bucket).key(key)
