@@ -1,241 +1,144 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, FlatList,
-  ActivityIndicator, Alert, RefreshControl,
-} from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, AppState, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { bookingsApi, listingsApi } from '../../src/api/client';
+import { useSelector } from 'react-redux';
+import * as WebBrowser from 'expo-web-browser';
+import { bookingsApi, shopsApi, claimsApi } from '../../src/api/client';
+import { errorMessage, money } from '../../src/utils/marketplace';
+import { deliverySteps, orderLabel, orderState } from '../../src/utils/orderState';
+import { stripeUrl } from '../../src/utils/secureLinks';
 
-const LIME = '#CDFF00';
-const BG   = '#050505';
-
-const STATUS_META = {
-  INQUIRED:    { label: 'Pending',    color: '#FBBF24', bg: '#FBBF2420' },
-  NEGOTIATING: { label: 'Countered',  color: '#A78BFA', bg: '#A78BFA20' },
-  BOOKED:      { label: 'Accepted',   color: '#34D399', bg: '#34D39920' },
-  COMPLETED:   { label: 'Completed',  color: LIME,      bg: LIME + '20' },
-  CANCELLED:   { label: 'Cancelled',  color: '#F87171', bg: '#F8717120' },
-  POSTED:      { label: 'Draft',      color: '#555',    bg: '#55555520' },
-};
-
-function OrderCard({ item, onAccept, onCancel, onComplete }) {
-  const meta = STATUS_META[item.status] || STATUS_META.PENDING;
-  const isActionable = item.status === 'INQUIRED' || item.status === 'NEGOTIATING';
-  const isBuyer = item.role === 'buyer';
-
-  return (
-    <View style={s.card}>
-      <View style={s.cardTop}>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={s.cardTitle} numberOfLines={2}>{item.listingTitle || `Listing #${item.listingId}`}</Text>
-          <Text style={s.cardSub}>{isBuyer ? 'You ordered from' : 'Order from'} {isBuyer ? item.sellerName || 'seller' : item.buyerName || 'buyer'}</Text>
-        </View>
-        <View style={[s.statusBadge, { backgroundColor: meta.bg, borderColor: meta.color + '55' }]}>
-          <Text style={[s.statusText, { color: meta.color }]}>{meta.label}</Text>
-        </View>
-      </View>
-
-      <View style={s.priceRow}>
-        <Feather name="tag" size={13} color="rgba(255,255,255,0.3)" />
-        <Text style={s.price}>
-          {item.currency || 'PLN'} {Number(item.offeredPrice || item.price || 0).toLocaleString()}
-          {item.status === 'NEGOTIATING' && item.counterPrice && (
-            <Text style={s.counterNote}> → Counter: {item.currency || 'PLN'} {Number(item.counterPrice).toLocaleString()}</Text>
-          )}
-        </Text>
-      </View>
-
-      {item.message ? (
-        <Text style={s.message}>"{item.message}"</Text>
-      ) : null}
-
-      <View style={s.cardFooter}>
-        <Text style={s.cardDate}>{item.createdAt ? new Date(item.createdAt).toDateString() : ''}</Text>
-        {isActionable && !isBuyer && (
-          <View style={s.actions}>
-            <TouchableOpacity style={s.acceptBtn} onPress={() => onAccept(item.id)}>
-              <Text style={s.acceptBtnText}>Accept</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.cancelBtn} onPress={() => onCancel(item.id)}>
-              <Text style={s.cancelBtnText}>Decline</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        {item.status === 'BOOKED' && !isBuyer && (
-          <TouchableOpacity style={s.completeBtn} onPress={() => onComplete(item.id)}>
-            <Text style={s.completeBtnText}>Mark Complete</Text>
-          </TouchableOpacity>
-        )}
-        {isActionable && isBuyer && (
-          <TouchableOpacity style={s.cancelBtn} onPress={() => onCancel(item.id)}>
-            <Text style={s.cancelBtnText}>Cancel</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-}
+const reasons = [['NOT_RECEIVED', 'Not received'], ['DAMAGED', 'Arrived damaged'], ['NOT_AS_DESCRIBED', 'Not as described'], ['OTHER', 'Something else']];
+const stepIcons = { CONFIRMED: 'check-circle', PREPARING: 'package', SHIPPED: 'truck', OUT_FOR_DELIVERY: 'truck', READY_FOR_PICKUP: 'map-pin', DELIVERED: 'check-circle', COLLECTED: 'check-circle' };
 
 export default function OrdersScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const user = useSelector(state => state.auth.user);
+  const light = useColorScheme() === 'light';
+  const colors = light ? { bg: '#F7F7F5', card: '#FFF', text: '#171717', muted: '#666', line: '#DDD', accent: '#526B00' } : { bg: '#080808', card: '#151515', text: '#FFF', muted: '#AAA', line: '#333', accent: '#CDFF00' };
   const [orders, setOrders] = useState([]);
+  const [claims, setClaims] = useState([]);
+  const [claimsReady, setClaimsReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [tab, setTab] = useState('all');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [tab, setTab] = useState(params.view === 'selling' ? 'selling' : 'buying');
+  const [dialog, setDialog] = useState(null);
+  const [detail, setDetail] = useState('');
+  const [reason, setReason] = useState('NOT_RECEIVED');
+  const [amount, setAmount] = useState('');
+  const [formError, setFormError] = useState('');
+  const [delivery, setDelivery] = useState({ status: '', carrier: '', trackingNumber: '', note: '' });
 
-  const load = async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const res = await bookingsApi.getAll();
-      setOrders(res.data || []);
-    } catch {
-      setOrders([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  const load = useCallback(async () => {
+    const results = await Promise.allSettled([bookingsApi.getAll(), shopsApi.orders(), shopsApi.sales(), claimsApi.mine()]);
+    const read = index => results[index].status === 'fulfilled' ? results[index].value.data || [] : [];
+    setOrders([
+      ...read(0).map(order => ({ ...order, kind: 'booking' })),
+      ...read(1).map(order => ({ ...order, kind: 'shop', role: 'buyer' })),
+      ...read(2).map(order => ({ ...order, kind: 'shop', role: 'seller' })),
+    ].sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0)));
+    setClaims(read(3));
+    setClaimsReady(results[3].status === 'fulfilled');
+    const failed = results.some((result, index) => result.status === 'rejected' && !(index === 2 && result.reason?.response?.status === 403));
+    setError(failed ? 'Some order information could not load. Pull down to retry. Receipt approval stays disabled if problem reports cannot be checked.' : '');
+    setLoading(false); setRefreshing(false);
+  }, []);
+  useFocusEffect(useCallback(() => {
+    load();
+    const listener = AppState.addEventListener('change', state => { if (state === 'active') load(); });
+    return () => listener.remove();
+  }, [load]));
+
+  const run = async (operation, inDialog = false) => {
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true); setFormError('');
+    try { await operation(); if (inDialog) setDialog(null); await load(); }
+    catch (failure) {
+      const message = errorMessage(failure, failure.message || 'Something went wrong. Please retry.');
+      if (inDialog) setFormError(message); else Alert.alert('Could not update order', message);
+      // A stale negotiation must be re-read before another offer can be made.
+      if (failure.response?.status === 409) await load();
+    } finally { busyRef.current = false; setBusy(false); }
   };
-
-  useEffect(() => { load(); }, []);
-
-  const handleAccept = async (id) => {
-    try {
-      await bookingsApi.accept(id);
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'ACCEPTED' } : o));
-    } catch { Alert.alert('Error', 'Could not accept order.'); }
+  const open = (mode, order) => {
+    setDialog({ mode, order }); setDetail(''); setReason('NOT_RECEIVED'); setAmount(''); setFormError('');
+    const f = order.fulfilment || {};
+    setDelivery({ status: f.fulfilmentStatus || 'CONFIRMED', carrier: f.carrier || '', trackingNumber: f.trackingNumber || '', note: '' });
   };
-
-  const handleCancel = (id) => {
-    Alert.alert('Cancel Order', 'Are you sure you want to cancel this order?', [
-      { text: 'Back', style: 'cancel' },
-      { text: 'Cancel Order', style: 'destructive', onPress: async () => {
-        try {
-          await bookingsApi.cancel(id, 'User cancelled');
-          setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'CANCELLED' } : o));
-        } catch { Alert.alert('Error', 'Could not cancel order.'); }
-      }},
-    ]);
+  const close = () => { if (!busyRef.current) setDialog(null); };
+  const Button = ({ title, icon, onPress, disabled = false, primary = false }) => <Pressable accessibilityRole="button" accessibilityState={{ disabled: disabled || busy }} disabled={disabled || busy} onPress={onPress} style={[s.button, { borderColor: colors.line, backgroundColor: primary ? '#CDFF00' : colors.card, opacity: disabled || busy ? .45 : 1 }]}>
+    {icon && <Feather name={icon} size={18} color={primary ? '#161A00' : colors.accent} />}<Text style={{ color: primary ? '#161A00' : colors.text, fontWeight: '700' }}>{title}</Text>
+  </Pressable>;
+  const claimFor = order => claims.find(claim => claim.orderId === order.id && claim.orderType === (order.kind === 'shop' ? 'SHOP_ORDER' : 'BOOKING'));
+  const filtered = orders.filter(order => tab === 'all' || (tab === 'buying') === orderState(order, user?.id).buyer);
+  const submit = () => {
+    const { mode, order } = dialog;
+    if (mode === 'claim') return run(() => claimsApi.raise(order.kind === 'shop' ? 'SHOP_ORDER' : 'BOOKING', order.id, reason, detail.trim()), true);
+    if (mode === 'counter') return run(() => bookingsApi.counter(order.id, Number(amount.replace(',', '.')), order.version), true);
+    return run(() => (order.kind === 'shop' ? shopsApi : bookingsApi).updateFulfilment(order.id, delivery), true);
   };
-
-  const handleComplete = async (id) => {
-    try {
-      await bookingsApi.complete(id);
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'COMPLETED' } : o));
-    } catch { Alert.alert('Error', 'Could not complete order.'); }
-  };
-
-  const filtered = tab === 'all' ? orders
-    : tab === 'buying' ? orders.filter(o => o.role === 'buyer')
-    : orders.filter(o => o.role === 'seller');
-
-  const counts = {
-    all: orders.length,
-    buying: orders.filter(o => o.role === 'buyer').length,
-    selling: orders.filter(o => o.role === 'seller').length,
-  };
-
-  return (
-    <View style={s.screen}>
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Feather name="arrow-left" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>ORDERS</Text>
-        <View style={{ width: 40 }} />
+  const renderOrder = ({ item: order }) => {
+    const claim = claimFor(order), state = orderState(order, user?.id, claim);
+    const api = order.kind === 'shop' ? shopsApi : bookingsApi;
+    return <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.line }]}>
+      <Text style={{ color: colors.accent, fontSize: 12, textTransform: 'capitalize' }}>{order.kind === 'shop' ? 'Store order' : 'Marketplace booking'} · {orderLabel(order.status)}</Text>
+      <Text style={[s.title, { color: colors.text }]}>{order.listingTitle || order.productName || 'Order'}</Text>
+      <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>{money(order.totalPrice ?? order.agreedPrice ?? order.counterPrice ?? order.offeredPrice, order.currency)}</Text>
+      {[['credit-card', 'Payment', state.paid ? 'Payment received' : orderLabel(order.paymentStatus || order.status)],
+        ['truck', 'Delivery', orderLabel(order.fulfilment?.fulfilmentStatus)],
+        ['shield', 'Seller payout', state.payout]].map(([icon, label, value]) => <View key={label} style={s.row}><Feather name={icon} size={20} color={colors.accent} /><View style={{ flex: 1 }}><Text style={{ color: colors.muted, fontSize: 12 }}>{label}</Text><Text style={{ color: colors.text, textTransform: 'capitalize', marginTop: 3 }}>{value}</Text></View></View>)}
+      {!!order.fulfilment?.trackingNumber && <Text selectable style={{ color: colors.muted }}>Tracking: {order.fulfilment.carrier} {order.fulfilment.trackingNumber}</Text>}
+      {!!claim && <Text style={{ color: colors.accent }}>Problem report: {orderLabel(claim.status)}{claim.resolutionNote ? ' — ' + claim.resolutionNote : ''}</Text>}
+      <View style={s.actions}>
+        {state.canRespond && <><Button title="Accept offer" icon="check" primary onPress={() => run(() => bookingsApi.accept(order.id, order.version))} /><Button title="Counter offer" icon="edit-2" onPress={() => open('counter', order)} /></>}
+        {state.canPay && <Button title="Pay securely" icon="credit-card" primary onPress={() => run(async () => { const { data } = await bookingsApi.checkoutSession(order.id); await WebBrowser.openBrowserAsync(stripeUrl(data.url)); })} />}
+        {state.canReceive && <Button title="Confirm received" icon="check-circle" primary disabled={!claimsReady} onPress={() => Alert.alert('Have you checked your goods?', 'Confirm only after checking your purchase. This approves the seller’s payment, subject to payout checks.', [{ text: 'Not yet', style: 'cancel' }, { text: 'Confirm received', onPress: () => run(() => api.confirmReceipt(order.id)) }])} />}
+        {state.canReport && <Button title="Report a problem" icon="alert-circle" disabled={!claimsReady} onPress={() => open('claim', order)} />}
+        {state.canTrack && <Button title="Update delivery" icon="truck" onPress={() => open('delivery', order)} />}
+        {order.kind === 'booking' && ['INQUIRED', 'NEGOTIATING'].includes(order.status) && <Button title="Cancel request" onPress={() => Alert.alert('Cancel this request?', 'No payment is taken for an unaccepted request.', [{ text: 'Keep it', style: 'cancel' }, { text: 'Cancel request', style: 'destructive', onPress: () => run(() => bookingsApi.cancel(order.id, 'Cancelled from mobile')) }])} />}
       </View>
-
-      {/* Tabs */}
-      <View style={s.tabs}>
-        {[['all','All'], ['buying','Buying'], ['selling','Selling']].map(([key, label]) => (
-          <TouchableOpacity key={key} style={[s.tab, tab === key && s.tabActive]} onPress={() => setTab(key)}>
-            <Text style={[s.tabText, tab === key && s.tabTextActive]}>{label}</Text>
-            {counts[key] > 0 && (
-              <View style={[s.tabBadge, tab === key && s.tabBadgeActive]}>
-                <Text style={[s.tabBadgeText, tab === key && s.tabBadgeTextActive]}>{counts[key]}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {loading ? (
-        <View style={s.center}><ActivityIndicator color={LIME} size="large" /></View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={i => String(i.id)}
-          contentContainerStyle={filtered.length === 0 ? s.emptyContainer : s.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={LIME} />}
-          renderItem={({ item }) => (
-            <OrderCard item={item} onAccept={handleAccept} onCancel={handleCancel} onComplete={handleComplete} />
-          )}
-          ListEmptyComponent={
-            <View style={s.empty}>
-              <Feather name="package" size={52} color="rgba(255,255,255,0.05)" />
-              <Text style={s.emptyTitle}>NO ORDERS YET</Text>
-              <Text style={s.emptyHint}>
-                {tab === 'buying' ? 'Browse listings and make an offer to start buying.'
-                  : tab === 'selling' ? 'Create a listing so buyers can place orders.'
-                  : 'Orders you buy or receive will appear here.'}
-              </Text>
-              {tab !== 'selling' && (
-                <TouchableOpacity style={s.ctaBtn} onPress={() => router.push('/(tabs)/explore')}>
-                  <Text style={s.ctaBtnText}>Browse Listings</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          }
-        />
-      )}
-    </View>
-  );
+      <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>Check your purchase before confirming receipt. Seller delivery updates do not approve their own payout. Payment holds, open claims and bank verification still apply.</Text>
+    </View>;
+  };
+  return <SafeAreaView style={[s.screen, { backgroundColor: colors.bg }]}>
+    <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile')} style={s.back}><Feather name="arrow-left" size={24} color={colors.text} /></Pressable><Text style={[s.heading, { color: colors.text }]}>Your orders</Text></View>
+    <View style={s.tabs}>{['buying', 'selling', 'all'].map(value => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: tab === value }} onPress={() => setTab(value)} style={[s.button, { backgroundColor: tab === value ? '#CDFF00' : colors.card, borderColor: colors.line }]}><Text style={{ color: tab === value ? '#161A00' : colors.text, textTransform: 'capitalize', fontWeight: '700' }}>{value}</Text></Pressable>)}</View>
+    {!!error && <Text accessibilityRole="alert" style={[s.error, { color: light ? '#9F2424' : '#FCA5A5' }]}>{error}</Text>}
+    {loading ? <ActivityIndicator color={colors.accent} style={{ margin: 40 }} /> : <FlatList data={filtered} keyExtractor={order => order.kind + order.id} renderItem={renderOrder} contentContainerStyle={s.list} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />} ListEmptyComponent={<View style={s.card}><Text style={{ color: colors.text, fontSize: 18 }}>{error ? 'Orders unavailable' : 'No orders here yet'}</Text><Button title={error ? 'Retry' : 'Explore listings'} onPress={() => error ? load() : router.push('/(tabs)/explore')} /></View>} />}
+    <Modal visible={!!dialog} animationType="slide" onRequestClose={close} presentationStyle="pageSheet">
+      <SafeAreaView style={[s.screen, { backgroundColor: colors.bg }]}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.list}>
+        <Button title="Close" icon="x" onPress={close} />
+        <Text style={[s.heading, { color: colors.text }]}>{dialog?.mode === 'claim' ? 'Report a problem' : dialog?.mode === 'counter' ? 'Make a counter offer' : 'Update delivery'}</Text>
+        <Text style={{ color: colors.muted }}>{dialog?.order.listingTitle || dialog?.order.productName}</Text>
+        {dialog?.mode === 'claim' ? <>
+          <Text style={{ color: colors.muted, lineHeight: 22 }}>Tell us what happened. An open report holds any unreleased payout while it is reviewed; it does not automatically refund an already released payment.</Text>
+          {reasons.map(([value, label]) => <Button key={value} title={label} primary={reason === value} onPress={() => setReason(value)} />)}
+          <TextInput accessibilityLabel="Describe the problem" placeholder="Describe the problem (at least 10 characters)" placeholderTextColor={colors.muted} multiline maxLength={1000} value={detail} onChangeText={setDetail} editable={!busy} style={[s.input, { color: colors.text, borderColor: colors.line, minHeight: 130 }]} />
+        </> : dialog?.mode === 'counter' ? <><Text style={{ color: colors.muted }}>Offers alternate until one of you accepts. Payment happens only after agreement.</Text><TextInput accessibilityLabel="Counter offer amount" keyboardType="decimal-pad" placeholder="Amount" placeholderTextColor={colors.muted} value={amount} onChangeText={setAmount} editable={!busy} style={[s.input, { color: colors.text, borderColor: colors.line }]} /></> : dialog && <>
+          {(deliverySteps[dialog.order.fulfilment?.shippingMethod] || deliverySteps.NONE).map(step => { const steps = deliverySteps[dialog.order.fulfilment?.shippingMethod] || deliverySteps.NONE; const previous = steps.indexOf(dialog.order.fulfilment?.fulfilmentStatus); return <Button key={step} title={orderLabel(step)} icon={stepIcons[step]} primary={delivery.status === step} disabled={steps.indexOf(step) < previous} onPress={() => setDelivery({ ...delivery, status: step })} />; })}
+          {['COURIER', 'POST', 'PARCEL_LOCKER'].includes(dialog.order.fulfilment?.shippingMethod) && ['carrier', 'trackingNumber'].map(field => <TextInput key={field} accessibilityLabel={field === 'carrier' ? 'Carrier' : 'Tracking number'} placeholder={field === 'carrier' ? 'Carrier' : 'Tracking number'} placeholderTextColor={colors.muted} value={delivery[field]} onChangeText={value => setDelivery({ ...delivery, [field]: value })} editable={!busy} style={[s.input, { color: colors.text, borderColor: colors.line }]} />)}
+          <TextInput accessibilityLabel="Delivery note" placeholder="Optional note for the buyer" placeholderTextColor={colors.muted} value={delivery.note} onChangeText={note => setDelivery({ ...delivery, note })} editable={!busy} maxLength={1000} style={[s.input, { color: colors.text, borderColor: colors.line }]} />
+        </>}
+        {!!formError && <Text accessibilityRole="alert" style={{ color: light ? '#9F2424' : '#FCA5A5' }}>{formError}</Text>}
+        <Button title={busy ? 'Saving…' : dialog?.mode === 'claim' ? 'Submit report' : dialog?.mode === 'counter' ? 'Send counter offer' : 'Save & notify buyer'} primary disabled={dialog?.mode === 'claim' ? detail.trim().length < 10 : dialog?.mode === 'counter' ? !(Number(amount.replace(',', '.')) > 0 && Number.isFinite(Number(amount.replace(',', '.')))) : false} onPress={submit} />
+      </ScrollView></KeyboardAvoidingView></SafeAreaView>
+    </Modal>
+  </SafeAreaView>;
 }
-
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG, paddingTop: 56 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16 },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.06)' },
-  headerTitle: { color: '#FFF', fontSize: 16, fontWeight: '900', letterSpacing: 3 },
-
-  tabs: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginBottom: 16 },
-  tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  tabActive: { backgroundColor: LIME + '15', borderColor: LIME + '50' },
-  tabText: { color: '#555', fontSize: 13, fontWeight: '700' },
-  tabTextActive: { color: LIME },
-  tabBadge: { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
-  tabBadgeActive: { backgroundColor: LIME + '25' },
-  tabBadgeText: { color: '#666', fontSize: 11, fontWeight: '800' },
-  tabBadgeTextActive: { color: LIME },
-
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { paddingHorizontal: 20, paddingBottom: 120 },
-  emptyContainer: { flex: 1, paddingHorizontal: 20 },
-
-  card: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 16, marginBottom: 12 },
-  cardTop: { flexDirection: 'row', gap: 12, marginBottom: 10 },
-  cardTitle: { color: '#FFF', fontSize: 14, fontWeight: '800', lineHeight: 20 },
-  cardSub: { color: '#555', fontSize: 12 },
-  statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, alignSelf: 'flex-start' },
-  statusText: { fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
-  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  price: { color: '#FFF', fontSize: 15, fontWeight: '900' },
-  counterNote: { color: '#A78BFA', fontSize: 13 },
-  message: { color: 'rgba(255,255,255,0.4)', fontSize: 12, fontStyle: 'italic', marginBottom: 10, lineHeight: 18 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
-  cardDate: { color: '#333', fontSize: 11 },
-  actions: { flexDirection: 'row', gap: 8 },
-  acceptBtn: { backgroundColor: LIME, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7 },
-  acceptBtnText: { color: BG, fontSize: 12, fontWeight: '900' },
-  cancelBtn: { backgroundColor: 'rgba(248,113,113,0.12)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: '#F8717130' },
-  cancelBtnText: { color: '#F87171', fontSize: 12, fontWeight: '700' },
-  completeBtn: { backgroundColor: 'rgba(52,211,153,0.12)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: '#34D39930' },
-  completeBtnText: { color: '#34D399', fontSize: 12, fontWeight: '700' },
-
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
-  emptyTitle: { color: 'rgba(255,255,255,0.12)', fontSize: 16, fontWeight: '900', letterSpacing: 3 },
-  emptyHint: { color: '#444', fontSize: 13, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
-  ctaBtn: { marginTop: 8, backgroundColor: LIME, borderRadius: 14, paddingHorizontal: 24, paddingVertical: 12 },
-  ctaBtnText: { color: BG, fontSize: 13, fontWeight: '900' },
+  screen: { flex: 1 }, header: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16 },
+  back: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
+  heading: { fontSize: 26, fontWeight: '800' }, title: { fontSize: 20, fontWeight: '700' },
+  tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 12 },
+  list: { padding: 20, paddingBottom: 48, gap: 16 }, card: { borderWidth: 1, borderRadius: 22, padding: 18, gap: 14, marginBottom: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 }, actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  button: { minHeight: 48, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  input: { minHeight: 52, padding: 14, borderWidth: 1, borderRadius: 14, textAlignVertical: 'top', fontSize: 16 },
+  error: { paddingHorizontal: 20, paddingBottom: 12, lineHeight: 20 },
 });

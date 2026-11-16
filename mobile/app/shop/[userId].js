@@ -10,7 +10,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSelector } from 'react-redux';
 import { listingsApi, usersApi, followsApi, directMessagesApi } from '../../src/api/client';
 import { selectUser, selectIsAuthenticated } from '../../src/store/authSlice';
-import ListingDetailSheet from '../../src/components/listings/ListingDetailSheet';
 import Storefront from '../../src/components/listings/Storefront';
 
 const { width } = Dimensions.get('window');
@@ -98,7 +97,6 @@ function SellerListings() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch]         = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const [selectedItem, setSelectedItem]     = useState(null);
   const [isFollowing, setIsFollowing]       = useState(false);
   const [followLoading, setFollowLoading]   = useState(false);
 
@@ -287,16 +285,11 @@ function SellerListings() {
         ListHeaderComponent={<ListHeader />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={LIME} />}
         renderItem={({ item }) => (
-          <ProductCard item={item} onPress={(it) => setSelectedItem(it)} />
+          <ProductCard item={item} onPress={it => router.push({ pathname: '/listing/[id]', params: { id: it.id } })} />
         )}
         showsVerticalScrollIndicator={false}
       />
 
-      <ListingDetailSheet
-        listing={selectedItem}
-        visible={!!selectedItem}
-        onClose={() => setSelectedItem(null)}
-      />
     </SafeAreaView>
   );
 }

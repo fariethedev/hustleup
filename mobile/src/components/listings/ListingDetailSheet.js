@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCart } from '../../store/CartProvider';
 import { canPurchaseListing, cartGroup, cartKey, categoryLabel, money } from '../../utils/marketplace';
 import { mediaUrl } from '../../utils/media';
+import { discoveryCartItem } from '../../utils/discovery';
 
 export default function ListingDetailSheet({ listing, visible, onClose }) {
   const router = useRouter();
@@ -18,13 +19,14 @@ export default function ListingDetailSheet({ listing, visible, onClose }) {
   useEffect(() => { setAdded(false); }, [listing?.id, visible]);
   if (!listing) return null;
   const own = listing.sellerId === userId;
-  const inCart = items.some(item => cartKey(item) === cartKey(listing));
-  const pending = !!sessions[cartGroup(listing)];
+  const cartItem = discoveryCartItem(listing);
+  const inCart = items.some(item => cartKey(item) === cartKey(cartItem));
+  const pending = !!sessions[cartGroup(cartItem)];
   const unavailable = listing.status && listing.status !== 'ACTIVE';
   const media = (listing.mediaUrls?.length ? listing.mediaUrls : [listing.imageUrl]).map(mediaUrl).filter(Boolean);
   const navigate = (path) => { onClose(); router.push(path); };
   const chat = () => navigate({ pathname: '/(tabs)/messages', params: { partnerId: listing.sellerId, partnerName: listing.sellerName } });
-  const addToCart = () => { if (!ready || own || inCart || pending || unavailable) return; add({ ...listing, kind: 'listing' }); setAdded(true); };
+  const addToCart = () => { if (!userId) { navigate('/login'); return; } if (!ready || own || inCart || pending || unavailable) return; add(cartItem); setAdded(true); };
 
   return <Modal visible={!!visible} transparent animationType="slide" onRequestClose={onClose}>
     <View style={s.overlay}>
@@ -33,7 +35,7 @@ export default function ListingDetailSheet({ listing, visible, onClose }) {
         <View style={s.header}><Text style={s.subtitle}>{categoryLabel(listing.listingType)}</Text><TouchableOpacity style={s.icon} onPress={onClose} accessibilityLabel="Close listing"><Feather name="x" size={23} color="#FFF" /></TouchableOpacity></View>
         <ScrollView contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 20) }}>
           {!!media.length && <ScrollView key={listing.id} horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
-            {media.map((uri, index) => <Image key={`${uri}:${index}`} source={{ uri }} style={{ width, height: Math.min(width, 340) }} resizeMode="contain" accessibilityLabel={`Listing photo ${index + 1} of ${media.length}`} />)}
+            {media.map((uri, index) => <Image key={`${uri}:${index}`} source={{ uri }} style={{ width, height: Math.min(width, 340) }} resizeMode="cover" accessibilityLabel={`Listing photo ${index + 1} of ${media.length}`} />)}
           </ScrollView>}
           <View style={s.content}>
             {media.length > 1 && <Text style={s.subtitle}>Swipe to see all {media.length} photos</Text>}

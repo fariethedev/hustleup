@@ -65,6 +65,10 @@ sentry:
   traces-sample-rate: 0.2
 
 app:
+  email:
+    from: ${EMAIL_FROM:HustleUp <notifications@hustleup.app>}
+    resend:
+      api-key: ${RESEND_API_KEY:}
   jwt:
     secret: ${JWT_SECRET}
     access-token-expiration-ms: 900000

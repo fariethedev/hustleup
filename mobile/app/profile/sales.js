@@ -1,5 +1,5 @@
 import React from 'react';
-import GenericProfileScreen from './placeholder';
+import { Redirect } from 'expo-router';
 export default function SalesProfile() {
-  return <GenericProfileScreen title="COMPLETED SALES" icon="check-circle" color="#3B82F6" />;
+  return <Redirect href="/profile/orders?view=selling" />;
 }

@@ -1,5 +1,66 @@
 # Seller payments and memberships
 
+## Global commerce verdict
+
+**This does not make the app ready for global commerce.** Important remaining work includes
+Stripe Connect eligibility and payouts by country, currency-aware payment and refund handling,
+replacing fixed exchange rates, country-specific address and tax support, international shipping
+and returns, full translations, and consistent time-zone handling for bookings. The UI still
+lacks a language or display-currency preference, and web city entry remains limited to
+suggestions. R2 image delivery also has activation steps recorded in
+[`CLOUDFLARE_IMAGES.md`](./CLOUDFLARE_IMAGES.md).
+
+## International readiness status
+
+The web and mobile clients now format monetary values with the viewer device's locale and
+currency rules. Seller listing creation on both clients can select a currency; the web
+supports a broader set and mobile has a shorter common-currency list. City suggestions and
+discovery filters include selected cities outside Poland, while sellers can still enter a
+city directly in mobile. These are presentation and data-entry improvements, not global
+payment enablement.
+
+The product is **not ready to claim worldwide commerce support**. Before opening a country,
+confirm and implement all of the following for that market:
+
+- **Stripe Connect country support:** verify the platform's country, connected-account type,
+  onboarding capabilities, payout currencies, payment methods, and cross-border transfer
+  eligibility. Availability is determined by Stripe and account configuration; a currency
+  dropdown does not imply that checkout or seller payouts work there.
+- **Currency correctness:** replace the fixed `FX_TO_PLN` conversion table used for mixed
+  cart display and price sorting with a dated FX source, stale-rate behavior, and clear
+  disclosure. Confirm supported ISO currency codes and each currency's minor-unit precision
+  end to end (web validation, mobile validation, database, checkout, fees, refunds, and
+  settlement). Membership plans and their Stripe charge remain PLN-only today.
+- **Country and address model:** persist country and structured address fields; validate
+  postal codes, regions, phone numbers (E.164), and tax identifiers by country. City-only
+  suggestions are not a substitute. The database/API currently do not provide a complete
+  buyer shipping-address and seller-country model.
+- **Tax, consumer, and platform rules:** determine VAT/GST/sales-tax collection and invoices,
+  marketplace deemed-seller obligations, refunds, cancellation rights, age restrictions,
+  prohibited goods, seller verification, sanctions screening, and local marketplace
+  disclosures with qualified local advice.
+- **Shipping and fulfilment:** replace Poland-centric carrier hints and manual shipping terms
+  with country-pair serviceability, rates, customs/duties, tracking, returns, and delivery
+  estimates. Some orders will need to be blocked when no supported route exists.
+- **Language and support:** the app's interface and legal/support content remain primarily
+  English, with some Poland-specific copy. There is no complete translation system or
+  per-account language preference. Translate and review user-facing screens, emails,
+  notifications, policies, moderation guidance, and support before each launch.
+- **Time zones:** browser and device formatting is locale-aware, but many backend timestamps
+  and appointment slots use `LocalDateTime` without an offset or IANA zone. Store event
+  instants in UTC and preserve each seller/event IANA time zone for schedules and daylight
+  saving transitions before supporting cross-zone bookings.
+- **Hosting and data transfers:** verify production origins, API reachability, image delivery,
+  data residency/transfer terms, backups, deletion, incident response, and regional
+  availability. The R2 activation checklist below `docs/CLOUDFLARE_IMAGES.md` remains a
+  separate deployment prerequisite and is not a global CDN/DR plan.
+
+Current client limitations: automatic number/currency formatting follows the device locale;
+users cannot choose a display locale or display currency preference. The listed cities are
+suggestions, not a global geographic dataset, and arbitrary city entry is not consistently
+available on web. UI translation, server-side time-zone normalization, and full global
+country-specific payments/tax/shipping are not implemented.
+
 ## Membership contract
 
 - Free: buying, community feed, profile and messaging.

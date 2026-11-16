@@ -9,7 +9,7 @@ const tiers = [
   { id: 'ALL_ACCESS', name: 'All Access', description: 'The complete HustleSpace experience.', features: ['Everything in Plus', 'Hustle Bond discovery and matching', 'Access to leaderboards', 'All paid app features included'], featured: true },
 ];
 
-export default function SellerUpgrade({ title = 'Choose your plan', blurb = 'Start free. Sell with Plus. Unlock every feature with All Access.', onCancel, cancelLabel = 'Not now' }) {
+export default function SellerUpgrade({ title = 'Choose your plan', blurb = 'Start free. Sell with Plus. Unlock every feature with All Access.', onCancel, cancelLabel = 'Not now', compact = false }) {
   const [data, setData] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [busy, setBusy] = useState(null);
@@ -31,10 +31,12 @@ export default function SellerUpgrade({ title = 'Choose your plan', blurb = 'Sta
     try { const response = await subscriptionsApi.checkout(id); window.location.assign(response.data.checkoutUrl); }
     catch (failure) { setError(failure.response?.data?.error || 'Checkout could not be opened. Please try again.'); setBusy(null); }
   };
-  return <section className="w-full max-w-5xl mx-auto text-white p-4 sm:p-6">
-    <p className="text-xs font-bold uppercase tracking-[.2em] text-[#CDFF00] mb-3">Membership</p>
-    <h2 className="text-3xl sm:text-4xl font-black tracking-tight">{title}</h2>
-    <p className="text-sm text-gray-400 mt-3 mb-8 max-w-xl">{blurb}</p>
+  return <section className={`w-full max-w-5xl mx-auto text-white ${compact ? 'p-2 sm:p-4' : 'p-4 sm:p-6'}`}>
+    {!compact && <>
+      <p className="text-xs font-bold uppercase tracking-[.2em] text-[#CDFF00] mb-3">Membership</p>
+      <h2 className="text-3xl sm:text-4xl font-black tracking-tight">{title}</h2>
+      <p className="text-sm text-gray-400 mt-3 mb-8 max-w-xl">{blurb}</p>
+    </>}
     {error && <div role="alert" className="mb-4 rounded-xl p-4 bg-red-500/10 text-red-200 text-sm">{error} {!data && <button className="ml-3 underline" onClick={() => { setError(''); setAttempt(a => a + 1); }}>Retry</button>}</div>}
     {!data && !error && <p role="status" className="py-8 text-gray-400">Loading plans…</p>}
     {data && <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
@@ -54,7 +56,7 @@ export default function SellerUpgrade({ title = 'Choose your plan', blurb = 'Sta
         </article>;
       })}
     </div>}
-    <div className="mt-6 text-xs text-gray-400 leading-relaxed flex gap-2"><ShieldCheck size={18} className="shrink-0" /><p>Secure payment through Stripe. Paid plans last one month. Renewing extends your term; switching tiers converts remaining paid time at the relative plan prices. Marketplace transaction fees are separate from membership. Bank verification is required before payouts.</p></div>
+    {!compact && <div className="mt-6 text-xs text-gray-400 leading-relaxed flex gap-2"><ShieldCheck size={18} className="shrink-0" /><p>Secure payment through Stripe. Paid plans last one month. Renewing extends your term; switching tiers converts remaining paid time at the relative plan prices. Marketplace transaction fees are separate from membership. Bank verification is required before payouts.</p></div>}
     {onCancel && <button className="mt-5 text-sm text-gray-400 underline" onClick={onCancel}>{cancelLabel}</button>}
   </section>;
 }

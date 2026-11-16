@@ -49,6 +49,11 @@ Thumbs.db
 
 # ── Temporary & Uploads ──────────────────────────────────
 backend/uploads/
+# Service-local upload directories are runtime data too; keep them out of Git.
+backend/**/uploads/
+# Database exports may contain personal or transactional data and belong in
+# protected backup storage, not in the source repository.
+db_backup/
 # Root-level uploads/ was NOT covered by the line above — user-uploaded images were
 # sitting untracked and would have been swept into the first `git add` that touched
 # the repo root. Uploads belong in S3, never in git.
@@ -57,3 +62,5 @@ uploads/
 /.browser-review/
 /artifacts/ui-review/
 /mobile/dist-review/
+# Separate review prototype repository; keep its history independent.
+hustup-test/

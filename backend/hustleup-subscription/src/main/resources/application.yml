@@ -38,6 +38,10 @@ sentry:
   traces-sample-rate: 0.2
 
 app:
+  email:
+    from: ${EMAIL_FROM:HustleUp <notifications@hustleup.app>}
+    resend:
+      api-key: ${RESEND_API_KEY:}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET}

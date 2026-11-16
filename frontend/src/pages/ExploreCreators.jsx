@@ -25,7 +25,7 @@ export default function ExploreCreators() {
         {roles.map((r) => <ExploreChip key={r.value} active={role === r.value} onClick={() => setParam('role', r.value)}>{r.label}</ExploreChip>)}
         <ExploreChip active={verified} onClick={() => setParam('verified', verified ? '' : '1')}><BadgeCheck size={15} />Verified only</ExploreChip>
       </div>
-      <div className="discover-filter-row"><ExploreSelect label="Filter creators by city" value={city} onChange={(v) => setParam('city', v)}><option value="">All of Poland</option>{cities.map((c) => <option key={c}>{c}</option>)}</ExploreSelect>{hasFilters && <button className="discover-clear" onClick={clear}>Reset</button>}</div>
+      <div className="discover-filter-row"><ExploreSelect label="Filter creators by city" value={city} onChange={(v) => setParam('city', v)}><option value="">All locations</option>{cities.map((c) => <option key={c}>{c}</option>)}</ExploreSelect>{hasFilters && <button className="discover-clear" onClick={clear}>Reset</button>}</div>
     </>}>
       <div className="discover-results-heading"><h2>People to know</h2><span role="status">{loading ? 'Finding your community…' : error ? 'Unavailable' : `${visible.length} people`}</span></div>
       <ExploreResults key={params.toString()} variant="creators" items={visible} loading={loading} error={error} onRetry={reload} onReset={hasFilters ? clear : undefined} emptyTitle="No creators found" emptyMessage={!currentUser && !hasFilters ? 'Sign in to discover more people building on HustleSpace.' : undefined} emptyAction={!currentUser && !hasFilters && <Link to="/login" className="discover-button">Sign in</Link>} renderItem={(user, i) => <CreatorCard user={user} index={i} variant="full" />} />

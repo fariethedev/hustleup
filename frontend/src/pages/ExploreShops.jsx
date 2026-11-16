@@ -21,7 +21,7 @@ export default function ExploreShops() {
         <ExploreChip active={!category} onClick={() => setParam('category', '')}>All shops</ExploreChip>
         {[...new Set([...categories, category].filter(Boolean))].map((c) => <ExploreChip key={c} active={category === c} onClick={() => setParam('category', category === c ? '' : c)}>{c}</ExploreChip>)}
       </div>
-      <div className="discover-filter-row"><ExploreSelect label="Filter shops by city" value={city} onChange={(v) => setParam('city', v)}><option value="">All of Poland</option>{cities.map((c) => <option key={c}>{c}</option>)}</ExploreSelect>{hasFilters && <button className="discover-clear" onClick={clear}>Reset</button>}</div>
+      <div className="discover-filter-row"><ExploreSelect label="Filter shops by city" value={city} onChange={(v) => setParam('city', v)}><option value="">All locations</option>{cities.map((c) => <option key={c}>{c}</option>)}</ExploreSelect>{hasFilters && <button className="discover-clear" onClick={clear}>Reset</button>}</div>
     </>}>
       <div className="discover-results-heading"><h2>{category || 'Independent storefronts'}</h2><span role="status">{loading ? 'Loading shops…' : error ? 'Unavailable' : `${visible.length} shops`}</span></div>
       <ExploreResults key={params.toString()} variant="shops" items={visible} loading={loading} error={error} onRetry={reload} onReset={hasFilters ? clear : undefined} emptyTitle="No shops here yet" emptyMessage={hasFilters ? undefined : 'Make room for your ideas. Open a storefront from your dashboard.'} emptyAction={!hasFilters && <Link to="/dashboard" className="discover-button">Open your shop</Link>} renderItem={(shop, i) => <ShopCard shop={shop} index={i} />} />

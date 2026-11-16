@@ -511,7 +511,7 @@ function ProfileSetupModal({ currentUser, existing, mandatory = false, onClose, 
  * @param plans       price list from GET /subscriptions/plans; null while loading
  */
 function PremiumPaywall() {
-  return <div className="w-full overflow-y-auto"><SellerUpgrade title="Find your people with All Access" /></div>;
+  return <div className="w-full overflow-y-auto"><SellerUpgrade compact title="Find your people with All Access" /></div>;
 }
 
 // ── Deck furniture ───────────────────────────────────────────────────────────

@@ -1,0 +1,15 @@
+{
+  "cli": { "appVersionSource": "remote" },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": { "EXPO_PUBLIC_API_URL": "https://hustleup-gateway-production.up.railway.app/api/v1" }
+    },
+    "ios-simulator": { "extends": "preview", "ios": { "simulator": true } },
+    "production": {
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_API_URL": "https://hustleup-gateway-production.up.railway.app/api/v1" }
+    }
+  }
+}

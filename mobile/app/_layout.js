@@ -6,6 +6,10 @@ import { Provider, useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Sentry from '@sentry/react-native';
+import { useFonts } from 'expo-font';
+import { Poppins_400Regular } from '@expo-google-fonts/poppins/400Regular';
+import { Poppins_600SemiBold } from '@expo-google-fonts/poppins/600SemiBold';
+import { Montserrat_800ExtraBold } from '@expo-google-fonts/montserrat/800ExtraBold';
 import { store } from '../src/store';
 import CartProvider from '../src/store/CartProvider';
 import { setUser } from '../src/store/authSlice';
@@ -38,18 +42,21 @@ function AuthGate({ children }) {
       } catch {}
       setHydrated(true);
     })();
-  }, []);
+  }, [dispatch]);
 
   // Redirect once BOTH hydration AND navigation are ready
   useEffect(() => {
     if (!hydrated || !navState?.key) return;   // wait for nav container to mount
     const inAuthScreen = segments[0] === 'login' || segments[0] === 'register';
-    if (!isAuthenticated && !inAuthScreen) {
+    const recoveryScreen = ['forgot-password', 'reset-password', 'verify-code'].includes(segments[0]);
+    const publicTab = segments[0] === '(tabs)' && (!segments[1] || ['index', 'explore', 'feed'].includes(segments[1]));
+    const publicDetail = segments[0] === 'listing' || (segments[0] === 'profile' && segments[1] === '[id]');
+    if (!isAuthenticated && !inAuthScreen && !publicTab && !publicDetail && !recoveryScreen) {
       router.replace('/login');
     } else if (isAuthenticated && inAuthScreen) {
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/feed');
     }
-  }, [hydrated, isAuthenticated, segments, navState?.key]);
+  }, [hydrated, isAuthenticated, segments, navState?.key, router]);
 
   // Register (or re-register, e.g. after a token refresh) this device for push
   // notifications once the user is signed in. No-ops until Firebase/EAS are configured.
@@ -63,7 +70,7 @@ function AuthGate({ children }) {
     <>
       {children}
       {!hydrated && (
-        <View style={{
+        <View testID="auth-hydration" style={{
           position: 'absolute', inset: 0,
           backgroundColor: '#050505',
           alignItems: 'center', justifyContent: 'center',
@@ -82,6 +89,8 @@ function AuthGate({ children }) {
 }
 
 function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({ Poppins_400Regular, Poppins_600SemiBold, Montserrat_800ExtraBold });
+  if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: '#050505', justifyContent: 'center' }}><ActivityIndicator color="#CDFF00" /></View>;
   return (
     <Provider store={store}>
       <AuthGate>

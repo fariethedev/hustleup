@@ -16,14 +16,17 @@ const buildUserData = (dto) => ({
   username: dto.username,
   role: dto.role,
   avatarUrl: dto.avatarUrl || null,
+  premium: !!dto.premium,
+  emailVerified: !!dto.emailVerified,
 });
 
 export const loginUser = createAsyncThunk('auth/login', async (credentials, { rejectWithValue }) => {
   try {
     const res = await authApi.login(credentials);
     const { accessToken, refreshToken } = res.data;
+    if (!accessToken) throw new Error('The server did not return a session.');
     await AsyncStorage.setItem('hustleup_token', accessToken);
-    await AsyncStorage.setItem('hustleup_refresh', refreshToken);
+    if (refreshToken) await AsyncStorage.setItem('hustleup_refresh', refreshToken);
     // Fetch full profile to get avatarUrl and username
     let userData;
     try {
@@ -42,9 +45,13 @@ export const loginUser = createAsyncThunk('auth/login', async (credentials, { re
 export const registerUser = createAsyncThunk('auth/register', async (data, { rejectWithValue }) => {
   try {
     const res = await authApi.register(data);
+    if (res.data?.verificationRequired) {
+      return { verificationRequired: true, email: res.data.email || data.email };
+    }
     const { accessToken, refreshToken } = res.data;
+    if (!accessToken) throw new Error('The server did not return a session.');
     await AsyncStorage.setItem('hustleup_token', accessToken);
-    await AsyncStorage.setItem('hustleup_refresh', refreshToken);
+    if (refreshToken) await AsyncStorage.setItem('hustleup_refresh', refreshToken);
     let userData;
     try {
       const meRes = await authApi.me();
@@ -106,6 +113,11 @@ const authSlice = createSlice({
       .addCase(registerUser.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
+        if (action.payload.verificationRequired) {
+          state.isAuthenticated = false;
+          state.user = null;
+          return;
+        }
         state.isAuthenticated = true;
         state.user = action.payload;
       })

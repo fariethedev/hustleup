@@ -18,19 +18,22 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Feather } from '@expo/vector-icons';
+import SocialIcon from '../../src/components/native/SocialIcon';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
-import { directMessagesApi, notificationsApi, usersApi } from '../../src/api/client';
+import { directMessagesApi, usersApi } from '../../src/api/client';
 import { selectUser } from '../../src/store/authSlice';
+import { Screen, Copy, usePalette } from '../../src/components/native/Kit';
+import { useSocialStyles } from '../../src/components/native/socialStyles';
+import { mediaUrl } from '../../src/utils/media';
 
 const LIME         = '#CDFF00';
-const VIOLET       = '#7C3AED';
-const VIOLET_LIGHT = '#A78BFA';
-const BG           = '#0A0A0F';
-const CARD         = '#12121A';
-const BORDER       = 'rgba(124,62,237,0.18)';
+const VIOLET       = '#CDFF00';
+const VIOLET_LIGHT = '#CDFF00';
+const BG           = '#050505';
+const CARD         = '#111111';
+const BORDER       = 'rgba(255,255,255,0.10)';
 const BASE_W       = 390; // iPhone 14 logical width — baseline for scaling
 
 // ─── Responsive helpers ───────────────────────────────────────────────────────
@@ -50,16 +53,6 @@ const EMOJIS = [
   '🚀','💰','🏆','😈','🤑','💀','👀','🌈','🍕','🎵',
 ];
 
-const NOTIF_ICONS = {
-  FOLLOW:         { name: 'user-plus',     color: VIOLET_LIGHT },
-  LIKE:           { name: 'heart',          color: '#F472B6' },
-  COMMENT:        { name: 'message-circle', color: LIME },
-  MATCH:          { name: 'zap',            color: '#FB923C' },
-  POST:           { name: 'image',          color: LIME },
-  LISTING:        { name: 'tag',            color: '#34D399' },
-  DIRECT_MESSAGE: { name: 'message-square', color: VIOLET_LIGHT },
-  SYSTEM:         { name: 'bell',           color: VIOLET_LIGHT },
-};
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -77,8 +70,10 @@ function formatTime(dateStr) {
 
 // ─── Avatar helper ────────────────────────────────────────────────────────────
 function Avatar({ uri, name, size = 48, radius = 16 }) {
+  const theme = usePalette();
+  const VIOLET_LIGHT = theme.accent;
   const initials = (name || '?')[0]?.toUpperCase();
-  if (uri) return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: radius }} />;
+  if (uri) return <Image source={{ uri: mediaUrl(uri) }} style={{ width: size, height: size, borderRadius: radius }} />;
   return (
     <View style={{
       width: size, height: size, borderRadius: radius,
@@ -90,32 +85,9 @@ function Avatar({ uri, name, size = 48, radius = 16 }) {
   );
 }
 
-// ─── Notification Card ────────────────────────────────────────────────────────
-function NotifCard({ item, onPress }) {
-  const icon = NOTIF_ICONS[item.notificationType] || NOTIF_ICONS.SYSTEM;
-  return (
-    <TouchableOpacity
-      style={[styles.notifCard, !item.read && styles.notifCardUnread]}
-      onPress={() => onPress?.(item)}
-      activeOpacity={0.75}
-    >
-      <View style={[styles.notifIconWrap, { backgroundColor: `${icon.color}18`, borderColor: `${icon.color}28` }]}>
-        <Feather name={icon.name} size={17} color={icon.color} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
-          <Text style={styles.notifTitle} numberOfLines={1}>{item.title}</Text>
-          <Text style={styles.notifTime}>{timeAgo(item.createdAt)}</Text>
-        </View>
-        <Text style={styles.notifMessage} numberOfLines={2}>{item.message}</Text>
-      </View>
-      {!item.read && <View style={styles.unreadDot} />}
-    </TouchableOpacity>
-  );
-}
-
 // ─── Partner Row ──────────────────────────────────────────────────────────────
 function PartnerRow({ partner, onPress }) {
+  const styles = useSocialStyles(baseStyles);
   const name     = partner.name || partner.fullName || 'Anonymous';
   const lastMsg  = partner.lastMessage || 'Tap to start chatting';
   const ago      = timeAgo(partner.lastMessageAt);
@@ -124,12 +96,12 @@ function PartnerRow({ partner, onPress }) {
   return (
     <TouchableOpacity style={styles.partnerRow} onPress={onPress} activeOpacity={0.7}>
       <View style={{ position: 'relative' }}>
-        <Avatar uri={partner.avatarUrl} name={name} size={52} radius={18} />
+        <Avatar uri={partner.avatarUrl} name={name} size={46} radius={23} />
         {partner.online && <View style={styles.onlineDot} />}
       </View>
       <View style={{ flex: 1, marginLeft: 14 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-          <Text style={[styles.partnerName, isUnread && { color: '#FFF', fontWeight: '900' }]} numberOfLines={1}>
+          <Text style={[styles.partnerName, isUnread && { fontWeight: '900' }]} numberOfLines={1}>
             {name}
           </Text>
           <Text style={[styles.partnerTime, isUnread && { color: LIME }]}>{ago}</Text>
@@ -151,6 +123,7 @@ function PartnerRow({ partner, onPress }) {
 
 // ─── User Card (2-col grid) ───────────────────────────────────────────────────
 function UserCard({ user, onPress, cardWidth }) {
+  const styles = useSocialStyles(baseStyles);
   const name    = user.fullName || user.username || 'User';
   const avatarS = cardWidth ? Math.round(cardWidth * 0.38) : 64;
   return (
@@ -163,7 +136,7 @@ function UserCard({ user, onPress, cardWidth }) {
       </View>
       <Text style={styles.userCardName} numberOfLines={1}>{name}</Text>
       {user.verified && (
-        <View style={styles.verifiedBadge}><Feather name="check" size={8} color={BG} /></View>
+        <View style={styles.verifiedBadge}><SocialIcon name="check" size={8} color="#050505" /></View>
       )}
     </TouchableOpacity>
   );
@@ -171,6 +144,10 @@ function UserCard({ user, onPress, cardWidth }) {
 
 // ─── New Chat Screen ──────────────────────────────────────────────────────────
 function NewChatScreen({ visible, onClose, onSelectUser, currentUserId }) {
+  const styles = useSocialStyles(baseStyles);
+  const theme = usePalette();
+  const BG = theme.bg;
+  const VIOLET_LIGHT = theme.accent;
   const [users,      setUsers]      = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [search,     setSearch]     = useState('');
@@ -208,13 +185,13 @@ function NewChatScreen({ visible, onClose, onSelectUser, currentUserId }) {
         <View style={{ backgroundColor: BG, paddingTop: insets.top }}>
           <View style={styles.modalHeader}>
             <TouchableOpacity style={styles.backBtn} onPress={onClose} activeOpacity={0.75}>
-              <Feather name="arrow-left" size={18} color="#FFF" />
+              <SocialIcon name="arrow-left" size={18} color={theme.text} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>New Message</Text>
             <View style={{ width: 40 }} />
           </View>
           <View style={styles.searchWrap}>
-            <Feather name="search" size={15} color={VIOLET_LIGHT} />
+            <SocialIcon name="search" size={15} color={VIOLET_LIGHT} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search people..."
@@ -225,7 +202,7 @@ function NewChatScreen({ visible, onClose, onSelectUser, currentUserId }) {
             />
             {!!search && (
               <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Feather name="x" size={14} color="rgba(255,255,255,0.3)" />
+                <SocialIcon name="x" size={14} color="rgba(255,255,255,0.3)" />
               </TouchableOpacity>
             )}
           </View>
@@ -240,7 +217,7 @@ function NewChatScreen({ visible, onClose, onSelectUser, currentUserId }) {
             key={numCols} // re-mount when column count changes (orientation)
             numColumns={numCols}
             columnWrapperStyle={numCols > 1 ? { gap, paddingHorizontal: hPad, marginBottom: gap } : null}
-            contentContainerStyle={{ paddingTop: 8, paddingBottom: 4 }}
+            contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={LIME} />}
             renderItem={({ item }) => (
@@ -255,7 +232,7 @@ function NewChatScreen({ visible, onClose, onSelectUser, currentUserId }) {
             )}
             ListEmptyComponent={
               <View style={styles.emptyState}>
-                <Feather name="users" size={36} color={`${VIOLET}40`} />
+                <SocialIcon name="users" size={36} color={`${VIOLET}40`} />
                 <Text style={styles.emptyText}>{search ? 'No results' : 'No users found'}</Text>
               </View>
             }
@@ -268,6 +245,11 @@ function NewChatScreen({ visible, onClose, onSelectUser, currentUserId }) {
 
 // ─── Conversation View ────────────────────────────────────────────────────────
 function ConversationView({ visible, partner, onClose, currentUserId }) {
+  const styles = useSocialStyles(baseStyles);
+  const theme = usePalette();
+  const BG = theme.bg;
+  const CARD = theme.card;
+  const VIOLET_LIGHT = theme.accent;
   const [messages,  setMessages]  = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [text,      setText]      = useState('');
@@ -312,7 +294,7 @@ function ConversationView({ visible, partner, onClose, currentUserId }) {
       await directMessagesApi.sendMessage(partner.id, content);
       await loadMessages();
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch { /* silent */ }
+    } catch { setText(content); Alert.alert('Message not sent', 'Your text has been restored. Please try again.'); }
     setSending(false);
   };
 
@@ -349,7 +331,7 @@ function ConversationView({ visible, partner, onClose, currentUserId }) {
         <View style={{ backgroundColor: CARD, borderBottomWidth: 1, borderBottomColor: BORDER, paddingTop: insets.top }}>
           <View style={styles.convHeader}>
             <TouchableOpacity style={styles.backBtn} onPress={onClose} activeOpacity={0.75}>
-              <Feather name="chevron-left" size={22} color="#FFF" />
+              <SocialIcon name="chevron-left" size={22} color={theme.text} />
             </TouchableOpacity>
             <Avatar uri={partner.avatarUrl} name={name} size={40} radius={13} />
             <TouchableOpacity style={{ flex: 1, marginLeft: 10 }} onPress={() => Alert.alert(`${name}`, 'View profile?', [{ text: 'Cancel' }, { text: 'OK' }])} activeOpacity={0.7}>
@@ -362,10 +344,10 @@ function ConversationView({ visible, partner, onClose, currentUserId }) {
               </View>
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerAction} onPress={() => Alert.alert('📞 Voice Call', `Call ${name}?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Call', onPress: () => Alert.alert('Calling...', `Connecting to ${name}...`) }])} activeOpacity={0.75}>
-              <Feather name="phone" size={17} color={VIOLET_LIGHT} />
+              <SocialIcon name="phone" size={17} color={VIOLET_LIGHT} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerAction} onPress={() => Alert.alert('📹 Video Call', `Video call ${name}?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Call', onPress: () => Alert.alert('Connecting...', `Video calling ${name}...`) }])} activeOpacity={0.75}>
-              <Feather name="video" size={17} color={VIOLET_LIGHT} />
+              <SocialIcon name="video" size={17} color={VIOLET_LIGHT} />
             </TouchableOpacity>
           </View>
         </View>
@@ -434,7 +416,7 @@ function ConversationView({ visible, partner, onClose, currentUserId }) {
                 disabled={!text.trim() || sending}
                 activeOpacity={0.8}
               >
-                {sending ? <ActivityIndicator size="small" color={BG} /> : <Feather name="send" size={16} color={BG} />}
+                {sending ? <ActivityIndicator size="small" color="#050505" /> : <SocialIcon name="send" size={16} color="#050505" />}
               </TouchableOpacity>
             </View>
           </View>
@@ -445,64 +427,11 @@ function ConversationView({ visible, partner, onClose, currentUserId }) {
   );
 }
 
-// ─── Notifications Tab ────────────────────────────────────────────────────────
-function NotificationsTab() {
-  const [notifs,     setNotifs]     = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const res = await notificationsApi.getAll();
-      setNotifs(Array.isArray(res.data) ? res.data : []);
-    } catch { /* silent */ } finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const markRead = async (item) => {
-    if (item.read) return;
-    try {
-      await notificationsApi.markRead(item.id);
-      setNotifs(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
-    } catch { /* silent */ }
-  };
-
-  const unreadCount = notifs.filter(n => !n.read).length;
-
-  if (loading) return <View style={styles.centerLoader}><ActivityIndicator color={VIOLET_LIGHT} /></View>;
-
-  return (
-    <FlatList
-      data={notifs}
-      keyExtractor={item => String(item.id)}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 4 }}
-      showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={LIME} />}
-      ListHeaderComponent={
-        unreadCount > 0 ? (
-          <TouchableOpacity style={styles.markAllBtn} onPress={async () => {
-            try { await notificationsApi.markAllRead(); setNotifs(prev => prev.map(n => ({ ...n, read: true }))); } catch { /* silent */ }
-          }} activeOpacity={0.8}>
-            <Feather name="check-circle" size={13} color={LIME} />
-            <Text style={{ color: LIME, fontSize: 12, fontWeight: '800' }}>Mark all read</Text>
-          </TouchableOpacity>
-        ) : null
-      }
-      renderItem={({ item }) => <NotifCard item={item} onPress={markRead} />}
-      ListEmptyComponent={
-        <View style={styles.emptyState}>
-          <Feather name="bell-off" size={36} color={`${VIOLET}40`} />
-          <Text style={styles.emptyText}>No notifications yet</Text>
-        </View>
-      }
-    />
-  );
-}
-
 // ─── Messages Tab ─────────────────────────────────────────────────────────────
 function MessagesTab({ onSelectPartner }) {
+  const styles = useSocialStyles(baseStyles);
+  const theme = usePalette();
+  const VIOLET_LIGHT = theme.accent;
   const [partners,   setPartners]   = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -527,17 +456,17 @@ function MessagesTab({ onSelectPartner }) {
   return (
     <>
       <View style={styles.searchWrap}>
-        <Feather name="search" size={15} color={VIOLET_LIGHT} />
+        <SocialIcon name="search" size={15} color={VIOLET_LIGHT} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search messages..."
+          placeholder="Search or start a new chat"
           placeholderTextColor="rgba(255,255,255,0.25)"
           value={search}
           onChangeText={setSearch}
         />
         {!!search && (
           <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Feather name="x" size={14} color="rgba(255,255,255,0.3)" />
+            <SocialIcon name="x" size={14} color="rgba(255,255,255,0.3)" />
           </TouchableOpacity>
         )}
       </View>
@@ -554,9 +483,9 @@ function MessagesTab({ onSelectPartner }) {
           renderItem={({ item }) => <PartnerRow partner={item} onPress={() => onSelectPartner(item)} />}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Feather name="message-circle" size={36} color={`${VIOLET}40`} />
+              <SocialIcon name="message-circle" size={36} color={`${VIOLET}40`} />
               <Text style={styles.emptyText}>{search ? 'No results' : 'No conversations yet'}</Text>
-              <Text style={styles.emptySubText}>{search ? '' : 'Tap ✏️ to start a chat'}</Text>
+              <Text style={styles.emptySubText}>{search ? '' : 'Tap the compose button to start a chat'}</Text>
             </View>
           }
         />
@@ -567,10 +496,10 @@ function MessagesTab({ onSelectPartner }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function MessagesScreen() {
-  const [activeTab,        setActiveTab]       = useState('messages');
+  const styles = useSocialStyles(baseStyles);
+  const palette = usePalette();
   const [selectedPartner,  setSelectedPartner] = useState(null);
   const [showNewChat,      setShowNewChat]      = useState(false);
-  const [unreadCount,      setUnreadCount]      = useState(0);
   const currentUser  = useSelector(selectUser);
   const router       = useRouter();
   const { width: w } = useWindowDimensions();
@@ -592,13 +521,9 @@ export default function MessagesScreen() {
     }
   }, [partnerId]);
 
-  useEffect(() => {
-    notificationsApi.unreadCount().then(r => setUnreadCount(r.data?.count || 0)).catch(() => {});
-  }, [activeTab]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
-      <StatusBar style="light" />
+    <Screen scroll={false}>
 
       {/* Modals — render above everything including tab bar */}
       <NewChatScreen
@@ -617,55 +542,26 @@ export default function MessagesScreen() {
         }}
       />
 
-      <SafeAreaView edges={['top']} style={{ backgroundColor: BG }}>
+      <View style={{ flex: 1, marginHorizontal: 12, marginTop: 12, marginBottom: 100, borderWidth: 1, borderColor: palette.line, borderRadius: 24, backgroundColor: palette.card, overflow: 'hidden' }}>
+      <View>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Inbox</Text>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: LIME }} /><Copy heading style={{ fontSize: 18 }}>Chats</Copy>
           <View style={{ flex: 1 }} />
-          {unreadCount > 0 && (
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-            </View>
-          )}
-          <TouchableOpacity style={styles.composeBtn} onPress={() => setShowNewChat(true)} activeOpacity={0.8}>
-            <Feather name="edit" size={17} color={BG} />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Start a new chat" style={styles.composeBtn} onPress={() => setShowNewChat(true)} activeOpacity={0.8}>
+            <SocialIcon name="edit" size={17} color="#050505" />
           </TouchableOpacity>
         </View>
 
-        {/* Tabs */}
-        <View style={styles.tabBar}>
-          {['messages', 'notifications'].map(tab => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
-              onPress={() => setActiveTab(tab)}
-              activeOpacity={0.8}
-            >
-              <Feather
-                name={tab === 'messages' ? 'message-circle' : 'bell'}
-                size={14}
-                color={activeTab === tab ? '#FFF' : 'rgba(255,255,255,0.3)'}
-              />
-              <Text style={[styles.tabBtnText, activeTab === tab && styles.tabBtnTextActive]}>
-                {tab === 'messages' ? 'Messages' : 'Notifications'}
-              </Text>
-              {tab === 'notifications' && unreadCount > 0 && (
-                <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text></View>
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-      </SafeAreaView>
+      </View>
 
-      {activeTab === 'messages'
-        ? <MessagesTab onSelectPartner={setSelectedPartner} />
-        : <NotificationsTab />
-      }
-    </View>
+      <MessagesTab onSelectPartner={setSelectedPartner} />
+      </View>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   centerLoader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   // Header
@@ -694,9 +590,9 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 9, borderRadius: 11,
   },
-  tabBtnActive: { backgroundColor: VIOLET },
+  tabBtnActive: { backgroundColor: LIME },
   tabBtnText: { color: 'rgba(255,255,255,0.3)', fontSize: 13, fontWeight: '800' },
-  tabBtnTextActive: { color: '#FFF' },
+  tabBtnTextActive: { color: '#050505' },
   tabBadge: {
     backgroundColor: '#FF3B30', borderRadius: 8,
     paddingHorizontal: 5, paddingVertical: 1, minWidth: 16, alignItems: 'center',
@@ -715,8 +611,8 @@ const styles = StyleSheet.create({
   // Partner row
   partnerRow: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: CARD, borderRadius: 18, padding: 12, marginBottom: 8,
-    borderWidth: 1, borderColor: BORDER,
+    backgroundColor: 'transparent', borderRadius: 14, padding: 12, marginBottom: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderColor: BORDER,
   },
   onlineDot: {
     position: 'absolute', bottom: 1, right: 1,
@@ -808,15 +704,15 @@ const styles = StyleSheet.create({
   bubble: { borderRadius: 18, paddingHorizontal: 13, paddingVertical: 9 },
   bubbleMine: { backgroundColor: LIME, borderBottomRightRadius: 4 },
   bubbleTheirs: {
-    backgroundColor: `${VIOLET}22`, borderBottomLeftRadius: 4,
-    borderWidth: 1, borderColor: `${VIOLET}40`,
+    backgroundColor: '#1C1C1C', borderBottomLeftRadius: 4,
+    borderWidth: 1, borderColor: BORDER,
   },
   bubbleText: { fontSize: 14, lineHeight: 20 },
-  bubbleTextMine:   { color: '#0A0A0F', fontWeight: '700' },
+  bubbleTextMine:   { color: '#050505', fontWeight: '700' },
   bubbleTextTheirs: { color: '#FFF' },
   bubbleTime: { fontSize: 10, fontWeight: '600', marginTop: 3, alignSelf: 'flex-end' },
   bubbleTimeMine:   { color: 'rgba(0,0,0,0.4)' },
-  bubbleTimeTheirs: { color: `${VIOLET_LIGHT}80` },
+  bubbleTimeTheirs: { color: '#999999' },
 
   // Input
   inputBar: {

@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "HustleSpace",
+    "slug": "hustlespace",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "hustlespace",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "space.hustlespace.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,8 +18,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "space.hustlespace.app"
     },
     "web": {
       "output": "static",
@@ -45,10 +45,15 @@
         {
           "color": "#CDFF00"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser",
+      "expo-video"
     ],
     "extra": {
-      "apiBaseUrl": "http://localhost:8000/api/v1",
+      "apiBaseUrl": "https://hustleup-gateway-production.up.railway.app/api/v1",
       "sentryDsn": "",
       "googleClientId": "",
       "facebookAppId": ""

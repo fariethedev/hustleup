@@ -6,6 +6,8 @@ node_modules/
 # Expo
 .expo/
 dist/
+dist-parity/
+dist-sdk57/
 web-build/
 expo-env.d.ts
 

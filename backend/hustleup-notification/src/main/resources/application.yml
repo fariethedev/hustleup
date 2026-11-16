@@ -46,6 +46,10 @@ sentry:
   traces-sample-rate: 0.2
 
 app:
+  email:
+    from: ${EMAIL_FROM:HustleUp <notifications@hustleup.app>}
+    resend:
+      api-key: ${RESEND_API_KEY:}
   upload:
     dir: ${UPLOAD_DIR:./uploads}
   jwt:

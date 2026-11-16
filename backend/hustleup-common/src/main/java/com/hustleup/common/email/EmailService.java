@@ -1,17 +1,15 @@
 /**
- * Sends transactional email (verification, password reset, booking notifications) over SMTP.
+ * Sends transactional email (verification, password reset, booking notifications).
  *
  * <p>Shared in hustleup-common so any service can send email without duplicating transport
  * setup — currently used by hustleup-auth (account and publisher emails) and
  * hustleup-marketplace (booking notifications).
  *
- * <h2>Why SMTP</h2>
- * Mail for hustlespace.space is a hosted mailbox subscription, so the mailbox itself is the
- * sending path. Spring's {@link JavaMailSender} speaks plain SMTP, which every mailbox host
- * supports — and so does every transactional provider, should this ever move to one.
+ * <h2>Transport selection</h2>
+ * Resend is used when configured; Amazon SES and SMTP are supported as fallbacks.
  *
  * <h2>Unconfigured = log, never fail</h2>
- * With no SMTP host set (the default in local development) {@link #send} logs what it would
+ * With no provider configured {@link #send} logs what it would
  * have sent instead of connecting anywhere. That keeps registration, booking confirmation and
  * the rest working on a laptop with no mail credentials. Sending is best-effort in all cases:
  * a failure is logged and swallowed rather than thrown, because a bounced notification must
@@ -32,6 +30,7 @@ import software.amazon.awssdk.services.ses.model.Message;
 import software.amazon.awssdk.services.ses.model.SendEmailRequest;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
@@ -46,21 +45,20 @@ public class EmailService {
     private static final Pattern FROM_PATTERN = Pattern.compile("^\\s*(.*?)\\s*<\\s*(.+?)\\s*>\\s*$");
 
     /**
-     * Null when no mail transport is configured. Spring Boot only creates a JavaMailSender
-     * when spring.mail.host is present, so this is injected as optional rather than required —
-     * a missing host is a normal local-development state, not a startup failure.
+     * Null when SMTP is not configured. Spring Boot only creates a JavaMailSender
+     * when spring.mail.host is present, so this is injected as optional rather than required.
      */
     private final JavaMailSender mailSender;
     private final String fromAddress;
     private final String fromName;
     private final boolean configured;
+    /** Resend is the production transport; SMTP and SES remain available as fallbacks. */
+    private final RestClient resendClient;
 
     /**
      * Amazon SES client, or null when SES is not switched on.
      *
-     * <p>Preferred over SMTP when both are configured. SES reuses the AWS credentials the app
-     * already holds for S3, so there is no second secret to generate or keep in step, and
-     * delivery problems surface in one place rather than two.
+     * <p>Used when Resend is not configured and SES is enabled.
      */
     private final SesClient sesClient;
 
@@ -69,13 +67,14 @@ public class EmailService {
             @Value("${spring.mail.host:}") String smtpHost,
             @Value("${app.email.from:HustleSpace <notifications@hustlespace.space>}") String from,
             @Value("${app.email.ses.enabled:false}") boolean sesEnabled,
-            @Value("${app.email.ses.region:us-east-1}") String sesRegion) {
+            @Value("${app.email.ses.region:us-east-1}") String sesRegion,
+            @Value("${app.email.resend.api-key:}") String resendApiKey,
+            RestClient.Builder restClientBuilder) {
 
         this.mailSender = mailSender;
 
         // Built eagerly so a bad region fails at startup rather than on the first email a real
-        // user is waiting for. The default credentials chain picks up AWS_ACCESS_KEY_ID /
-        // AWS_SECRET_ACCESS_KEY — the same pair S3 already uses.
+        // user is waiting for. The default credentials chain picks up AWS credentials.
         SesClient ses = null;
         if (sesEnabled) {
             try {
@@ -92,6 +91,11 @@ public class EmailService {
         // host itself is what actually distinguishes "configured" from "not configured";
         // without it every send would attempt a connection to "" and log a failure per email.
         this.configured = mailSender != null && smtpHost != null && !smtpHost.isBlank();
+        this.resendClient = resendApiKey == null || resendApiKey.isBlank()
+                ? null
+                : restClientBuilder.baseUrl("https://api.resend.com")
+                        .defaultHeader("Authorization", "Bearer " + resendApiKey)
+                        .build();
 
         Matcher m = FROM_PATTERN.matcher(from == null ? "" : from);
         if (m.matches()) {
@@ -104,7 +108,9 @@ public class EmailService {
                     ? "notifications@hustlespace.space" : from.trim();
         }
 
-        if (sesClient != null) {
+        if (resendClient != null) {
+            log.info("EmailService: Resend transport active, sending as {} <{}>", fromName, fromAddress);
+        } else if (sesClient != null) {
             log.info("EmailService: Amazon SES active in {}, sending as {} <{}>", sesRegion, fromName, fromAddress);
             // Worth saying plainly, because the failure it prevents is silent and total: SES
             // only accepts a From address that is a verified identity, and a brand-new account
@@ -132,6 +138,10 @@ public class EmailService {
      */
     public void send(String to, String subject, String htmlBody) {
         htmlBody = EmailLayout.wrap(subject, htmlBody);
+        if (resendClient != null) {
+            sendViaResend(to, subject, htmlBody);
+            return;
+        }
         if (sesClient != null) {
             sendViaSes(to, subject, htmlBody);
             return;
@@ -158,6 +168,24 @@ public class EmailService {
             // Covers MailAuthenticationException, MailSendException, connection timeouts —
             // all of which are the provider's problem, not the caller's.
             log.error("Failed to send email to {}: {}", to, e.getMessage());
+        }
+    }
+
+    /** Sends via Resend's HTTP API, keeping the API key server-side. */
+    private void sendViaResend(String to, String subject, String htmlBody) {
+        try {
+            resendClient.post()
+                    .uri("/emails")
+                    .body(java.util.Map.of(
+                            "from", fromName + " <" + fromAddress + ">",
+                            "to", java.util.List.of(to),
+                            "subject", subject,
+                            "html", htmlBody))
+                    .retrieve()
+                    .toBodilessEntity();
+            log.debug("Sent email via Resend to {} subject=\"{}\"", to, subject);
+        } catch (Exception e) {
+            log.error("Resend failed to send to {}: {}", to, e.getMessage());
         }
     }
 
@@ -192,6 +220,6 @@ public class EmailService {
      * impossible rather than secure.
      */
     public boolean isDeliverable() {
-        return sesClient != null || configured;
+        return resendClient != null || sesClient != null || configured;
     }
 }

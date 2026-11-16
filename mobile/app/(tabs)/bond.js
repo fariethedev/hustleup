@@ -21,6 +21,7 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { datingApi } from '../../src/api/client';
+import MembershipGate from '../../src/components/native/MembershipGate';
 
 const { width, height } = Dimensions.get('window');
 const LIME = '#CDFF00';
@@ -280,6 +281,10 @@ function ProfileSetupModal({ visible, existing, onClose, onSaved }) {
 }
 
 export default function BondScreen() {
+  return <MembershipGate allAccess feature="Hustle Bond"><BondContent /></MembershipGate>;
+}
+
+function BondContent() {
   const [profiles, setProfiles] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [loading, setLoading] = useState(true);

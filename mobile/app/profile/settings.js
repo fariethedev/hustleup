@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logoutUser, selectUser } from '../../src/store/authSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi, usersApi } from '../../src/api/client';
+import PrivacyScreen from '../../src/components/PrivacyScreen';
 
 const BG = '#050505';
 const LIME = '#CDFF00';
@@ -69,68 +70,6 @@ function SubScreen({ visible, onClose, title, children }) {
         </ScrollView>
       </View>
     </Modal>
-  );
-}
-
-// ── Privacy Screen ───────────────────────────────────────────────────────────
-function PrivacyScreen({ visible, onClose }) {
-  const [privateProfile, setPrivateProfile] = useState(false);
-  const [showOnline, setShowOnline] = useState(true);
-  const [showLastSeen, setShowLastSeen] = useState(true);
-  const [showListings, setShowListings] = useState(true);
-  const [allowMessages, setAllowMessages] = useState(true);
-
-  useEffect(() => {
-    if (visible) loadPrefs();
-  }, [visible]);
-
-  const loadPrefs = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('hustleup_privacy');
-      if (saved) {
-        const p = JSON.parse(saved);
-        setPrivateProfile(p.privateProfile ?? false);
-        setShowOnline(p.showOnline ?? true);
-        setShowLastSeen(p.showLastSeen ?? true);
-        setShowListings(p.showListings ?? true);
-        setAllowMessages(p.allowMessages ?? true);
-      }
-    } catch {}
-  };
-
-  const save = async (key, val) => {
-    const prefs = { privateProfile, showOnline, showLastSeen, showListings, allowMessages, [key]: val };
-    await AsyncStorage.setItem('hustleup_privacy', JSON.stringify(prefs));
-  };
-
-  return (
-    <SubScreen visible={visible} onClose={onClose} title="Privacy">
-      <SectionTitle title="PROFILE VISIBILITY" />
-      <SettingRow icon="eye-off" label="Private Profile"
-        subtitle="Only followers can see your posts"
-        isSwitch value={privateProfile}
-        onValueChange={(v) => { setPrivateProfile(v); save('privateProfile', v); }} />
-      <SettingRow icon="circle" label="Show Online Status"
-        subtitle="Let others see when you're online"
-        isSwitch value={showOnline}
-        onValueChange={(v) => { setShowOnline(v); save('showOnline', v); }} />
-      <SettingRow icon="clock" label="Show Last Seen"
-        subtitle="Let others see when you were last active"
-        isSwitch value={showLastSeen}
-        onValueChange={(v) => { setShowLastSeen(v); save('showLastSeen', v); }} />
-
-      <SectionTitle title="MARKETPLACE" />
-      <SettingRow icon="shopping-bag" label="Show Listings Publicly"
-        subtitle="Allow non-followers to see your listings"
-        isSwitch value={showListings}
-        onValueChange={(v) => { setShowListings(v); save('showListings', v); }} />
-
-      <SectionTitle title="MESSAGING" />
-      <SettingRow icon="message-circle" label="Allow Messages from Anyone"
-        subtitle="If off, only people you follow can message you"
-        isSwitch value={allowMessages}
-        onValueChange={(v) => { setAllowMessages(v); save('allowMessages', v); }} />
-    </SubScreen>
   );
 }
 

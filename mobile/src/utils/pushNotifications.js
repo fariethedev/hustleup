@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
+import { AndroidImportance } from 'expo-notifications';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { usersApi } from '../api/client';
@@ -28,7 +29,7 @@ export async function registerForPushNotifications() {
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
-        importance: Notifications.AndroidImportance.DEFAULT,
+        importance: AndroidImportance.DEFAULT,
         lightColor: '#CDFF00',
       });
     }

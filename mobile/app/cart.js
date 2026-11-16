@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -22,11 +22,19 @@ export default function CartScreen() {
   const [answers, setAnswers] = useState({});
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  const checkoutLock = useRef(false);
   const groups = items.reduce((result, item) => { const group = cartGroup(item); (result[group] ||= []).push(item); return result; }, {});
+  const nextOrder = Object.entries(groups).find(([group]) => sessions[group]?.url) || Object.entries(groups).find(([group]) => !sessions[group]);
+  const proceed = async () => {
+    if (checkoutLock.current || busy || !nextOrder) return;
+    checkoutLock.current = true;
+    try { await checkout(...nextOrder); } catch (failure) { setError(errorMessage(failure, 'Could not continue checkout.')); }
+    finally { checkoutLock.current = false; }
+  };
   const checkout = async (group, rows) => {
     if (busy) return;
     setError('');
-    if (sessions[group]?.url) { await Linking.openURL(paymentUrl(sessions[group].url)).catch(() => setError('Could not open payment. Try again.')); return; }
+    if (sessions[group]?.url) { setBusy(group); try { await Linking.openURL(paymentUrl(sessions[group].url)); } finally { setBusy(''); } return; }
     if (!customer.name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim())) { setError('Add your name and a valid email address.'); return; }
     if (rows.some(row => row.shippingMethod && !['NONE', 'PICKUP', 'DIGITAL'].includes(row.shippingMethod)) && !customer.address.trim()) { setError('Enter your delivery address for this order.'); return; }
     if (rows.some(row => checkoutPrompts(row).some(prompt => !answers[row.id]?.[prompt]?.trim()))) { setError('Answer the seller’s questions before continuing.'); return; }
@@ -71,9 +79,13 @@ export default function CartScreen() {
         <Text style={s.heading}>Total {money(rows.reduce((total, item) => total + Number(item.price) * item.quantity + Number(item.shippingPrice || 0), 0), rows[0].currency)}</Text>
         <Text style={s.muted}>Includes listed delivery charges. Prices and availability are checked by the server.</Text>
         {sessions[group] && <Text style={s.muted}>Order created. Payment or seller approval may still be pending.</Text>}
-        {(!sessions[group] || sessions[group].url) && <TouchableOpacity style={[s.button, busy && { opacity: .5 }]} disabled={!!busy} onPress={() => checkout(group, rows)}><Text style={s.buttonText}>{busy === group ? 'Please wait…' : sessions[group] ? 'Continue payment' : 'Continue to checkout'}</Text></TouchableOpacity>}
         {sessions[group] && <TouchableOpacity style={s.icon} disabled={!!busy} onPress={() => checkOrders(group)}><Text style={s.link}>Check order status</Text></TouchableOpacity>}
       </View>)}
+      {!!items.length && <View style={s.panel}>
+        {Object.keys(groups).length > 1 && <Text style={s.muted}>Shop and marketplace orders require separate payments. This button continues one order at a time. After payment, check its order status below that order before continuing to the next.</Text>}
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Proceed to checkout" style={[s.button, (!!busy || !nextOrder) && { opacity: .5 }]} disabled={!!busy || !nextOrder} onPress={proceed}><Text style={s.buttonText}>{busy ? 'Please wait…' : 'Proceed to checkout'}</Text></TouchableOpacity>
+        {!nextOrder && <Text style={s.muted}>Your orders have been submitted. Check their status above; no new checkout is needed while seller approval is pending.</Text>}
+      </View>}
       {!!(error || storageError) && <Text accessibilityRole="alert" style={s.error}>{error || storageError}</Text>}
     </ScrollView>}
   </SafeAreaView>;

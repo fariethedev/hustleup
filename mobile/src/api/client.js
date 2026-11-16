@@ -26,13 +26,15 @@ const getHostFromExpo = () => {
 };
 
 const getConfiguredBaseUrl = () => {
-  const configured = Constants.expoConfig?.extra?.apiBaseUrl;
+  const configured = process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.apiBaseUrl;
   if (!configured || typeof configured !== 'string') return null;
   return withApiPath(configured);
 };
 
 const resolveApiUrl = () => {
   const configured = getConfiguredBaseUrl();
+  // Explicit configuration wins over Metro's development-server address on real devices.
+  if (configured && !/^http:\/\/(localhost|127\.0\.0\.1)(:|\/)/.test(configured)) return configured;
 
   if (Platform.OS === 'web') {
     return configured || `http://localhost:${DEFAULT_PORT}${API_PATH}`;
@@ -91,7 +93,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
-    if (error.response?.status === 401 && !original._retry) {
+    if (error.response?.status === 401 && original && !original._retry && !original.skipAuthRefresh) {
       if (_isRefreshing) {
         return new Promise((resolve, reject) => {
           _failedQueue.push({ resolve, reject });
@@ -123,12 +125,30 @@ api.interceptors.response.use(
 );
 
 export const authApi = {
+  verifyCode: (email, code) => api.post('/auth/verify-code', { email, code }, { skipAuthRefresh: true }),
+  resendCode: email => api.post('/auth/resend-code', { email }, { skipAuthRefresh: true }),
+  usernameAvailable: username => api.get('/auth/username-available', { params: { username }, skipAuthRefresh: true }),
+  forgotPassword: email => api.post('/auth/forgot-password', { email }, { skipAuthRefresh: true }),
+  resetPassword: (token, newPassword) => api.post('/auth/reset-password', { token, newPassword }, { skipAuthRefresh: true }),
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
   me: () => api.get('/auth/me'),
 };
 
+export const subscriptionsApi = {
+  plans: () => api.get('/subscriptions/plans'),
+  my: () => api.get('/subscriptions/my'),
+};
+
+export const leaderboardApi = {
+  board: (metric, window) => api.get('/leaderboard', { params: { metric, window, limit: 25 } }),
+};
+
 export const storiesApi = {
+  viewers: id => api.get(`/stories/${id}/views`),
+  comments: id => api.get(`/stories/${id}/comments`),
+  addComment: (id, content) => api.post(`/stories/${id}/comments`, { content }),
+  deleteComment: (id, commentId) => api.delete(`/stories/${id}/comments/${commentId}`),
   getAll: () => api.get('/stories'),
   create: (formData) => api.post('/stories', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   delete: (id) => api.delete(`/stories/${id}`),
@@ -148,12 +168,16 @@ export const usersApi = {
 };
 
 export const followsApi = {
+  requests: () => api.get('/follows/requests'),
+  approveRequest: (id) => api.post(`/follows/requests/${id}/accept`),
+  declineRequest: (id) => api.delete(`/follows/requests/${id}`),
   getFollowers: (userId) => api.get(userId ? `/follows/${userId}/followers` : '/follows/followers'),
   getFollowing: (userId) => api.get(userId ? `/follows/${userId}/following` : '/follows/following'),
   getMyFollowers: () => api.get('/follows/followers'),
   getMyFollowing: () => api.get('/follows/following'),
   getCounts: (userId) => api.get(`/follows/${userId}/counts`),
   isFollowing: (userId) => api.get(`/follows/${userId}/is-following`),
+  relationship: (userId) => api.get(`/follows/${userId}/relationship`),
   follow: (id) => api.post(`/follows/${id}`),
   unfollow: (id) => api.delete(`/follows/${id}`),
 };
@@ -170,6 +194,11 @@ export const listingsApi = {
 };
 
 export const feedApi = {
+  repost: (id) => api.post(`/feed/${id}/repost`, { comment: '' }),
+  undoRepost: (id) => api.delete(`/feed/${id}/repost`),
+  following: () => api.get('/feed/following'),
+  communities: () => api.get('/feed/communities'),
+  mySaved: () => api.get('/feed/saved/me'),
   getPosts: (sort = 'latest') => api.get('/feed', { params: { sort } }),
   createPost: (formData) => api.post('/feed', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   likePost: (id) => api.post(`/feed/${id}/likes`),
@@ -202,12 +231,17 @@ export const bookingsApi = {
   create: (data) => api.post('/bookings', data),
   getAll: () => api.get('/bookings/my'),
   cancel: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }),
-  accept: (id) => api.patch(`/bookings/${id}/accept`),
-  counter: (id, counterPrice) => api.patch(`/bookings/${id}/counter`, { counterPrice }),
+  accept: (id, version) => api.patch(`/bookings/${id}/accept`, { version }),
+  counter: (id, counterPrice, version) => api.patch(`/bookings/${id}/counter`, { counterPrice, version }),
+  confirmReceipt: id => api.patch(`/bookings/${id}/received`),
+  updateFulfilment: (id, update) => api.patch(`/bookings/${id}/fulfilment`, update),
+  checkoutSession: id => api.post(`/bookings/${id}/checkout-session`),
   complete: (id) => api.patch(`/bookings/${id}/complete`),
 };
 
 export const shopsApi = {
+  update: (id, data) => api.patch(`/shops/${id}`, data),
+  uploadMedia: (id, form) => api.post(`/shops/${id}/media`, form, { headers: { 'Content-Type': 'multipart/form-data' } }),
   browse: () => api.get('/shops'),
   get: (id) => api.get(`/shops/${id}`),
   services: (id) => api.get(`/shops/${id}/services`),
@@ -215,9 +249,18 @@ export const shopsApi = {
   book: (id, data) => api.post(`/shops/${id}/appointments`, data),
   checkout: (id, data) => api.post(`/shops/${id}/checkout`, data),
   orders: () => api.get('/shops/orders/mine'),
+  sales: () => api.get('/shops/orders/received'),
+  confirmReceipt: id => api.patch(`/shops/orders/${id}/received`),
+  updateFulfilment: (id, update) => api.patch(`/shops/orders/${id}/fulfilment`, update),
+};
+
+export const claimsApi = {
+  mine: () => api.get('/claims/mine'),
+  raise: (orderType, orderId, reason, detail) => api.post('/claims', { orderType, orderId, reason, detail }),
 };
 
 export const payoutsApi = {
+  dashboard: () => api.post('/payouts/dashboard'),
   status: () => api.get('/payouts/status'),
   connect: () => api.post('/payouts/connect'),
 };
@@ -227,6 +270,32 @@ export const notificationsApi = {
   unreadCount: () => api.get('/notifications/unread-count'),
   markRead: (id) => api.patch(`/notifications/${id}/read`),
   markAllRead: () => api.patch('/notifications/read-all'),
+};
+
+export const ticketsApi = {
+  my: () => api.get('/tickets/my'),
+  getById: id => api.get(`/tickets/${id}`),
+  forEventMine: id => api.get(`/tickets/event/${id}/mine`),
+  checkInSelf: id => api.post(`/tickets/${id}/check-in`),
+  forEvent: id => api.get(`/tickets/event/${id}`),
+  doorSummary: id => api.get(`/tickets/event/${id}/summary`),
+  scan: (id, code) => api.post(`/tickets/event/${id}/scan`, { code }),
+};
+
+export const jobsApi = {
+  board: params => api.get('/jobs', { params }),
+  one: id => api.get(`/jobs/${id}`),
+  myApplications: () => api.get('/jobs/applications/mine'),
+  apply: (id, data) => api.post(`/jobs/${id}/apply`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+};
+export const newsApi = {
+  feed: params => api.get('/news', { params }),
+  one: id => api.get(`/news/${id}`),
+};
+
+export const reviewsApi = {
+  create: data => api.post('/reviews', data),
+  forUser: id => api.get(`/reviews/user/${id}`),
 };
 
 export { API_URL };

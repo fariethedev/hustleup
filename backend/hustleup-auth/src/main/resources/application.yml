@@ -79,14 +79,13 @@ app:
   cdn:
     domain: ${CDN_DOMAIN:}
   email:
-    # SES will refuse a From address that is not a verified identity, so this defaults to the
-    # one the account actually has — the address in the SES ARN. Point it at a domain address
-    # once that domain is verified in SES; until then anything else is silently rejected.
-    from: ${EMAIL_FROM:HustleSpace <faraimahaso8@gmail.com>}
+    # Resend uses the production From address; SES fallback requires this address to be verified.
+    from: ${EMAIL_FROM:HustleUp <notifications@hustleup.app>}
+    resend:
+      api-key: ${RESEND_API_KEY:}
 
     # ── Amazon SES ──────────────────────────────────────────────────────────
-    # Preferred over the SMTP block above when enabled. SES reuses the AWS credentials this
-    # app already holds for S3, so there is no second secret to generate or keep in step.
+    # Fallback when Resend is not configured. SES reuses the AWS credentials needed for S3.
     #
     # THE SANDBOX IS THE THING TO WATCH. A new SES account can only deliver to addresses that
     # are themselves verified, so signup emails to real users are dropped — which looks

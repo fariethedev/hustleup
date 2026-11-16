@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { usePalette } from '../native/Kit';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/authSlice';
 import { storiesApi, API_URL } from '../../api/client';
@@ -11,8 +11,8 @@ import CreateStoryModal from './CreateStoryModal';
 const LIME = '#CDFF00';
 const BG = '#050505';
 const { width: SCREEN_W } = Dimensions.get('window');
-const CARD_W = SCREEN_W * 0.28;   // ~28% of screen width per card
-const CARD_H = CARD_W * 1.55;     // tall rectangle ratio
+const CARD_W = 80;   // ~28% of screen width per card
+const CARD_H = 94;     // tall rectangle ratio
 
 const getServerBase = () =>
   (typeof API_URL !== 'undefined' && API_URL ? API_URL : 'http://localhost:8000/api/v1').replace('/api/v1', '');
@@ -24,129 +24,23 @@ const resolveUrl = (url) => {
   return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
-// ── Mock background images for stories (used when no real image exists) ───────
-const STORY_BACKGROUNDS = [
-  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=500&fit=crop',
-  'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=300&h=500&fit=crop',
-  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=300&h=500&fit=crop',
-  'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=300&h=500&fit=crop',
-  'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=300&h=500&fit=crop',
-  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=300&h=500&fit=crop',
-];
-
-// ─── Add Story Card (WhatsApp-style tall rectangle) ───────────────────────────
+function StoryCircle({ image, name, active, onPress, onAddPress }) {
+  const c = usePalette();
+  return <View style={{ width: 80, alignItems: 'center', gap: 6 }}>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={name} onPress={onPress} style={{ width: 76, height: 76, borderRadius: 38, padding: 4, borderWidth: 2, borderColor: active ? LIME : c.line }}>
+      <View style={{ flex: 1, borderRadius: 34, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: c.soft }}>
+        {image ? <Image source={{ uri: resolveUrl(image) }} style={{ width: '100%', height: '100%' }} /> : <Feather name="user" size={28} color={c.muted} />}
+      </View>
+    </TouchableOpacity>
+    {onAddPress && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Add story" onPress={onAddPress} style={{ position: 'absolute', right: 0, top: 48, width: 28, height: 28, borderRadius: 14, backgroundColor: LIME, alignItems: 'center', justifyContent: 'center' }}><Feather name="plus" size={18} color={BG} /></TouchableOpacity>}
+    <Text numberOfLines={1} style={{ color: c.text, fontSize: 11 }}>{name}</Text>
+  </View>;
+}
 function AddStoryCard({ avatar, myStories, onPress, onAddPress }) {
-  const latestMyStory = myStories?.stories?.[myStories.stories.length - 1];
-  const myStoryImg = latestMyStory?.mediaUrl ? resolveUrl(latestMyStory.mediaUrl) : null;
-  const hasMyStory = !!myStories?.stories?.length;
-
-  return (
-    <TouchableOpacity activeOpacity={0.85} style={s.card} onPress={onPress}>
-      <View style={[s.cardInner, hasMyStory && s.cardUnviewed]}>
-        {/* Background — own story preview or avatar blur */}
-        {myStoryImg ? (
-          <Image source={{ uri: myStoryImg }} style={s.cardBg} resizeMode="cover" />
-        ) : avatar ? (
-          <Image source={{ uri: resolveUrl(avatar) }} style={s.cardBg} blurRadius={3} />
-        ) : (
-          <LinearGradient colors={['#1A1A1A', '#0A0A0A']} style={s.cardBg} />
-        )}
-
-        {/* Dark overlay */}
-        <LinearGradient
-          colors={['rgba(0,0,0,0.15)', 'rgba(0,0,0,0.75)']}
-          style={s.cardOverlay}
-        />
-
-        {/* Plus icon — tapping it always opens create modal */}
-        <View style={s.addIconWrap} pointerEvents="box-none">
-          <TouchableOpacity onPress={onAddPress} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
-            <LinearGradient colors={[LIME, '#A8E600']} style={s.addIconCircle}>
-              <Feather name="plus" size={22} color={BG} />
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-
-        {/* Label */}
-        <View style={s.cardBottom}>
-          <Text style={s.addText}>{hasMyStory ? 'My\nStory' : 'Add\nStory'}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+  return <StoryCircle image={avatar} name="Your story" active={!!myStories?.stories?.length} onPress={onPress} onAddPress={onAddPress} />;
 }
-
-// ─── Story Card (WhatsApp-style tall rectangle) ──────────────────────────────
-function StoryCard({ item, onPress, index }) {
-  const initials = item.name?.[0] || '?';
-  const hasUnviewed = !item.allViewed && item.stories?.length > 0;
-  const latestStory = item.stories?.[item.stories.length - 1];
-  const storyImageUrl = latestStory?.mediaUrl ? resolveUrl(latestStory.mediaUrl) : null;
-  const fallbackBg = STORY_BACKGROUNDS[index % STORY_BACKGROUNDS.length];
-  const storyCount = item.stories?.length || 0;
-  const timeAgo = latestStory?.createdAt ? getTimeAgo(latestStory.createdAt) : '';
-
-  return (
-    <TouchableOpacity activeOpacity={0.85} style={s.card} onPress={onPress}>
-      <View style={[s.cardInner, hasUnviewed && s.cardUnviewed]}>
-        {/* Background image */}
-        <Image
-          source={{ uri: storyImageUrl || fallbackBg }}
-          style={s.cardBg}
-          resizeMode="cover"
-        />
-
-        {/* Gradient overlay */}
-        <LinearGradient
-          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.75)']}
-          style={s.cardOverlay}
-        />
-
-        {/* Unviewed ring indicator (top-left) */}
-        {hasUnviewed && (
-          <View style={s.unviewedDot} />
-        )}
-
-        {/* Story count badge */}
-        {storyCount > 1 && (
-          <View style={s.countBadge}>
-            <Text style={s.countText}>{storyCount}</Text>
-          </View>
-        )}
-
-        {/* Bottom: avatar + name + time */}
-        <View style={s.cardBottom}>
-          <View style={[s.avatarMini, hasUnviewed && s.avatarMiniActive]}>
-            {item.avatar ? (
-              <Image source={{ uri: resolveUrl(item.avatar) }} style={s.avatarMiniImg} />
-            ) : (
-              <Text style={s.avatarMiniText}>{initials}</Text>
-            )}
-          </View>
-          <Text style={[s.cardName, !hasUnviewed && s.cardNameViewed]} numberOfLines={1}>
-            {item.name?.split(' ')[0] || 'User'}
-          </Text>
-          {!!timeAgo && (
-            <Text style={s.cardTime}>{timeAgo}</Text>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function getTimeAgo(dateStr) {
-  try {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'now';
-    if (mins < 60) return `${mins}m`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h`;
-    return `${Math.floor(hrs / 24)}d`;
-  } catch {
-    return '';
-  }
+function StoryCard({ item, onPress }) {
+  return <StoryCircle image={item.avatar} name={item.name || 'User'} active={!item.allViewed} onPress={onPress} />;
 }
 
 // ─── Main StoryBar ────────────────────────────────────────────────────────────
@@ -224,11 +118,7 @@ export default function StoryBar({ triggerCreate = false, onTriggerHandled }) {
 
   const handleViewerClose = () => {
     setViewerVisible(false);
-    if (selectedGroupId) {
-      setGroupedStories(prev =>
-        prev.map(g => g.id === selectedGroupId && !g.isMine ? { ...g, allViewed: true } : g)
-      );
-    }
+    fetchStories();
   };
 
   if (loading && groupedStories.length === 0) {

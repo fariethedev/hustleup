@@ -1,94 +1,74 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { listingsApi, shopsApi } from '../../src/api/client';
-import { useCart } from '../../src/store/CartProvider';
-import ListingDetailSheet from '../../src/components/listings/ListingDetailSheet';
+import React, { useState } from 'react';
+import { FlatList, Pressable, RefreshControl, ScrollView, TextInput, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSelector } from 'react-redux';
+import { listingsApi, shopsApi, usersApi } from '../../src/api/client';
+import { useRemote } from '../../src/hooks/useRemote';
+import { filterListings, normalized, storeListing } from '../../src/utils/discovery';
+import { LISTING_CATEGORIES } from '../../src/utils/marketplace';
+import { Button, Copy, Notice, Panel, Screen, Section, k, usePalette } from '../../src/components/native/Kit';
+import { ListingCard, PersonCard, ShopCard } from '../../src/components/native/DiscoveryCards';
 import CreateListingModal from '../../src/components/listings/CreateListingModal';
-import { LISTING_CATEGORIES, categoryLabel, errorMessage, money } from '../../src/utils/marketplace';
-import { mediaUrl } from '../../src/utils/media';
+import ExploreFilters, { SORT_OPTIONS } from '../../src/components/native/ExploreFilters';
+import { Feather } from '@expo/vector-icons';
 
-const LIME = '#CDFF00';
-
-export default function ExploreScreen() {
-  const router = useRouter();
-  const { items } = useCart();
-  const [listings, setListings] = useState([]);
-  const [shops, setShops] = useState([]);
-  const [tab, setTab] = useState('listings');
-  const [category, setCategory] = useState('');
-  const [query, setQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-  const [selected, setSelected] = useState(null);
-  const [creating, setCreating] = useState(false);
-  const request = useRef(0);
-
-  const load = useCallback(async () => {
-    const id = ++request.current;
-    setLoading(true); setError('');
-    try {
-      const response = tab === 'shops' ? await shopsApi.browse() : await listingsApi.browse({ type: category || undefined, q: query.trim() || undefined, sort: 'latest' });
-      if (id !== request.current) return;
-      if (!Array.isArray(response.data)) throw new Error('Unexpected response');
-      if (tab === 'shops') setShops(response.data); else setListings(response.data);
-    } catch (failure) {
-      if (id === request.current) { setError(errorMessage(failure, 'Could not load Explore. Please try again.')); setListings([]); setShops([]); }
-    } finally { if (id === request.current) { setLoading(false); setRefreshing(false); } }
-  }, [category, query, tab]);
-
-  useEffect(() => {
-    const timer = setTimeout(load, 300);
-    return () => { clearTimeout(timer); request.current += 1; };
-  }, [load]);
-
-  const rows = tab === 'shops' ? shops.filter(shop => `${shop.name} ${shop.category} ${shop.city}`.toLowerCase().includes(query.trim().toLowerCase())) : listings;
-  const openShop = (shop) => router.push({ pathname: '/shop/[userId]', params: { userId: shop.ownerId, shopId: shop.id } });
-  return <SafeAreaView edges={['top']} style={s.screen}>
-    <View style={s.header}>
-      <View><Text style={s.title}>Explore</Text><Text style={s.muted}>Find your next local favourite.</Text></View>
-      <TouchableOpacity style={s.icon} onPress={() => router.push('/cart')} accessibilityLabel={`Cart, ${items.reduce((sum, item) => sum + item.quantity, 0)} items`}>
-        <Feather name="shopping-bag" size={23} color="#FFF" />{items.length > 0 && <Text style={s.count}>{items.reduce((sum, item) => sum + item.quantity, 0)}</Text>}
-      </TouchableOpacity>
-    </View>
-    <View style={s.search}><Feather name="search" size={19} color="#999" /><TextInput style={s.searchInput} accessibilityLabel="Search Explore" placeholder="Search listings and shops" placeholderTextColor="#888" value={query} onChangeText={setQuery} returnKeyType="search" />
-      {!!query && <TouchableOpacity style={s.icon} onPress={() => setQuery('')} accessibilityLabel="Clear search"><Feather name="x" size={20} color="#FFF" /></TouchableOpacity>}
-    </View>
-    <View style={s.tabs}>{['listings', 'shops'].map(value => <TouchableOpacity key={value} style={[s.tab, tab === value && s.tabActive]} onPress={() => setTab(value)} accessibilityRole="tab" accessibilityState={{ selected: tab === value }}><Text style={[s.tabText, tab === value && { color: '#FFF' }]}>{value === 'listings' ? 'Listings' : 'Shops'}</Text></TouchableOpacity>)}</View>
-    {tab === 'listings' && <View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filters}>
-      {[{ key: '', label: 'All' }, ...LISTING_CATEGORIES].map(value => <TouchableOpacity key={value.key} style={[s.chip, category === value.key && s.chipActive]} onPress={() => setCategory(value.key)} accessibilityRole="button" accessibilityState={{ selected: category === value.key }}><Text style={[s.chipText, category === value.key && { color: '#050505' }]}>{value.label}</Text></TouchableOpacity>)}
-    </ScrollView></View>}
-    <FlatList data={loading && !refreshing ? [] : rows} keyExtractor={item => String(item.id)} keyboardShouldPersistTaps="handled" contentContainerStyle={s.list}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={LIME} />}
-      ListEmptyComponent={<View style={s.empty}>{loading ? <ActivityIndicator color={LIME} /> : <><Feather name={error ? 'wifi-off' : 'search'} size={28} color="#AAA" /><Text style={s.emptyTitle}>{error || 'Nothing here yet'}</Text><Text style={s.muted}>{error ? 'Your live listings will appear when the connection returns.' : 'Try another category or search.'}</Text>{!!error && <TouchableOpacity style={s.retry} onPress={load}><Text style={s.chipText}>Try again</Text></TouchableOpacity>}</>}</View>}
-      renderItem={({ item }) => tab === 'shops' ? <TouchableOpacity style={s.row} onPress={() => openShop(item)}>
-        <View style={s.avatar}>{item.ownerAvatarUrl ? <Image source={{ uri: mediaUrl(item.ownerAvatarUrl) }} style={s.avatarImage} /> : <Feather name={item.appointmentBased ? 'scissors' : 'shopping-bag'} size={22} color={LIME} />}</View>
-        <View style={s.body}><Text style={s.seller}>{item.name}</Text><Text style={s.muted}>{item.businessType?.replaceAll('_', ' ')}{item.city ? ` · ${item.city}` : ''}</Text><Text style={s.description}>{item.tagline || item.description}</Text><Text style={s.link}>{item.appointmentBased ? 'View services & appointments' : 'Shop products'} →</Text></View>
-      </TouchableOpacity> : <TouchableOpacity style={s.row} onPress={() => setSelected(item)} activeOpacity={0.8}>
-        <View style={s.avatar}>{item.sellerAvatarUrl ? <Image source={{ uri: mediaUrl(item.sellerAvatarUrl) }} style={s.avatarImage} /> : <Text style={s.initial}>{(item.sellerName || '?')[0]}</Text>}</View>
-        <View style={s.body}>
-          <View style={s.byline}><Text style={s.seller}>{item.sellerName || 'Seller'}</Text><Text style={s.muted}>{categoryLabel(item.listingType)}</Text></View>
-          <Text style={s.listingTitle}>{item.title}</Text>
-          {!!item.description && <Text style={s.description} numberOfLines={3}>{item.description}</Text>}
-          {!!item.mediaUrls?.[0] && <Image source={{ uri: mediaUrl(item.mediaUrls[0]) }} style={s.photo} resizeMode="cover" />}
-          <View style={s.byline}><Text style={s.price}>{money(item.price, item.currency)}</Text>{!!item.locationCity && <Text style={s.muted}>{item.locationCity}</Text>}</View>
-          <Text style={s.link}>View listing{item.negotiable ? ' · Open to offers' : ''} →</Text>
-        </View>
-      </TouchableOpacity>} />
-    <TouchableOpacity style={s.compose} onPress={() => setCreating(true)} accessibilityLabel="Add listing"><Feather name="plus" size={22} color="#050505" /><Text style={s.composeText}>Add listing</Text></TouchableOpacity>
-    <ListingDetailSheet listing={selected} visible={!!selected} onClose={() => setSelected(null)} />
-    <CreateListingModal visible={creating} onClose={() => setCreating(false)} onCreated={load} />
-  </SafeAreaView>;
+async function loadExplore() {
+  const results = await Promise.allSettled([listingsApi.browse({ sort: 'latest' }), shopsApi.browse(), usersApi.getAll()]);
+  const read = i => results[i].status === 'fulfilled' && Array.isArray(results[i].value.data) ? results[i].value.data : [];
+  const shops = read(1);
+  return { listings: [...read(0), ...shops.flatMap(shop => (shop.products || []).map(product => storeListing(shop, product)))], shops, people: read(2), failed: results.map((r, i) => r.status === 'rejected' ? ['Listings', 'Shops', 'People'][i] : null).filter(Boolean) };
 }
-
-const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#080808' }, header: { paddingHorizontal: 20, paddingVertical: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, title: { color: '#FFF', fontSize: 30, fontWeight: '800', marginBottom: 4 }, muted: { color: '#AAA', fontSize: 12, lineHeight: 18 },
-  icon: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }, count: { color: '#050505', backgroundColor: LIME, borderRadius: 10, paddingHorizontal: 5, position: 'absolute', right: 0, top: 0, fontSize: 12, fontWeight: '700' },
-  search: { marginHorizontal: 20, borderRadius: 14, backgroundColor: '#1A1A1A', paddingLeft: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }, searchInput: { flex: 1, minHeight: 48, color: '#FFF', fontSize: 16 }, tabs: { flexDirection: 'row', borderBottomWidth: 1, borderColor: '#2A2A2A', marginTop: 12 }, tab: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderColor: 'transparent' }, tabActive: { borderColor: '#FFF' }, tabText: { color: '#888', fontSize: 15, fontWeight: '700' },
-  filters: { padding: 16, gap: 8 }, chip: { minHeight: 44, paddingHorizontal: 16, justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: '#444' }, chipActive: { backgroundColor: LIME, borderColor: LIME }, chipText: { color: '#EEE', fontWeight: '600' },
-  list: { paddingBottom: 180, flexGrow: 1 }, row: { flexDirection: 'row', padding: 18, gap: 12, borderBottomWidth: 1, borderColor: '#242424' }, avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#232323', alignItems: 'center', justifyContent: 'center' }, avatarImage: { width: 38, height: 38, borderRadius: 19 }, initial: { color: '#DDD', fontSize: 17, fontWeight: '600' }, body: { flex: 1, gap: 9 }, byline: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }, seller: { color: '#FFF', fontSize: 14, fontWeight: '700' }, listingTitle: { color: '#FFF', fontSize: 17, fontWeight: '600', lineHeight: 24 }, description: { color: '#CCC', fontSize: 14, lineHeight: 21 }, photo: { width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: '#181818' }, price: { color: '#FFF', fontSize: 16, fontWeight: '700' }, link: { color: LIME, fontSize: 13, paddingVertical: 5 },
-  empty: { alignItems: 'center', padding: 32, gap: 12 }, emptyTitle: { color: '#EEE', textAlign: 'center', fontSize: 16 }, retry: { padding: 16, borderWidth: 1, borderColor: '#555', borderRadius: 12 }, compose: { position: 'absolute', bottom: 100, right: 20, minHeight: 52, paddingHorizontal: 18, borderRadius: 26, backgroundColor: LIME, flexDirection: 'row', alignItems: 'center', gap: 8 }, composeText: { color: '#050505', fontSize: 15, fontWeight: '700' },
-});
+export default function Explore() {
+  const params = useLocalSearchParams();
+  return <ExploreContent key={String(params.tab || '') + String(params.category || '')} initialTab={params.tab} initialCategory={params.category} />;
+}
+function ExploreContent({ initialTab, initialCategory }) {
+  const router = useRouter();
+  const c = usePalette();
+  const user = useSelector(s => s.auth.user);
+  const { data, loading, error, reload } = useRemote(loadExplore);
+  const [tab, setTab] = useState(['listings', 'shops', 'people'].includes(initialTab) ? initialTab : 'overview');
+  const [category, setCategory] = useState(initialCategory || '');
+  const [query, setQuery] = useState('');
+  const [city, setCity] = useState('');
+  const [sort, setSort] = useState('latest');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const listingFilters = tab === 'overview' || tab === 'listings';
+  const activeFilters = [
+    ...(listingFilters && category ? [{ label: LISTING_CATEGORIES.find(item => item.key === category)?.label || category, clear: () => setCategory('') }] : []),
+    ...(city ? [{ label: city, clear: () => setCity('') }] : []),
+    ...(listingFilters && sort !== 'latest' ? [{ label: SORT_OPTIONS.find(item => item[0] === sort)?.[1] || sort, clear: () => setSort('latest') }] : []),
+  ];
+  const [creating, setCreating] = useState(false);
+  const listings = filterListings(data?.listings || [], { query, category, city, sort });
+  const shops = (data?.shops || []).filter(s => normalized([s.name, s.description, s.city].join(' ')).includes(normalized(query)) && normalized(s.city).includes(normalized(city)));
+  const people = (data?.people || []).filter(person => person.id !== user?.id && normalized([person.fullName, person.username, person.bio, person.city].join(' ')).includes(normalized(query)) && normalized(person.city).includes(normalized(city)));
+  const sections = [];
+  const group = (type, title, subtitle, items) => {
+    sections.push({ id: type + '-heading', type: 'heading', title, subtitle });
+    if (!items.length) sections.push({ id: type + '-empty', type: 'empty' });
+    if (type === 'listings') for (let i = 0; i < items.length; i += 2) sections.push({ id: type + i, type, items: items.slice(i, i + 2) });
+    else items.forEach(item => sections.push({ id: type + item.id, type, item }));
+  };
+  if (tab === 'overview' || tab === 'listings') group('listings', 'Discover something good', 'Fresh finds from the student community', tab === 'overview' ? listings.slice(0, 12) : listings);
+  if (tab === 'overview' || tab === 'shops') group('shops', 'Shops with a point of view', 'Small businesses worth getting to know', tab === 'overview' ? shops.slice(0, 3) : shops);
+  if (tab === 'overview' || tab === 'people') group('people', 'People to know', 'Meet the people making things happen in your community', tab === 'overview' ? people.slice(0, 4) : people);
+  const input = [k.input, { color: c.text, borderColor: c.line, backgroundColor: c.card }];
+  return <Screen scroll={false}>
+    <FlatList data={loading && !data ? [] : sections} keyExtractor={row => row.id} keyboardShouldPersistTaps="handled" contentContainerStyle={k.content}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={c.accent} />}
+      ListHeaderComponent={<View style={{ gap: 14 }}>
+        <Section eyebrow="The student marketplace" title="A little discovery goes a long way." subtitle="Find your next favourite. Meet the people behind it." />
+        <Button icon="plus" onPress={() => user ? setCreating(true) : router.push('/login')}>Add listing</Button>
+        <TextInput accessibilityLabel="Search listings, shops and people" placeholder="Search listings, shops and people" placeholderTextColor={c.muted} style={input} value={query} onChangeText={setQuery} returnKeyType="search" />
+        <View accessibilityRole="tablist" style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: c.line }}>{['overview', 'listings', 'shops', 'people'].map(value => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: value === tab }} onPress={() => setTab(value)} style={{ flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderColor: value === tab ? c.accent : 'transparent' }}><Copy style={{ fontSize: 12, color: value === tab ? c.accent : c.muted }}>{value[0].toUpperCase() + value.slice(1)}</Copy></Pressable>)}</View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><Copy muted style={{ flex: 1, fontSize: 12 }}>{listingFilters ? 'Categories, location & sort' : 'Filter by location'}</Copy><Button secondary icon="sliders" onPress={() => setFiltersOpen(true)}>Filters{activeFilters.length ? ' (' + activeFilters.length + ')' : ''}</Button></View>
+        {!!activeFilters.length && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{activeFilters.map(item => <Pressable key={item.label} accessibilityRole="button" accessibilityLabel={'Remove filter: ' + item.label} onPress={item.clear} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: 12, borderRadius: 12, backgroundColor: c.soft }}><Copy numberOfLines={1} style={{ fontSize: 12, maxWidth: 160 }}>{item.label}</Copy><Feather name="x" size={14} color={c.muted} /></Pressable>)}</ScrollView>}
+        {(error || data?.failed.length > 0) && <Notice message={error || data.failed.join(', ') + ' could not load. Other sections remain available.'} onRetry={reload} />}
+        {loading && !data && <Notice loading message="Discovering your community…" />}
+      </View>}
+      renderItem={({ item: row }) => row.type === 'heading' ? <Section title={row.title} subtitle={row.subtitle} /> : row.type === 'empty' ? <Notice message="Nothing matches yet. Try another category, city or search." /> : row.type === 'listings' ? <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 12 }}>{row.items.map(item => <ListingCard key={item.id} item={item} onOpen={item => router.push({ pathname: '/listing/[id]', params: { id: item.id } })} style={{ flex: 1 }} />)}{row.items.length === 1 && <View style={{ flex: 1 }} />}</View> : row.type === 'shops' ? <ShopCard shop={row.item} onPress={() => router.push({ pathname: '/shop/[userId]', params: { userId: row.item.ownerId, shopId: row.item.id } })} /> : row.type === 'people' ? <PersonCard person={row.item} onPress={() => router.push('/profile/' + row.item.id)} /> : null} />
+    {filtersOpen && <ExploreFilters category={category} city={city} sort={sort} listingFilters={listingFilters} onClose={() => setFiltersOpen(false)} onApply={draft => { setCategory(draft.category); setCity(draft.city); setSort(draft.sort); setFiltersOpen(false); }} />}
+    <CreateListingModal visible={creating} onClose={() => setCreating(false)} onCreated={reload} />
+  </Screen>;
+}

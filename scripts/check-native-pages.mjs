@@ -1,0 +1,74 @@
+// Fixture-backed React Native Web checks. No real account, order or ticket is changed.
+import assert from 'node:assert/strict';
+import { mkdir, writeFile } from 'node:fs/promises';
+const origin = 'http://127.0.0.1:19000';
+const target = await fetch('http://127.0.0.1:9222/json/new?about:blank', { method: 'PUT' }).then(r => r.json());
+const socket = new WebSocket(target.webSocketDebuggerUrl);
+await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
+let id = 0;
+const pending = new Map(), errors = [], requests = [];
+const user = { id: 'native-buyer', fullName: 'Native Reviewer', email: 'native@example.test', role: 'BUYER', emailVerified: true };
+const product = { id: 'product-one', name: 'Store jacket', price: 90, currency: 'PLN', stockQuantity: 2 };
+const shop = { id: 'shop-one', ownerId: 'seller', name: 'Local studio', products: [product], city: 'Warsaw', businessType: 'FASHION' };
+const listing = { id: 'listing-one', title: 'Marketplace jacket', sellerId: 'seller', sellerName: 'Local seller', price: 140, currency: 'PLN', listingType: 'GOODS', status: 'ACTIVE', mediaUrls: [], locationCity: 'Warsaw' };
+const ticket = { id: 'ticket-one', ownerId: user.id, organiserId: 'organiser', listingId: 'event-one', eventTitle: 'Campus meetup', eventStartsAt: '2099-11-12T18:00:00', eventVenue: 'Student Hall', organiserName: 'Campus crew', ownerName: user.fullName, status: 'VALID', qrPayload: 'HUTKT:HU-TEST:fixture-only', ticketCode: 'HU-TEST', pricePaid: 20, currency: 'PLN' };
+const send = (method, params = {}) => new Promise((resolve, reject) => { pending.set(++id, { resolve, reject }); socket.send(JSON.stringify({ id, method, params })); });
+socket.onmessage = async ({ data }) => {
+  const event = JSON.parse(data);
+  if (event.id) { const p = pending.get(event.id); pending.delete(event.id); return event.error ? p.reject(new Error(event.error.message)) : p.resolve(event.result); }
+  if (event.method === 'Runtime.exceptionThrown') errors.push(event.params.exceptionDetails.exception?.description || event.params.exceptionDetails.text);
+  if (event.method !== 'Fetch.requestPaused') return;
+  const { requestId, request } = event.params;
+  const url = new URL(request.url), path = url.pathname;
+  requests.push({ path, method: request.method, body: request.postData });
+  let body = [], status = 200;
+  if (path.endsWith('/auth/me')) body = user;
+  else if (path.endsWith('/listings') || path.endsWith('/listings/recommended')) body = [listing];
+  else if (path.endsWith('/shops')) body = [shop];
+  else if (path.endsWith('/users')) body = [{ id: 'creator', fullName: 'Community creator', city: 'Warsaw' }];
+  else if (path.endsWith('/listings/listing-one')) body = listing;
+  else if (path.endsWith('/tickets/my')) body = [ticket, { ...ticket, id: 'used', eventTitle: 'Previous event', status: 'CHECKED_IN' }];
+  else if (path.endsWith('/tickets/ticket-one')) body = ticket;
+  else if (path.endsWith('/tickets/event/event-one/summary')) body = { issued: 2, checkedIn: 1, expected: 1 };
+  else if (path.endsWith('/tickets/event/event-one/scan')) body = { admitted: false, reason: 'Ticket already checked in' };
+  else if (path.endsWith('/tickets/event/event-one')) body = [{ ...ticket, qrPayload: null }];
+  else if (path.endsWith('/jobs') || path.endsWith('/news')) body = { content: [{ id: 'editorial', title: path.endsWith('/jobs') ? 'Student designer' : 'Campus news story', description: 'Work with a local studio.', summary: 'A new story from the community.', companyName: 'Local studio', publisherName: 'Student desk' }], totalPages: 2, page: Number(url.searchParams.get('page')) || 0 };
+  else if (path.endsWith('/news/editorial')) body = { id: 'editorial', title: 'Campus news story', body: 'The complete article body is loaded from the detail endpoint.' };
+  else if (path.endsWith('/jobs/editorial')) body = { id: 'editorial', title: 'Student designer', description: 'Work with a local studio.', companyName: 'Local studio', appliedByCurrentUser: false };
+  else if (path.endsWith('/jobs/editorial/apply')) body = { id: 'application', status: 'SUBMITTED' };
+  else if (path.endsWith('/direct-messages/partners')) body = [{ id: 'partner', unreadCount: 2 }];
+  else if (path.endsWith('/unread-count')) body = { count: 0 };
+  await send('Fetch.fulfillRequest', { requestId, responseCode: status, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }, { name: 'Access-Control-Allow-Origin', value: '*' }, { name: 'Access-Control-Allow-Headers', value: '*' }, { name: 'Access-Control-Allow-Methods', value: '*' }], body: Buffer.from(JSON.stringify(body)).toString('base64') });
+};
+const evaluate = async expression => { const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }); assert(!r.exceptionDetails, JSON.stringify(r.exceptionDetails)); return r.result.value; };
+const waitFor = async expression => { for (let n = 0; n < 300; n++) { if (await evaluate(expression)) return; await new Promise(r => setTimeout(r, 100)); } throw new Error('Timed out: ' + expression); };
+const has = text => `document.body?.innerText.includes(${JSON.stringify(text)})`;
+const click = async text => { await waitFor(has(text)); assert(await evaluate(`(()=>{const e=[...document.querySelectorAll('[role="button"],button,a')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(text)} || e.textContent.trim().endsWith(${JSON.stringify(text)}));e?.click();return !!e})()`), 'Missing button ' + text); };
+const go = async path => { await send('Page.navigate', { url: origin + path }); await waitFor(`document.readyState === 'complete' && !document.querySelector('[data-testid="auth-hydration"]')`); await new Promise(r => setTimeout(r, 400)); };
+const snap = async name => { const r = await send('Page.captureScreenshot', { format: 'png' }); await writeFile('artifacts/native-review/' + name + '.png', Buffer.from(r.data, 'base64')); };
+try {
+  await send('Runtime.enable'); await send('Page.enable');
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+  await send('Fetch.enable', { patterns: [{ urlPattern: '*://*/api/v1/*' }] });
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `if(location.origin===${JSON.stringify(origin)}){localStorage.setItem('hustleup_token','fixture-token');localStorage.setItem('hustleup_user',${JSON.stringify(JSON.stringify(user))});}` });
+  await mkdir('artifacts/native-review', { recursive: true });
+  await go('/'); await waitFor(has('Find your people.')); await waitFor(`!!document.querySelector('[aria-label="Your profile"]')`); await new Promise(r => setTimeout(r, 500)); await snap('home-dark');
+  assert.equal(await evaluate(`document.querySelector('[aria-label="More features"]').parentElement.getBoundingClientRect().width`), 310);
+  await go('/explore'); await waitFor(has('Store jacket')); await waitFor(has('Marketplace jacket')); await snap('explore-dark');
+  await click('Add to cart'); await waitFor(has('In your cart'));
+  await go('/dashboard'); await waitFor(has('Upcoming tickets')); await click('Review activity'); await waitFor(has('Recent activity')); await snap('dashboard-activity');
+  await go('/tickets'); await waitFor(has('Campus meetup')); assert(!(await evaluate(has('Previous event')))); await click('Past & used'); await waitFor(has('Previous event'));
+  await go('/tickets/ticket-one'); await waitFor(has('HU-TEST')); await waitFor(`!!document.querySelector('[aria-label="Private admission QR code"] svg')`); await snap('ticket-dark');
+  await go('/events/event-one/door'); await waitFor(has('Guest list'));
+  await evaluate(`(()=>{const e=document.querySelector('[aria-label="Admission code"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'HU-TEST');e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await click('Check ticket'); await waitFor(has('Not admitted')); assert.equal(requests.filter(r=>r.path.endsWith('/scan') && r.method==='POST').length, 1);
+  await go('/jobs'); await waitFor(has('Student designer')); await click('Next'); await waitFor(has('Page 2'));
+  await go('/jobs/editorial'); await waitFor(has('Send application')); await click('Send application'); await waitFor(has('Application sent')); assert.equal(requests.filter(r=>r.path.endsWith('/apply') && r.method==='POST').length, 1);
+  await go('/news/editorial'); await waitFor(has('The complete article body')); await snap('article-dark');
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
+  await go('/explore'); await waitFor(has('Store jacket')); await snap('explore-light');
+  assert.deepEqual(errors, []);
+  console.log('PASS: native web Home, compact navigation, Explore store products/cart, Dashboard activity, ticket wallet/QR, rejected scan handling, jobs pagination/application, full news article, light/dark rendering.');
+} catch (error) { await snap('failure'); console.error(await evaluate('document.body.innerText')); console.error(errors); throw error; }
+finally { socket.close(); await fetch('http://127.0.0.1:9222/json/close/' + target.id); }

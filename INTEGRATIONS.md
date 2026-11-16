@@ -133,65 +133,9 @@ Covers all six backend services, the React frontend, and the Expo app from one d
 
 ## 📧 Transactional Email
 
-There is currently **no email-sending code anywhere in the backend** — no verification emails, no password-reset emails, no receipts. This is a from-scratch build.
+Transactional email is implemented in `hustleup-common` and shared by auth, marketplace, and notification flows. Resend is the primary transport when `RESEND_API_KEY` is set; SES and SMTP remain fallbacks. Delivery failures are logged and do not roll back the action that triggered the email.
 
-### 1. Pick a provider
-[Resend](https://resend.com) is the easiest to integrate with Spring Boot and has a generous free tier (3,000 emails/month, 1 domain). SendGrid or Postmark are fine alternatives if you prefer.
-
-- [ ] Sign up at resend.com, verify a sending domain (add the DNS records they give you — SPF/DKIM — to your domain registrar), and generate an API key.
-
-### 2. Add a shared email module
-- [ ] Add to `backend/hustleup-common/pom.xml`:
-  ```xml
-  <dependency>
-    <groupId>com.resend</groupId>
-    <artifactId>resend-java</artifactId>
-    <version>3.1.0</version>
-  </dependency>
-  ```
-- [ ] Create `backend/hustleup-common/src/main/java/com/hustleup/common/email/EmailService.java`:
-  ```java
-  @Service
-  public class EmailService {
-      private final Resend resend;
-      private final String fromAddress;
-
-      public EmailService(@Value("${app.resend.api-key}") String apiKey,
-                           @Value("${app.email.from}") String fromAddress) {
-          this.resend = new Resend(apiKey);
-          this.fromAddress = fromAddress;
-      }
-
-      public void send(String to, String subject, String htmlBody) {
-          CreateEmailOptions params = CreateEmailOptions.builder()
-                  .from(fromAddress).to(to).subject(subject).html(htmlBody).build();
-          try {
-              resend.emails().send(params);
-          } catch (ResendException e) {
-              log.error("Failed to send email to {}", to, e);
-          }
-      }
-  }
-  ```
-- [ ] Add to `application.yml` for `hustleup-auth` (verification/reset emails) and `hustleup-notification` (order/booking emails):
-  ```yaml
-  app:
-    resend:
-      api-key: ${RESEND_API_KEY}
-    email:
-      from: HustleUp <notifications@yourdomain.com>
-  ```
-- [ ] Add `RESEND_API_KEY` to `backend/.env.example`.
-
-### 3. Wire it into flows that need it
-- [ ] **Verification email** — in `AuthController.register()` (`backend/hustleup-auth/.../controller/AuthController.java`), after saving the user, generate a random token, store it (new `EmailVerificationToken` entity, same pattern as the existing `RefreshToken`), and call `emailService.send(user.getEmail(), "Verify your HustleUp account", buildVerifyLink(token))`. Add `GET /api/v1/auth/verify?token=...` that flips `User.emailVerified` to `true`. Use `FRONTEND_URL` (already in `.env.example`) to build the link.
-- [ ] **Password reset** — same token pattern, new `POST /api/v1/auth/forgot-password` and `POST /api/v1/auth/reset-password` endpoints (both need adding to `CommonSecurityConfig`'s `/api/v1/auth/**` permitAll, which already covers the whole prefix — no change needed there).
-- [ ] **Booking/order notifications** — call `emailService.send(...)` from `BookingService` (`backend/hustleup-marketplace/.../booking/service/BookingService.java`) alongside the existing in-app notification calls, for booking confirmed/cancelled/completed events.
-- [ ] **Payout confirmations** — same idea in `StripeConnectService` after a successful `transferToSeller`.
-
-### 4. Test
-- [ ] Register a throwaway account and confirm the verification email actually arrives (check spam folder first time).
-- [ ] Resend's dashboard shows delivery/bounce status per email — check it after each test send.
+Configure `RESEND_API_KEY` and `EMAIL_FROM` on the services that send email. The sender domain must be verified in Resend. Local development reads the same settings from `backend/.env`; restart auth, marketplace, and notification after changing them. See `backend/.env.example` for the Resend and SMTP settings.
 
 ---
 

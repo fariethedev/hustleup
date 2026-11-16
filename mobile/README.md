@@ -1,50 +1,28 @@
-# Welcome to your Expo app 👋
+# HustleSpace mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Native React Native + Expo Router app for Android and iPhone. Feature migration is in progress; see [FEATURE_PARITY.md](FEATURE_PARITY.md) for what is implemented and what still needs work.
 
-## Get started
+## Development
 
-1. Install dependencies
+Run `npm ci`, then `npx expo start` from this directory. The app defaults to the production gateway. For development/testing, set `EXPO_PUBLIC_API_URL` to your test gateway's full `/api/v1` URL (use a LAN-accessible address on a physical phone). For Expo web, allow the page's origin (default `http://localhost:19000`) in the backend gateway's `CORS_ALLOWED_ORIGINS`, then restart the gateway. Never put server secrets in EXPO_PUBLIC variables or app.json.
 
-   ```bash
-   npm install
-   ```
+## Local validation
 
-2. Start the app
+- `npx eslint app/profile/orders.js app/profile/bank.js src/utils/orderState.js src/utils/secureLinks.js`
+- `node ../scripts/check-mobile-orders.mjs`
+- `npx expo export --platform android --platform ios --output-dir dist-parity`
 
-   ```bash
-   npx expo start
-   ```
+Export verifies native JavaScript/Hermes bundles. It does not produce a downloadable installer or test a real device.
 
-In the output, you'll find options to open the app in a
+## Installable builds (after account setup)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+The Expo project is not yet linked to an owner account. Confirm ownership and the proposed app identifiers before creating signing credentials. Once linked:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- Android test APK: `eas build --platform android --profile preview`
+- iPhone internal build: `eas build --platform ios --profile preview` (registered devices/provisioning required)
+- iOS simulator: `eas build --platform ios --profile ios-simulator`
+- Store packages: `eas build --platform all --profile production`
 
-## Get a fresh project
+These commands start remote builds, may consume paid build quota, and are not run automatically. No app-store submission has been configured.
 
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Build profiles follow [Expo internal distribution](https://docs.expo.dev/build/internal-distribution/) and [APK build guidance](https://docs.expo.dev/build-reference/apk/).

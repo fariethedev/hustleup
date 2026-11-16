@@ -41,21 +41,22 @@ export const labelize = (value) => {
   return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
-export const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'ZAR'];
+// Common ISO 4217 currencies offered by Stripe in at least some markets. Actual
+// availability still depends on the seller's country and the connected account.
+export const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'ZAR', 'CAD', 'AUD', 'NZD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF', 'RON', 'JPY', 'SGD', 'HKD', 'AED', 'INR', 'BRL', 'MXN'];
 
 export const POLISH_CITIES = [
   'Warszawa', 'Kraków', 'Wrocław', 'Poznań', 'Gdańsk',
   'Łódź', 'Szczecin', 'Katowice', 'Lublin', 'Białystok',
   'Gdynia', 'Toruń', 'Rzeszów', 'Bydgoszcz', 'Olsztyn',
+  'London', 'Manchester', 'Berlin', 'Paris', 'Amsterdam', 'Brussels', 'Prague', 'Vienna', 'Zurich', 'Stockholm', 'Oslo', 'Copenhagen', 'Madrid', 'Lisbon', 'Rome', 'Athens', 'New York', 'Los Angeles', 'Toronto', 'Vancouver', 'Sydney', 'Melbourne', 'Auckland', 'Cape Town', 'Johannesburg', 'Lagos', 'Nairobi', 'Accra', 'Dubai', 'Singapore', 'Hong Kong', 'Tokyo', 'Seoul', 'Mumbai', 'Delhi', 'São Paulo', 'Mexico City', 'Remote',
 ];
 
 /**
- * Shown in place of a city on records that never had one set. HustleSpace's market is Poland,
- * so a location chip always reads as somewhere in Poland — but we deliberately do NOT
- * invent a specific city for a real seller who left the field blank, since a made-up
- * "Kraków" on someone's listing is worse than an honest country-level label.
+ * Shown in place of a city on records that never had one set. Do not invent a location for
+ * a seller who left the field blank.
  */
-export const DEFAULT_REGION = 'Polska';
+export const DEFAULT_REGION = 'Location not provided';
 
 /**
  * The location label for a card. Every listing/shop/creator card renders one, so browsing
@@ -108,13 +109,10 @@ export function convertPrice(amount, from = 'PLN', to = 'PLN') {
 export function formatPrice(amount, currency = 'PLN') {
   const num = Number(amount);
   if (isNaN(num)) return `${currency} 0`;
-  const formatted = num.toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  switch (currency) {
-    case 'PLN': return `${formatted} PLN`;
-    case 'EUR': return `€${formatted}`;
-    case 'USD': return `$${formatted}`;
-    case 'GBP': return `£${formatted}`;
-    case 'ZAR': return `R${formatted}`;
-    default: return `${formatted} ${currency}`;
+  const locale = typeof navigator !== 'undefined' ? navigator.languages?.[0] || navigator.language : 'en';
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: currency || 'PLN' }).format(num);
+  } catch {
+    return `${num.toLocaleString(locale, { maximumFractionDigits: 2 })} ${currency || 'PLN'}`;
   }
 }

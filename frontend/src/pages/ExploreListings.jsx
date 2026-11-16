@@ -18,7 +18,7 @@ export default function ExploreListings() {
         {LISTING_TYPES.map((t) => <ExploreChip key={t.value} active={type === t.value} onClick={() => setParam('type', type === t.value ? '' : t.value)}><t.icon size={15} />{t.label}</ExploreChip>)}
       </div>
       <div className="discover-filter-row">
-        <ExploreSelect label="Filter by city" value={city} onChange={(v) => setParam('city', v)}><option value="">All of Poland</option>{POLISH_CITIES.map((c) => <option key={c}>{c}</option>)}</ExploreSelect>
+        <ExploreSelect label="Filter by city" value={city} onChange={(v) => setParam('city', v)}><option value="">All locations</option>{POLISH_CITIES.map((c) => <option key={c}>{c}</option>)}</ExploreSelect>
         <ExploreSelect sort label="Sort listings" value={sort} onChange={(v) => setParam('sort', v === 'latest' ? '' : v)}>{listingSorts.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</ExploreSelect>
         {hasFilters && <button className="discover-clear" onClick={clear}>Reset</button>}
       </div>
