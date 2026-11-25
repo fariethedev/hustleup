@@ -70,3 +70,7 @@ artifacts/
 swerrv-history-before-secret-redaction.bundle
 swerrv-clothingbrand-website/
 hs_err_pid*.log
+
+# DigitalOcean: real secrets and the spec rendered from them
+.do/secrets.env
+.do/app.rendered.yaml

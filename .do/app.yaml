@@ -1,0 +1,189 @@
+# DigitalOcean App Platform spec for HustleUp.
+#
+# This is a TEMPLATE. Double-brace placeholders are filled from .do/secrets.env by
+# scripts/do-render-spec.mjs, which writes .do/app.rendered.yaml (gitignored). Deploy
+# the rendered file, never this one:
+#
+#   node scripts/do-render-spec.mjs
+#   doctl apps create --spec .do/app.rendered.yaml          # first time
+#   doctl apps update <APP_ID> --spec .do/app.rendered.yaml  # afterwards
+#
+# ${...} values are DigitalOcean bindable variables, resolved by App Platform itself.
+# Full walkthrough: backend/DIGITALOCEAN_DEPLOYMENT.md
+
+name: hustleup
+region: fra
+
+alerts:
+  - rule: DEPLOYMENT_FAILED
+  - rule: DOMAIN_FAILED
+
+# Managed MySQL cluster, created beforehand (see the guide, step 3). production: true
+# attaches an existing cluster and adds the app to its trusted sources.
+databases:
+  - name: hustleup-mysql
+    engine: MYSQL
+    version: "8"
+    production: true
+    cluster_name: hustleup-mysql
+    db_name: hustleup
+    db_user: hustleup
+
+# One public entry point. The web app owns "/", the gateway owns the API, uploads and
+# WebSocket paths, so browser calls are same-origin and need no CORS preflight.
+ingress:
+  rules:
+    - component: { name: hustleup-gateway, preserve_path_prefix: true }
+      match: { path: { prefix: /api } }
+    - component: { name: hustleup-gateway, preserve_path_prefix: true }
+      match: { path: { prefix: /uploads } }
+    - component: { name: hustleup-gateway, preserve_path_prefix: true }
+      match: { path: { prefix: /ws } }
+    - component: { name: hustleup-web }
+      match: { path: { prefix: / } }
+
+# Shared by every backend service (RUN_TIME only, so the static web build never sees them).
+envs:
+  # Spring relaxed binding: these override spring.datasource.* in each application.yml.
+  - { key: SPRING_DATASOURCE_URL, scope: RUN_TIME, value: "jdbc:mysql://${hustleup-mysql.HOSTNAME}:${hustleup-mysql.PORT}/${hustleup-mysql.DATABASE}?sslMode=REQUIRED&serverTimezone=UTC" }
+  - { key: SPRING_DATASOURCE_USERNAME, scope: RUN_TIME, value: "${hustleup-mysql.USERNAME}" }
+  - { key: SPRING_DATASOURCE_PASSWORD, scope: RUN_TIME, value: "${hustleup-mysql.PASSWORD}" }
+  - { key: MYSQL_PASSWORD, scope: RUN_TIME, value: "${hustleup-mysql.PASSWORD}" }
+
+  - { key: JWT_SECRET, scope: RUN_TIME, type: SECRET, value: "{{JWT_SECRET}}" }
+  - { key: FRONTEND_URL, scope: RUN_TIME, value: "${APP_URL}" }
+  - { key: SENTRY_DSN, scope: RUN_TIME, value: "{{SENTRY_DSN}}" }
+  - { key: SENTRY_ENV, scope: RUN_TIME, value: production }
+
+  # Containers have no persistent or shared disk: every upload must land in S3/R2.
+  # UPLOAD_DIR only exists so the local-disk fallback has somewhere harmless to point.
+  - { key: UPLOAD_DIR, scope: RUN_TIME, value: /tmp/uploads }
+  - { key: AWS_REGION, scope: RUN_TIME, value: "{{AWS_REGION}}" }
+  - { key: AWS_S3_BUCKET, scope: RUN_TIME, value: "{{AWS_S3_BUCKET}}" }
+  - { key: AWS_ACCESS_KEY_ID, scope: RUN_TIME, type: SECRET, value: "{{AWS_ACCESS_KEY_ID}}" }
+  - { key: AWS_SECRET_ACCESS_KEY, scope: RUN_TIME, type: SECRET, value: "{{AWS_SECRET_ACCESS_KEY}}" }
+  - { key: CDN_DOMAIN, scope: RUN_TIME, value: "{{CDN_DOMAIN}}" }
+  - { key: R2_IMAGES_ENABLED, scope: RUN_TIME, value: "{{R2_IMAGES_ENABLED}}" }
+  - { key: R2_ENDPOINT, scope: RUN_TIME, value: "{{R2_ENDPOINT}}" }
+  - { key: R2_BUCKET, scope: RUN_TIME, value: "{{R2_BUCKET}}" }
+  - { key: R2_PRIVATE_BUCKET, scope: RUN_TIME, value: "{{R2_PRIVATE_BUCKET}}" }
+  - { key: R2_PUBLIC_BASE_URL, scope: RUN_TIME, value: "{{R2_PUBLIC_BASE_URL}}" }
+  - { key: R2_ACCESS_KEY_ID, scope: RUN_TIME, type: SECRET, value: "{{R2_ACCESS_KEY_ID}}" }
+  - { key: R2_SECRET_ACCESS_KEY, scope: RUN_TIME, type: SECRET, value: "{{R2_SECRET_ACCESS_KEY}}" }
+
+  - { key: EMAIL_FROM, scope: RUN_TIME, value: "{{EMAIL_FROM}}" }
+  - { key: RESEND_API_KEY, scope: RUN_TIME, type: SECRET, value: "{{RESEND_API_KEY}}" }
+
+services:
+  # ── Public: the only component the ingress routes API traffic to ──────────────────
+  - name: hustleup-gateway
+    github: { repo: fariethedev/hustleup, branch: main, deploy_on_push: true }
+    source_dir: /
+    dockerfile_path: backend/hustleup-gateway/Dockerfile
+    http_port: 8000
+    instance_size_slug: apps-s-1vcpu-1gb
+    instance_count: 1   # in-memory rate limiter: scale out only after moving it to Redis
+    health_check: { initial_delay_seconds: 60, period_seconds: 10, failure_threshold: 9 }
+    envs:
+      - { key: JAVA_OPTS, scope: RUN_TIME, value: "-Xmx320m -XX:+UseSerialGC" }
+      - { key: AUTH_URI, scope: RUN_TIME, value: "http://hustleup-auth:8081" }
+      - { key: SOCIAL_URI, scope: RUN_TIME, value: "http://hustleup-social:8082" }
+      - { key: MARKETPLACE_URI, scope: RUN_TIME, value: "http://hustleup-marketplace:8083" }
+      - { key: SUBSCRIPTION_URI, scope: RUN_TIME, value: "http://hustleup-subscription:8084" }
+      - { key: NOTIFICATION_URI, scope: RUN_TIME, value: "http://hustleup-notification:8085" }
+      - { key: CORS_ALLOWED_ORIGINS, scope: RUN_TIME, value: "${APP_URL}{{EXTRA_CORS_ORIGINS}}" }
+      # DO's edge overwrites DO-Connecting-IP with the real client address; key the rate
+      # limiter on it instead of the (shared) load-balancer peer or a forgeable XFF entry.
+      - { key: APP_GATEWAY_CLIENT_IP_HEADER, scope: RUN_TIME, value: DO-Connecting-IP }
+
+  # ── Internal: reachable only as http://<name>:<port> inside the app ───────────────
+  - name: hustleup-auth
+    github: { repo: fariethedev/hustleup, branch: main, deploy_on_push: true }
+    source_dir: /
+    dockerfile_path: backend/hustleup-auth/Dockerfile
+    internal_ports: [8081]
+    instance_size_slug: apps-s-1vcpu-1gb
+    instance_count: 1
+    health_check: { port: 8081, initial_delay_seconds: 90, period_seconds: 10, failure_threshold: 9 }
+    envs:
+      - { key: JAVA_OPTS, scope: RUN_TIME, value: "-Xmx400m -XX:+UseSerialGC" }
+      - { key: GOOGLE_CLIENT_ID, scope: RUN_TIME, value: "{{GOOGLE_CLIENT_ID}}" }
+      - { key: FACEBOOK_APP_ID, scope: RUN_TIME, value: "{{FACEBOOK_APP_ID}}" }
+      - { key: FACEBOOK_APP_SECRET, scope: RUN_TIME, type: SECRET, value: "{{FACEBOOK_APP_SECRET}}" }
+      - { key: TURNSTILE_SECRET_KEY, scope: RUN_TIME, type: SECRET, value: "{{TURNSTILE_SECRET_KEY}}" }
+      - { key: GOOGLE_MAPS_SERVER_KEY, scope: RUN_TIME, type: SECRET, value: "{{GOOGLE_MAPS_SERVER_KEY}}" }
+
+  - name: hustleup-social
+    github: { repo: fariethedev/hustleup, branch: main, deploy_on_push: true }
+    source_dir: /
+    dockerfile_path: backend/hustleup-social/Dockerfile
+    internal_ports: [8082]
+    instance_size_slug: apps-s-1vcpu-1gb
+    instance_count: 1
+    health_check: { port: 8082, initial_delay_seconds: 90, period_seconds: 10, failure_threshold: 9 }
+    envs:
+      - { key: JAVA_OPTS, scope: RUN_TIME, value: "-Xmx448m -XX:+UseSerialGC" }
+      # In-process cache instead of Redis. CacheConfig already treats cache failures as
+      # misses; switch to "redis" + REDIS_HOST/REDIS_PORT if you add Managed Valkey later.
+      - { key: CACHE_TYPE, scope: RUN_TIME, value: simple }
+
+  - name: hustleup-marketplace
+    github: { repo: fariethedev/hustleup, branch: main, deploy_on_push: true }
+    source_dir: /
+    dockerfile_path: backend/hustleup-marketplace/Dockerfile
+    internal_ports: [8083]
+    instance_size_slug: apps-s-1vcpu-1gb
+    instance_count: 1   # runs the scheduled payout sweep: one instance avoids double runs
+    health_check: { port: 8083, initial_delay_seconds: 90, period_seconds: 10, failure_threshold: 9 }
+    envs:
+      - { key: JAVA_OPTS, scope: RUN_TIME, value: "-Xmx448m -XX:+UseSerialGC" }
+      - { key: STRIPE_SECRET_KEY, scope: RUN_TIME, type: SECRET, value: "{{STRIPE_SECRET_KEY}}" }
+      - { key: STRIPE_CONNECT_WEBHOOK_SECRET, scope: RUN_TIME, type: SECRET, value: "{{STRIPE_CONNECT_WEBHOOK_SECRET}}" }
+      - { key: STRIPE_PLATFORM_FEE_PERCENT, scope: RUN_TIME, value: "{{STRIPE_PLATFORM_FEE_PERCENT}}" }
+      - { key: ALGOLIA_APP_ID, scope: RUN_TIME, value: "{{ALGOLIA_APP_ID}}" }
+      - { key: ALGOLIA_ADMIN_KEY, scope: RUN_TIME, type: SECRET, value: "{{ALGOLIA_ADMIN_KEY}}" }
+      - { key: ADZUNA_APP_ID, scope: RUN_TIME, value: "{{ADZUNA_APP_ID}}" }
+      - { key: ADZUNA_APP_KEY, scope: RUN_TIME, type: SECRET, value: "{{ADZUNA_APP_KEY}}" }
+
+  - name: hustleup-subscription
+    github: { repo: fariethedev/hustleup, branch: main, deploy_on_push: true }
+    source_dir: /
+    dockerfile_path: backend/hustleup-subscription/Dockerfile
+    internal_ports: [8084]
+    instance_size_slug: apps-s-1vcpu-1gb
+    instance_count: 1
+    health_check: { port: 8084, initial_delay_seconds: 90, period_seconds: 10, failure_threshold: 9 }
+    envs:
+      - { key: JAVA_OPTS, scope: RUN_TIME, value: "-Xmx320m -XX:+UseSerialGC" }
+      - { key: STRIPE_SECRET_KEY, scope: RUN_TIME, type: SECRET, value: "{{STRIPE_SECRET_KEY}}" }
+      - { key: STRIPE_WEBHOOK_SECRET, scope: RUN_TIME, type: SECRET, value: "{{STRIPE_WEBHOOK_SECRET}}" }
+
+  - name: hustleup-notification
+    github: { repo: fariethedev/hustleup, branch: main, deploy_on_push: true }
+    source_dir: /
+    dockerfile_path: backend/hustleup-notification/Dockerfile
+    internal_ports: [8085]
+    instance_size_slug: apps-s-1vcpu-1gb
+    instance_count: 1   # in-memory STOMP broker: MUST stay at exactly one instance
+    health_check: { port: 8085, initial_delay_seconds: 90, period_seconds: 10, failure_threshold: 9 }
+    envs:
+      - { key: JAVA_OPTS, scope: RUN_TIME, value: "-Xmx320m -XX:+UseSerialGC" }
+
+static_sites:
+  - name: hustleup-web
+    github: { repo: fariethedev/hustleup, branch: main, deploy_on_push: true }
+    source_dir: frontend
+    build_command: npm ci && npm run build
+    output_dir: dist
+    catchall_document: index.html   # SPA routing (replaces vercel.json's rewrite)
+    envs:
+      # Same origin as the gateway thanks to the ingress rules above.
+      - { key: VITE_API_URL, scope: BUILD_TIME, value: "${APP_URL}" }
+      - { key: VITE_GOOGLE_CLIENT_ID, scope: BUILD_TIME, value: "{{GOOGLE_CLIENT_ID}}" }
+      - { key: VITE_FACEBOOK_APP_ID, scope: BUILD_TIME, value: "{{FACEBOOK_APP_ID}}" }
+      - { key: VITE_TURNSTILE_SITE_KEY, scope: BUILD_TIME, value: "{{VITE_TURNSTILE_SITE_KEY}}" }
+      - { key: VITE_STRIPE_PUBLISHABLE_KEY, scope: BUILD_TIME, value: "{{VITE_STRIPE_PUBLISHABLE_KEY}}" }
+      - { key: VITE_ALGOLIA_APP_ID, scope: BUILD_TIME, value: "{{ALGOLIA_APP_ID}}" }
+      - { key: VITE_ALGOLIA_SEARCH_KEY, scope: BUILD_TIME, value: "{{VITE_ALGOLIA_SEARCH_KEY}}" }
+      - { key: VITE_SENTRY_DSN, scope: BUILD_TIME, value: "{{VITE_SENTRY_DSN}}" }
+      - { key: VITE_CRISP_WEBSITE_ID, scope: BUILD_TIME, value: "{{VITE_CRISP_WEBSITE_ID}}" }

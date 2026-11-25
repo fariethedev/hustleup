@@ -62,6 +62,16 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
     @Value("${app.gateway.trust-proxy:false}")
     private boolean trustProxy;
 
+    /**
+     * Optional single-value header that the platform edge sets to the real client address
+     * and overwrites on every request — e.g. {@code DO-Connecting-IP} on DigitalOcean App
+     * Platform, {@code CF-Connecting-IP} behind Cloudflare. Preferred over X-Forwarded-For,
+     * whose left-most entry a client can forge when the proxy appends rather than replaces.
+     * Blank (the default) disables it. Only set it when the edge really controls the header.
+     */
+    @Value("${app.gateway.client-ip-header:}")
+    private String clientIpHeader;
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String clientIp = getClientIp(exchange);
@@ -115,6 +125,12 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
      * configured to sit behind a trusted proxy, otherwise the unspoofable TCP peer.
      */
     private String getClientIp(ServerWebExchange exchange) {
+        if (clientIpHeader != null && !clientIpHeader.isBlank()) {
+            String edgeIp = exchange.getRequest().getHeaders().getFirst(clientIpHeader);
+            if (edgeIp != null && !edgeIp.isBlank()) {
+                return edgeIp.trim();
+            }
+        }
         if (trustProxy) {
             // Left-most entry is the original client, appended by our own proxy.
             String xff = exchange.getRequest().getHeaders().getFirst("X-Forwarded-For");
