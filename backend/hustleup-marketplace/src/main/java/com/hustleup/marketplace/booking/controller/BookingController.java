@@ -38,12 +38,15 @@ public class BookingController {
 
     // The service layer handles all business logic and state machine transitions.
     private final BookingService bookingService;
+    private final com.hustleup.marketplace.shop.service.ShopCheckoutService shopCheckoutService;
 
     /**
      * Constructor injection: Spring provides the {@link BookingService} bean automatically.
      */
-    public BookingController(BookingService bookingService) {
+    public BookingController(BookingService bookingService,
+                             com.hustleup.marketplace.shop.service.ShopCheckoutService shopCheckoutService) {
         this.bookingService = bookingService;
+        this.shopCheckoutService = shopCheckoutService;
     }
 
     /**
@@ -276,6 +279,8 @@ public class BookingController {
                 // client keeps whatever status it already has rather than showing a failure.
                 return ResponseEntity.accepted().body(List.of());
             }
+            // A whole-cart session also carries storefront orders; confirm those too.
+            shopCheckoutService.applyPaidSession(session);
             return ResponseEntity.ok(bookingService.applyPaidSession(session));
         } catch (com.stripe.exception.StripeException e) {
             return ResponseEntity.status(502).body(Map.of("error", "Could not verify the payment with Stripe"));

@@ -1,182 +1,155 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  SafeAreaView,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, SectionList, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { notificationsApi } from '../src/api/client';
+import { usePalette } from '../src/components/native/Kit';
 
-const BG = '#050505';
-const LIME = '#CDFF00';
-
-const NOTIF_ICONS = {
-  FOLLOW:         { name: 'user-plus',      color: '#60A5FA' },
-  LIKE:           { name: 'heart',           color: '#F472B6' },
-  COMMENT:        { name: 'message-circle',  color: LIME },
-  MATCH:          { name: 'zap',             color: '#FB923C' },
-  POST:           { name: 'image',           color: '#A3E635' },
-  LISTING:        { name: 'tag',             color: '#34D399' },
-  DIRECT_MESSAGE: { name: 'message-square',  color: '#818CF8' },
-  SYSTEM:         { name: 'bell',            color: '#A78BFA' },
+/**
+ * Every notification type the backend sends, with an icon, a filter group, a hint of what a
+ * tap does, and where it goes. Unknown types still render (as "Update") and open nothing.
+ */
+const TYPES = {
+  DIRECT_MESSAGE: { icon: 'message-circle', color: '#8B5CF6', group: 'messages', hint: 'Open chat', go: n => ({ pathname: '/(tabs)/messages', params: { partnerId: n.referenceId } }) },
+  DATING_MATCH: { icon: 'heart', color: '#F472B6', group: 'bond', hint: 'Say hi to your match', go: n => ({ pathname: '/(tabs)/messages', params: { partnerId: n.referenceId } }) },
+  DATING_SUPER_LIKE: { icon: 'star', color: '#38BDF8', group: 'bond', hint: 'See who likes you', go: () => '/bond' },
+  FOLLOW: { icon: 'user-plus', color: '#60A5FA', group: 'social', hint: 'View profile', go: n => `/profile/${n.referenceId}` },
+  FOLLOW_REQUEST: { icon: 'user-check', color: '#60A5FA', group: 'social', hint: 'Review request', go: () => '/profile/settings' },
+  POST: { icon: 'image', color: '#A3E635', group: 'social', hint: 'Open feed', go: () => '/(tabs)/feed' },
+  REPOST: { icon: 'repeat', color: '#A3E635', group: 'social', hint: 'Open feed', go: () => '/(tabs)/feed' },
+  LISTING: { icon: 'tag', color: '#34D399', group: 'orders', hint: 'View listing', go: n => ({ pathname: '/listing/[id]', params: { id: n.referenceId } }) },
+  BOOKING: { icon: 'package', color: '#CDFF00', group: 'orders', hint: 'Open orders', go: () => '/profile/orders' },
+  BOOKING_REQUEST: { icon: 'inbox', color: '#CDFF00', group: 'orders', hint: 'Reply to the request', go: () => ({ pathname: '/profile/orders', params: { view: 'selling' } }) },
+  BOOKING_ACCEPTED: { icon: 'check-circle', color: '#22C55E', group: 'orders', hint: 'Pay to confirm', go: () => '/profile/orders' },
+  BOOKING_COUNTER: { icon: 'refresh-cw', color: '#F59E0B', group: 'orders', hint: 'Respond to the counter offer', go: () => '/profile/orders' },
+  OFFER: { icon: 'tag', color: '#F59E0B', group: 'orders', hint: 'Open the offer', go: () => '/profile/orders' },
+  ORDER: { icon: 'shopping-bag', color: '#CDFF00', group: 'orders', hint: 'Track your order', go: () => '/profile/orders' },
+  APPOINTMENT: { icon: 'calendar', color: '#38BDF8', group: 'orders', hint: 'View appointment', go: () => '/dashboard' },
+  PAYOUT: { icon: 'credit-card', color: '#22C55E', group: 'orders', hint: 'View payouts', go: () => '/profile/wallet' },
+  PROTECTION_CLAIM: { icon: 'shield', color: '#EF4444', group: 'orders', hint: 'View the claim', go: () => '/profile/orders' },
 };
+const FALLBACK = { icon: 'bell', color: '#9CA3AF', group: 'other', hint: '', go: null };
+const FILTERS = [['all', 'All'], ['unread', 'Unread'], ['orders', 'Orders'], ['messages', 'Messages'], ['social', 'Social'], ['bond', 'Bond']];
 
-const timeAgo = (ts) => {
+const typeOf = n => TYPES[(n.notificationType || n.type || '').toUpperCase()] || FALLBACK;
+const isUnread = n => !n.read && !n.isRead;
+const ago = ts => {
   if (!ts) return '';
-  const diff = (Date.now() - new Date(ts)) / 1000;
-  if (diff < 60) return 'Just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}d`;
-};
-
-const NotifCard = ({ notif, onPress }) => {
-  const type = (notif.notificationType || notif.type || 'SYSTEM').toUpperCase();
-  const icon = NOTIF_ICONS[type] || NOTIF_ICONS.SYSTEM;
-  const unread = !notif.read && !notif.isRead;
-
-  return (
-    <TouchableOpacity style={[styles.card, unread && styles.cardUnread]} onPress={onPress} activeOpacity={0.75}>
-      <View style={[styles.iconWrap, { backgroundColor: icon.color + '18' }]}>
-        <Feather name={icon.name} size={18} color={icon.color} />
-      </View>
-      <View style={styles.cardBody}>
-        <View style={styles.cardTopRow}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{notif.title}</Text>
-          <Text style={styles.cardTime}>{timeAgo(notif.createdAt || notif.time)}</Text>
-        </View>
-        <Text style={styles.cardMsg} numberOfLines={2}>{notif.message}</Text>
-      </View>
-      {unread && <View style={styles.unreadDot} />}
-    </TouchableOpacity>
-  );
+  const s = (Date.now() - new Date(ts)) / 1000;
+  if (s < 60) return 'now';
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  if (s < 604800) return `${Math.floor(s / 86400)}d`;
+  return new Date(ts).toLocaleDateString([], { day: 'numeric', month: 'short' });
 };
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState([]);
+  const c = usePalette();
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState('all');
+  const [error, setError] = useState('');
+  const [now, setNow] = useState(() => Date.now()); // captured on load so grouping is stable between renders
 
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const res = await notificationsApi.getAll();
-      setNotifications(res.data || []);
-    } catch (e) {
-      setNotifications([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  const load = useCallback(async () => {
+    setError('');
+    try { const { data } = await notificationsApi.getAll(); setNow(Date.now()); setItems(Array.isArray(data) ? data : data?.content || []); }
+    catch { setError('Could not load notifications. Pull down to retry.'); }
+    finally { setLoading(false); }
   }, []);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  useEffect(() => { fetchNotifications(); }, []);
+  const unread = items.filter(isUnread).length;
+  const sections = useMemo(() => {
+    const shown = items.filter(n => filter === 'all' || (filter === 'unread' ? isUnread(n) : typeOf(n).group === filter));
+    const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
+    const weekAgo = now - 7 * 86400000;
+    const buckets = { Today: [], 'This week': [], Earlier: [] };
+    shown.forEach(n => {
+      const t = new Date(n.createdAt || n.time || 0).getTime();
+      buckets[t >= startOfToday.getTime() ? 'Today' : t >= weekAgo ? 'This week' : 'Earlier'].push(n);
+    });
+    return Object.entries(buckets).filter(([, data]) => data.length).map(([title, data]) => ({ title, data }));
+  }, [items, filter, now]);
 
-  const handleMarkAllRead = async () => {
-    try {
-      await notificationsApi.markAllRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
-    } catch (e) {}
+  const open = (n) => {
+    if (isUnread(n)) {
+      setItems(list => list.map(x => (x.id === n.id ? { ...x, read: true, isRead: true } : x)));
+      notificationsApi.markRead(n.id).catch(() => {});
+    }
+    const target = typeOf(n).go?.(n);
+    if (target) router.push(target);
+  };
+  const markAll = async () => {
+    setItems(list => list.map(x => ({ ...x, read: true, isRead: true })));
+    try { await notificationsApi.markAllRead(); } catch { load(); }
   };
 
-  const unreadCount = notifications.filter(n => !n.read && !n.isRead).length;
-
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={20} color="#FFF" />
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={['top']}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
+        <TouchableOpacity accessibilityLabel="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+          style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
+          <Feather name="arrow-left" size={19} color={c.text} />
         </TouchableOpacity>
-        <View>
-          <Text style={styles.headerTitle}>NOTIFICATIONS</Text>
-          {unreadCount > 0 && <Text style={styles.headerSub}>{unreadCount} unread</Text>}
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: c.text, fontSize: 20, fontWeight: '900' }}>Notifications</Text>
+          <Text style={{ color: c.muted, fontSize: 12 }}>{unread ? `${unread} unread` : 'You’re all caught up'}</Text>
         </View>
-        {unreadCount > 0 && (
-          <TouchableOpacity style={styles.markAllBtn} onPress={handleMarkAllRead}>
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
+        {unread > 0 && <TouchableOpacity onPress={markAll} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, minHeight: 34, borderRadius: 17, backgroundColor: c.purpleSoft }}>
+          <Feather name="check-square" size={14} color={c.purple} /><Text style={{ color: c.purple, fontWeight: '800', fontSize: 12 }}>Mark all read</Text>
+        </TouchableOpacity>}
       </View>
 
-      {loading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator color={LIME} />
-        </View>
-      ) : notifications.length === 0 ? (
-        <View style={styles.empty}>
-          <Feather name="bell-off" size={40} color="rgba(255,255,255,0.15)" />
-          <Text style={styles.emptyText}>No notifications yet</Text>
-          <Text style={styles.emptySub}>Follow people and they'll show up here</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={notifications}
-          keyExtractor={(n) => String(n.id)}
-          renderItem={({ item }) => (
-            <NotifCard notif={item} onPress={async () => {
-              if (!item.read && !item.isRead) {
-                try {
-                  await notificationsApi.markRead(item.id);
-                  setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true, isRead: true } : n));
-                } catch {}
-              }
-              const type = (item.notificationType || item.type || '').toUpperCase();
-              if (type === 'DIRECT_MESSAGE' && item.senderId) {
-                router.push(`/(tabs)/messages?partnerId=${item.senderId}`);
-              } else if (type === 'FOLLOW' && item.senderId) {
-                router.push(`/profile/${item.senderId}`);
-              }
-            }} />
-          )}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          onRefresh={fetchNotifications}
-          refreshing={refreshing}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 16, paddingBottom: 8 }}>
+        {FILTERS.map(([key, label]) => {
+          const on = filter === key;
+          const count = key === 'unread' ? unread : 0;
+          return <Pressable key={key} onPress={() => setFilter(key)} accessibilityRole="tab" accessibilityState={{ selected: on }}
+            style={{ minHeight: 32, paddingHorizontal: 12, borderRadius: 16, justifyContent: 'center', backgroundColor: on ? c.purple : c.card, borderWidth: 1, borderColor: on ? c.purple : c.line }}>
+            <Text style={{ color: on ? '#FFF' : c.text, fontSize: 12, fontWeight: '700' }}>{label}{count ? ` ${count}` : ''}</Text>
+          </Pressable>;
+        })}
+      </View>
+
+      {loading ? <ActivityIndicator color={c.purple} style={{ marginTop: 40 }} /> : (
+        <SectionList
+          sections={sections}
+          keyExtractor={n => String(n.id)}
+          stickySectionHeadersEnabled={false}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 60 }}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={c.purple} />}
+          renderSectionHeader={({ section }) => <Text style={{ color: c.muted, fontSize: 12, fontWeight: '800', letterSpacing: 0.6, marginTop: 14, marginBottom: 8 }}>{section.title.toUpperCase()}</Text>}
+          renderItem={({ item: n }) => {
+            const t = typeOf(n);
+            const on = isUnread(n);
+            return (
+              <Pressable onPress={() => open(n)} accessibilityRole="button"
+                style={({ pressed }) => ({ flexDirection: 'row', gap: 12, padding: 14, marginBottom: 8, borderRadius: 18, backgroundColor: on ? c.purpleSoft : c.card, borderWidth: 1, borderColor: on ? `${c.purple}55` : c.line, opacity: pressed ? 0.8 : 1 })}>
+                <View style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: `${t.color}22` }}>
+                  <Feather name={t.icon} size={19} color={t.color} />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ color: c.text, fontWeight: on ? '900' : '700', flex: 1 }} numberOfLines={1}>{n.title || 'Update'}</Text>
+                    <Text style={{ color: c.muted, fontSize: 11 }}>{ago(n.createdAt || n.time)}</Text>
+                  </View>
+                  {!!n.message && <Text style={{ color: c.muted, fontSize: 13, lineHeight: 19 }} numberOfLines={2}>{n.message}</Text>}
+                  {!!t.hint && <Text style={{ color: c.purple, fontSize: 12, fontWeight: '700', marginTop: 2 }}>{t.hint} →</Text>}
+                </View>
+                {on && <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: c.accent, marginTop: 4 }} />}
+              </Pressable>
+            );
+          }}
+          ListEmptyComponent={<View style={{ alignItems: 'center', gap: 10, paddingTop: 60, paddingHorizontal: 30 }}>
+            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: c.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Feather name="bell" size={30} color={c.purple} /></View>
+            <Text style={{ color: c.text, fontWeight: '800', fontSize: 16 }}>{error ? 'Couldn’t load notifications' : filter === 'all' ? 'No notifications yet' : 'Nothing here'}</Text>
+            <Text style={{ color: c.muted, textAlign: 'center', lineHeight: 20 }}>{error || 'Orders, messages, new followers and Bond matches will show up here — tap one to jump straight to it.'}</Text>
+          </View>}
         />
       )}
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingHorizontal: 20, paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  headerTitle: { color: '#FFF', fontSize: 16, fontWeight: '900', letterSpacing: 2 },
-  headerSub: { color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: '700', marginTop: 2 },
-  markAllBtn: { marginLeft: 'auto', backgroundColor: 'rgba(205,255,0,0.1)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(205,255,0,0.2)' },
-  markAllText: { color: LIME, fontSize: 11, fontWeight: '800' },
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
-  emptyText: { color: 'rgba(255,255,255,0.35)', fontSize: 16, fontWeight: '700', marginTop: 12 },
-  emptySub: { color: 'rgba(255,255,255,0.2)', fontSize: 13, textAlign: 'center', paddingHorizontal: 40 },
-  list: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 100 },
-  card: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 20, padding: 16, marginBottom: 10,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
-  },
-  cardUnread: { borderColor: 'rgba(205,255,0,0.12)', backgroundColor: 'rgba(205,255,0,0.03)' },
-  iconWrap: { width: 46, height: 46, borderRadius: 23, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  cardBody: { flex: 1 },
-  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  cardTitle: { color: '#FFF', fontSize: 13, fontWeight: '800', flex: 1, marginRight: 8 },
-  cardTime: { color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '700' },
-  cardMsg: { color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 18 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: LIME, flexShrink: 0 },
-});
-

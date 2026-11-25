@@ -296,22 +296,25 @@ export default function Home() {
       <section className="relative mx-auto grid max-w-7xl gap-8 overflow-hidden bg-[#090909] px-5 pb-12 pt-28 sm:px-8 md:min-h-[680px] md:grid-cols-2 md:items-center md:gap-12 md:pb-20 md:pt-36">
         {/* 100svh (not 100vh) so mobile browser chrome appearing and disappearing doesn't make
             the section jump height mid-scroll. */}
-        <div className="relative order-2 h-64 w-full overflow-hidden rounded-[2rem] md:h-[460px]">
-          <img
-            src={heroImage}
-            alt="Students gathered together on their campus steps"
-            className="w-full h-full object-cover object-center"
-            fetchPriority="high"
-          />
-
-          {/* Three scrims, each with a job. The bottom fade blends the photo into what follows
-              — on mobile it stays low so the picture reads on its own, on desktop it carries
-              up the frame to keep the overlaid copy legible. The vignette darkens the
-              lower-centre behind that copy, so it is desktop-only. The top band gives the
-              navbar a dark ground: it renders transparent until scrolled, and without it the
-              logo and icons float over open photograph. */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-          <div className="absolute inset-x-5 bottom-5 flex items-center justify-between gap-3 rounded-2xl border border-white/20 bg-black/40 p-4 backdrop-blur-md"><div><p className="text-sm font-semibold text-white">Good things happen locally.</p><p className="mt-1 text-xs text-gray-300">Meet the people behind the products.</p></div><Link to="/explore/shops" aria-label="Discover local shops" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#CDFF00] text-black"><MoveRight className="h-5 w-5" /></Link></div>
+        <div className="relative order-2 w-full">
+          <div className="relative h-64 w-full overflow-hidden rounded-[2rem] md:h-[460px]">
+            <img
+              src={heroImage}
+              alt="Students gathered together on their campus steps"
+              className="w-full h-full object-cover object-center"
+              fetchPriority="high"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+          </div>
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <div>
+              <p className="text-sm font-semibold text-white">Good things happen locally.</p>
+              <p className="mt-1 text-xs text-gray-400">Meet the people behind the products.</p>
+            </div>
+            <Link to="/explore/shops" aria-label="Discover local shops" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#CDFF00] text-black">
+              <MoveRight className="h-5 w-5" />
+            </Link>
+          </div>
         </div>
 
         <div className="relative order-1 w-full">

@@ -25,7 +25,7 @@ class PayoutControllerTest {
     private final SellerPayoutAccountRepository accounts = mock(SellerPayoutAccountRepository.class);
     private final UserRepository users = mock(UserRepository.class);
     private final EmailVerificationGuard emailGuard = mock(EmailVerificationGuard.class);
-    private final PayoutController controller = new PayoutController(stripe, accounts, users, null, null, null, null, null, emailGuard, null);
+    private final PayoutController controller = new PayoutController(stripe, accounts, users, null, null, null, null, null, emailGuard, null, null);
     private final UUID userId = UUID.randomUUID();
 
     @BeforeEach void authenticatedOwner() {

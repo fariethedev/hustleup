@@ -5,12 +5,51 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import * as WebBrowser from 'expo-web-browser';
-import { bookingsApi, shopsApi, claimsApi } from '../../src/api/client';
+import { bookingsApi, shopsApi, claimsApi, payoutsApi } from '../../src/api/client';
 import { errorMessage, money } from '../../src/utils/marketplace';
 import { deliverySteps, orderLabel, orderState } from '../../src/utils/orderState';
 import { stripeUrl } from '../../src/utils/secureLinks';
 
 const reasons = [['NOT_RECEIVED', 'Not received'], ['DAMAGED', 'Arrived damaged'], ['NOT_AS_DESCRIBED', 'Not as described'], ['OTHER', 'Something else']];
+/**
+ * Delivery progress as a vertical timeline, like a courier app: done steps are filled, the
+ * current one is highlighted, the rest are dimmed. Built from the same step list sellers pick
+ * from, so the two can never disagree.
+ */
+function OrderTimeline({ order, colors }) {
+  const f = order.fulfilment || {};
+  const steps = deliverySteps[f.shippingMethod] || deliverySteps.NONE;
+  const paid = ['PAID', 'TRANSFERRED'].includes(order.paymentStatus) || ['PAID', 'FULFILLED', 'COMPLETED'].includes(order.status);
+  const confirmed = !!f.buyerConfirmedAt;
+  const reached = confirmed ? steps.length - 1 : Math.max(steps.indexOf(f.fulfilmentStatus), paid ? 0 : -1);
+  const when = { SHIPPED: f.shippedAt, DELIVERED: f.deliveredAt, COLLECTED: f.deliveredAt };
+  const all = [...steps, 'RECEIVED'];
+  return (
+    <View style={{ gap: 0, paddingLeft: 2 }}>
+      {all.map((step, i) => {
+        const done = step === 'RECEIVED' ? confirmed : i <= reached;
+        const current = step === 'RECEIVED' ? false : i === reached && !confirmed;
+        const color = done ? colors.accent : colors.line;
+        return (
+          <View key={step} style={{ flexDirection: 'row', gap: 12, minHeight: 34 }}>
+            <View style={{ alignItems: 'center', width: 22 }}>
+              <View style={{ width: current ? 22 : 16, height: current ? 22 : 16, borderRadius: 11, backgroundColor: done ? colors.accent : colors.card, borderWidth: 2, borderColor: color, alignItems: 'center', justifyContent: 'center', marginTop: current ? 0 : 3 }}>
+                {done && <Feather name="check" size={current ? 13 : 10} color="#111" />}
+              </View>
+              {i < all.length - 1 && <View style={{ width: 2, flex: 1, backgroundColor: i < reached || (confirmed && i < all.length - 1) ? colors.accent : colors.line, marginVertical: 2 }} />}
+            </View>
+            <View style={{ flex: 1, paddingBottom: 8 }}>
+              <Text style={{ color: done ? colors.text : colors.muted, fontWeight: current ? '800' : '600', textTransform: 'capitalize' }}>{step === 'RECEIVED' ? 'Receipt confirmed' : orderLabel(step)}</Text>
+              {!!when[step] && done && <Text style={{ color: colors.muted, fontSize: 12 }}>{new Date(when[step]).toLocaleString()}</Text>}
+              {current && step !== 'DELIVERED' && step !== 'COLLECTED' && !!f.estimatedDelivery && <Text style={{ color: colors.muted, fontSize: 12 }}>Estimated delivery {new Date(f.estimatedDelivery).toLocaleDateString()}</Text>}
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 const stepIcons = { CONFIRMED: 'check-circle', PREPARING: 'package', SHIPPED: 'truck', OUT_FOR_DELIVERY: 'truck', READY_FOR_PICKUP: 'map-pin', DELIVERED: 'check-circle', COLLECTED: 'check-circle' };
 
 export default function OrdersScreen() {
@@ -33,7 +72,8 @@ export default function OrdersScreen() {
   const [reason, setReason] = useState('NOT_RECEIVED');
   const [amount, setAmount] = useState('');
   const [formError, setFormError] = useState('');
-  const [delivery, setDelivery] = useState({ status: '', carrier: '', trackingNumber: '', note: '' });
+  const [delivery, setDelivery] = useState({ status: '', carrier: '', trackingNumber: '', trackingUrl: '', note: '' });
+  const [feePercent, setFeePercent] = useState(null);
 
   const load = useCallback(async () => {
     const results = await Promise.allSettled([bookingsApi.getAll(), shopsApi.orders(), shopsApi.sales(), claimsApi.mine()]);
@@ -51,6 +91,7 @@ export default function OrdersScreen() {
   }, []);
   useFocusEffect(useCallback(() => {
     load();
+    payoutsApi.status().then(r => setFeePercent(Number(r.data?.platformFeePercent))).catch(() => {});
     const listener = AppState.addEventListener('change', state => { if (state === 'active') load(); });
     return () => listener.remove();
   }, [load]));
@@ -69,7 +110,7 @@ export default function OrdersScreen() {
   const open = (mode, order) => {
     setDialog({ mode, order }); setDetail(''); setReason('NOT_RECEIVED'); setAmount(''); setFormError('');
     const f = order.fulfilment || {};
-    setDelivery({ status: f.fulfilmentStatus || 'CONFIRMED', carrier: f.carrier || '', trackingNumber: f.trackingNumber || '', note: '' });
+    setDelivery({ status: f.fulfilmentStatus || 'CONFIRMED', carrier: f.carrier || '', trackingNumber: f.trackingNumber || '', trackingUrl: f.trackingUrl || '', note: '' });
   };
   const close = () => { if (!busyRef.current) setDialog(null); };
   const Button = ({ title, icon, onPress, disabled = false, primary = false }) => <Pressable accessibilityRole="button" accessibilityState={{ disabled: disabled || busy }} disabled={disabled || busy} onPress={onPress} style={[s.button, { borderColor: colors.line, backgroundColor: primary ? '#CDFF00' : colors.card, opacity: disabled || busy ? .45 : 1 }]}>
@@ -93,7 +134,12 @@ export default function OrdersScreen() {
       {[['credit-card', 'Payment', state.paid ? 'Payment received' : orderLabel(order.paymentStatus || order.status)],
         ['truck', 'Delivery', orderLabel(order.fulfilment?.fulfilmentStatus)],
         ['shield', 'Seller payout', state.payout]].map(([icon, label, value]) => <View key={label} style={s.row}><Feather name={icon} size={20} color={colors.accent} /><View style={{ flex: 1 }}><Text style={{ color: colors.muted, fontSize: 12 }}>{label}</Text><Text style={{ color: colors.text, textTransform: 'capitalize', marginTop: 3 }}>{value}</Text></View></View>)}
-      {!!order.fulfilment?.trackingNumber && <Text selectable style={{ color: colors.muted }}>Tracking: {order.fulfilment.carrier} {order.fulfilment.trackingNumber}</Text>}
+      {state.paid && state.active && <OrderTimeline order={order} colors={colors} />}
+      {!!order.fulfilment?.trackingNumber && <View style={[s.row, { justifyContent: 'space-between' }]}>
+        <Text selectable style={{ color: colors.muted, flex: 1 }}>{order.fulfilment.carrier || 'Tracking'} · {order.fulfilment.trackingNumber}</Text>
+        {!!order.fulfilment.trackingUrl && /^https:\/\//.test(order.fulfilment.trackingUrl) && <Pressable accessibilityRole="link" onPress={() => WebBrowser.openBrowserAsync(order.fulfilment.trackingUrl)}><Text style={{ color: colors.accent, fontWeight: '700' }}>Track parcel</Text></Pressable>}
+      </View>}
+      {!state.buyer && feePercent > 0 && state.paid && <Text style={{ color: colors.muted, fontSize: 12 }}>You receive {money((Number(order.totalPrice ?? order.agreedPrice ?? 0)) * (1 - feePercent / 100) + Number(order.fulfilment?.shippingPrice || 0), order.currency)} after the {feePercent}% platform fee (delivery passes through in full).</Text>}
       {!!claim && <Text style={{ color: colors.accent }}>Problem report: {orderLabel(claim.status)}{claim.resolutionNote ? ' — ' + claim.resolutionNote : ''}</Text>}
       <View style={s.actions}>
         {state.canRespond && <><Button title="Accept offer" icon="check" primary onPress={() => run(() => bookingsApi.accept(order.id, order.version))} /><Button title="Counter offer" icon="edit-2" onPress={() => open('counter', order)} /></>}
@@ -101,6 +147,7 @@ export default function OrdersScreen() {
         {state.canReceive && <Button title="Confirm received" icon="check-circle" primary disabled={!claimsReady} onPress={() => Alert.alert('Have you checked your goods?', 'Confirm only after checking your purchase. This approves the seller’s payment, subject to payout checks.', [{ text: 'Not yet', style: 'cancel' }, { text: 'Confirm received', onPress: () => run(() => api.confirmReceipt(order.id)) }])} />}
         {state.canReport && <Button title="Report a problem" icon="alert-circle" disabled={!claimsReady} onPress={() => open('claim', order)} />}
         {state.canTrack && <Button title="Update delivery" icon="truck" onPress={() => open('delivery', order)} />}
+        {(state.buyer ? order.sellerId : order.buyerId) && <Button title={state.buyer ? 'Message seller' : 'Message buyer'} icon="message-circle" onPress={() => router.push({ pathname: '/(tabs)/messages', params: { partnerId: state.buyer ? order.sellerId : order.buyerId, partnerName: (state.buyer ? order.sellerName : order.buyerName || order.customerName) || '' } })} />}
         {order.kind === 'booking' && ['INQUIRED', 'NEGOTIATING'].includes(order.status) && <Button title="Cancel request" onPress={() => Alert.alert('Cancel this request?', 'No payment is taken for an unaccepted request.', [{ text: 'Keep it', style: 'cancel' }, { text: 'Cancel request', style: 'destructive', onPress: () => run(() => bookingsApi.cancel(order.id, 'Cancelled from mobile')) }])} />}
       </View>
       <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>Check your purchase before confirming receipt. Seller delivery updates do not approve their own payout. Payment holds, open claims and bank verification still apply.</Text>
@@ -122,7 +169,7 @@ export default function OrdersScreen() {
           <TextInput accessibilityLabel="Describe the problem" placeholder="Describe the problem (at least 10 characters)" placeholderTextColor={colors.muted} multiline maxLength={1000} value={detail} onChangeText={setDetail} editable={!busy} style={[s.input, { color: colors.text, borderColor: colors.line, minHeight: 130 }]} />
         </> : dialog?.mode === 'counter' ? <><Text style={{ color: colors.muted }}>Offers alternate until one of you accepts. Payment happens only after agreement.</Text><TextInput accessibilityLabel="Counter offer amount" keyboardType="decimal-pad" placeholder="Amount" placeholderTextColor={colors.muted} value={amount} onChangeText={setAmount} editable={!busy} style={[s.input, { color: colors.text, borderColor: colors.line }]} /></> : dialog && <>
           {(deliverySteps[dialog.order.fulfilment?.shippingMethod] || deliverySteps.NONE).map(step => { const steps = deliverySteps[dialog.order.fulfilment?.shippingMethod] || deliverySteps.NONE; const previous = steps.indexOf(dialog.order.fulfilment?.fulfilmentStatus); return <Button key={step} title={orderLabel(step)} icon={stepIcons[step]} primary={delivery.status === step} disabled={steps.indexOf(step) < previous} onPress={() => setDelivery({ ...delivery, status: step })} />; })}
-          {['COURIER', 'POST', 'PARCEL_LOCKER'].includes(dialog.order.fulfilment?.shippingMethod) && ['carrier', 'trackingNumber'].map(field => <TextInput key={field} accessibilityLabel={field === 'carrier' ? 'Carrier' : 'Tracking number'} placeholder={field === 'carrier' ? 'Carrier' : 'Tracking number'} placeholderTextColor={colors.muted} value={delivery[field]} onChangeText={value => setDelivery({ ...delivery, [field]: value })} editable={!busy} style={[s.input, { color: colors.text, borderColor: colors.line }]} />)}
+          {['COURIER', 'POST', 'PARCEL_LOCKER'].includes(dialog.order.fulfilment?.shippingMethod) && ['carrier', 'trackingNumber', 'trackingUrl'].map(field => <TextInput key={field} autoCapitalize={field === 'trackingUrl' ? 'none' : 'sentences'} keyboardType={field === 'trackingUrl' ? 'url' : 'default'} accessibilityLabel={field === 'carrier' ? 'Carrier' : field === 'trackingUrl' ? 'Tracking link' : 'Tracking number'} placeholder={field === 'carrier' ? 'Carrier (e.g. InPost, DPD)' : field === 'trackingUrl' ? 'Tracking link (https://…)' : 'Tracking number'} placeholderTextColor={colors.muted} value={delivery[field]} onChangeText={value => setDelivery({ ...delivery, [field]: value })} editable={!busy} style={[s.input, { color: colors.text, borderColor: colors.line }]} />)}
           <TextInput accessibilityLabel="Delivery note" placeholder="Optional note for the buyer" placeholderTextColor={colors.muted} value={delivery.note} onChangeText={note => setDelivery({ ...delivery, note })} editable={!busy} maxLength={1000} style={[s.input, { color: colors.text, borderColor: colors.line }]} />
         </>}
         {!!formError && <Text accessibilityRole="alert" style={{ color: light ? '#9F2424' : '#FCA5A5' }}>{formError}</Text>}

@@ -14,11 +14,12 @@ class SubscriptionTiersTest {
     private final SubscriptionRepository subscriptions = mock(SubscriptionRepository.class);
     private final PremiumAccess access = new PremiumAccess(subscriptions, mock(UserRepository.class));
 
-    @Test void plusCanSellButCannotAccessBondAndLeaderboards() {
+    @Test void everySignedInAccountHasEveryFeatureAndNoBadge() {
+        // Subscriptions were retired: features are free, nobody is "Premium".
         UUID id = UUID.randomUUID();
-        when(subscriptions.findBySellerId(id)).thenReturn(Optional.of(Subscription.builder().plan("PLUS").build()));
-        assertTrue(access.isPremium(id));
-        assertFalse(access.isAllAccess(id));
+        assertTrue(access.isAllAccess(id));
+        assertFalse(access.isPremium(id));
+        verifyNoInteractions(subscriptions);
     }
 
     @Test void legacyPaidSubscribersKeepAllAccess() {

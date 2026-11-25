@@ -64,3 +64,9 @@ uploads/
 /mobile/dist-review/
 # Separate review prototype repository; keep its history independent.
 hustup-test/
+
+# Local review screenshots / browser profiles (large, machine-specific)
+artifacts/
+swerrv-history-before-secret-redaction.bundle
+swerrv-clothingbrand-website/
+hs_err_pid*.log

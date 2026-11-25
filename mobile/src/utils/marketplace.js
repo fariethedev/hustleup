@@ -39,7 +39,9 @@ export const money = (amount, currency = 'PLN') => {
   try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: code }).format(value); }
   catch { return `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${code}`; }
 };
-export const cartKey = (item) => `${item.kind || 'listing'}:${item.id}`;
+export const cartKey = (item) => `${item.kind || 'listing'}:${item.id}${item.ticketTier ? `:${item.ticketTier}` : ''}`;
+/** Ticket types for a tiered event, from the listing's meta JSON; [] when untiered. */
+export const ticketTiers = (listing) => { try { const t = JSON.parse(listing?.meta || '{}').ticketTiers; return Array.isArray(t) ? t : []; } catch { return []; } };
 export const cartGroup = (item) => `${item.kind === 'product' ? `shop:${item.shopId}` : 'listings'}:${item.currency || 'PLN'}`;
 export const canPurchaseListing = (listing) => ['GOODS', 'FOOD', 'FASHION', 'EVENT', 'LUGGAGE', 'SKILL', 'HAIR_BEAUTY'].includes(listing.listingType) || (listing.listingType === 'RENTAL' && listing.payOnPlatform);
 export const checkoutPrompts = (listing) => (listing.checkoutFields || '').split('\n').map(s => s.trim()).filter(Boolean);

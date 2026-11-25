@@ -402,8 +402,8 @@ class DatingControllerTest {
      * makes the rule visible in the tests rather than implied.
      */
     private void discoverable(User... users) {
-        when(premiumAccess.allPremiumUserIds())
-                .thenReturn(Arrays.stream(users).map(User::getId).collect(Collectors.toSet()));
+        // Bond is free now: having a Bond profile with a matchable gender is what puts an
+        // account in the deck, so there is no paying-members list to declare any more.
     }
 
     @SuppressWarnings("unchecked")

@@ -43,6 +43,7 @@ public class PayoutController {
     /** Opens the delivery track and tells buyer and seller once a charge actually clears. */
     private final com.hustleup.marketplace.shipping.ShipmentService shipmentService;
     private final com.hustleup.marketplace.booking.service.BookingService bookingService;
+    private final com.hustleup.marketplace.shop.service.ShopCheckoutService shopCheckoutService;
     private final EmailVerificationGuard emailVerificationGuard;
     private final com.hustleup.marketplace.shop.service.ShopInventoryService inventoryService;
 
@@ -58,7 +59,8 @@ public class PayoutController {
                              com.hustleup.marketplace.shipping.ShipmentService shipmentService,
                              com.hustleup.marketplace.booking.service.BookingService bookingService,
                              EmailVerificationGuard emailVerificationGuard,
-                             com.hustleup.marketplace.shop.service.ShopInventoryService inventoryService) {
+                             com.hustleup.marketplace.shop.service.ShopInventoryService inventoryService,
+                             com.hustleup.marketplace.shop.service.ShopCheckoutService shopCheckoutService) {
         this.stripeConnectService = stripeConnectService;
         this.payoutAccountRepository = payoutAccountRepository;
         this.userRepository = userRepository;
@@ -69,6 +71,7 @@ public class PayoutController {
         this.bookingService = bookingService;
         this.emailVerificationGuard = emailVerificationGuard;
         this.inventoryService = inventoryService;
+        this.shopCheckoutService = shopCheckoutService;
     }
 
     private User currentUser() {
@@ -229,46 +232,18 @@ public class PayoutController {
                         // across many line items, so this marks every id in the list.
                         var meta = session.getMetadata();
 
-                        // Storefront purchases are their own entity and carry their own key.
-                        // Handled first and returned from, so a shop session never falls
-                        // through into the booking lookup below.
+                        // A session can cover storefront orders, marketplace bookings, or both
+                        // (the whole-cart checkout puts everything in one payment). Each
+                        // handler only touches the ids under its own metadata key, and both are
+                        // idempotent, shared with POST /bookings/confirm-payment so the webhook
+                        // and the buyer's return cannot drift apart.
                         String shopCsv = meta != null ? meta.get("shopOrderIds") : null;
-                        if (shopCsv != null && !shopCsv.isBlank()) {
-                            for (String raw : shopCsv.split(",")) {
-                                try {
-                                    shopOrderRepository.findLockedById(java.util.UUID.fromString(raw.trim()))
-                                            .ifPresent(o -> {
-                                                if (o.getStatus() != com.hustleup.marketplace.shop.model.ShopOrder.ShopOrderStatus.AWAITING_PAYMENT) return;
-                                                o.setStatus(com.hustleup.marketplace.shop.model.ShopOrder
-                                                        .ShopOrderStatus.PAID);
-                                                if (session.getPaymentIntent() != null) {
-                                                    o.setPaymentIntentId(session.getPaymentIntent());
-                                                }
-                                                // This is the moment the delivery track starts:
-                                                // money has actually arrived, so the buyer now has
-                                                // something to follow and the seller owes them goods.
-                                                // Both are told here, and only here — the seller
-                                                // marking their own order paid would not be evidence
-                                                // of anything.
-                                                shipmentService.confirmPaid(o.getFulfilment(),
-                                                        o.getProductName(), o.getId(),
-                                                        o.getBuyerId(), o.getSellerId());
-                                                o.setUpdatedAt(java.time.LocalDateTime.now());
-                                                shopOrderRepository.save(o);
-                                            });
-                                } catch (IllegalArgumentException ignored) {
-                                    // Not a UUID — skip rather than failing the whole webhook.
-                                }
-                            }
-                            return ResponseEntity.ok().build();
+                        String bookingCsv = meta != null ? meta.get("bookingIds") : null;
+                        if (shopCsv != null && !shopCsv.isBlank()) shopCheckoutService.applyPaidSession(session);
+                        // Legacy sessions carried no id list at all and are matched by PaymentIntent.
+                        if ((bookingCsv != null && !bookingCsv.isBlank()) || shopCsv == null || shopCsv.isBlank()) {
+                            bookingService.applyPaidSession(session);
                         }
-
-                        String csv = meta != null ? meta.get("bookingIds") : null;
-
-                        // Shared with POST /bookings/confirm-payment, which the buyer's
-                        // browser calls on its return from Stripe. One implementation means
-                        // the two paths cannot drift, and either order of arrival is safe.
-                        bookingService.applyPaidSession(session);
                     }
                 }
                 default -> { /* no-op: unhandled event types are safely ignored */ }

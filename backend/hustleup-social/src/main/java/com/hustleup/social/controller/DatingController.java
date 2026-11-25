@@ -228,8 +228,16 @@ public class DatingController {
      *
      * @return 200 OK with a JSON array of {@link DatingProfile} objects
      */
-    @GetMapping("/profiles")
+    /** The unfiltered deck — kept for callers (and tests) that apply no discovery filters. */
     public ResponseEntity<?> getProfiles() {
+        return getProfiles(null, null, null);
+    }
+
+    @GetMapping("/profiles")
+    public ResponseEntity<?> getProfiles(
+            @RequestParam(value = "minAge", required = false) Integer minAge,
+            @RequestParam(value = "maxAge", required = false) Integer maxAge,
+            @RequestParam(value = "lookingFor", required = false) String lookingForFilter) {
         // Bond is Premium-only. Enforced here, not just in the browser.
         ResponseEntity<?> denied = requirePremium();
         if (denied != null) return denied;
@@ -238,17 +246,8 @@ public class DatingController {
             Map<UUID, DatingProfile> profileMap = datingRepo.findAll().stream()
                     .collect(Collectors.toMap(DatingProfile::getId, p -> p));
 
-            // Who is allowed to appear in the deck at all.
-            //
-            // The deck is built from userRepo.findAll(), so before this every registered
-            // account was a candidate — including people who never opened Bond and, more to
-            // the point, free accounts that filled in a profile and then sat in every paying
-            // member's stack collecting likes without subscribing. Being discovered is the
-            // part that is paid for.
-            //
-            // One read of the (small) subscriptions table, rather than a premium lookup per
-            // candidate or every user id sent back as an IN clause.
-            Set<UUID> paying = premiumAccess.allPremiumUserIds();
+            // Bond is free for everyone now. Who appears in the deck is decided by having a
+            // Bond profile with a matchable gender (see isDiscoverable), not by payment.
 
             // Try to get the current user's ID so we can exclude them from results.
             UUID currentId = null;
@@ -269,9 +268,14 @@ public class DatingController {
 
             // Everyone who already liked the viewer. Their cards get badged "likes you", which
             // is the whole reason to keep swiping — a right swipe on one is an instant match.
-            final Set<UUID> admirers = finalCurrentId == null
-                    ? Set.of()
-                    : swipeRepo.findByTargetIdAndActionIn(finalCurrentId, LIKE_ACTIONS).stream()
+            final List<DatingSwipe> incoming = finalCurrentId == null
+                    ? List.of()
+                    : swipeRepo.findByTargetIdAndActionIn(finalCurrentId, LIKE_ACTIONS);
+            final Set<UUID> admirers = incoming.stream()
+                        .map(DatingSwipe::getSwiperId)
+                        .collect(Collectors.toSet());
+            final Set<UUID> superAdmirers = incoming.stream()
+                        .filter(sw -> "SUPER_LIKE".equals(sw.getAction()))
                         .map(DatingSwipe::getSwiperId)
                         .collect(Collectors.toSet());
 
@@ -282,14 +286,22 @@ public class DatingController {
 
             // Return all users as discoverable profiles, enriched with dating profile if they have one.
             List<DatingProfile> result = userRepo.findAll().stream()
-                    // Paying members only — see `paying` above.
-                    .filter(u -> paying.contains(u.getId()))
                     // Filter out the current user and anyone already swiped on.
                     .filter(u -> finalCurrentId == null || !u.getId().equals(finalCurrentId))
                     .filter(u -> !swiped.contains(u.getId()))
                     .map(u -> toProfile(u, profileMap.get(u.getId())))
                     .filter(p -> isDiscoverable(showMe, viewerGender, p.getGender()))
-                    .map(p -> { p.setLikedYou(admirers.contains(p.getId())); return p; })
+                    // Tinder-style discovery filters. Unknown ages (0/null) are kept so a
+                    // half-filled profile is not silently hidden by a filter.
+                    .filter(p -> minAge == null || p.getAge() == null || p.getAge() == 0 || p.getAge() >= minAge)
+                    .filter(p -> maxAge == null || p.getAge() == null || p.getAge() == 0 || p.getAge() <= maxAge)
+                    .filter(p -> lookingForFilter == null || lookingForFilter.isBlank()
+                            || lookingForFilter.equalsIgnoreCase(p.getLookingFor()))
+                    .map(p -> {
+                        p.setLikedYou(admirers.contains(p.getId()));
+                        p.setSuperLikedYou(superAdmirers.contains(p.getId()));
+                        return p;
+                    })
                     // People who already liked the viewer go to the top of the deck: the first
                     // swipe of a session is then the one most likely to produce a match.
                     .sorted(Comparator.comparing((DatingProfile p) -> !Boolean.TRUE.equals(p.getLikedYou())))
@@ -357,7 +369,9 @@ public class DatingController {
             @RequestParam(value = "interests", required = false) String interests,
             @RequestParam(value = "gender", required = false) String gender,
             @RequestParam(value = "showMe", required = false) String showMe,
-            @RequestParam(value = "image", required = false) MultipartFile image) {
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "photos", required = false) List<MultipartFile> photos,
+            @RequestParam(value = "keepPhotos", required = false) String keepPhotos) {
 
         User user = getCurrentUser();
         if (user == null) return ResponseEntity.status(401).build();
@@ -400,6 +414,35 @@ public class DatingController {
         } else if (profile.getImageUrl() == null) {
             // No photo yet — fall back to the main account avatar.
             profile.setImageUrl(user.getAvatarUrl());
+        }
+
+        // Tinder-style gallery: the client sends the photo URLs it is keeping (JSON array,
+        // in display order) plus any new uploads, capped at six in total.
+        if (keepPhotos != null || (photos != null && !photos.isEmpty())) {
+            List<String> gallery = new ArrayList<>();
+            com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+            if (keepPhotos != null && !keepPhotos.isBlank()) {
+                try {
+                    for (String url : json.readValue(keepPhotos, String[].class)) {
+                        if (url != null && !url.isBlank()) gallery.add(url);
+                    }
+                } catch (Exception badJson) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "keepPhotos must be a JSON array of URLs"));
+                }
+            }
+            if (photos != null) {
+                for (MultipartFile photo : photos) {
+                    if (gallery.size() >= 6) break;
+                    if (photo != null && !photo.isEmpty()) gallery.add(storageService.store(photo));
+                }
+            }
+            if (gallery.size() > 6) gallery = new ArrayList<>(gallery.subList(0, 6));
+            try {
+                profile.setPhotos(json.writeValueAsString(gallery));
+            } catch (Exception ignored) {
+                // Serialising a list of strings cannot realistically fail.
+            }
+            if (!gallery.isEmpty()) profile.setImageUrl(gallery.get(0));
         }
 
         DatingProfile saved = datingRepo.save(profile);
@@ -567,5 +610,77 @@ public class DatingController {
         DatingProfile profile = toProfile(target, datingRepo.findById(targetId).orElse(null));
         profile.setLikedYou(swipeRepo.existsBySwiperIdAndTargetIdAndActionIn(targetId, user.getId(), LIKE_ACTIONS));
         return ResponseEntity.ok(Map.of("rewound", true, "profile", profile));
+    }
+
+    /**
+     * Everyone the viewer has matched with, newest first: the "Matches" row in Tinder.
+     *
+     * <p><b>GET /api/v1/dating/matches</b>
+     */
+    @GetMapping("/matches")
+    public ResponseEntity<?> matches() {
+        User user = getCurrentUser();
+        if (user == null) return ResponseEntity.status(401).build();
+        List<Map<String, Object>> out = new ArrayList<>();
+        matchRepo.findAllForUser(user.getId()).stream()
+                .sorted(Comparator.comparing(Match::getMatchedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .forEach(m -> {
+                    UUID other = m.getUserIdA().equals(user.getId()) ? m.getUserIdB() : m.getUserIdA();
+                    userRepo.findById(other).ifPresent(u -> {
+                        DatingProfile p = toProfile(u, datingRepo.findById(other).orElse(null));
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("id", other.toString());
+                        row.put("fullName", u.displayName());
+                        row.put("imageUrl", p.getImageUrl() != null ? p.getImageUrl() : u.getAvatarUrl());
+                        row.put("age", p.getAge());
+                        row.put("bio", p.getBio());
+                        row.put("matchedAt", m.getMatchedAt() != null ? m.getMatchedAt().toString() : null);
+                        out.add(row);
+                    });
+                });
+        return ResponseEntity.ok(out);
+    }
+
+    /**
+     * People who liked the viewer and have not been swiped on yet (the "Likes You" grid).
+     * Free for everyone now; it used to be the paid hook.
+     *
+     * <p><b>GET /api/v1/dating/likes</b>
+     */
+    @GetMapping("/likes")
+    public ResponseEntity<?> likesYou() {
+        User user = getCurrentUser();
+        if (user == null) return ResponseEntity.status(401).build();
+        Set<UUID> swiped = swipeRepo.findBySwiperId(user.getId()).stream()
+                .map(DatingSwipe::getTargetId).collect(Collectors.toSet());
+        List<DatingProfile> out = new ArrayList<>();
+        for (DatingSwipe sw : swipeRepo.findByTargetIdAndActionIn(user.getId(), LIKE_ACTIONS)) {
+            if (swiped.contains(sw.getSwiperId())) continue;
+            userRepo.findById(sw.getSwiperId()).ifPresent(u -> {
+                DatingProfile p = toProfile(u, datingRepo.findById(u.getId()).orElse(null));
+                p.setLikedYou(true);
+                p.setSuperLikedYou("SUPER_LIKE".equals(sw.getAction()));
+                out.add(p);
+            });
+        }
+        return ResponseEntity.ok(out);
+    }
+
+    /**
+     * Unmatches: deletes the match and turns the viewer's like into a pass, so neither person
+     * reappears and the conversation loses its "Bond match" badge.
+     *
+     * <p><b>DELETE /api/v1/dating/matches/{userId}</b>
+     */
+    @DeleteMapping("/matches/{userId}")
+    public ResponseEntity<?> unmatch(@PathVariable UUID userId) {
+        User user = getCurrentUser();
+        if (user == null) return ResponseEntity.status(401).build();
+        Match.Pair pair = Match.Pair.of(user.getId(), userId);
+        matchRepo.findAllForUser(user.getId()).stream()
+                .filter(m -> m.getUserIdA().equals(pair.smaller()) && m.getUserIdB().equals(pair.larger()))
+                .forEach(matchRepo::delete);
+        recordSwipe(user.getId(), userId, "PASS");
+        return ResponseEntity.ok(Map.of("unmatched", true));
     }
 }

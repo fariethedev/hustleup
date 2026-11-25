@@ -392,6 +392,80 @@ public class StripeConnectService {
     }
 
     /**
+     * One payment for a whole cart: marketplace bookings and storefront orders together,
+     * from any number of sellers.
+     *
+     * <p>Works for the same reason {@link #createCartCheckoutSession} does: the charge lands
+     * on the platform balance, and each seller is paid by their own transfer once their part
+     * of the order is done. Both id lists go in the session metadata, so the webhook (and
+     * the buyer's return) mark every booking and every shop order paid from one event.
+     */
+    public CheckoutResult createUnifiedCheckoutSession(java.util.List<Booking> bookings, java.util.List<String> titles,
+                                                       java.util.List<com.hustleup.marketplace.shop.model.ShopOrder> orders)
+            throws StripeException {
+        bookings = bookings == null ? java.util.List.of() : bookings;
+        orders = orders == null ? java.util.List.of() : orders;
+        if (bookings.isEmpty() && orders.isEmpty()) {
+            throw new IllegalArgumentException("Cannot start a checkout with no items");
+        }
+
+        String currency = !bookings.isEmpty() ? bookings.get(0).getCurrency() : orders.get(0).getCurrency();
+        for (Booking b : bookings) {
+            if (!currency.equalsIgnoreCase(b.getCurrency())) throw new IllegalArgumentException("All items in one checkout must share a currency");
+        }
+        for (var o : orders) {
+            if (!currency.equalsIgnoreCase(o.getCurrency())) throw new IllegalArgumentException("All items in one checkout must share a currency");
+        }
+
+        String bookingIds = bookings.stream().map(b -> b.getId().toString()).collect(java.util.stream.Collectors.joining(","));
+        String shopOrderIds = orders.stream().map(o -> o.getId().toString()).collect(java.util.stream.Collectors.joining(","));
+        // Stripe caps each metadata value at 500 characters, which is 13 UUIDs per list.
+        if (bookingIds.length() > 500 || shopOrderIds.length() > 500) {
+            throw new IllegalArgumentException("Too many items for one payment. Check out up to 13 marketplace items and 13 shop items at a time.");
+        }
+        String group = "cart_" + (!bookings.isEmpty() ? bookings.get(0).getId() : orders.get(0).getId());
+
+        SessionCreateParams.PaymentIntentData.Builder intent = SessionCreateParams.PaymentIntentData.builder()
+                .setTransferGroup(group);
+        SessionCreateParams.Builder params = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.PAYMENT)
+                .setSuccessUrl(frontendUrl + "/checkout/confirmation?payment=success&session_id={CHECKOUT_SESSION_ID}")
+                .setCancelUrl(frontendUrl + "/checkout?payment=cancelled");
+        if (!bookingIds.isEmpty()) { params.putMetadata("bookingIds", bookingIds); intent.putMetadata("bookingIds", bookingIds); }
+        if (!shopOrderIds.isEmpty()) { params.putMetadata("shopOrderIds", shopOrderIds); intent.putMetadata("shopOrderIds", shopOrderIds); }
+        params.setPaymentIntentData(intent.build());
+
+        BigDecimal shipping = BigDecimal.ZERO;
+        for (int i = 0; i < bookings.size(); i++) {
+            Booking b = bookings.get(i);
+            addLine(params, currency, i < titles.size() && titles.get(i) != null ? titles.get(i) : "Item",
+                    Math.max(1, b.getQuantity()), toMinorUnits(b.getAgreedPrice()));
+            shipping = shipping.add(b.getFulfilment().shippingPriceOrZero());
+        }
+        for (var o : orders) {
+            addLine(params, currency, o.getProductName() != null ? o.getProductName() : "Item",
+                    Math.max(1, o.getQuantity()), toMinorUnits(o.getTotalPrice()));
+            shipping = shipping.add(o.getFulfilment().shippingPriceOrZero());
+        }
+        addShippingLineItem(params, currency, shipping, null);
+
+        Session session = Session.create(params.build());
+        return new CheckoutResult(session.getUrl(), session.getPaymentIntent());
+    }
+
+    /** A line whose stored figure is the line total; Stripe wants the unit price. */
+    private void addLine(SessionCreateParams.Builder params, String currency, String name, int qty, long lineTotal) {
+        params.addLineItem(SessionCreateParams.LineItem.builder()
+                .setQuantity((long) qty)
+                .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
+                        .setCurrency(currency.toLowerCase())
+                        .setUnitAmount(lineTotal / qty)
+                        .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder().setName(name).build())
+                        .build())
+                .build());
+    }
+
+    /**
      * Appends the postage the seller set on their listing or product as its own line item.
      *
      * <p>A separate line rather than folded into the item price, so the buyer sees on
@@ -567,9 +641,36 @@ public class StripeConnectService {
         }
     }
 
-    /** Refunds the buyer in full when a paid booking is cancelled before completion. */
+    /** Refunds the whole PaymentIntent. Only correct when the charge paid for nothing else. */
     public void refundPayment(String paymentIntentId) throws StripeException {
         Refund.create(RefundCreateParams.builder().setPaymentIntent(paymentIntentId).build());
+    }
+
+    /**
+     * Refunds one order out of a charge.
+     *
+     * <p>A cart checkout is a single PaymentIntent covering many bookings and shop orders,
+     * often from different sellers. Refunding the PaymentIntent in full when one of them is
+     * cancelled would hand back money for goods the buyer still receives, so every
+     * per-order refund names its own amount (goods plus that order's postage).
+     *
+     * <p>Idempotent on {@code reference}: a retried cancellation or claim resolution cannot
+     * refund the same order twice.
+     *
+     * @param amount    what this order cost the buyer; null falls back to a full refund
+     * @param reference the booking or shop order id, used as the idempotency key
+     */
+    public void refundPayment(String paymentIntentId, BigDecimal amount, UUID reference) throws StripeException {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            refundPayment(paymentIntentId);
+            return;
+        }
+        Refund.create(RefundCreateParams.builder()
+                        .setPaymentIntent(paymentIntentId)
+                        .setAmount(toMinorUnits(amount))
+                        .putMetadata("orderId", String.valueOf(reference))
+                        .build(),
+                RequestOptions.builder().setIdempotencyKey("refund_" + reference).build());
     }
 
     // Stripe amounts are always integers in the currency's smallest unit (e.g. groszy for PLN).

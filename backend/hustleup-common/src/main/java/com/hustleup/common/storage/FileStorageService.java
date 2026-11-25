@@ -73,7 +73,9 @@ public class FileStorageService {
             // Raster images
             "jpg", "jpeg", "png", "gif", "webp", "avif", "heic", "heif", "bmp",
             // Video (stories and listing clips)
-            "mp4", "mov", "webm", "m4v"
+            "mp4", "mov", "webm", "m4v",
+            // Audio (chat voice notes)
+            "m4a", "aac", "mp3", "ogg", "wav", "3gp"
     );
 
     /**
@@ -82,7 +84,7 @@ public class FileStorageService {
      * {@code .png}) is refused rather than stored and later sniffed by a browser.
      */
     private static final java.util.Set<String> ALLOWED_CONTENT_TYPE_PREFIXES =
-            java.util.Set.of("image/", "video/");
+            java.util.Set.of("image/", "video/", "audio/");
 
     /**
      * Hard ceiling on a single upload, independent of the per-service

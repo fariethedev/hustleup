@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import { Copy, Panel, fonts, usePalette } from './Kit';
 import PremiumBadge from '../PremiumBadge';
 import { mediaUrl } from '../../utils/media';
-import { categoryLabel, cartKey, cartGroup, money } from '../../utils/marketplace';
+import { categoryLabel, cartKey, money } from '../../utils/marketplace';
 import { followsApi } from '../../api/client';
 import { discoveryCartItem } from '../../utils/discovery';
 import { useCart } from '../../store/CartProvider';
@@ -15,13 +15,13 @@ export function ListingCard({ item, onOpen, style }) {
   const c = usePalette();
   const router = useRouter();
   const user = useSelector(s => s.auth.user);
-  const { items, add, ready, sessions } = useCart();
+  const { items, add, ready, isPending } = useCart();
   const cartItem = discoveryCartItem(item);
   const added = items.some(row => cartKey(row) === cartKey(cartItem));
   const own = user?.id === item.sellerId;
   const instant = ['GOODS', 'FASHION', 'FOOD'].includes(item.listingType);
   const unavailable = (!!item.status && item.status !== 'ACTIVE') || (item.stockQuantity != null && item.stockQuantity <= 0);
-  const pending = !!sessions[cartGroup(cartItem)];
+  const pending = isPending(cartItem);
   const photo = item.mediaUrls?.[0] || item.imageUrl;
   const addItem = () => { if (!user) { router.push('/login'); return; } if (!ready || unavailable || pending) return; if (added) router.push('/cart'); else add(cartItem); };
   return <Panel style={[{ padding: 0, borderRadius: 16, overflow: 'hidden', gap: 0 }, style]}>

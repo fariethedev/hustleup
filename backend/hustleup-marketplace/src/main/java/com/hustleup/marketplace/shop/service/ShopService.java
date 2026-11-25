@@ -80,7 +80,7 @@ public class ShopService {
         dto.setBannerUrl(fileStorageService.refreshUrl(dto.getBannerUrl()));
         dto.setHighlights((shop.getHighlights() == null ? List.<ShopHighlight>of() : shop.getHighlights()).stream()
                 .map(h -> new ShopHighlight(h.id(), h.title(), h.items().stream()
-                        .map(m -> new ShopHighlight.Media(fileStorageService.refreshUrl(m.url()), m.type())).toList())).toList());
+                        .map(m -> new ShopHighlight.Media(fileStorageService.refreshUrl(m.url()), m.type(), m.productId(), m.caption())).toList())).toList());
         dto.setProducts(products.stream().map(product -> {
             ShopProductDto item = ShopProductDto.from(product);
             item.setImageUrl(fileStorageService.refreshUrl(item.getImageUrl()));

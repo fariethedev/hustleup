@@ -4,10 +4,8 @@ import { motion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { Medal, Banknote, Cigarette, ShieldCheck, Loader, ChartLine, Recycle } from 'lucide-react';
 import { leaderboardApi } from '../api/client';
-import { subscriptionsApi } from '../api/client';
 import { selectIsAuthenticated } from '../store/authSlice';
 import SellerUpgrade from '../components/SellerUpgrade';
-import { isAllAccessActive } from '../utils/premium';
 import { formatPrice } from '../utils/constants';
 import { uploadUrl } from '../config';
 
@@ -62,10 +60,9 @@ export default function Leaderboard() {
       setCheckingAccess(false);
       return;
     }
-    subscriptionsApi.my()
-      .then((r) => setAllAccess(isAllAccessActive(r.data)))
-      .catch(() => setAllAccess(false))
-      .finally(() => setCheckingAccess(false));
+    // Leaderboards are free for every signed-in account now.
+    setAllAccess(true);
+    setCheckingAccess(false);
   }, [isAuthenticated]);
 
   useEffect(() => {

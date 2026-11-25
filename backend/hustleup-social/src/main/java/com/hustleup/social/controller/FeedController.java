@@ -733,18 +733,7 @@ public class FeedController {
             return ResponseEntity.badRequest().body(Map.of("error", "Post content or media is required"));
         }
 
-        // Anonymous posting is a Premium capability, enforced here rather than in the client.
-        //
-        // This REFUSES the request instead of quietly saving the post with the author's name
-        // attached. Downgrading silently would publish under someone's real identity content
-        // they only agreed to share anonymously — the one outcome this feature must never
-        // produce. A rejected post can be rewritten; an exposed one cannot be taken back.
-        if (anonymous && !premiumAccess.isPremium(currentUser.getId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                    "error", "Anonymous posting is a Premium feature",
-                    "code", "PREMIUM_REQUIRED",
-                    "feature", "ANONYMOUS_POST"));
-        }
+        // Anonymous posting used to be Premium-only; every signed-in account has it now.
 
         // Posting into a community you have not joined is refused rather than silently
         // downgraded to an open-feed post. A community is a room with a door: writing into

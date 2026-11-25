@@ -2,19 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { addCartItem, canPurchaseListing, cartGroup, checkoutPrompts, money } from './marketplace.js';
 import { filterListings } from './discovery.js';
-import { currentTier, isAllAccessActive, isPremiumActive } from './subscriptions.js';
 import { stripeUrl } from './secureLinks.js';
 import { isValidPassword, passwordError } from './password.js';
 import { deliverySteps, orderState } from './orderState.js';
 import { ticketIsPast, ticketStatus } from './tickets.js';
-
-test('mobile membership checks expire safely and map plans to feature tiers', () => {
-  const future = new Date(Date.now() + 60_000).toISOString();
-  assert.equal(currentTier(null), 'FREE');
-  assert.equal(isPremiumActive({ plan: 'PLUS', status: 'CANCELLED' }), false);
-  assert.equal(currentTier({ plan: 'PLUS', status: 'ACTIVE', expiresAt: future }), 'MONTHLY');
-  assert.equal(isAllAccessActive({ plan: 'VERIFIED', status: 'ACTIVE', expiresAt: future }), true);
-});
 
 test('mobile checkout links allow Stripe destinations and reject spoofed hosts', () => {
   assert.equal(stripeUrl('https://checkout.stripe.com/c/pay/session'), 'https://checkout.stripe.com/c/pay/session');

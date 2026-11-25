@@ -515,10 +515,41 @@ public class BookingService {
     @Transactional
     public CartCheckout createCartCheckout(List<Map<String, Object>> items,
                                            Map<String, Object> customer) throws StripeException {
+        PreparedCart cart = prepareCart(items, customer);
+        List<Booking> payable = cart.payable();
+        List<String> titles = cart.titles();
+        List<UUID> awaitingApproval = cart.awaitingApproval();
+
+        if (payable.isEmpty()) {
+            // Everything needs seller approval — nothing to charge for yet.
+            return new CartCheckout(null, List.of(), awaitingApproval);
+        }
+
+        var result = stripeConnectService.createCartCheckoutSession(payable, titles);
+
+        // Stamp the PaymentIntent on every booking in the order so the webhook can mark
+        // the whole thing paid from one event.
+        for (Booking b : payable) {
+            b.setPaymentIntentId(result.paymentIntentId());
+            b.setPaymentStatus("PENDING");
+            bookingRepository.save(b);
+        }
+
+        return new CartCheckout(result.checkoutUrl(),
+                payable.stream().map(Booking::getId).toList(),
+                awaitingApproval);
+    }
+
+    /**
+     * Creates (or reuses agreed) bookings for every cart line without charging anything.
+     * Instantly purchasable lines come back in {@code payable}; lines that need the seller's
+     * approval first come back in {@code awaitingApproval}.
+     */
+    @Transactional
+    public PreparedCart prepareCart(List<Map<String, Object>> items, Map<String, Object> customer) {
         if (items == null || items.isEmpty()) {
             throw new RuntimeException("Your cart is empty");
         }
-
         List<Booking> payable = new java.util.ArrayList<>();
         List<String> titles = new java.util.ArrayList<>();
         List<UUID> awaitingApproval = new java.util.ArrayList<>();
@@ -547,6 +578,7 @@ public class BookingService {
             } else {
                 BookingDto dto = create(listingId, null, when, null, qty, false);
                 booking = bookingRepository.findById(dto.getId()).orElseThrow(() -> new RuntimeException("Booking vanished mid-checkout"));
+                applyTicketTier(booking, item.get("ticketTier") == null ? null : String.valueOf(item.get("ticketTier")));
             }
 
             // Stamp the buyer's details onto every line. Written here rather than inside
@@ -564,24 +596,19 @@ public class BookingService {
             }
         }
 
-        if (payable.isEmpty()) {
-            // Everything needs seller approval — nothing to charge for yet.
-            return new CartCheckout(null, List.of(), awaitingApproval);
-        }
+        return new PreparedCart(payable, titles, awaitingApproval);
+    }
 
-        var result = stripeConnectService.createCartCheckoutSession(payable, titles);
+    /** Bookings made from a cart, split by whether they can be paid for right now. */
+    public record PreparedCart(List<Booking> payable, List<String> titles, List<UUID> awaitingApproval) {}
 
-        // Stamp the PaymentIntent on every booking in the order so the webhook can mark
-        // the whole thing paid from one event.
-        for (Booking b : payable) {
-            b.setPaymentIntentId(result.paymentIntentId());
+    /** Stamps a payment session's PaymentIntent on bookings that are about to be charged. */
+    public void markAwaitingPayment(List<Booking> bookings, String paymentIntentId) {
+        for (Booking b : bookings) {
+            b.setPaymentIntentId(paymentIntentId);
             b.setPaymentStatus("PENDING");
             bookingRepository.save(b);
         }
-
-        return new CartCheckout(result.checkoutUrl(),
-                payable.stream().map(Booking::getId).toList(),
-                awaitingApproval);
     }
 
     /**
@@ -592,6 +619,54 @@ public class BookingService {
      * @param awaitingApproval bookings created but not charged, pending seller acceptance
      */
     public record CartCheckout(String checkoutUrl, List<UUID> paidBookingIds, List<UUID> awaitingApproval) {}
+
+    /**
+     * Prices an event booking by its ticket tier (Early bird, VIP…) and enforces that tier's
+     * own quantity. Tiers are defined in the listing's {@code meta} JSON as
+     * {@code {"ticketTiers":[{"id","name","price","quantity"}]}}.
+     *
+     * <p>The price always comes from the listing, never the client. A cart that names no tier
+     * (older clients) gets the cheapest tier that still has tickets, so it cannot fail where it
+     * used to work. Listings without tiers are left exactly as {@link #create} priced them.
+     */
+    private void applyTicketTier(Booking booking, String requestedTier) {
+        Listing listing = listingRepository.findById(booking.getListingId()).orElse(null);
+        if (listing == null || listing.getListingType() != ListingType.EVENT || listing.getMeta() == null) return;
+        com.fasterxml.jackson.databind.JsonNode tiers;
+        try {
+            tiers = new com.fasterxml.jackson.databind.ObjectMapper().readTree(listing.getMeta()).path("ticketTiers");
+        } catch (Exception badMeta) {
+            return; // unreadable meta: behave like an untiered event
+        }
+        if (!tiers.isArray() || tiers.isEmpty()) return;
+
+        int qty = booking.getQuantity() == null ? 1 : booking.getQuantity();
+        com.fasterxml.jackson.databind.JsonNode chosen = null;
+        for (com.fasterxml.jackson.databind.JsonNode tier : tiers) {
+            String id = tier.path("id").asText(tier.path("name").asText());
+            boolean wanted = requestedTier == null || requestedTier.equalsIgnoreCase(id) || requestedTier.equalsIgnoreCase(tier.path("name").asText());
+            if (!wanted) continue;
+            long limit = tier.path("quantity").asLong(0);
+            boolean fits = limit <= 0 || bookingRepository.countTierTickets(listing.getId(), id, booking.getId()) + qty <= limit;
+            if (requestedTier != null && !fits) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, tier.path("name").asText("This ticket type") + " is sold out");
+            }
+            if (fits && (chosen == null || tier.path("price").decimalValue().compareTo(chosen.path("price").decimalValue()) < 0)) {
+                chosen = tier;
+            }
+            if (requestedTier != null) break;
+        }
+        if (chosen == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    requestedTier == null ? "All ticket types are sold out" : "That ticket type does not exist");
+        }
+        BigDecimal unit = chosen.path("price").decimalValue();
+        if (unit.signum() < 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ticket price");
+        booking.setTicketTier(chosen.path("id").asText(chosen.path("name").asText()));
+        booking.setOfferedPrice(unit);
+        booking.setAgreedPrice(unit.multiply(BigDecimal.valueOf(qty)));
+        bookingRepository.save(booking);
+    }
 
     /**
      * Creates a Stripe Checkout Session so the buyer can actually pay for a confirmed
@@ -817,7 +892,9 @@ public class BookingService {
         // that only happens on completion, so a straight refund is always correct here.
         if ("PAID".equals(booking.getPaymentStatus()) && booking.getPaymentIntentId() != null) {
             try {
-                stripeConnectService.refundPayment(booking.getPaymentIntentId());
+                stripeConnectService.refundPayment(booking.getPaymentIntentId(),
+                        booking.getAgreedPrice() == null ? null : booking.getAgreedPrice().add(booking.getFulfilment().shippingPriceOrZero()),
+                        booking.getId());
                 booking.setPaymentStatus("REFUNDED");
             } catch (StripeException e) {
                 // Don't block the cancellation on a refund failure — surface it via the

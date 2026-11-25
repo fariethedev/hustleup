@@ -28,7 +28,7 @@ export default function Footer() {
           className="md:hidden w-full flex items-center justify-between gap-3 py-1 text-left"
         >
           <span className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-lg bg-[#D3FF37] flex items-center justify-center text-black font-heading font-black text-base">H</span>
+            <img src="/hustlespace-logo.png" alt="" className="w-8 h-8 rounded-lg object-cover" />
             <span className="text-base font-heading font-black text-white tracking-tighter">HustleSpace.</span>
           </span>
           <span className="flex items-center gap-1.5 text-[10px] font-black tracking-widest text-gray-500">
@@ -42,9 +42,7 @@ export default function Footer() {
           {/* Brand & Description */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-xl bg-[#D3FF37] flex items-center justify-center text-black font-heading font-black text-xl">
-                H
-              </div>
+              <img src="/hustlespace-logo.png" alt="" className="w-10 h-10 rounded-xl object-cover" />
               <span className="text-2xl font-heading font-black text-white tracking-tighter">HustleSpace.</span>
             </Link>
             <p className="text-gray-500 leading-relaxed max-w-sm mb-10 text-lg font-medium">

@@ -56,6 +56,7 @@ public class ShopOrderController {
     private final EmailVerificationGuard emailVerificationGuard;
     private final ShopInventoryService inventoryService;
     private final com.hustleup.marketplace.protection.service.ProtectionClaimService protectionClaimService;
+    private final com.hustleup.marketplace.shop.service.ShopCheckoutService shopCheckoutService;
 
     /** Platform default — {@link ShopProduct} carries a price with no currency of its own. */
     private static final String CURRENCY = "PLN";
@@ -81,89 +82,14 @@ public class ShopOrderController {
     public ResponseEntity<?> checkout(@PathVariable String idOrSlug, @RequestBody Map<String, Object> body) {
         User buyer = currentUser();
         if (buyer == null) return ResponseEntity.status(401).body(Map.of("error", "Sign in to place an order"));
-        // Same reasoning as BookingService#create: a storefront order is a real charge, so
-        // this is the point buying needs a reachable address, not registration.
-        emailVerificationGuard.require(buyer, "buy");
-
-        Shop shop = resolveShop(idOrSlug);
-        if (shop == null || !shop.isPublished()) return ResponseEntity.status(404).body(Map.of("error", "Shop not found"));
-
-        if (shop.getOwnerId().equals(buyer.getId())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "You cannot buy from your own shop"));
-        }
-
         if (!(body.get("items") instanceof List<?> items) || items.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Your basket is empty"));
         }
-
-        if (items.size() > 100) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Too many basket items");
-        // Merge duplicate lines and acquire locks in a stable order across concurrent carts.
-        Map<UUID, Integer> quantities = new TreeMap<>();
-        for (Object raw : items) {
-            if (!(raw instanceof Map<?, ?> item)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid basket item");
-            try {
-                UUID productId = UUID.fromString(String.valueOf(item.get("productId")));
-                int quantity = item.get("quantity") == null ? 1 : Integer.parseInt(String.valueOf(item.get("quantity")));
-                if (quantity < 1) throw new IllegalArgumentException();
-                quantities.merge(productId, quantity, Math::addExact);
-            } catch (IllegalArgumentException | ArithmeticException e) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Each item needs a valid product and positive whole quantity");
-            }
-        }
         Map<?, ?> customer = body.get("customer") instanceof Map<?, ?> values ? values : Map.of();
         String notes = body.get("notes") != null ? String.valueOf(body.get("notes")) : null;
-
-        List<ShopOrder> created = new ArrayList<>();
-        String checkoutCurrency = null;
-        for (var item : quantities.entrySet()) {
-            ShopProduct product = productRepository.findLockedById(item.getKey())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
-            // Guards against a basket assembled from one shop being posted at another.
-            if (!product.getShopId().equals(shop.getId())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That product is not sold by this shop");
-            }
-
-            int qty = item.getValue();
-            String productCurrency = product.getCurrency() == null ? CURRENCY : product.getCurrency().toUpperCase(java.util.Locale.ROOT);
-            if (checkoutCurrency != null && !checkoutCurrency.equals(productCurrency)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Check out products in different currencies separately");
-            }
-            checkoutCurrency = productCurrency;
-            boolean stockReserved = inventoryService.reserve(product, qty);
-
-            // Price comes from the product row, never from the request — otherwise a client
-            // could name its own price for someone else's goods.
-            BigDecimal unit = product.getPrice() != null ? product.getPrice() : BigDecimal.ZERO;
-
-            // Delivery terms are snapshotted from the shelf for the same reason the name and
-            // price are: repricing postage tomorrow must not rewrite what was agreed today.
-            Fulfilment delivery = new Fulfilment();
-            delivery.setShippingMethod(product.getShippingMethod() != null
-                    ? product.getShippingMethod() : ShippingMethod.PICKUP);
-            // Charged once per line, not per unit — three of an item is still one parcel.
-            delivery.setShippingPrice(product.getShippingPrice() != null
-                    ? product.getShippingPrice() : BigDecimal.ZERO);
-            delivery.setFulfilmentStatus(FulfilmentStatus.AWAITING_PAYMENT);
-
-            created.add(orderRepository.save(ShopOrder.builder()
-                    .buyerId(buyer.getId())
-                    .shopId(shop.getId())
-                    .sellerId(shop.getOwnerId())
-                    .productId(product.getId())
-                    .productName(product.getName())
-                    .productImageUrl(product.getImageUrl())
-                    .unitPrice(unit)
-                    .quantity(qty)
-                    .stockReserved(stockReserved)
-                    .totalPrice(unit.multiply(BigDecimal.valueOf(qty)))
-                    .currency(productCurrency)
-                    .customerName(str(customer.get("fullName")))
-                    .customerEmail(str(customer.get("email")) != null ? str(customer.get("email")) : buyer.getEmail())
-                    .customerPhone(str(customer.get("phone")))
-                    .notes(notes)
-                    .fulfilment(delivery)
-                    .build()));
-        }
+        var prepared = shopCheckoutService.createOrders(buyer, idOrSlug, items, customer, notes);
+        Shop shop = prepared.shop();
+        List<ShopOrder> created = prepared.orders();
 
         try {
             var result = stripeConnectService.createShopCheckoutSession(

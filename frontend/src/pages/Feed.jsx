@@ -3,7 +3,7 @@ import { motion as Motion, AnimatePresence } from "framer-motion";
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { feedApi, listingsApi, subscriptionsApi, communitiesApi, dispatchToast } from '../api/client';
-import { isPremiumActive, isPremiumRequiredError, PLAN_IDS } from '../utils/premium';
+import { isPremiumRequiredError, PLAN_IDS } from '../utils/premium';
 import { Flame, MessageCircleMore, SendHorizontal, BookmarkCheck, Images as ImageIcon, ShoppingBasket, ShieldCheck, CircleX, Clapperboard, Sparkle, UserRound, Building2, WandSparkles, Box, Drama, LockKeyhole, Gem, Frame, Ellipsis, SquarePen, Eraser, IterationCw, UserCog } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { formatPrice } from '../utils/constants';
@@ -660,10 +660,8 @@ export default function Feed() {
   // upgrade prompt. A failed lookup resolves to "not premium" so the toggle stays locked
   // rather than promising something the server will refuse.
   useEffect(() => {
-    if (!isAuthenticated) { setPremium(false); return; }
-    subscriptionsApi.my()
-      .then((r) => setPremium(isPremiumActive(r.data)))
-      .catch(() => setPremium(false));
+    // Anonymous posting is free for every signed-in account now.
+    setPremium(!!isAuthenticated);
   }, [isAuthenticated]);
 
   const loadFeed = async () => {

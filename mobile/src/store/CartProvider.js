@@ -48,7 +48,16 @@ function AccountCart({ accountId, children }) {
     return { sessions, items: state.items.filter(item => !session?.keys.includes(cartKey(item))) };
   });
 
-  return <CartContext.Provider value={{ ...cart, ready, storageError, add, quantity, saveSession, finishSession }}>{children}</CartContext.Provider>;
+  // Forget an unpaid checkout but keep its items, so the buyer can edit the cart and start again.
+  const dropSession = (group) => update(state => {
+    const sessions = { ...state.sessions };
+    delete sessions[group];
+    return { ...state, sessions };
+  });
+  // True when this item is part of a checkout that was started but not yet confirmed paid.
+  const isPending = (item) => !!item && Object.values(cart.sessions).some(session => session?.keys?.includes(cartKey(item)));
+
+  return <CartContext.Provider value={{ ...cart, ready, storageError, add, quantity, saveSession, finishSession, dropSession, isPending }}>{children}</CartContext.Provider>;
 }
 
 export default function CartProvider({ children }) {

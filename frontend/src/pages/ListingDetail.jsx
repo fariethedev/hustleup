@@ -540,6 +540,13 @@ export default function ListingDetail() {
                   );
                 })()}
 
+                {listing.description && (
+                  <div className="mb-4 border-t border-white/10 pt-3">
+                    <h4 className="text-[10px] font-black tracking-widest text-[#CDFF00] mb-1.5">About this listing</h4>
+                    <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{listing.description}</p>
+                  </div>
+                )}
+
                 {!isSeller && showSlotPicker && (
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
@@ -844,14 +851,6 @@ export default function ListingDetail() {
               </div>
             </div>
 
-            {/* Description */}
-            <div>
-              <h4 className="text-[9px] font-black tracking-widest text-[#CDFF00] mb-1.5 opacity-40">About</h4>
-              <p className="text-sm text-gray-300 leading-relaxed font-medium opacity-90">
-                {listing.description}
-              </p>
-            </div>
-
             {/* Event Updates */}
             {isEventType && (
               <div>
@@ -910,26 +909,26 @@ export default function ListingDetail() {
             <div className="pt-3 border-t border-white/5">
               <div
                 onClick={() => listing.sellerId && navigate(`/profile/${listing.sellerId}`)}
-                className="flex items-center gap-3 p-3 rounded-2xl glass-violet border border-white/10 hover:border-white/20 transition-all cursor-pointer group"
+                className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.025] border border-white/5 hover:border-white/15 transition-all cursor-pointer group"
               >
-                <div className="w-11 h-11 rounded-full overflow-hidden bg-gray-800 border border-white/10 shrink-0">
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-800 border border-white/10 shrink-0">
                   {(listing.sellerAvatarUrl || seller?.avatarUrl) ? (
                     <img src={uploadUrl(listing.sellerAvatarUrl || seller.avatarUrl)} alt={listing.sellerName} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-lg font-black text-[#CDFF00]">
+                      <div className="w-full h-full flex items-center justify-center text-sm font-black text-[#CDFF00]">
                       {(listing.sellerName || 'S')[0].toUpperCase()}
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h5 className="text-sm font-black text-white tracking-tight group-hover:text-[#CDFF00] transition-colors truncate">
+                    <h5 className="text-xs font-bold text-white tracking-tight group-hover:text-[#CDFF00] transition-colors truncate">
                       {listing.sellerName || seller?.fullName || 'Seller'}
                     </h5>
                     {listing.sellerVerified && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[9px] font-black tracking-widest text-gray-500">
+                    <span className="text-[8px] font-bold tracking-wide text-gray-500">
                       {listing.reviewCount > 0 ? `${listing.reviewCount} reviews` : 'Seller on HustleSpace'}
                     </span>
                     <DistanceBadge lat={seller?.latitude} lng={seller?.longitude} />
@@ -940,9 +939,10 @@ export default function ListingDetail() {
                     e.stopPropagation();
                     if (listing.sellerId) navigate(`/dm/${listing.sellerId}`);
                   }}
-                  className="w-9 h-9 rounded-xl glass-strong flex items-center justify-center group-hover:bg-[#CDFF00]/10 transition-colors shrink-0"
+                  aria-label="Message seller"
+                  className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center group-hover:bg-[#CDFF00]/10 transition-colors shrink-0"
                 >
-                  <MessagesSquare className="w-4 h-4 text-white group-hover:text-[#CDFF00]" />
+                  <MessagesSquare className="w-3.5 h-3.5 text-white group-hover:text-[#CDFF00]" />
                 </button>
               </div>
             </div>

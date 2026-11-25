@@ -1,10 +1,10 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
 import BankConnection from './components/BankConnection';
-import SellerUpgrade from './components/SellerUpgrade';
 import Home from './pages/Home';
 import Explore from './pages/Explore';
 import ExploreListings from './pages/ExploreListings';
@@ -55,15 +55,23 @@ import BookingAlertListener from './components/BookingAlertListener';
 import VerifyEmailPrompt from './components/VerifyEmailPrompt';
 
 import ScrollToTop from './components/ScrollToTop';
+import BrandLoader from './components/BrandLoader';
 
 const NO_FOOTER_PATHS = ['/dm', '/login', '/register'];
 
 export default function App() {
   const location = useLocation();
+  const [booting, setBooting] = useState(true);
   const noFooter = NO_FOOTER_PATHS.some((p) => location.pathname.startsWith(p));
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setBooting(false), 700);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   return (
     <>
+    {booting && <div className="brand-boot-screen"><BrandLoader label="Getting HustleSpace ready" /></div>}
     <ThemeProvider>
     <ToastProvider>
       <ScrollToTop />
@@ -115,7 +123,7 @@ export default function App() {
             <Route path="/events/:listingId/door" element={<EventDoor />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/payouts" element={<BankConnection />} />
-            <Route path="/plans" element={<SellerUpgrade />} />
+            <Route path="/plans" element={<Navigate to="/" replace />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/messages" element={<Messages />} />

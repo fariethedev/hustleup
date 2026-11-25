@@ -207,8 +207,17 @@ public interface DirectMessageRepository extends JpaRepository<DirectMessage, St
      * @param user2 the other participant
      * @return true when at least one OFFER message exists in either direction
      */
-    @Query(value = "SELECT EXISTS(SELECT 1 FROM direct_messages m JOIN bookings b ON b.id = m.offer_booking_id " +
+    @Query(value = "SELECT COUNT(*) FROM direct_messages m JOIN bookings b ON b.id = m.offer_booking_id " +
            "WHERE m.message_type = 'OFFER' AND b.status IN ('INQUIRED','NEGOTIATING') " +
-           "AND ((m.sender_id = :user1 AND m.receiver_id = :user2) OR (m.sender_id = :user2 AND m.receiver_id = :user1)))", nativeQuery = true)
-    boolean hasNegotiation(String user1, String user2);
+           "AND ((m.sender_id = :user1 AND m.receiver_id = :user2) OR (m.sender_id = :user2 AND m.receiver_id = :user1))", nativeQuery = true)
+    long countNegotiations(String user1, String user2);
+
+    /**
+     * MySQL returns {@code EXISTS(...)} as a BIGINT, which Spring Data cannot cast to boolean
+     * for a native query — that ClassCastException took down the whole chat list. Counting and
+     * comparing here keeps the boolean API for callers.
+     */
+    default boolean hasNegotiation(String user1, String user2) {
+        return countNegotiations(user1, user2) > 0;
+    }
 }

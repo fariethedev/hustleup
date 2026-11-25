@@ -63,22 +63,21 @@ public class PremiumAccess {
      * @return {@code true} only when an active, unexpired paid plan exists
      */
     public boolean isPremium(UUID userId) {
-        if (userId == null) return false;
-        return subscriptionRepository.findBySellerId(userId)
-                .map(PremiumAccess::isActivePremium)
-                .orElse(false);
+        // There are no paid tiers any more, so nobody carries a Premium badge.
+        return false;
     }
 
+    /**
+     * Every signed-in account has every feature. Kept as a method (rather than deleting the
+     * call sites) so endpoints still refuse anonymous callers exactly as before.
+     */
     public boolean isAllAccess(UUID userId) {
-        return userId != null && subscriptionRepository.findBySellerId(userId)
-                .filter(PremiumAccess::isActivePremium)
-                .filter(sub -> PREMIUM_PLAN.equalsIgnoreCase(sub.getPlan())).isPresent();
+        return userId != null;
     }
 
     public boolean hasAllAccess(Authentication auth) {
         if (auth == null || !auth.isAuthenticated()) return false;
-        return userRepository.findByEmail(auth.getName())
-                .map(user -> isAllAccess(user.getId())).orElse(false);
+        return userRepository.findByEmail(auth.getName()).isPresent();
     }
 
     /**
@@ -91,11 +90,8 @@ public class PremiumAccess {
      * @return the subset that hold an active, unexpired paid plan
      */
     public Set<UUID> premiumAmong(Collection<UUID> userIds) {
-        if (userIds == null || userIds.isEmpty()) return Set.of();
-        return subscriptionRepository.findBySellerIdIn(userIds).stream()
-                .filter(PremiumAccess::isActivePremium)
-                .map(Subscription::getSellerId)
-                .collect(Collectors.toSet());
+        // No paid tiers: no badges.
+        return Set.of();
     }
 
     /**
@@ -142,10 +138,9 @@ public class PremiumAccess {
     public boolean canSell(Authentication auth) {
         if (auth == null || auth.getName() == null) return false;
         User user = userRepository.findByEmail(auth.getName()).orElse(null);
-        if (user == null) return false;
-        // Grandfathered accounts, and admins, who need to be able to act on anything.
-        if (user.getRole() == Role.SELLER || user.getRole() == Role.ADMIN) return true;
-        return isPremium(user.getId());
+        // Selling is free for every account. The platform earns only its per-transaction
+        // fee (app.stripe.platform-fee-percent), taken from each seller payout.
+        return user != null;
     }
 
     public static boolean isActivePremium(Subscription sub) {

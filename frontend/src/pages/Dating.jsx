@@ -2,9 +2,8 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react
 import { motion, AnimatePresence, useMotionValue, useTransform, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
-import { datingApi, subscriptionsApi, dispatchToast } from '../api/client';
+import { datingApi, dispatchToast } from '../api/client';
 import SellerUpgrade from '../components/SellerUpgrade';
-import { isAllAccessActive } from '../utils/premium';
 import {
   Heart, ThumbsUp, CircleX, WandSparkles, MessageCircleMore, CircleUserRound, Aperture, Gem,
   Sparkle, Undo, Timer, BadgeInfo, ChartLine, CircleCheck, MoveLeft, MoveRight,
@@ -986,13 +985,11 @@ export default function Dating() {
   const checkAccess = async () => {
     setCheckingAccess(true);
     try {
-      const res = await subscriptionsApi.my();
-      const allAccess = isAllAccessActive(res.data);
-      setPremium(allAccess);
-      if (allAccess) await loadData();
-
+      // Bond is free for every signed-in account now.
+      setPremium(true);
+      await loadData();
     } catch {
-      setPremium(false);
+      setPremium(true);
     } finally {
       setCheckingAccess(false);
     }

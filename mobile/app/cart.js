@@ -1,93 +1,163 @@
-import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useSelector } from 'react-redux';
+import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useCart } from '../src/store/CartProvider';
-import { bookingsApi, shopsApi } from '../src/api/client';
-import { cartGroup, cartKey, checkoutPrompts, errorMessage, money } from '../src/utils/marketplace';
+import { cartKey, money } from '../src/utils/marketplace';
+import { mediaUrl } from '../src/utils/media';
+import { usePalette } from '../src/components/native/Kit';
 
-const paymentUrl = (value) => {
-  const url = new URL(value);
-  if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com') throw new Error('A secure payment link was not returned.');
-  return url.toString();
-};
+/** Who an item is bought from — one group per shop, one per marketplace seller. */
+const sellerOf = (item) => item.kind === 'product'
+  ? { key: `shop:${item.shopId}`, name: item.shopName || 'Shop', icon: 'shopping-bag', route: item.sellerId ? { pathname: '/shop/[userId]', params: { userId: item.sellerId, shopId: item.shopId } } : null }
+  : { key: `seller:${item.sellerId || 'market'}`, name: item.sellerName || item.seller?.fullName || 'Marketplace seller', icon: 'user', route: item.sellerId ? `/profile/${item.sellerId}` : null };
+const tap = () => { try { Haptics.selectionAsync(); } catch { /* optional */ } };
 
+/**
+ * The bag: review what you picked, change quantities, remove things. Paying happens on the
+ * separate checkout screen, so nothing here asks for details or money.
+ */
 export default function CartScreen() {
   const router = useRouter();
-  const user = useSelector(state => state.auth.user);
-  const { items, quantity, ready, sessions, saveSession, finishSession, storageError } = useCart();
-  const [customer, setCustomer] = useState({ name: user?.fullName || '', email: user?.email || '', phone: '', address: '' });
-  const [answers, setAnswers] = useState({});
-  const [busy, setBusy] = useState('');
-  const [error, setError] = useState('');
-  const checkoutLock = useRef(false);
-  const groups = items.reduce((result, item) => { const group = cartGroup(item); (result[group] ||= []).push(item); return result; }, {});
-  const nextOrder = Object.entries(groups).find(([group]) => sessions[group]?.url) || Object.entries(groups).find(([group]) => !sessions[group]);
-  const proceed = async () => {
-    if (checkoutLock.current || busy || !nextOrder) return;
-    checkoutLock.current = true;
-    try { await checkout(...nextOrder); } catch (failure) { setError(errorMessage(failure, 'Could not continue checkout.')); }
-    finally { checkoutLock.current = false; }
-  };
-  const checkout = async (group, rows) => {
-    if (busy) return;
-    setError('');
-    if (sessions[group]?.url) { setBusy(group); try { await Linking.openURL(paymentUrl(sessions[group].url)); } finally { setBusy(''); } return; }
-    if (!customer.name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim())) { setError('Add your name and a valid email address.'); return; }
-    if (rows.some(row => row.shippingMethod && !['NONE', 'PICKUP', 'DIGITAL'].includes(row.shippingMethod)) && !customer.address.trim()) { setError('Enter your delivery address for this order.'); return; }
-    if (rows.some(row => checkoutPrompts(row).some(prompt => !answers[row.id]?.[prompt]?.trim()))) { setError('Answer the seller’s questions before continuing.'); return; }
-    setBusy(group);
-    try {
-      const response = rows[0].kind === 'product'
-        ? await shopsApi.checkout(rows[0].shopId, { items: rows.map(row => ({ productId: row.id, quantity: row.quantity })), customer: { ...customer, fullName: customer.name }, notes: customer.address ? `Delivery address: ${customer.address}` : '' })
-        : await bookingsApi.checkout({ items: rows.map(row => ({ listingId: row.id, quantity: row.quantity })), customer: { ...customer, answers } });
-      const { data } = response;
-      if (!data.url && !data.awaitingApproval?.length) throw new Error('No payment link or order confirmation was returned.');
-      const url = data.url ? paymentUrl(data.url) : null;
-      saveSession(group, { keys: rows.map(cartKey), url, orderIds: data.orderIds || [...(data.paidBookingIds || []), ...(data.awaitingApproval || [])], kind: rows[0].kind || 'listing' });
-      if (url) await Linking.openURL(url);
-      else Alert.alert('Request sent', 'The seller needs to accept your request. No payment has been taken. Check your orders for updates.');
-    } catch (failure) { setError(errorMessage(failure, failure.message || 'Could not start checkout. Please try again.')); }
-    finally { setBusy(''); }
-  };
-  const checkOrders = async (group) => {
-    setBusy(group); setError('');
-    try {
-      const session = sessions[group];
-      const { data } = session.kind === 'product' ? await shopsApi.orders() : await bookingsApi.getAll();
-      const orders = (data || []).filter(order => session.orderIds?.includes(order.id));
-      const finished = orders.length === session.orderIds?.length && orders.length > 0 && orders.every(order => ['PAID', 'FULFILLED', 'COMPLETED', 'CANCELLED', 'REFUNDED'].includes(order.status) || order.paymentStatus === 'PAID');
-      if (finished) finishSession(group);
-      else Alert.alert('Order pending', 'Payment or seller approval is still pending. You can continue payment or check your orders.');
-    } catch (failure) { setError(errorMessage(failure, 'Could not check your order status.')); }
-    finally { setBusy(''); }
-  };
-  return <SafeAreaView style={s.screen}>
-    <View style={s.header}><TouchableOpacity onPress={() => router.back()} style={s.icon} accessibilityLabel="Back"><Feather name="arrow-left" size={24} color="#FFF" /></TouchableOpacity><Text style={s.title}>Your cart</Text><TouchableOpacity onPress={() => router.push('/profile/orders')} style={s.icon}><Text style={s.link}>Orders</Text></TouchableOpacity></View>
-    {!ready ? <ActivityIndicator color="#CDFF00" /> : <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-      {!items.length && <View style={s.panel}><Text style={s.title}>Room for a good find.</Text><Text style={s.muted}>Your cart is empty.</Text><TouchableOpacity style={s.button} onPress={() => router.push('/(tabs)/explore')}><Text style={s.buttonText}>Explore listings</Text></TouchableOpacity></View>}
-      {items.length > 0 && <View style={s.panel}><Text style={s.heading}>Your details</Text>{[['name', 'Full name'], ['email', 'Email address'], ['phone', 'Phone (optional)'], ['address', 'Delivery address, if needed']].map(([key, label]) => <TextInput key={key} accessibilityLabel={label} placeholder={label} placeholderTextColor="#888" value={customer[key]} onChangeText={value => setCustomer(previous => ({ ...previous, [key]: value }))} keyboardType={key === 'email' ? 'email-address' : key === 'phone' ? 'phone-pad' : 'default'} autoCapitalize={key === 'email' ? 'none' : 'sentences'} style={s.input} />)}</View>}
-      {Object.entries(groups).map(([group, rows]) => <View key={group} style={s.panel}>
-        <Text style={s.heading}>{rows[0].kind === 'product' ? rows[0].shopName || 'Shop order' : 'Marketplace order'} · {rows[0].currency || 'PLN'}</Text>
-        {rows.map(item => <View key={cartKey(item)} style={s.line}>
-          <Text style={s.text}>{item.title || item.name}</Text><Text style={s.muted}>{money(item.price, item.currency)} each</Text>
-          <View style={s.quantity}><TouchableOpacity style={s.icon} disabled={!!sessions[group]} onPress={() => quantity(item, item.quantity - 1)} accessibilityLabel={`Remove one ${item.title || item.name}`}><Feather name="minus" size={20} color="#FFF" /></TouchableOpacity><Text style={s.text}>{item.quantity}</Text><TouchableOpacity style={s.icon} disabled={!!sessions[group] || (item.stockQuantity != null && item.quantity >= item.stockQuantity)} onPress={() => quantity(item, item.quantity + 1)} accessibilityLabel={`Add one ${item.title || item.name}`}><Feather name="plus" size={20} color="#FFF" /></TouchableOpacity></View>
-          {checkoutPrompts(item).map(prompt => <TextInput key={prompt} style={s.input} accessibilityLabel={prompt} placeholder={prompt} placeholderTextColor="#888" value={answers[item.id]?.[prompt] || ''} onChangeText={value => setAnswers(previous => ({ ...previous, [item.id]: { ...previous[item.id], [prompt]: value } }))} />)}
-        </View>)}
-        <Text style={s.heading}>Total {money(rows.reduce((total, item) => total + Number(item.price) * item.quantity + Number(item.shippingPrice || 0), 0), rows[0].currency)}</Text>
-        <Text style={s.muted}>Includes listed delivery charges. Prices and availability are checked by the server.</Text>
-        {sessions[group] && <Text style={s.muted}>Order created. Payment or seller approval may still be pending.</Text>}
-        {sessions[group] && <TouchableOpacity style={s.icon} disabled={!!busy} onPress={() => checkOrders(group)}><Text style={s.link}>Check order status</Text></TouchableOpacity>}
-      </View>)}
-      {!!items.length && <View style={s.panel}>
-        {Object.keys(groups).length > 1 && <Text style={s.muted}>Shop and marketplace orders require separate payments. This button continues one order at a time. After payment, check its order status below that order before continuing to the next.</Text>}
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Proceed to checkout" style={[s.button, (!!busy || !nextOrder) && { opacity: .5 }]} disabled={!!busy || !nextOrder} onPress={proceed}><Text style={s.buttonText}>{busy ? 'Please wait…' : 'Proceed to checkout'}</Text></TouchableOpacity>
-        {!nextOrder && <Text style={s.muted}>Your orders have been submitted. Check their status above; no new checkout is needed while seller approval is pending.</Text>}
-      </View>}
-      {!!(error || storageError) && <Text accessibilityRole="alert" style={s.error}>{error || storageError}</Text>}
-    </ScrollView>}
-  </SafeAreaView>;
+  const c = usePalette();
+  const insets = useSafeAreaInsets();
+  const { items, quantity, ready, sessions, isPending, storageError } = useCart();
+
+  const sellers = [];
+  items.forEach(item => {
+    const seller = sellerOf(item);
+    let group = sellers.find(g => g.key === seller.key);
+    if (!group) { group = { ...seller, rows: [] }; sellers.push(group); }
+    group.rows.push(item);
+  });
+  const count = items.reduce((n, item) => n + item.quantity, 0);
+  const currencies = [...new Set(items.map(item => item.currency || 'PLN'))];
+  const subtotal = items.reduce((t, item) => t + Number(item.price) * item.quantity, 0);
+  const delivery = items.reduce((t, item) => t + Number(item.shippingPrice || 0), 0);
+  const inProgress = Object.keys(sessions).length > 0;
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={['top']}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
+        <TouchableOpacity accessibilityLabel="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+          style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
+          <Feather name="arrow-left" size={19} color={c.text} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: c.text, fontSize: 20, fontWeight: '900' }}>Your cart</Text>
+          <Text style={{ color: c.muted, fontSize: 12 }}>{count ? `${count} item${count === 1 ? '' : 's'} from ${sellers.length} seller${sellers.length === 1 ? '' : 's'}` : 'Nothing added yet'}</Text>
+        </View>
+        <TouchableOpacity onPress={() => router.push('/profile/orders')} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, minHeight: 36, borderRadius: 18, backgroundColor: c.purpleSoft }}>
+          <Feather name="package" size={14} color={c.purple} /><Text style={{ color: c.purple, fontWeight: '800', fontSize: 12 }}>Orders</Text>
+        </TouchableOpacity>
+      </View>
+
+      {!ready ? <ActivityIndicator color={c.purple} style={{ marginTop: 40 }} /> : !items.length ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 }}>
+          <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Feather name="shopping-bag" size={36} color={c.purple} />
+          </View>
+          <Text style={{ color: c.text, fontSize: 18, fontWeight: '800' }}>Your cart is empty</Text>
+          <Text style={{ color: c.muted, textAlign: 'center', lineHeight: 20 }}>Tap the bag icon on any product, listing or shop item to save it here. You can buy from several sellers in one payment.</Text>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/explore')} style={{ marginTop: 6, minHeight: 48, paddingHorizontal: 24, borderRadius: 24, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#111', fontWeight: '900' }}>Start exploring</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 230 + insets.bottom }}>
+            {inProgress && (
+              <Pressable onPress={() => router.push('/checkout')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: c.purpleSoft, borderWidth: 1, borderColor: `${c.purple}55` }}>
+                <Feather name="clock" size={18} color={c.purple} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text, fontWeight: '800' }}>Payment in progress</Text>
+                  <Text style={{ color: c.muted, fontSize: 12 }}>Some items are locked until you finish or cancel that payment.</Text>
+                </View>
+                <Text style={{ color: c.purple, fontWeight: '800' }}>Finish</Text>
+              </Pressable>
+            )}
+
+            {sellers.map(group => (
+              <View key={group.key} style={{ backgroundColor: c.card, borderRadius: 22, borderWidth: 1, borderColor: c.line, overflow: 'hidden' }}>
+                <Pressable disabled={!group.route} onPress={() => router.push(group.route)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.line }}>
+                  <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Feather name={group.icon} size={14} color={c.purple} /></View>
+                  <Text style={{ color: c.text, fontWeight: '800', flex: 1 }} numberOfLines={1}>{group.name}</Text>
+                  {group.route && <Feather name="chevron-right" size={16} color={c.muted} />}
+                </Pressable>
+                {group.rows.map((item, i) => {
+                  const locked = isPending(item);
+                  const max = item.stockQuantity != null ? item.stockQuantity : 99;
+                  const photo = item.mediaUrls?.[0] || item.imageUrl;
+                  return (
+                    <View key={cartKey(item)} style={{ flexDirection: 'row', gap: 12, padding: 14, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, opacity: locked ? 0.6 : 1 }}>
+                      <Pressable onPress={() => item.kind !== 'product' && router.push({ pathname: '/listing/[id]', params: { id: item.id } })}>
+                        {photo ? <Image source={{ uri: mediaUrl(photo) }} style={{ width: 84, height: 84, borderRadius: 16 }} contentFit="cover" />
+                          : <View style={{ width: 84, height: 84, borderRadius: 16, backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center' }}><Feather name="image" size={22} color={c.muted} /></View>}
+                      </Pressable>
+                      <View style={{ flex: 1, gap: 4 }}>
+                        <Text style={{ color: c.text, fontWeight: '700', fontSize: 14, lineHeight: 19 }} numberOfLines={2}>{item.title || item.name}</Text>
+                        <Text style={{ color: c.text, fontWeight: '900', fontSize: 15 }}>{money(Number(item.price) * item.quantity, item.currency)}</Text>
+                        <Text style={{ color: c.muted, fontSize: 11 }}>
+                          {item.quantity > 1 ? `${money(item.price, item.currency)} each · ` : ''}{Number(item.shippingPrice) > 0 ? `+ ${money(item.shippingPrice, item.currency)} delivery` : 'Free delivery or pickup'}
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, borderColor: c.line }}>
+                            <TouchableOpacity disabled={locked || item.quantity <= 1} onPress={() => { tap(); quantity(item, item.quantity - 1); }} accessibilityLabel={`One fewer ${item.title || item.name}`}
+                              style={{ width: 34, height: 32, alignItems: 'center', justifyContent: 'center', opacity: item.quantity <= 1 ? 0.35 : 1 }}>
+                              <Feather name="minus" size={15} color={c.text} />
+                            </TouchableOpacity>
+                            <Text style={{ color: c.text, fontWeight: '800', minWidth: 22, textAlign: 'center' }}>{item.quantity}</Text>
+                            <TouchableOpacity disabled={locked || item.quantity >= max} onPress={() => { tap(); quantity(item, item.quantity + 1); }} accessibilityLabel={`One more ${item.title || item.name}`}
+                              style={{ width: 34, height: 32, alignItems: 'center', justifyContent: 'center', opacity: item.quantity >= max ? 0.35 : 1 }}>
+                              <Feather name="plus" size={15} color={c.text} />
+                            </TouchableOpacity>
+                          </View>
+                          {locked ? <Text style={{ color: c.purple, fontSize: 11, fontWeight: '700' }}>In checkout</Text> : (
+                            <TouchableOpacity onPress={() => { tap(); quantity(item, 0); }} hitSlop={8} accessibilityLabel={`Remove ${item.title || item.name}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Feather name="trash-2" size={14} color={c.muted} /><Text style={{ color: c.muted, fontSize: 12, fontWeight: '600' }}>Remove</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                        {max < 99 && item.quantity >= max && <Text style={{ color: '#F59E0B', fontSize: 11 }}>Only {max} in stock</Text>}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+            {!!storageError && <Text style={{ color: '#FF6B6B' }}>{storageError}</Text>}
+          </ScrollView>
+
+          {/* Summary + the one way forward */}
+          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 14, paddingBottom: insets.bottom + 12, backgroundColor: c.bg, borderTopWidth: 1, borderTopColor: c.line, gap: 6 }}>
+            {currencies.length === 1 ? <>
+              <Row c={c} label="Items" value={money(subtotal, currencies[0])} />
+              <Row c={c} label="Delivery" value={delivery ? money(delivery, currencies[0]) : 'Free'} />
+              <Row c={c} label="Total" value={money(subtotal + delivery, currencies[0])} strong />
+            </> : <Text style={{ color: c.muted, fontSize: 12 }}>Your cart has prices in {currencies.join(' and ')} — you’ll pay once per currency.</Text>}
+            <TouchableOpacity accessibilityRole="button" onPress={() => router.push('/checkout')}
+              style={{ marginTop: 6, minHeight: 54, borderRadius: 27, backgroundColor: c.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Text style={{ color: '#111', fontWeight: '900', fontSize: 16 }}>Go to checkout</Text>
+            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Feather name="lock" size={11} color={c.muted} />
+              <Text style={{ color: c.muted, fontSize: 11 }}>{sellers.length > 1 ? 'One secure Stripe payment for every seller' : 'Secure payment with Stripe'}</Text>
+            </View>
+          </View>
+        </>
+      )}
+    </SafeAreaView>
+  );
 }
-const s = StyleSheet.create({ screen: { flex: 1, backgroundColor: '#090909' }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 }, title: { color: '#FFF', fontSize: 22, fontWeight: '700' }, heading: { color: '#FFF', fontSize: 17, fontWeight: '600' }, content: { padding: 18, paddingBottom: 50, gap: 18 }, panel: { backgroundColor: '#151515', borderRadius: 20, padding: 18, gap: 14 }, text: { color: '#FFF', fontSize: 15 }, muted: { color: '#AAA', fontSize: 13, lineHeight: 20 }, icon: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }, input: { color: '#FFF', fontSize: 16, minHeight: 48, borderWidth: 1, borderColor: '#444', borderRadius: 12, padding: 12 }, line: { paddingVertical: 10, gap: 8, borderBottomWidth: 1, borderColor: '#333' }, quantity: { flexDirection: 'row', alignItems: 'center', gap: 16 }, button: { minHeight: 50, backgroundColor: '#CDFF00', borderRadius: 25, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }, buttonText: { color: '#050505', fontSize: 15, fontWeight: '700' }, link: { color: '#CDFF00', fontSize: 14 }, error: { color: '#FCA5A5', fontSize: 14, lineHeight: 21 } });
+
+function Row({ c, label, value, strong }) {
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+      <Text style={{ color: strong ? c.text : c.muted, fontWeight: strong ? '900' : '500', fontSize: strong ? 16 : 13 }}>{label}</Text>
+      <Text style={{ color: strong ? c.text : c.text, fontWeight: strong ? '900' : '600', fontSize: strong ? 16 : 13 }}>{value}</Text>
+    </View>
+  );
+}

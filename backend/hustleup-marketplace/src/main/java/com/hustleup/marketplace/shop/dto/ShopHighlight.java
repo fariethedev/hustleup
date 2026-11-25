@@ -4,7 +4,14 @@ import java.net.URI;
 import java.util.List;
 
 public record ShopHighlight(String id, String title, List<Media> items) {
-    public record Media(String url, String type) {}
+    /**
+     * One slide. {@code productId} (optional) ties the slide to a product in the same shop so
+     * the viewer can show its name and price with a "View product" action; {@code caption}
+     * is optional text over the slide.
+     */
+    public record Media(String url, String type, String productId, String caption) {
+        public Media(String url, String type) { this(url, type, null, null); }
+    }
 
     public static void validate(List<ShopHighlight> highlights) {
         if (highlights.size() > 12) throw new IllegalArgumentException("Maximum 12 highlight collections");
@@ -17,6 +24,8 @@ public record ShopHighlight(String id, String title, List<Media> items) {
             for (var media : highlight.items()) {
                 if (media == null || !("image".equals(media.type()) || "video".equals(media.type())) || media.url() == null || media.url().length() > 4096)
                     throw new IllegalArgumentException("Invalid highlight media");
+                if ((media.productId() != null && media.productId().length() > 64) || (media.caption() != null && media.caption().length() > 120))
+                    throw new IllegalArgumentException("Highlight captions are limited to 120 characters");
                 URI uri;
                 try { uri = URI.create(media.url()); } catch (IllegalArgumentException invalid) { throw new IllegalArgumentException("Invalid media URL"); }
                 boolean https = "https".equals(uri.getScheme()) && uri.getHost() != null && uri.getUserInfo() == null;

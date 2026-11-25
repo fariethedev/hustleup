@@ -46,6 +46,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,6 +86,9 @@ public class StoryController {
     /** Repository for the story_views join table; used to check view status. */
     private final StoryViewRepository storyViewRepository;
 
+    /** Used to honour each author's status audience (WhatsApp-style status privacy). */
+    private final com.hustleup.social.repository.FollowRepository followRepository;
+
     // ── Endpoints ─────────────────────────────────────────────────────────────
 
     /**
@@ -103,11 +108,52 @@ public class StoryController {
      * @return 200 OK with a JSON array of {@link StoryDto} objects;
      *         500 if an unexpected error occurs
      */
+    /**
+     * Drops stories whose author's status audience excludes this viewer — the WhatsApp
+     * "My status privacy" setting. Authors always see their own. Anonymous viewers only see
+     * statuses shared with EVERYONE.
+     */
+    private List<Story> visibleTo(User viewer, List<Story> stories) {
+        Set<UUID> authorIds = new HashSet<>();
+        for (Story s : stories) {
+            try { authorIds.add(UUID.fromString(s.getAuthorId())); } catch (Exception ignored) {}
+        }
+        Map<String, String> audience = new HashMap<>();
+        for (User author : userRepository.findAllById(authorIds)) {
+            audience.put(author.getId().toString(),
+                    author.getStatusAudience() == null ? "EVERYONE" : author.getStatusAudience());
+        }
+        Set<String> following = new HashSet<>();
+        Set<String> followers = new HashSet<>();
+        if (viewer != null) {
+            followRepository.findByFollowerId(viewer.getId()).forEach(f -> following.add(f.getFollowingId().toString()));
+            followRepository.findByFollowingId(viewer.getId()).forEach(f -> followers.add(f.getFollowerId().toString()));
+        }
+        String viewerId = viewer == null ? null : viewer.getId().toString();
+        return stories.stream().filter(s -> {
+            String author = s.getAuthorId();
+            if (author == null) return false;
+            if (author.equals(viewerId)) return true;
+            String who = audience.getOrDefault(author, "EVERYONE");
+            switch (who) {
+                case "NOBODY": return false;
+                case "FOLLOWERS": return following.contains(author);
+                case "MUTUALS": return following.contains(author) && followers.contains(author);
+                default: return true;
+            }
+        }).toList();
+    }
+
     @GetMapping
     public ResponseEntity<?> getActiveStories() {
         try {
             // Delegate to the service, which filters by expires_at > now.
-            List<Story> stories = storyService.getActiveStories();
+            List<Story> allStories = storyService.getActiveStories();
+
+            String viewerEmail = SecurityContextHolder.getContext().getAuthentication() == null ? null
+                    : SecurityContextHolder.getContext().getAuthentication().getName();
+            User viewer = viewerEmail == null ? null : userRepository.findByEmail(viewerEmail).orElse(null);
+            List<Story> stories = visibleTo(viewer, allStories);
             List<String> storyIds = stories.stream().map(Story::getId).toList();
 
             // Attempt to identify the current user; anonymous users get minimal data.

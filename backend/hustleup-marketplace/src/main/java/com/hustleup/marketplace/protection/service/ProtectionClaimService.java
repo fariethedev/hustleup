@@ -189,7 +189,8 @@ public class ProtectionClaimService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
             if ("TRANSFERRED".equals(booking.getPaymentStatus()))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "The seller has already been paid. Review and recover the transfer before refunding this claim");
-            attemptRefund(booking.getPaymentIntentId(), claim.getOrderId());
+            attemptRefund(booking.getPaymentIntentId(), claim.getOrderId(),
+                    booking.getAgreedPrice() == null ? null : booking.getAgreedPrice().add(booking.getFulfilment().shippingPriceOrZero()));
             booking.setPaymentStatus("REFUNDED");
             booking.setStatus(com.hustleup.marketplace.booking.model.BookingStatus.CANCELLED);
             booking.setCancelReason("Refunded after a buyer protection claim");
@@ -200,7 +201,7 @@ public class ProtectionClaimService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
             if ("RELEASED".equals(order.getPayoutStatus()))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "The seller has already been paid. Review and recover the transfer before refunding this claim");
-            attemptRefund(order.getPaymentIntentId(), claim.getOrderId());
+            attemptRefund(order.getPaymentIntentId(), claim.getOrderId(), order.grandTotal());
             order.setStatus(ShopOrder.ShopOrderStatus.REFUNDED);
             // Takes it out of findReleasable for good, so no later sweep can pay a seller for
             // an order the platform has already given back.
@@ -210,13 +211,13 @@ public class ProtectionClaimService {
         }
     }
 
-    private void attemptRefund(String paymentIntentId, UUID orderId) {
+    private void attemptRefund(String paymentIntentId, UUID orderId, java.math.BigDecimal amount) {
         if (paymentIntentId == null || paymentIntentId.isBlank()) {
             log.info("Claim refund on {} had no captured payment — marking refunded without Stripe", orderId);
             return;
         }
         try {
-            stripeConnectService.refundPayment(paymentIntentId);
+            stripeConnectService.refundPayment(paymentIntentId, amount, orderId);
         } catch (StripeException e) {
             // Loud, and it aborts the resolution: recording a refund Stripe did not make would
             // tell a buyer their money is coming back when it is not.

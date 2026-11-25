@@ -56,6 +56,7 @@ public class BookingDto {
     private LocalDateTime scheduledAt; // when the service is to be delivered; null if not specified
     private UUID availabilitySlotId;   // linked seller-defined slot, for slot-based service bookings
     private Integer quantity;          // number of units (used by EVENT ticket purchases)
+    private String ticketTier;         // tiered events: which ticket type was bought
 
     // Payment status only — the raw Stripe paymentIntentId/transferId are internal
     // reconciliation details and are deliberately not exposed to the client.
@@ -132,6 +133,7 @@ public class BookingDto {
                 .scheduledAt(booking.getScheduledAt())
                 .availabilitySlotId(booking.getAvailabilitySlotId())
                 .quantity(booking.getQuantity())
+                .ticketTier(booking.getTicketTier())
                 .paymentStatus(booking.getPaymentStatus())
                 // getFulfilment() rather than the field: Hibernate hands back a null
                 // embeddable for bookings predating the delivery columns, and the tracker

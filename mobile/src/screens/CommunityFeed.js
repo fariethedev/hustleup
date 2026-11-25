@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,20 +21,20 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import SocialIcon from '../components/native/SocialIcon';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import { Image as CachedImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { feedApi, API_URL, usersApi, followsApi, listingsApi } from '../../src/api/client';
+import { feedApi, API_URL, usersApi, followsApi, listingsApi, communitiesApi } from '../../src/api/client';
+import CommunitiesSheet from '../components/communities/CommunitiesSheet';
 import { pickCroppedPhoto, uploadAsset } from '../../src/utils/media';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Screen, Button, Copy, Panel, Section, Notice, usePalette } from '../components/native/Kit';
+import { Screen, Button, Copy, Panel, Notice, usePalette } from '../components/native/Kit';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated, selectUser } from '../../src/store/authSlice';
 import { useSocialStyles } from '../components/native/socialStyles';
 import { money } from '../utils/marketplace';
 import StoryBar from '../../src/components/stories/StoryBar';
-import { subscriptionsApi } from '../api/client';
-import { isPremiumActive } from '../utils/subscriptions';
 
 const { width, height } = Dimensions.get('window');
 // Card has marginHorizontal: 14 on each side → content width is width - 28
@@ -50,14 +50,22 @@ const shadow = (color, ox = 0, oy = 4, opacity = 0.35, radius = 10, elev = 6) =>
   });
 
 // ─── Create Post Modal ────────────────────────────────────────────────────────
-const CreatePostModal = ({ visible, onClose, onPostSuccess }) => {
+const CreatePostModal = ({ visible, onClose, onPostSuccess, initialCommunityId = null }) => {
   const styles = useSocialStyles(baseStyles);
+  const palette = usePalette();
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
   const [caption, setCaption] = useState('');
   const [mediaItems, setMediaItems] = useState([]); // array of { uri, type, filename, mimeType }
   const [posting, setPosting] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
+  // Where the post goes: null = the open feed, otherwise a community the author has joined.
+  const [communityId, setCommunityId] = useState(initialCommunityId);
+  const [myCommunities, setMyCommunities] = useState([]);
+  useEffect(() => {
+    if (!visible) return;
+    setCommunityId(initialCommunityId);
+    communitiesApi.mine().then(r => setMyCommunities(Array.isArray(r.data) ? r.data : [])).catch(() => setMyCommunities([]));
+  }, [visible, initialCommunityId]);
   const [picking, setPicking] = useState(false);
 
   const MAX_MEDIA = 6;
@@ -119,6 +127,7 @@ const CreatePostModal = ({ visible, onClose, onPostSuccess }) => {
       const formData = new FormData();
       formData.append('content', caption.trim());
       formData.append('anonymous', String(isAnonymous));
+      if (communityId) formData.append('communityId', communityId);
       mediaItems.forEach(m => {
         formData.append('media', { uri: m.uri, name: m.filename, type: m.mimeType });
       });
@@ -144,130 +153,137 @@ const CreatePostModal = ({ visible, onClose, onPostSuccess }) => {
     onClose();
   };
 
+  const me = useSelector(selectUser);
+  const [audienceOpen, setAudienceOpen] = useState(false);
+  const audience = myCommunities.find(c => c.id === communityId);
+  const canPost = !posting && !picking && (caption.trim() || mediaItems.length > 0);
+  const tileSize = Math.floor((width - 32 - 16) / 3);
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <KeyboardAvoidingView
-        style={[styles.modalOverlay, { paddingTop: insets.top + 12 }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={handleClose} />
-        <View style={[styles.createSheet, { maxHeight: height - insets.top - 12, flexShrink: 1, paddingBottom: Math.max(insets.bottom, 16) }]}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>NEW POST</Text>
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close post editor" style={{ width: 44, height: 44, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }} onPress={handleClose}>
-              <SocialIcon name="x" size={22} color="#FFF" />
+    <Modal visible={visible} animationType="slide" onRequestClose={handleClose} statusBarTranslucent>
+      {/* Explicit insets: SafeAreaView reports 0 inside an Android modal, which pushed the header under the status bar. */}
+      <View style={{ flex: 1, backgroundColor: palette.bg, paddingTop: insets.top }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={[cs.header, { borderBottomColor: palette.line }]}>
+            <TouchableOpacity accessibilityRole="button" onPress={handleClose} disabled={posting || picking} hitSlop={10}>
+              <Text style={{ color: palette.text, fontSize: 15 }}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={{ color: palette.text, fontSize: 16, fontWeight: '800' }}>New post</Text>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share post" onPress={handlePost} disabled={!canPost}
+              style={[cs.postBtn, { backgroundColor: canPost ? palette.accent : palette.soft }]}>
+              {posting ? <ActivityIndicator size="small" color="#111" /> : <Text style={{ color: canPost ? (palette.light ? '#FFF' : '#111') : palette.muted, fontWeight: '900', fontSize: 14 }}>Post</Text>}
             </TouchableOpacity>
           </View>
 
-          <ScrollView keyboardShouldPersistTaps="handled" style={{ flexShrink: 1 }}>
-          <TextInput
-            style={styles.captionInput}
-            placeholder="What's your hustle today?"
-            placeholderTextColor="rgba(255,255,255,0.3)"
-            multiline
-            maxLength={300}
-            value={caption}
-            onChangeText={setCaption}
-          />
-          <Text style={styles.charCount}>{caption.length}/300</Text>
-
-          {/* Media previews */}
-          {mediaItems.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaPreviewRow}>
-              {mediaItems.map((m, idx) => (
-                <View key={idx} style={styles.mediaThumbnailBox}>
-                  <Image source={{ uri: m.uri }} style={styles.mediaThumbnail} resizeMode="cover" />
-                  {m.type === 'video' && (
-                    <View style={styles.videoOverlayThumb}>
-                      <SocialIcon name="play" size={16} color="#FFF" />
-                    </View>
-                  )}
-                  <TouchableOpacity style={styles.removeThumbnailBtn} onPress={() => removeMedia(idx)}>
-                    <SocialIcon name="x" size={12} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-              {mediaItems.length < MAX_MEDIA && (
-                <TouchableOpacity style={styles.addMoreBtn} onPress={() => pickMedia(false)}>
-                  <SocialIcon name="plus" size={22} color="rgba(255,255,255,0.4)" />
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 14 }} showsVerticalScrollIndicator={false}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              {isAnonymous
+                ? <View style={[cs.avatar, { backgroundColor: palette.purpleSoft }]}><SocialIcon name="eye-off" size={20} color={palette.purple} /></View>
+                : me?.avatarUrl
+                  ? <Image source={{ uri: resolveMediaUrl(me.avatarUrl) }} style={cs.avatar} />
+                  : <View style={[cs.avatar, { backgroundColor: palette.purpleSoft }]}><Text style={{ color: palette.purple, fontWeight: '900', fontSize: 18 }}>{(me?.fullName || '?')[0]}</Text></View>}
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={{ color: palette.text, fontWeight: '800', fontSize: 15 }}>{isAnonymous ? 'Anonymous' : (me?.fullName || 'You')}</Text>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Posting to ${audience?.name || 'Everyone'}. Change`} onPress={() => setAudienceOpen(true)}
+                  style={[cs.audience, { borderColor: palette.purple, backgroundColor: palette.purpleSoft }]}>
+                  <SocialIcon name={audience ? 'users' : 'globe'} size={13} color={palette.purple} />
+                  <Text style={{ color: palette.purple, fontSize: 12, fontWeight: '800' }} numberOfLines={1}>{audience?.name || 'Everyone'}</Text>
+                  <SocialIcon name="chevron-down" size={14} color={palette.purple} />
                 </TouchableOpacity>
-              )}
-            </ScrollView>
-          )}
-
-          <TouchableOpacity
-            style={[styles.anonToggle, isAnonymous && styles.anonToggleActive]}
-            onPress={async () => {
-              if (isAnonymous) { setIsAnonymous(false); return; }
-              try {
-                const { data } = await subscriptionsApi.my();
-                if (isPremiumActive(data)) setIsAnonymous(true);
-                else Alert.alert('Plus membership required', 'Anonymous posting is included with Plus and All Access. See Membership plans in the More menu.');
-              } catch { Alert.alert('Could not check membership', 'Please try again.'); }
-            }}
-            accessibilityRole="switch"
-            accessibilityLabel="Post anonymously"
-            accessibilityState={{ checked: isAnonymous, disabled: posting }}
-            disabled={posting}
-          >
-            <SocialIcon name={isAnonymous ? 'eye-off' : 'eye'} size={22} color={isAnonymous ? LIME : '#FFF'} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.anonToggleText}>Post anonymously</Text>
-              <Text style={{ color: '#AAA', fontSize: 12, marginTop: 3 }}>{isAnonymous ? 'On · Your name and photo are hidden on this post' : 'Off · Your name and photo appear on this post'}</Text>
+              </View>
             </View>
-            <SocialIcon name={isAnonymous ? 'check-square' : 'square'} size={24} color={isAnonymous ? LIME : '#AAA'} />
-          </TouchableOpacity>
-          <Text style={{ color: '#AAA', fontSize: 12, marginTop: 8 }}>Photos open in the crop editor. Add up to six photos or videos.</Text>
-          {/* Anonymous mode banner */}
-          {isAnonymous && (
-            <View style={styles.anonBanner}>
-              <SocialIcon name="eye-off" size={14} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.anonBannerText}>Your identity will be hidden from this post</Text>
-            </View>
-          )}
 
-          <View style={styles.createActions}>
-            {/* Media buttons row */}
-            <View style={styles.createActionsTop}>
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                <TouchableOpacity style={styles.mediaButton} onPress={() => pickMedia(false)} disabled={picking || posting}>
-                  <SocialIcon name="image" size={18} color={LIME} />
-                  <Text style={styles.mediaButtonText}>Photo</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.mediaButton} onPress={() => pickMedia(true)} disabled={picking || posting}>
-                  <SocialIcon name="video" size={18} color={LIME} />
-                  <Text style={styles.mediaButtonText}>Video</Text>
-                </TouchableOpacity>
-                {mediaItems.length > 0 && (
-                  <View style={styles.mediaCountChip}>
-                    <Text style={styles.mediaCountChipText}>{mediaItems.length}/{MAX_MEDIA}</Text>
+            <TextInput
+              accessibilityLabel="Post text"
+              style={{ color: palette.text, fontSize: 18, lineHeight: 26, minHeight: 140, textAlignVertical: 'top', paddingVertical: 4 }}
+              placeholder={isAnonymous ? 'Share something anonymously…' : 'What’s happening?'}
+              placeholderTextColor={palette.muted}
+              multiline
+              autoFocus
+              maxLength={300}
+              value={caption}
+              onChangeText={setCaption}
+            />
+
+            {mediaItems.length > 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {mediaItems.map((m, idx) => (
+                  <View key={m.uri + idx} style={{ width: tileSize, height: tileSize, borderRadius: 14, overflow: 'hidden', backgroundColor: palette.soft }}>
+                    <Image source={{ uri: m.uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    {m.type === 'video' && <View style={cs.videoBadge}><SocialIcon name="play" size={12} color="#FFF" /></View>}
+                    <TouchableOpacity accessibilityLabel={`Remove item ${idx + 1}`} onPress={() => removeMedia(idx)} style={cs.remove}><SocialIcon name="x" size={14} color="#FFF" /></TouchableOpacity>
                   </View>
+                ))}
+                {mediaItems.length < MAX_MEDIA && (
+                  <TouchableOpacity accessibilityLabel="Add another photo" onPress={() => pickMedia(false)} style={{ width: tileSize, height: tileSize, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', borderColor: palette.purple, alignItems: 'center', justifyContent: 'center' }}>
+                    <SocialIcon name="plus" size={24} color={palette.purple} />
+                  </TouchableOpacity>
                 )}
               </View>
-
-              {/* Anon toggle + POST button */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <TouchableOpacity
-                  style={[styles.postButton, posting && styles.postButtonDisabled]}
-                  onPress={handlePost}
-                  disabled={posting || picking}
-                >
-                  {posting ? (
-                    <ActivityIndicator size="small" color={BG} />
-                  ) : (
-                    <Text style={styles.postButtonText}>POST</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
+            )}
           </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+
+          {/* Toolbar stays above the keyboard */}
+          <View style={[cs.toolbar, { borderTopColor: palette.line, backgroundColor: palette.bg, paddingBottom: Math.max(insets.bottom, 10) }]}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Add photo" onPress={() => pickMedia(false)} disabled={picking || posting} style={[cs.tool, { backgroundColor: palette.card, borderColor: palette.line }]}>
+              {picking ? <ActivityIndicator size="small" color={palette.purple} /> : <SocialIcon name="image" size={20} color={palette.purple} />}
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Add video" onPress={() => pickMedia(true)} disabled={picking || posting} style={[cs.tool, { backgroundColor: palette.card, borderColor: palette.line }]}>
+              <SocialIcon name="video" size={20} color={palette.purple} />
+            </TouchableOpacity>
+            <TouchableOpacity accessibilityRole="switch" accessibilityLabel="Post anonymously" accessibilityState={{ checked: isAnonymous }} onPress={() => setIsAnonymous(v => !v)} disabled={posting}
+              style={[cs.anon, { borderColor: isAnonymous ? palette.purple : palette.line, backgroundColor: isAnonymous ? palette.purpleSoft : palette.card }]}>
+              <SocialIcon name={isAnonymous ? 'eye-off' : 'eye'} size={17} color={isAnonymous ? palette.purple : palette.muted} />
+              <Text style={{ color: isAnonymous ? palette.purple : palette.text, fontSize: 12, fontWeight: '700' }}>{isAnonymous ? 'Anonymous' : 'Show my name'}</Text>
+            </TouchableOpacity>
+            <View style={{ flex: 1 }} />
+            <Text style={{ color: caption.length > 270 ? '#F87171' : palette.muted, fontSize: 12, fontWeight: '700' }}>{300 - caption.length}</Text>
+            {mediaItems.length > 0 && <Text style={{ color: palette.muted, fontSize: 12 }}>· {mediaItems.length}/{MAX_MEDIA}</Text>}
+          </View>
+        </KeyboardAvoidingView>
+
+        {/* Audience picker */}
+        <Modal visible={audienceOpen} transparent animationType="fade" onRequestClose={() => setAudienceOpen(false)}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setAudienceOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: palette.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: Math.max(insets.bottom, 16), gap: 4 }}>
+              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: palette.line, marginBottom: 10 }} />
+              <Text style={{ color: palette.text, fontSize: 17, fontWeight: '800', marginBottom: 6 }}>Who can see this?</Text>
+              {[{ id: null, name: 'Everyone', hint: 'Anyone on HustleSpace' }, ...myCommunities.map(c => ({ ...c, hint: 'Members of this community' }))].map(c => {
+                const on = (communityId || null) === (c.id || null);
+                return (
+                  <TouchableOpacity key={c.id || 'feed'} accessibilityRole="radio" accessibilityState={{ checked: on }} onPress={() => { setCommunityId(c.id || null); setAudienceOpen(false); }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 10, borderRadius: 14, backgroundColor: on ? palette.purpleSoft : 'transparent' }}>
+                    <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: on ? palette.purple : palette.soft, alignItems: 'center', justifyContent: 'center' }}>
+                      <SocialIcon name={c.id ? 'users' : 'globe'} size={17} color={on ? '#FFF' : palette.muted} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: palette.text, fontWeight: '800' }}>{c.name}</Text>
+                      <Text style={{ color: palette.muted, fontSize: 12 }}>{c.hint}</Text>
+                    </View>
+                    {on && <SocialIcon name="check" size={18} color={palette.purple} />}
+                  </TouchableOpacity>
+                );
+              })}
+              {!myCommunities.length && <Text style={{ color: palette.muted, fontSize: 12, padding: 10 }}>Join a community from Feed ▾ Communities to post there.</Text>}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      </View>
     </Modal>
   );
 };
+
+const cs = StyleSheet.create({
+  header: { minHeight: 54, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  postBtn: { minWidth: 72, minHeight: 36, paddingHorizontal: 18, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  audience: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: 10, minHeight: 26, borderRadius: 13, borderWidth: 1, maxWidth: 220 },
+  videoBadge: { position: 'absolute', left: 6, bottom: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
+  remove: { position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center' },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  tool: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  anon: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 42, paddingHorizontal: 12, borderRadius: 21, borderWidth: 1 },
+});
 
 // ─── Comments Sheet ───────────────────────────────────────────────────────────
 const CommentsSheet = ({ visible, postId, onClose, onCountChange }) => {
@@ -454,6 +470,7 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectUser);
   const palette = usePalette();
+  const { height: viewportHeight } = useWindowDimensions();
   const [reposted, setReposted] = useState(!!item.repostedByCurrentUser);
   const [repostCount, setRepostCount] = useState(item.repostCount || 0);
   const [repostBusy, setRepostBusy] = useState(false);
@@ -486,6 +503,19 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
     : (item.mediaUrls || []).map(u => ({ url: u, type: 'IMAGE' }));
 
   const hasMultiMedia = allMedia.length > 1;
+  const [mediaRatios, setMediaRatios] = useState({});
+  const ratioFor = media => mediaRatios[media?.url] || 1;
+  const activeMedia = allMedia[Math.min(activeMediaIdx, Math.max(0, allMedia.length - 1))];
+  const mediaHeight = Math.min(CARD_WIDTH / ratioFor(activeMedia), Math.min(viewportHeight * 0.78, 640));
+  const recordMediaSize = (media, event) => {
+    const source = event?.nativeEvent?.source || event?.nativeEvent || event?.source;
+    const imageWidth = Number(source?.width);
+    const imageHeight = Number(source?.height);
+    if (imageWidth > 0 && imageHeight > 0) {
+      const ratio = imageWidth / imageHeight;
+      setMediaRatios(current => current[media.url] === ratio ? current : { ...current, [media.url]: ratio });
+    }
+  };
   const firstMedia = allMedia[0];
   const rawMediaUrl = firstMedia ? resolveMediaUrl(firstMedia.url) : null;
   const isVideo = isPost && firstMedia?.type === 'VIDEO';
@@ -593,7 +623,7 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
         <Copy muted>Reposted</Copy>
         <TouchableOpacity accessibilityRole="button" onPress={() => onAuthorPress?.(item.repostOf.authorId)}><Copy heading>{item.repostOf.authorName || 'User'}</Copy></TouchableOpacity>
         {!!item.repostOf.content && <Copy>{item.repostOf.content}</Copy>}
-        {item.repostOf.media?.[0]?.type === 'IMAGE' && <Image source={{ uri: resolveMediaUrl(item.repostOf.media[0].url) }} resizeMode="contain" style={{ width: '100%', height: CARD_MEDIA_HEIGHT }} />}
+        {item.repostOf.media?.[0]?.type === 'IMAGE' && <CachedImage source={{ uri: resolveMediaUrl(item.repostOf.media[0].url) }} onLoad={event => recordMediaSize(item.repostOf.media[0], event)} contentFit="contain" cachePolicy="memory-disk" transition={150} style={{ width: '100%', aspectRatio: ratioFor(item.repostOf.media[0]) }} />}
         {item.repostOf.media?.[0]?.type === 'VIDEO' && <FeedVideo uri={resolveMediaUrl(item.repostOf.media[0].url)} style={{ width: '100%', height: CARD_MEDIA_HEIGHT }} shouldPlay={!!isVisible} isMuted />}
       </View>}
       {/* ── Text-only post ───────────────────────────────── */}
@@ -610,7 +640,7 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
 
       {/* ── Media ────────────────────────────────────────── */}
       {allMedia.length > 0 && (
-        <View style={styles.feedMediaContainer}>
+        <View style={[styles.feedMediaContainer, { height: mediaHeight }]}>
           {hasMultiMedia ? (
             <>
               <ScrollView
@@ -629,8 +659,8 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
                   const mUrl = resolveMediaUrl(m.url);
                   const mIsVideo = m.type === 'VIDEO';
                   return mIsVideo && Platform.OS !== 'web' ? (
-                    <TouchableOpacity key={idx} style={{ width: CARD_WIDTH, height: CARD_MEDIA_HEIGHT }} onPress={() => setVideoPlaying(p => !p)} activeOpacity={1}>
-                      <FeedVideo uri={mUrl} style={{ width: CARD_WIDTH, height: CARD_MEDIA_HEIGHT }} shouldPlay={videoPlaying && activeMediaIdx === idx} isLooping isMuted={isMuted} />
+                    <TouchableOpacity key={idx} style={{ width: CARD_WIDTH, height: mediaHeight }} onPress={() => setVideoPlaying(p => !p)} activeOpacity={1}>
+                      <FeedVideo uri={mUrl} style={{ width: CARD_WIDTH, height: mediaHeight }} shouldPlay={videoPlaying && activeMediaIdx === idx} isLooping isMuted={isMuted} />
                       {!videoPlaying && (
                         <View style={[StyleSheet.absoluteFillObject, styles.videoPlayOverlay, { pointerEvents: 'none' }]}>
                           <View style={styles.videoPlayCircle}><SocialIcon name="play" size={28} color="#FFF" /></View>
@@ -638,7 +668,7 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
                       )}
                     </TouchableOpacity>
                   ) : (
-                    <Image key={idx} source={{ uri: mUrl }} style={{ width: CARD_WIDTH, height: CARD_MEDIA_HEIGHT }} resizeMode="contain" />
+                    <CachedImage key={idx} source={{ uri: mUrl }} onLoad={event => recordMediaSize(m, event)} style={{ width: CARD_WIDTH, height: mediaHeight }} contentFit="contain" cachePolicy="memory-disk" transition={150} recyclingKey={mUrl} />
                   );
                 })}
               </ScrollView>
@@ -654,7 +684,7 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
             </>
           ) : isVideo && Platform.OS !== 'web' ? (
             <TouchableOpacity style={{ flex: 1 }} onPress={() => setVideoPlaying(p => !p)} activeOpacity={1}>
-              <FeedVideo uri={rawMediaUrl} style={styles.feedMedia} shouldPlay={videoPlaying} isLooping isMuted={isMuted} />
+              <FeedVideo uri={rawMediaUrl} style={[styles.feedMedia, { height: mediaHeight }]} shouldPlay={videoPlaying} isLooping isMuted={isMuted} />
               {!videoPlaying && (
                 <View style={[StyleSheet.absoluteFillObject, styles.videoPlayOverlay, { pointerEvents: 'none' }]}>
                   <View style={styles.videoPlayCircle}><SocialIcon name="play" size={28} color="#FFF" /></View>
@@ -662,7 +692,7 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
               )}
             </TouchableOpacity>
           ) : (
-            <Image source={{ uri: rawMediaUrl }} style={styles.feedMedia} resizeMode="contain" />
+            <CachedImage source={{ uri: rawMediaUrl }} onLoad={event => recordMediaSize(firstMedia, event)} style={[styles.feedMedia, { height: mediaHeight }]} contentFit="contain" cachePolicy="memory-disk" transition={150} recyclingKey={rawMediaUrl} />
           )}
           {isVideo && (
             <TouchableOpacity style={styles.feedMuteBtn} onPress={() => setIsMuted(p => !p)} activeOpacity={0.8}>
@@ -856,6 +886,17 @@ const shareStyles = StyleSheet.create({
 
 // ─── Live Stream Section ──────────────────────────────────────────────────────
 // ─── Category Filter ──────────────────────────────────────────────────────────
+// Memoised so a scroll (which changes which post is "visible" and autoplays) re-renders only
+// the two posts whose visibility flipped, not every post in the feed.
+const MemoFeedItem = React.memo(FeedItem);
+const PAGE_SIZE = 8;
+const FEED_VIEWS = [
+  ['fyp', 'For you', 'Popular posts across HustleSpace'],
+  ['following', 'Following', 'People you follow'],
+  ['communities', 'Communities', 'Groups you’ve joined'],
+  ['saved', 'Saved', 'Posts you bookmarked'],
+];
+
 export default function CommunityFeed() {
   const router = useRouter();
   const isAuthenticated = useSelector(selectIsAuthenticated);
@@ -868,18 +909,23 @@ export default function CommunityFeed() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [communitiesOpen, setCommunitiesOpen] = useState(false);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [storyTrigger, setStoryTrigger] = useState(false);
   const [commentsPostId, setCommentsPostId] = useState(null);
   const [commentsCountBump, setCommentsCountBump] = useState(null);
   const [commentsVisible, setCommentsVisible] = useState(false);
   const [visibleItemId, setVisibleItemId] = useState(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const [viewabilityConfig] = useState(() => ({ itemVisiblePercentThreshold: 60 }));
-  const onViewableItemsChanged = useCallback(({ viewableItems }) => {
+  // FlatList forbids changing this callback after mount (it throws on Fast Refresh too), so
+  // hold one function for the component's lifetime.
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
     if (viewableItems.length > 0) {
       setVisibleItemId(viewableItems[0].item.id);
     }
-  }, []);
+  }).current;
 
   const fetchFeed = useCallback(async () => {
     const request = ++feedRequest.current;
@@ -890,6 +936,7 @@ export default function CommunityFeed() {
       if (request !== feedRequest.current) return;
       if (!Array.isArray(response.data)) throw new Error('Invalid feed response');
       setData(response.data.map(post => ({ ...post, type: 'POST' })));
+      setVisibleCount(PAGE_SIZE);
     } catch (error) {
       if (request === feedRequest.current) { setData([]); setFeedError(error.response?.data?.error || 'Could not load this feed. Please try again.'); }
     } finally { if (request === feedRequest.current) { setLoading(false); setRefreshing(false); } }
@@ -907,18 +954,38 @@ export default function CommunityFeed() {
     commentsCountBump && commentsCountBump();
   }, [commentsCountBump]);
 
+  const openListing = useCallback(item => router.push({ pathname: '/listing/[id]', params: { id: item.id } }), [router]);
+  const openAuthor = useCallback(authorId => { if (authorId) router.push('/profile/' + authorId); }, [router]);
+  const renderItem = useCallback(({ item }) => (
+    <MemoFeedItem item={item} onCommentPress={handleCommentPress} isVisible={item.id === visibleItemId}
+      onListingPress={openListing} onAuthorPress={openAuthor} />
+  ), [handleCommentPress, visibleItemId, openListing, openAuthor]);
+  // The API returns the whole feed; render it a page at a time so the first paint is fast.
+  const pagedData = useMemo(() => data.slice(0, visibleCount), [data, visibleCount]);
+  const loadMore = useCallback(() => setVisibleCount(n => (n < data.length ? n + PAGE_SIZE : n)), [data.length]);
+
   const renderHeader = () => (
     <View style={{ gap: 16, paddingHorizontal: 16, paddingBottom: 20 }}>
-      <Section title="Feed" />
+      {/* "Feed ▾" — one title that switches between views, instead of a row of big buttons */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Feed: ${FEED_VIEWS.find(v => v[0] === mainTab)?.[1]}. Change view`} accessibilityState={{ expanded: viewMenuOpen }}
+          onPress={() => setViewMenuOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 }}>
+          <Copy heading style={{ fontSize: 26, lineHeight: 32 }}>Feed</Copy>
+          <SocialIcon name="chevron-down" size={22} color={colors.purple} />
+        </TouchableOpacity>
+        <Text style={{ marginLeft: 10, color: colors.purple, fontSize: 13, fontWeight: '700' }}>{FEED_VIEWS.find(v => v[0] === mainTab)?.[1]}</Text>
+      </View>
       <StoryBar triggerCreate={storyTrigger} onTriggerHandled={() => setStoryTrigger(false)} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 4 }}>
-        {[['fyp', 'For you'], ['following', 'Following'], ['communities', 'Communities'], ['saved', 'Saved']].map(([value, label]) => <Button key={value} icon={<SocialIcon name={value} size={16} color={mainTab === value ? '#050505' : colors.text} />} secondary={mainTab !== value} onPress={() => {
-          if (!isAuthenticated && value !== 'fyp') { router.push('/login'); return; }
-          setData([]); setMainTab(value);
-        }} style={{ minHeight: 44, paddingHorizontal: 14 }}>{label}</Button>)}
-      </ScrollView>
-      {mainTab !== 'saved' && mainTab !== 'communities' && <Panel style={{ gap: 14, borderRadius: 20 }}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Write a post" onPress={() => isAuthenticated ? setCreateModalVisible(true) : router.push('/login')} style={{ minHeight: 52, justifyContent: 'center' }}><Copy muted>What’s on your mind?</Copy></TouchableOpacity>
+      {mainTab === 'communities' && <Panel style={{ gap: 10, borderRadius: 20 }}>
+        <Copy heading style={{ fontSize: 17 }}>Your communities</Copy>
+        <Copy muted>Join groups around what you do, then post to them directly.</Copy>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <Button secondary icon={<SocialIcon name="search" size={16} color={colors.text} />} style={{ flex: 1 }} onPress={() => isAuthenticated ? setCommunitiesOpen(true) : router.push('/login')}>Discover</Button>
+          <Button icon={<SocialIcon name="plus" size={16} color="#050505" />} style={{ flex: 1 }} onPress={() => isAuthenticated ? setCommunitiesOpen(true) : router.push('/login')}>Create</Button>
+        </View>
+      </Panel>}
+      {mainTab !== 'saved' && <Panel style={{ gap: 14, borderRadius: 20 }}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Write a post" onPress={() => isAuthenticated ? setCreateModalVisible(true) : router.push('/login')} style={{ minHeight: 52, justifyContent: 'center' }}><Copy muted>{mainTab === 'communities' ? 'Post to one of your communities…' : 'What’s on your mind?'}</Copy></TouchableOpacity>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <Button secondary icon={<SocialIcon name="image" size={18} color={colors.text} />} onPress={() => isAuthenticated ? setCreateModalVisible(true) : router.push('/login')}>Photo / video</Button>
           <Button icon={<SocialIcon name="edit-3" size={18} color="#050505" />} style={{ flex: 1 }} onPress={() => isAuthenticated ? setCreateModalVisible(true) : router.push('/login')}>Post</Button>
@@ -932,11 +999,17 @@ export default function CommunityFeed() {
   return (
     <Screen scroll={false}>
       <FlatList
-        data={data}
-        renderItem={({ item }) => <FeedItem item={item} onCommentPress={handleCommentPress}
-          isVisible={item.id === visibleItemId} onListingPress={item => router.push({ pathname: '/listing/[id]', params: { id: item.id } })}
-          onAuthorPress={(authorId) => { if (authorId) router.push('/profile/' + authorId); }} />}
+        data={pagedData}
+        renderItem={renderItem}
         keyExtractor={item => String(item.id)}
+        initialNumToRender={3}
+        maxToRenderPerBatch={4}
+        updateCellsBatchingPeriod={60}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS === 'android'}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.6}
+        ListFooterComponent={visibleCount < data.length ? <ActivityIndicator color={colors.accent} style={{ marginVertical: 20 }} /> : null}
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
@@ -950,6 +1023,34 @@ export default function CommunityFeed() {
         visible={createModalVisible}
         onClose={() => setCreateModalVisible(false)}
         onPostSuccess={fetchFeed}
+      />
+      <Modal visible={viewMenuOpen} transparent animationType="fade" onRequestClose={() => setViewMenuOpen(false)}>
+        <TouchableOpacity activeOpacity={1} onPress={() => setViewMenuOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }}>
+          <View style={{ position: 'absolute', top: 110, left: 16, width: 230, borderRadius: 18, padding: 6, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 18, elevation: 12 }}>
+            {FEED_VIEWS.map(([value, label, hint]) => {
+              const on = mainTab === value;
+              return (
+                <TouchableOpacity key={value} accessibilityRole="menuitem" accessibilityState={{ selected: on }} onPress={() => {
+                  setViewMenuOpen(false);
+                  if (!isAuthenticated && value !== 'fyp') { router.push('/login'); return; }
+                  if (value !== mainTab) { setData([]); setMainTab(value); }
+                }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 50, paddingHorizontal: 12, borderRadius: 12, backgroundColor: on ? colors.purpleSoft : 'transparent' }}>
+                  <SocialIcon name={value} size={18} color={on ? colors.purple : colors.muted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: on ? colors.purple : colors.text, fontWeight: '800', fontSize: 14 }}>{label}</Text>
+                    <Text style={{ color: colors.muted, fontSize: 11 }}>{hint}</Text>
+                  </View>
+                  {on && <SocialIcon name="check" size={16} color={colors.purple} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      <CommunitiesSheet
+        visible={communitiesOpen}
+        onClose={() => setCommunitiesOpen(false)}
+        onChanged={() => { if (mainTab === 'communities') fetchFeed(); }}
       />
 
       <CommentsSheet
@@ -1263,6 +1364,17 @@ const baseStyles = StyleSheet.create({
 
   // Create Post
   createSheet: { backgroundColor: '#111', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  postModal: { flex: 1 },
+  postModalHeader: { minHeight: 58, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  postModalClose: { width: 42, height: 42, alignItems: 'flex-start', justifyContent: 'center' },
+  postModalTitle: { fontSize: 16, fontWeight: '800' },
+  postModalSubmit: { minWidth: 70, minHeight: 36, paddingHorizontal: 16, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  postModalContent: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 24, gap: 10 },
+  postAudienceRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  postComposerAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  postCaptionInput: { minHeight: 180, fontSize: 19, lineHeight: 27, paddingVertical: 12 },
+  postMediaActions: { paddingHorizontal: 20, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  postMediaButton: { minHeight: 44, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   captionInput: {
     backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 16,
     color: '#FFF', fontSize: 15, minHeight: 100, textAlignVertical: 'top',

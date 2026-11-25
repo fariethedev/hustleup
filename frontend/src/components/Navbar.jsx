@@ -11,7 +11,7 @@ import { displayName } from '../utils/displayName';
 import PendingSalesButton from './PendingSalesButton';
 import { LogOut, Home, Compass, LayoutDashboard, Send, User, Heart, Layers, Search, ShoppingBag, BellRing, CheckCheck, MoreHorizontal, LayoutGrid, Briefcase, Newspaper, Repeat, Trophy, Ticket } from 'lucide-react';
 import { Settings as SettingsIcon } from 'lucide-react';
-import { CreditCard, Gem } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
 import { uploadUrl } from '../config';
 
 // Secondary links that don't get their own pill/tab (to avoid crowding the main
@@ -23,7 +23,6 @@ import { uploadUrl } from '../config';
 const MORE_LINKS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', auth: true },
   { to: '/payouts', icon: CreditCard, label: 'Seller payments', auth: true },
-  { to: '/plans', icon: Gem, label: 'Plans & pricing', auth: true },
   { to: '/dashboard?tab=sales', icon: ShoppingBag, label: 'My sales', auth: true, mobileOnly: true },
   { to: '/settings', icon: SettingsIcon, label: 'Settings', auth: true },
   // Bond is a top-level tab on desktop but lives in here on a phone. The bottom bar holds
@@ -269,9 +268,7 @@ export default function Navbar() {
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 group shrink-0" id="nav-logo">
-              <div className="hidden sm:flex w-8 h-8 bg-[#CDFF00] rounded-lg items-center justify-center font-black text-black text-sm group-hover:scale-105 transition-transform shadow-[0_0_15px_#CDFF00]/15">
-                H
-              </div>
+              <img src="/hustlespace-logo.png" alt="" className="w-8 h-8 rounded-lg object-cover group-hover:scale-105 transition-transform shadow-[0_0_15px_#CDFF00]/15" />
               <span className="text-lg font-black text-white tracking-tighter whitespace-nowrap">
                 Hustle<span className="text-[#CDFF00]">Space</span>
               </span>

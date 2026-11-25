@@ -135,6 +135,10 @@ public class Booking {
     @Builder.Default
     private Integer quantity = 1;
 
+    /** For tiered events: the id of the ticket tier bought (e.g. "early", "vip"); null otherwise. */
+    @Column(name = "ticket_tier", length = 80)
+    private String ticketTier;
+
     // --- Who to contact, and where it goes ---------------------------------
     // Captured at checkout and snapshotted onto the booking rather than read back through
     // buyerId. The checkout form asked for all three and then threw them away: only the

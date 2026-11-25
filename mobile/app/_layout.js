@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { View } from 'react-native';
+import { Stack, useRouter, useSegments, useRootNavigationState, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +14,7 @@ import { store } from '../src/store';
 import CartProvider from '../src/store/CartProvider';
 import { setUser } from '../src/store/authSlice';
 import { registerForPushNotifications } from '../src/utils/pushNotifications';
+import BrandLoader from '../src/components/native/BrandLoader';
 
 // No-ops safely if extra.sentryDsn is blank. Note: this captures JS-level errors
 // fine under Expo Go, but full native crash reporting needs an EAS dev build —
@@ -27,10 +28,13 @@ Sentry.init({
 function AuthGate({ children }) {
   const router = useRouter();
   const segments = useSegments();
+  const { returnTo } = useLocalSearchParams();
   const navState = useRootNavigationState();   // null until navigation is mounted
   const dispatch = useDispatch();
   const isAuthenticated = useSelector((s) => s.auth.isAuthenticated);
   const [hydrated, setHydrated] = useState(false);
+  const [needsWelcome, setNeedsWelcome] = useState(false);
+  const welcomeShown = useRef(false);
 
   // Hydrate Redux from AsyncStorage once on startup
   useEffect(() => {
@@ -39,6 +43,7 @@ function AuthGate({ children }) {
         const token = await AsyncStorage.getItem('hustleup_token');
         const raw   = await AsyncStorage.getItem('hustleup_user');
         if (token && raw) dispatch(setUser(JSON.parse(raw)));
+        else setNeedsWelcome(!(await AsyncStorage.getItem('hustleup_seen_welcome')));
       } catch {}
       setHydrated(true);
     })();
@@ -49,14 +54,21 @@ function AuthGate({ children }) {
     if (!hydrated || !navState?.key) return;   // wait for nav container to mount
     const inAuthScreen = segments[0] === 'login' || segments[0] === 'register';
     const recoveryScreen = ['forgot-password', 'reset-password', 'verify-code'].includes(segments[0]);
+    // First launch while signed out: show the intro once, before anything else.
+    if (!isAuthenticated && needsWelcome && !welcomeShown.current) {
+      welcomeShown.current = true;
+      if (segments[0] !== 'welcome' && !recoveryScreen) { router.replace('/welcome'); return; }
+    }
+    if (segments[0] === 'welcome') { if (isAuthenticated) router.replace('/(tabs)/feed'); return; }
     const publicTab = segments[0] === '(tabs)' && (!segments[1] || ['index', 'explore', 'feed'].includes(segments[1]));
     const publicDetail = segments[0] === 'listing' || (segments[0] === 'profile' && segments[1] === '[id]');
     if (!isAuthenticated && !inAuthScreen && !publicTab && !publicDetail && !recoveryScreen) {
-      router.replace('/login');
+      const requestedBond = segments[0] === 'bond' || (segments[0] === '(tabs)' && segments[1] === 'bond');
+      router.replace(requestedBond ? { pathname: '/login', params: { returnTo: '/bond' } } : '/login');
     } else if (isAuthenticated && inAuthScreen) {
-      router.replace('/(tabs)/feed');
+      router.replace(returnTo === '/bond' ? '/bond' : '/(tabs)/feed');
     }
-  }, [hydrated, isAuthenticated, segments, navState?.key, router]);
+  }, [hydrated, isAuthenticated, needsWelcome, segments, navState?.key, router, returnTo]);
 
   // Register (or re-register, e.g. after a token refresh) this device for push
   // notifications once the user is signed in. No-ops until Firebase/EAS are configured.
@@ -75,13 +87,7 @@ function AuthGate({ children }) {
           backgroundColor: '#050505',
           alignItems: 'center', justifyContent: 'center',
         }}>
-          <View style={{
-            width: 56, height: 56, borderRadius: 18,
-            backgroundColor: '#CDFF00',
-            alignItems: 'center', justifyContent: 'center',
-          }}>
-            <ActivityIndicator color="#050505" />
-          </View>
+          <BrandLoader fullScreen label="Restoring your session" />
         </View>
       )}
     </>
@@ -90,7 +96,7 @@ function AuthGate({ children }) {
 
 function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ Poppins_400Regular, Poppins_600SemiBold, Montserrat_800ExtraBold });
-  if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: '#050505', justifyContent: 'center' }}><ActivityIndicator color="#CDFF00" /></View>;
+  if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: '#050505', justifyContent: 'center' }}><BrandLoader label="Loading HustleSpace" /></View>;
   return (
     <Provider store={store}>
       <AuthGate>
@@ -105,6 +111,7 @@ function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="login" />
           <Stack.Screen name="register" />
+          <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
         </Stack>
         <StatusBar style="light" />
         </CartProvider>

@@ -185,24 +185,11 @@ public class SubscriptionController {
     @PostMapping("/checkout")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> checkout(@RequestBody(required = false) Map<String, String> body) {
-        String requested = body == null ? null : body.get("plan");
-        Optional<SubscriptionPlan> plan = SubscriptionPlan.from(requested);
-        if (plan.isEmpty() || plan.get().isLegacy()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", "Unknown plan",
-                    "validPlans", Arrays.stream(SubscriptionPlan.values()).filter(p -> !p.isLegacy()).map(Enum::name).toList()));
-        }
-
-        try {
-            String url = stripeService.createCheckoutSession(getCurrentUser(), plan.get());
-            return ResponseEntity.ok(Map.of("checkoutUrl", url));
-        } catch (StripeException e) {
-            // Typically a bad or unconfigured STRIPE_SECRET_KEY. Surfaced as 502 rather than
-            // 500: the failure is in the upstream payment provider, not in this request.
-            log.error("Stripe checkout session failed for plan {}", plan.get(), e);
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                    .body(Map.of("error", "Could not start checkout. Please try again."));
-        }
+        // Subscriptions were retired: every feature is free and the platform earns only its
+        // per-transaction fee. Refuse new purchases so no client can charge anyone for a plan.
+        return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
+                "error", "Memberships have been retired — every feature is now free.",
+                "code", "SUBSCRIPTIONS_RETIRED"));
     }
 
     /**

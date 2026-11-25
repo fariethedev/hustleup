@@ -180,6 +180,27 @@ public class User {
     private boolean privateAccount = false;
 
     /**
+     * Who may see this user's "last seen / online" in chat: EVERYONE, FOLLOWERS, MUTUALS
+     * or NOBODY. Like WhatsApp, hiding it also hides everyone else's from this user.
+     */
+    @Column(name = "last_seen_visibility", nullable = false, length = 16)
+    @Builder.Default
+    private String lastSeenVisibility = "EVERYONE";
+
+    /**
+     * Blue ticks. When false, senders never learn this user read their message, and this
+     * user in turn never sees read receipts from anyone (the WhatsApp reciprocity rule).
+     */
+    @Column(name = "read_receipts", nullable = false)
+    @Builder.Default
+    private boolean readReceipts = true;
+
+    /** Who can see this user's status (stories): EVERYONE, FOLLOWERS, MUTUALS or NOBODY. */
+    @Column(name = "status_audience", nullable = false, length = 16)
+    @Builder.Default
+    private String statusAudience = "EVERYONE";
+
+    /**
      * City or town the user is based in — used for local discovery / search filtering.
      */
     private String city;

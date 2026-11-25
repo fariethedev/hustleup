@@ -22,9 +22,14 @@ import java.util.UUID;
 @Service
 public class PrivateR2Storage {
     private static final String PREFIX = "r2-private:";
-    private static final Map<String, String> TYPES = Map.of(
-        "image/jpeg", "jpg", "image/png", "png", "image/webp", "webp",
-        "image/gif", "gif", "image/heic", "heic", "image/heif", "heif");
+    private static final Map<String, String> TYPES = Map.ofEntries(
+        Map.entry("image/jpeg", "jpg"), Map.entry("image/png", "png"), Map.entry("image/webp", "webp"),
+        Map.entry("image/gif", "gif"), Map.entry("image/heic", "heic"), Map.entry("image/heif", "heif"),
+        // Voice notes and short videos in chat (WhatsApp-style).
+        Map.entry("audio/m4a", "m4a"), Map.entry("audio/x-m4a", "m4a"), Map.entry("audio/mp4", "m4a"),
+        Map.entry("audio/aac", "aac"), Map.entry("audio/mpeg", "mp3"), Map.entry("audio/ogg", "ogg"),
+        Map.entry("audio/webm", "webm"), Map.entry("audio/wav", "wav"), Map.entry("audio/3gpp", "3gp"),
+        Map.entry("video/mp4", "mp4"), Map.entry("video/quicktime", "mov"), Map.entry("video/webm", "webm"));
     private final S3Client client;
     private final S3Presigner presigner;
     private final String bucket;
@@ -55,7 +60,7 @@ public class PrivateR2Storage {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("Choose a photo to send");
         if (file.getSize() > 20L * 1024 * 1024) throw new IllegalArgumentException("Photos must be 20MB or smaller");
         String extension = TYPES.get(file.getContentType());
-        if (extension == null) throw new IllegalArgumentException("Use a JPG, PNG, WebP, GIF or HEIC photo");
+        if (extension == null) throw new IllegalArgumentException("Use a photo (JPG, PNG, WebP, GIF, HEIC), a video (MP4, MOV) or a voice note (M4A, AAC, MP3)");
         String key = "messages/" + UUID.randomUUID() + "." + extension;
         try (var stream = file.getInputStream()) {
             client.putObject(PutObjectRequest.builder().bucket(bucket).key(key)

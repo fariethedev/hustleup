@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCart } from '../../store/CartProvider';
-import { canPurchaseListing, cartGroup, cartKey, categoryLabel, money } from '../../utils/marketplace';
+import { canPurchaseListing, cartKey, categoryLabel, money } from '../../utils/marketplace';
 import { mediaUrl } from '../../utils/media';
 import { discoveryCartItem } from '../../utils/discovery';
 
@@ -13,7 +13,7 @@ export default function ListingDetailSheet({ listing, visible, onClose }) {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { items, add, ready, sessions, storageError } = useCart();
+  const { items, add, ready, isPending, storageError } = useCart();
   const userId = useSelector(state => state.auth.user?.id);
   const [added, setAdded] = useState(false);
   useEffect(() => { setAdded(false); }, [listing?.id, visible]);
@@ -21,7 +21,7 @@ export default function ListingDetailSheet({ listing, visible, onClose }) {
   const own = listing.sellerId === userId;
   const cartItem = discoveryCartItem(listing);
   const inCart = items.some(item => cartKey(item) === cartKey(cartItem));
-  const pending = !!sessions[cartGroup(cartItem)];
+  const pending = isPending(cartItem);
   const unavailable = listing.status && listing.status !== 'ACTIVE';
   const media = (listing.mediaUrls?.length ? listing.mediaUrls : [listing.imageUrl]).map(mediaUrl).filter(Boolean);
   const navigate = (path) => { onClose(); router.push(path); };

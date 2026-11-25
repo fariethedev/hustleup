@@ -425,13 +425,12 @@ function AccountPanel({ user, onSignOut }) {
             <p className="px-4 py-2.5 rounded-xl bg-[#CDFF00]/[0.07] border border-[#CDFF00]/25 text-sm text-[#CDFF00] font-bold">
               {user.role === 'ADMIN' ? 'Admin' : 'Seller'}
               <span className="block text-[11px] text-gray-400 font-medium mt-0.5">
-                {premium ? `Your plan: ${subscription?.plan === 'PLUS' ? 'Plus' : 'All Access'}. Selling is enabled.` : 'Selling is on for this account.'}
+                Selling is free on HustleSpace — a small platform fee is taken from each sale.
               </span>
             </p>
 
             {/* Only a real, paid subscription has anything to cancel — a grandfathered
                 SELLER/ADMIN role was never billed, so there's no term to end early. */}
-            <Link to="/plans" className="inline-block text-sm text-[#CDFF00] underline">Compare plans or extend membership</Link>
             <Link to="/payouts" className="block text-sm text-gray-300 underline">Manage bank account and payments</Link>
             {premium && (
               <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3 flex-wrap">

@@ -30,6 +30,12 @@ import java.util.UUID;
 // JpaRepository<Booking, UUID>: manages Booking entities, primary key type is UUID.
 public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
+    /** Tickets of one tier already sold or held by an in-flight checkout, for tier capacity. */
+    @Query("SELECT COALESCE(SUM(b.quantity), 0) FROM Booking b WHERE b.listingId = :listingId AND b.ticketTier = :tier "
+         + "AND b.status <> com.hustleup.marketplace.booking.model.BookingStatus.CANCELLED "
+         + "AND (b.paymentStatus IS NULL OR b.paymentStatus NOT IN ('REFUNDED', 'FAILED')) AND b.id <> :exclude")
+    long countTierTickets(@Param("listingId") UUID listingId, @Param("tier") String tier, @Param("exclude") UUID exclude);
+
     /**
      * Per-seller completed-sale totals: {@code [sellerId, salesCount, grossEarnings]}.
      *

@@ -1,59 +1,182 @@
 import React, { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Image, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { bookingsApi, listingsApi, notificationsApi, shopsApi, ticketsApi } from '../src/api/client';
+import { bookingsApi, listingsApi, notificationsApi, payoutsApi, shopsApi, swapsApi, ticketsApi } from '../src/api/client';
 import { useRemote } from '../src/hooks/useRemote';
-import { Button, Copy, Notice, Panel, Screen, Section, usePalette } from '../src/components/native/Kit';
+import { Notice, usePalette } from '../src/components/native/Kit';
 import CreateListingModal from '../src/components/listings/CreateListingModal';
 import { ticketIsPast } from '../src/utils/tickets';
 import { money } from '../src/utils/marketplace';
+import { mediaUrl } from '../src/utils/media';
+
+const SALE_DONE = ['COMPLETED'];
+const SHOP_PAID = ['PAID', 'FULFILLED'];
 
 export default function Dashboard() {
   const user = useSelector(s => s.auth.user);
   const router = useRouter();
   const c = usePalette();
   const [creating, setCreating] = useState(false);
-  const [tab, setTab] = useState('overview');
+
   const fetcher = useCallback(async () => {
-    const names = ['bookings', 'orders', 'sales', 'listings', 'tickets', 'activity'];
-    const results = await Promise.allSettled([bookingsApi.getAll(), shopsApi.orders(), shopsApi.sales(), listingsApi.getMyListings(), ticketsApi.my(), notificationsApi.getAll()]);
-    return Object.fromEntries(results.map((result, i) => [names[i], result.status === 'fulfilled' && Array.isArray(result.value.data) ? result.value.data : null]));
+    const calls = {
+      bookings: bookingsApi.getAll(), orders: shopsApi.orders(), sales: shopsApi.sales(), listings: listingsApi.getMyListings(),
+      tickets: ticketsApi.my(), alerts: notificationsApi.getAll(), shop: shopsApi.mine(), payouts: payoutsApi.status(), swaps: swapsApi.incoming(),
+    };
+    const keys = Object.keys(calls);
+    const results = await Promise.allSettled(Object.values(calls));
+    return Object.fromEntries(results.map((r, i) => [keys[i], r.status === 'fulfilled' ? r.value.data : null]));
   }, []);
   const { data, loading, error, reload } = useRemote(fetcher);
-  const buying = [...(data?.bookings || []).filter(b => b.role !== 'seller'), ...(data?.orders || [])];
-  const selling = [...(data?.bookings || []).filter(b => b.role === 'seller'), ...(data?.sales || [])];
-  const needsReply = (data?.bookings || []).filter(b => ['INQUIRED', 'NEGOTIATING'].includes(b.status) && (b.lastOfferBy || (b.status === 'NEGOTIATING' ? b.sellerId : b.buyerId)) !== user?.id);
-  const openOrders = view => router.push({ pathname: '/profile/orders', params: { view } });
-  return <Screen back title="Dashboard" refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={c.accent} />}>
-    <Section eyebrow="Your workspace" title={'Good to see you, ' + (user?.fullName?.split(' ')[0] || 'there') + '.'} subtitle="Your orders, shop and next opportunity. All in one place." />
-    <Button icon="plus" onPress={() => setCreating(true)}>Add listing</Button>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{['overview', 'buying', 'selling', 'activity'].map(value => <Button key={value} secondary={tab !== value} onPress={() => setTab(value)}>{value[0].toUpperCase() + value.slice(1)}</Button>)}</ScrollView>
-    {loading && !data && <Notice loading message="Loading your workspace…" />}
-    {(error || (data && Object.values(data).some(value => value === null))) && <Notice message={error || 'Some workspace information is unavailable. Missing counts are not shown as zero.'} onRetry={reload} />}
-    {tab === 'overview' && <>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>{[
-        ['Needs reply', data?.bookings ? needsReply.length : '—', 'message-circle', () => openOrders('buying')],
-        ['Your purchases', data?.bookings && data?.orders ? buying.length : '—', 'package', () => openOrders('buying')],
-        ['Your sales', data?.bookings && data?.sales ? selling.length : '—', 'shopping-bag', () => openOrders('selling')],
-        ['Upcoming tickets', data?.tickets ? data.tickets.filter(t => !ticketIsPast(t)).length : '—', 'calendar', () => router.push('/tickets')],
-      ].map(([label, count, icon, action]) => <Pressable key={label} accessibilityRole="button" onPress={action} style={{ width: '47%', flexGrow: 1 }}><Panel><Feather name={icon} size={22} color={c.accent} /><Copy heading style={{ fontSize: 32, lineHeight: 40 }}>{count}</Copy><Copy muted style={{ fontSize: 12 }}>{label}</Copy></Panel></Pressable>)}</View>
-      <Section title="Make your next move" />
-      {[
-        ['Bookings & orders', 'Track shipping, approve receipt or report a problem.', 'package', () => openOrders('buying')],
-        ['Seller workspace', 'Reply to offers, update delivery and manage sold goods.', 'briefcase', () => openOrders('selling')],
-        ['Bank & payouts', 'Connect your bank account and view payout status.', 'credit-card', () => router.push('/profile/bank')],
-        ['Your listings', 'See your marketplace products, services and events.', 'grid', () => router.push('/profile/listings')],
-        ['Your tickets', 'Show your code at the door and see upcoming events.', 'calendar', () => router.push('/tickets')],
-        ['Your reviews', 'Read feedback and rate completed transactions.', 'star', () => router.push('/profile/reviews')],
-        ['Review activity', 'Read your latest account updates and notifications.', 'activity', () => setTab('activity')],
-      ].map(([title, text, icon, action]) => <Pressable key={title} accessibilityRole="button" accessibilityLabel={title} onPress={action}><Panel style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}><Feather name={icon} size={22} color={c.accent} /><View style={{ flex: 1 }}><Copy heading>{title}</Copy><Copy muted style={{ fontSize: 12 }}>{text}</Copy></View><Feather name="chevron-right" size={20} color={c.muted} /></Panel></Pressable>)}
-      {!!data?.listings?.some(l => l.listingType === 'EVENT') && <><Section title="Your event doors" />{data.listings.filter(l => l.listingType === 'EVENT').map(event => <Panel key={event.id}><Copy heading>{event.title}</Copy><Button secondary icon="camera" onPress={() => router.push('/events/' + event.id + '/door')}>Guest list & scanner</Button></Panel>)}</>}
-      <Panel><Copy heading>From purchase to received.</Copy><Copy muted>Open Bookings & orders to check delivery, tracking and receipt approval. Report a problem there if something is wrong. A seller’s delivery update alone does not approve their payout.</Copy></Panel>
-    </>}
-    {(tab === 'buying' || tab === 'selling') && <><Section title={tab === 'buying' ? 'Your order centre' : 'Your seller workspace'} subtitle={tab === 'buying' ? 'Track your goods, check delivery and approve receipt.' : 'Respond to offers and keep your buyers updated.'} /><Button onPress={() => openOrders(tab)}>Open bookings & order actions</Button>{(tab === 'buying' ? buying : selling).map((order, index) => <Pressable key={String(order.id) + index} onPress={() => openOrders(tab)}><Panel><Copy heading>{order.listingTitle || order.shopName || 'Store order'}</Copy><Copy muted>{String(order.status || 'Pending').replaceAll('_', ' ')}</Copy>{order.totalAmount != null && <Copy>{money(order.totalAmount, order.currency)}</Copy>}<Copy style={{ color: c.accent }}>View order →</Copy></Panel></Pressable>)}{!(tab === 'buying' ? buying : selling).length && <Notice message="No orders to show in this view." />}</>}
-    {tab === 'activity' && <><Section title="Recent activity" /><Button secondary onPress={() => router.push('/notifications')}>Open notifications</Button>{(data?.activity || []).map(item => <Panel key={item.id}><Copy heading>{item.title || item.type?.replaceAll('_', ' ') || 'Update'}</Copy><Copy>{item.message || item.body || item.content}</Copy></Panel>)}{!data?.activity?.length && <Notice message="No activity to show yet." />}</>}
-    <CreateListingModal visible={creating} onClose={() => setCreating(false)} onCreated={reload} />
-  </Screen>;
+
+  const bookings = Array.isArray(data?.bookings) ? data.bookings : [];
+  const sales = Array.isArray(data?.sales) ? data.sales : [];
+  const shop = data?.shop && data.shop.id ? data.shop : null;
+  const sellerBookings = bookings.filter(b => b.role === 'seller');
+  const needsReply = sellerBookings.filter(b => ['INQUIRED', 'NEGOTIATING'].includes(b.status) && (b.lastOfferBy || (b.status === 'NEGOTIATING' ? b.sellerId : b.buyerId)) !== user?.id);
+  const inProgress = sellerBookings.filter(b => b.status === 'BOOKED');
+  const earnedByCurrency = {};
+  sellerBookings.filter(b => SALE_DONE.includes(b.status)).forEach(b => { earnedByCurrency[b.currency || 'PLN'] = (earnedByCurrency[b.currency || 'PLN'] || 0) + Number(b.agreedPrice || 0); });
+  sales.filter(o => SHOP_PAID.includes(o.status)).forEach(o => { earnedByCurrency[o.currency || 'PLN'] = (earnedByCurrency[o.currency || 'PLN'] || 0) + Number(o.totalPrice || 0); });
+  const earned = Object.entries(earnedByCurrency);
+  const payoutsReady = !!data?.payouts?.payoutsEnabled;
+  const unreadAlerts = (Array.isArray(data?.alerts) ? data.alerts : []).filter(n => !n.read && !n.isRead).length;
+  const pendingSwaps = (Array.isArray(data?.swaps) ? data.swaps : []).filter(s => s.status === 'PENDING').length;
+  const openShopOrders = sales.filter(o => o.status === 'PAID').length;
+  const tasks = needsReply.length + openShopOrders + pendingSwaps;
+  const go = (pathname, params) => router.push(params ? { pathname, params } : pathname);
+
+  const kpis = [
+    { label: 'Earned', value: earned.length ? earned.map(([cur, v]) => money(v, cur)).join(' · ') : money(0, 'PLN'), icon: 'trending-up', highlight: true, onPress: () => go('/profile/orders', { view: 'selling' }) },
+    { label: 'Needs reply', value: needsReply.length, icon: 'message-circle', warn: needsReply.length > 0, onPress: () => go('/profile/orders', { view: 'selling' }) },
+    { label: 'In progress', value: inProgress.length + openShopOrders, icon: 'truck', onPress: () => go('/profile/orders', { view: 'selling' }) },
+    { label: 'Payouts', value: payoutsReady ? 'Ready' : 'Set up', icon: 'credit-card', warn: !payoutsReady, onPress: () => go('/profile/bank') },
+  ];
+  const groups = [
+    { title: 'Selling', items: [
+      ['Listings', 'grid', (data?.listings || []).length, () => go('/profile/listings')],
+      ['Shop', 'shopping-bag', shop ? (shop.productCount ?? 0) : '+', () => go(shop ? '/shop/manage' : '/shop/create')],
+      ['Sales', 'bar-chart-2', sellerBookings.length + sales.length, () => go('/profile/orders', { view: 'selling' })],
+      ['Swaps', 'repeat', pendingSwaps || '', () => go('/swaps')],
+    ] },
+    { title: 'Buying', items: [
+      ['Orders', 'package', bookings.filter(b => b.role !== 'seller').length + (data?.orders || []).length, () => go('/profile/orders', { view: 'buying' })],
+      ['Tickets', 'credit-card', (data?.tickets || []).filter(t => !ticketIsPast(t)).length, () => go('/tickets')],
+      ['Cart', 'shopping-cart', '', () => go('/cart')],
+      ['Reviews', 'star', '', () => go('/profile/reviews')],
+    ] },
+    { title: 'Account', items: [
+      ['Payments', 'dollar-sign', payoutsReady ? '✓' : '!', () => go('/profile/bank')],
+      ['Wallet', 'briefcase', '', () => go('/profile/wallet')],
+      ['Alerts', 'bell', unreadAlerts || '', () => go('/notifications')],
+      ['Settings', 'settings', '', () => go('/profile/settings')],
+    ] },
+  ];
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={['top']}>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={c.purple} />}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <TouchableOpacity accessibilityLabel="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
+            <Feather name="arrow-left" size={19} color={c.text} />
+          </TouchableOpacity>
+          <Text style={{ color: c.text, fontSize: 18, fontWeight: '900', flex: 1 }}>Dashboard</Text>
+        </View>
+
+        {/* Hero */}
+        <LinearGradient colors={['#8B5CF6', '#3B1D7A', '#120A26']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 24, padding: 18, gap: 10 }}>
+          <Text style={{ color: '#DDD6FE', fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>YOUR WORKSPACE</Text>
+          <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900', lineHeight: 28 }}>Good to see you, {user?.fullName?.split(' ')[0] || 'there'}.</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tasks ? '#F59E0B' : '#CDFF00' }} />
+            <Text style={{ color: '#EDE9FE', fontSize: 13 }}>{tasks ? `${tasks} thing${tasks > 1 ? 's' : ''} need${tasks > 1 ? '' : 's'} you` : 'All caught up — nothing waiting on you'}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            <TouchableOpacity onPress={() => setCreating(true)} style={{ flex: 1, minHeight: 42, borderRadius: 21, backgroundColor: '#CDFF00', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}>
+              <Feather name="plus" size={16} color="#111" /><Text style={{ color: '#111', fontWeight: '900' }}>Add listing</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => go(shop ? '/shop/manage' : '/shop/create')} style={{ flex: 1, minHeight: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}>
+              <Feather name="shopping-bag" size={16} color="#FFF" /><Text style={{ color: '#FFF', fontWeight: '800' }}>{shop ? 'Manage shop' : 'Create shop'}</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+
+        {error && <Notice message={error} onRetry={reload} />}
+
+        {/* KPIs */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+          {kpis.map(k => (
+            <Pressable key={k.label} onPress={k.onPress} style={{ width: '48%', flexGrow: 1, borderRadius: 18, padding: 14, gap: 6, backgroundColor: k.highlight ? 'transparent' : c.card, borderWidth: 1, borderColor: k.warn ? '#F59E0B66' : k.highlight ? '#CDFF0055' : c.line, overflow: 'hidden' }}>
+              {k.highlight && <LinearGradient colors={['#CDFF0033', '#CDFF0008']} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />}
+              <Feather name={k.icon} size={18} color={k.highlight ? c.accent : k.warn ? '#F59E0B' : c.purple} />
+              <Text style={{ color: c.text, fontSize: 19, fontWeight: '900' }} numberOfLines={1} adjustsFontSizeToFit>{k.value}</Text>
+              <Text style={{ color: c.muted, fontSize: 12 }}>{k.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Shop */}
+        {shop ? (
+          <View style={{ borderRadius: 20, overflow: 'hidden', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
+            {!!shop.bannerUrl && <Image source={{ uri: mediaUrl(shop.bannerUrl) }} style={{ width: '100%', height: 110 }} />}
+            <View style={{ padding: 14, gap: 10 }}>
+              <View><Text style={{ color: c.text, fontWeight: '900', fontSize: 16 }}>{shop.name}</Text><Text style={{ color: c.muted, fontSize: 12 }}>{shop.category} · {shop.productCount ?? 0} products{shop.published === false ? ' · Hidden' : ''}</Text></View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity onPress={() => go('/shop/[userId]', { userId: shop.ownerId, shopId: shop.id })} style={{ flex: 1, minHeight: 38, borderRadius: 19, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.text, fontWeight: '700' }}>View shop</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => go('/shop/manage')} style={{ flex: 1, minHeight: 38, borderRadius: 19, backgroundColor: c.purple, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFF', fontWeight: '800' }}>Manage</Text></TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : data && (
+          <View style={{ borderRadius: 20, padding: 16, gap: 12, backgroundColor: c.card, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.purple }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Feather name="shopping-bag" size={18} color={c.purple} /></View>
+              <View style={{ flex: 1 }}><Text style={{ color: c.text, fontWeight: '900', fontSize: 16 }}>Start your shop — it’s free</Text><Text style={{ color: c.muted, fontSize: 12 }}>A storefront for your products or bookable services.</Text></View>
+            </View>
+            {['Name your shop and pick its type (store, salon, barber, tutor…)', 'Add a banner, then your products or services with prices', 'Connect payouts so sales land in your bank'].map((step, i) => (
+              <View key={step} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+                <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: i % 2 ? c.purple : c.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: i % 2 ? '#FFF' : '#111', fontSize: 11, fontWeight: '900' }}>{i + 1}</Text></View>
+                <Text style={{ color: c.text, fontSize: 13, flex: 1, lineHeight: 19 }}>{step}</Text>
+              </View>
+            ))}
+            <TouchableOpacity onPress={() => go('/shop/create')} style={{ minHeight: 46, borderRadius: 23, backgroundColor: c.purple, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}>
+              <Feather name="plus" size={16} color="#FFF" /><Text style={{ color: '#FFF', fontWeight: '900' }}>Create my shop</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Grouped tiles, like the web dashboard's sidebar */}
+        {groups.map(g => (
+          <View key={g.title} style={{ gap: 8 }}>
+            <Text style={{ color: c.muted, fontSize: 12, fontWeight: '800', letterSpacing: 0.6 }}>{g.title.toUpperCase()}</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {g.items.map(([label, icon, count, onPress]) => (
+                <Pressable key={label} onPress={onPress} style={({ pressed }) => ({ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 16, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, opacity: pressed ? 0.8 : 1 })}>
+                  <View>
+                    <Feather name={icon} size={20} color={c.purple} />
+                    {count !== '' && count !== 0 && count != null && <View style={{ position: 'absolute', top: -8, right: -14, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#111', fontSize: 10, fontWeight: '900' }}>{count}</Text></View>}
+                  </View>
+                  <Text style={{ color: c.text, fontSize: 12, fontWeight: '700' }}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ))}
+
+        {!!data?.listings?.some(l => l.listingType === 'EVENT') && <View style={{ gap: 8 }}>
+          <Text style={{ color: c.muted, fontSize: 12, fontWeight: '800', letterSpacing: 0.6 }}>EVENT DOORS</Text>
+          {data.listings.filter(l => l.listingType === 'EVENT').map(e => (
+            <TouchableOpacity key={e.id} onPress={() => go('/events/' + e.id + '/door')} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 16, backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
+              <Feather name="maximize" size={18} color={c.purple} /><Text style={{ color: c.text, fontWeight: '700', flex: 1 }} numberOfLines={1}>{e.title}</Text><Text style={{ color: c.purple, fontWeight: '800', fontSize: 12 }}>Scan tickets →</Text>
+            </TouchableOpacity>
+          ))}
+        </View>}
+      </ScrollView>
+      <CreateListingModal visible={creating} onClose={() => setCreating(false)} onCreated={reload} />
+    </SafeAreaView>
+  );
 }

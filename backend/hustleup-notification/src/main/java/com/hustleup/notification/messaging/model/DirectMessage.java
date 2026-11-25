@@ -289,4 +289,32 @@ public class DirectMessage {
      */
     @Column(name = "read_at")
     private LocalDateTime readAt;
+
+    /** The message this one replies to (WhatsApp swipe-to-reply), or null. */
+    @Column(name = "reply_to_id", length = 36)
+    private String replyToId;
+
+    /** Snapshot of the quoted message, so the quote survives edits/deletes of the original. */
+    @Column(name = "reply_preview", length = 300)
+    private String replyPreview;
+
+    /** Who wrote the quoted message, so the client can label it "You" or the partner's name. */
+    @Column(name = "reply_sender_id", length = 36)
+    private String replySenderId;
+
+    /** Set when the sender edits the text; the client shows "edited". */
+    @Column(name = "edited_at")
+    private LocalDateTime editedAt;
+
+    /** Set by "delete for everyone"; content and media are wiped at the same moment. */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    /** Emoji reactions as a JSON object of userId to emoji, one reaction per person. */
+    @Column(name = "reactions", columnDefinition = "TEXT")
+    private String reactions;
+
+    /** Length of a voice note or video, in milliseconds. */
+    @Column(name = "media_duration_ms")
+    private Integer mediaDurationMs;
 }

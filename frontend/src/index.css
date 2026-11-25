@@ -1,5 +1,86 @@
 @import "tailwindcss";
 
+.brand-boot-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: #050505;
+  animation: brand-boot-fade 700ms ease forwards;
+  pointer-events: none;
+}
+.brand-loader {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  color: white;
+}
+.brand-loader-mark {
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  animation: brand-loader-pulse 1.25s ease-in-out infinite;
+}
+.brand-loader-orbit {
+  position: absolute;
+  top: -8px;
+  width: 92px;
+  height: 92px;
+  border: 2px solid transparent;
+  border-top-color: #CDFF00;
+  border-right-color: #CDFF0066;
+  border-radius: 50%;
+  animation: brand-loader-spin 1s linear infinite;
+}
+.brand-loader-label { font: 600 12px/1.4 Poppins, sans-serif; color: #a3a3a3; letter-spacing: .04em; }
+.brand-loader-compact { width: 28px; height: 28px; }
+.brand-loader-compact .brand-loader-mark { width: 28px; height: 28px; border-radius: 8px; }
+.brand-loader-compact .brand-loader-orbit { top: -4px; width: 36px; height: 36px; border-width: 1.5px; }
+@keyframes brand-loader-spin { to { transform: rotate(360deg); } }
+@keyframes brand-loader-pulse { 50% { transform: scale(.91); } }
+@keyframes brand-boot-fade { 0%, 75% { opacity: 1; visibility: visible; } 100% { opacity: 0; visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-orbit, .brand-loader-mark, .brand-boot-screen { animation-duration: 0.01ms; animation-iteration-count: 1; }
+}
+
+/* Shared form treatment: consistent rounded fields with a clear violet focus ring. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select,
+textarea {
+  color: var(--ink-primary);
+  background-color: #111018;
+  border: 1px solid #382A4C;
+  border-radius: 14px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #8B5CF6;
+  box-shadow: 0 0 0 3px #8B5CF626;
+}
+[data-theme="light"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  color: #18181B;
+  background-color: #FBFAFF;
+  border-color: #DDD6FE;
+}
+button[class*="bg-[#CDFF00]"]:not([class*="rounded-full"]),
+a[class*="bg-[#CDFF00]"]:not([class*="rounded-full"]) {
+  border-radius: 14px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  transition: filter 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+button[class*="bg-[#CDFF00]"]:not([class*="rounded-full"]):hover,
+a[class*="bg-[#CDFF00]"]:not([class*="rounded-full"]):hover {
+  filter: brightness(1.06);
+}
+
 :root {
   --surface-page: #090909;
   --surface-card: #191919;

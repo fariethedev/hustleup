@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookmarkCheck, Check, CircleCheck, CircleX, Clapperboard, Drama, Eye, Flame, Images, IterationCw, Layers, Link2, MessageCircleMore, MoveLeft, Phone, Play, Plus, ScanSearch, SendHorizontal, Share, ShieldCheck, Square, SquareCheck, SquarePen, UserCog, UserRound, Users, Video, Volume2, VolumeX, WandSparkles } from 'lucide-react-native';
+import { BookmarkCheck, ChevronDown, Check, CircleCheck, CircleX, Clapperboard, Drama, Eye, Flame, Globe, Images, IterationCw, Layers, Link2, MessageCircleMore, MoveLeft, Phone, Play, Plus, ScanSearch, SendHorizontal, Share, ShieldCheck, Square, SquareCheck, SquarePen, UserCog, UserRound, Users, Video, Volume2, VolumeX, WandSparkles } from 'lucide-react-native';
 
 // Same Lucide glyphs as the website; legacy names keep existing actions intact.
 const icons = {
@@ -12,7 +12,7 @@ const icons = {
   share: Share, 'check-decagram': ShieldCheck, square: Square, 'check-square': SquareCheck,
   edit: SquarePen, 'edit-3': SquarePen, 'user-x': Drama, users: Users,
   'volume-off': VolumeX, 'volume-high': Volume2, following: UserRound,
-  communities: UserCog, fyp: WandSparkles, saved: BookmarkCheck, 'video-call': Video,
+  communities: UserCog, fyp: WandSparkles, saved: BookmarkCheck, 'video-call': Video, globe: Globe, 'chevron-down': ChevronDown,
 };
 
 export default function SocialIcon({ name, size = 24, color, ...props }) {

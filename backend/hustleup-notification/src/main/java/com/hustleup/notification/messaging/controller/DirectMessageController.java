@@ -30,6 +30,7 @@ import com.hustleup.notification.messaging.repository.ChatStreakRepository;
 import com.hustleup.notification.messaging.repository.DirectMessageRepository;
 import com.hustleup.common.model.Match;
 import com.hustleup.common.model.Notification;
+import com.hustleup.common.model.User;
 import com.hustleup.common.push.ExpoPushService;
 import com.hustleup.common.repository.MatchRepository;
 import com.hustleup.common.repository.NotificationRepository;
@@ -94,6 +95,19 @@ public class DirectMessageController {
      * in {@code hustleup-common} rather than the dating feature's own service.
      */
     private final MatchRepository matchRepo;
+
+    /** Native look-ups into the social service's follows table, for privacy audiences. */
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
+    /** Who is typing to whom: "senderId>receiverId" to the time of the last keystroke ping. */
+    private static final java.util.concurrent.ConcurrentHashMap<String, Long> TYPING = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
+
+    /** WhatsApp lets you edit for 15 minutes and delete for everyone for about two days. */
+    private static final java.time.Duration EDIT_WINDOW = java.time.Duration.ofMinutes(15);
+    private static final java.time.Duration DELETE_WINDOW = java.time.Duration.ofHours(48);
 
     /**
      * Constructor injection – preferred over field injection for testability
@@ -264,6 +278,8 @@ public class DirectMessageController {
         // Messages, so the two people had to find each other again through the swipe deck.
         // LinkedHashSet keeps the messaged partners first and de-duplicates any match that
         // has already been messaged.
+        User me = userRepo.findById(currentUuid).orElse(null);
+        touchPresence(me);
         Set<String> partnerIds = new LinkedHashSet<>(dmRepo.findDistinctChatPartners(currentUserId));
         matchedAt.keySet().forEach(id -> partnerIds.add(id.toString()));
 
@@ -276,8 +292,8 @@ public class DirectMessageController {
                 // proceed if the UUID maps to a real user.
                 userRepo.findById(UUID.fromString(pid)).ifPresent(user -> {
                     // Heuristic online check: "active within last 5 minutes" = online.
-                    boolean isOnline = user.getLastActive() != null &&
-                            user.getLastActive().isAfter(LocalDateTime.now().minusMinutes(5));
+                    boolean isOnline = presenceVisible(me, user) && user.getLastActive() != null &&
+                            user.getLastActive().isAfter(LocalDateTime.now().minusMinutes(2));
 
                     // Fetch the single most recent message between these two users
                     // to populate the "last message" preview in the chat list UI.
@@ -306,12 +322,20 @@ public class DirectMessageController {
                     partner.put("isNewMatch", matched != null && last == null);
                     // Lights the row lime: money is being agreed in this thread.
                     partner.put("negotiating", dmRepo.hasNegotiation(currentUserId, pid));
+                    partner.put("typing", isTyping(pid, currentUserId));
 
                     if (last != null) {
                         // Human-friendly preview: photos, stickers, and shared listings
                         // shouldn't show raw (possibly empty) content.
                         String previewText;
-                        if ("IMAGE".equals(last.getMessageType())) {
+                        if (last.getDeletedAt() != null) {
+                            previewText = "🚫 This message was deleted";
+                        } else if ("AUDIO".equals(last.getMessageType())) {
+                            previewText = "🎤 Voice message";
+                        } else if ("VIDEO".equals(last.getMessageType())) {
+                            previewText = last.getContent() != null && !last.getContent().isBlank()
+                                    ? "🎥 " + last.getContent() : "🎥 Video";
+                        } else if ("IMAGE".equals(last.getMessageType())) {
                             previewText = last.getContent() != null && !last.getContent().isBlank()
                                     ? "📷 " + last.getContent() : "📷 Photo";
                         } else if ("STICKER".equals(last.getMessageType())) {
@@ -342,7 +366,8 @@ public class DirectMessageController {
                         // the other person has seen anything -- it showed a "read" tick on rows
                         // where the last message was one they had sent to you.
                         partner.put("lastMessageMine", currentUserId.equals(last.getSenderId()));
-                        partner.put("lastMessageRead", last.getReadAt() != null);
+                        partner.put("lastMessageRead", last.getReadAt() != null && receiptsVisible(me, user));
+                        partner.put("lastMessageDeleted", last.getDeletedAt() != null);
                         // Convert LocalDateTime to ISO-8601 string so JSON serialisation
                         // is consistent regardless of the Jackson date format config.
                         partner.put("lastMessageAt",
@@ -420,7 +445,15 @@ public class DirectMessageController {
         // ordered by createdAt ASC so the UI can render them top-to-bottom.
         // Read after the update so the returned rows carry their new readAt.
         List<DirectMessage> messages = dmRepo.findConversation(currentUserId, partnerId);
-        return ResponseEntity.ok(messages.stream().map(this::withDownloadUrl).toList());
+        User me = userRepo.findById(UUID.fromString(currentUserId)).orElse(null);
+        touchPresence(me);
+        User partner = userRepo.findById(UUID.fromString(partnerId)).orElse(null);
+        boolean receipts = receiptsVisible(me, partner);
+        return ResponseEntity.ok(messages.stream()
+                .map(this::withDownloadUrl)
+                // Hide blue ticks when either side turned read receipts off (WhatsApp rule).
+                .map(m -> receipts || !currentUserId.equals(m.getSenderId()) ? m : m.toBuilder().readAt(null).build())
+                .toList());
     }
 
     /**
@@ -569,6 +602,9 @@ public class DirectMessageController {
 
         String currentUserId = getCurrentUserId();
         if (currentUserId == null) return ResponseEntity.status(401).build();
+        if (blockedBetween(currentUserId, partnerId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "You can't message this person.", "code", "BLOCKED"));
+        }
 
         // Use the Lombok @Builder pattern to construct the entity.
         // createdAt is set automatically by @CreationTimestamp on the entity.
@@ -606,6 +642,16 @@ public class DirectMessageController {
 
         // Persist the message. save() issues an INSERT and returns the managed
         // entity (with the generated id and createdAt populated).
+        String replyToId = payload.get("replyToId");
+        if (replyToId != null && !replyToId.isBlank()) {
+            dmRepo.findById(replyToId)
+                    .filter(q -> isParticipant(q, currentUserId) && isParticipant(q, partnerId))
+                    .ifPresent(q -> builder.replyToId(q.getId())
+                            .replySenderId(q.getSenderId())
+                            .replyPreview(previewOf(q)));
+        }
+        TYPING.remove(currentUserId + ">" + partnerId);
+
         DirectMessage saved = dmRepo.save(builder.build());
 
         // Every message — text, sticker, or a shared listing — counts toward the pair's
@@ -682,12 +728,18 @@ public class DirectMessageController {
     public ResponseEntity<?> sendImageMessage(
             @PathVariable String partnerId,
             @RequestParam("image") MultipartFile image,
-            @RequestParam(value = "caption", required = false) String caption) {
+            @RequestParam(value = "caption", required = false) String caption,
+            @RequestParam(value = "durationMs", required = false) Integer durationMs,
+            @RequestParam(value = "replyToId", required = false) String replyToId) {
 
-        if (image == null || image.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "No image provided"));
+        if (image == null || image.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "No file provided"));
         String contentType = image.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Only image uploads are allowed"));
+        String mediaType = contentType == null ? null
+                : contentType.startsWith("image/") ? "IMAGE"
+                : contentType.startsWith("video/") ? "VIDEO"
+                : contentType.startsWith("audio/") ? "AUDIO" : null;
+        if (mediaType == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Send a photo, video or voice note"));
         }
 
         String currentUserId = getCurrentUserId();
@@ -697,15 +749,30 @@ public class DirectMessageController {
         try { recipientId = UUID.fromString(partnerId); }
         catch (IllegalArgumentException e) { return ResponseEntity.badRequest().body(Map.of("error", "Invalid recipient")); }
         if (!userRepo.existsById(recipientId)) return ResponseEntity.notFound().build();
-        String mediaUrl = privateMedia.isEnabled() ? privateMedia.storeImage(image) : fileStorageService.store(image);
+        if (blockedBetween(currentUserId, partnerId)) {
+            return ResponseEntity.status(403).body(Map.of("error", "You can't message this person.", "code", "BLOCKED"));
+        }
+        String mediaUrl;
+        try {
+            mediaUrl = privateMedia.isEnabled() ? privateMedia.storeImage(image) : fileStorageService.store(image);
+        } catch (IllegalArgumentException invalid) {
+            return ResponseEntity.badRequest().body(Map.of("error", invalid.getMessage()));
+        }
 
-        DirectMessage saved = dmRepo.save(DirectMessage.builder()
+        DirectMessage.DirectMessageBuilder media = DirectMessage.builder()
                 .senderId(currentUserId)
                 .receiverId(partnerId)
                 .content(caption != null ? caption.trim() : "")
-                .messageType("IMAGE")
+                .messageType(mediaType)
                 .mediaUrl(mediaUrl)
-                .build());
+                .mediaDurationMs(durationMs);
+        if (replyToId != null && !replyToId.isBlank()) {
+            dmRepo.findById(replyToId)
+                    .filter(q -> isParticipant(q, currentUserId) && isParticipant(q, partnerId))
+                    .ifPresent(q -> media.replyToId(q.getId()).replySenderId(q.getSenderId()).replyPreview(previewOf(q)));
+        }
+        DirectMessage saved = dmRepo.save(media.build());
+        String mediaLabel = "AUDIO".equals(mediaType) ? "🎤 Voice message" : "VIDEO".equals(mediaType) ? "🎥 Video" : "📷 Photo";
 
         try {
             updateStreak(currentUserId, partnerId);
@@ -720,13 +787,13 @@ public class DirectMessageController {
             notificationRepo.save(Notification.builder()
                     .userId(UUID.fromString(partnerId))
                     .title("New message from " + senderName)
-                    .message("📷 Photo")
+                    .message(mediaLabel)
                     .notificationType("DIRECT_MESSAGE")
                     .referenceId(UUID.fromString(currentUserId))
                     .build());
 
             userRepo.findById(UUID.fromString(partnerId))
-                    .ifPresent(u -> expoPushService.send(u.getPushToken(), "New message from " + senderName, "📷 Photo"));
+                    .ifPresent(u -> expoPushService.send(u.getPushToken(), "New message from " + senderName, mediaLabel));
         } catch (Exception ignored) {
         }
 
@@ -741,5 +808,252 @@ public class DirectMessageController {
         if (url != null && url.startsWith("/uploads/") && !url.startsWith("/uploads/messages/"))
             url = "/uploads/messages/" + url.substring("/uploads/".length());
         return message.toBuilder().mediaUrl(url).build();
+    }
+
+    // ── WhatsApp-style features ───────────────────────────────────────────────
+
+    private static boolean isParticipant(DirectMessage m, String userId) {
+        return userId != null && (userId.equals(m.getSenderId()) || userId.equals(m.getReceiverId()));
+    }
+
+    /** Short text for a quoted message, matching how the chat list previews it. */
+    private static String previewOf(DirectMessage q) {
+        if (q.getDeletedAt() != null) return "This message was deleted";
+        String type = q.getMessageType();
+        String text = q.getContent() == null ? "" : q.getContent().trim();
+        String label = switch (type == null ? "TEXT" : type) {
+            case "IMAGE" -> text.isEmpty() ? "📷 Photo" : "📷 " + text;
+            case "VIDEO" -> text.isEmpty() ? "🎥 Video" : "🎥 " + text;
+            case "AUDIO" -> "🎤 Voice message";
+            case "LISTING", "ENQUIRY" -> "🛍️ " + (q.getSharedListingTitle() != null ? q.getSharedListingTitle() : "Listing");
+            case "POST" -> "📤 Post";
+            case "STORY" -> "✨ Status";
+            case "OFFER" -> "🤝 Price offer";
+            default -> text;
+        };
+        return label.length() > 280 ? label.substring(0, 280) + "…" : label;
+    }
+
+    /** Marks the caller as active now. Cheap: only writes when the stored value is stale. */
+    private void touchPresence(User me) {
+        if (me == null) return;
+        LocalDateTime now = LocalDateTime.now();
+        if (me.getLastActive() == null || me.getLastActive().isBefore(now.minusSeconds(30))) {
+            me.setLastActive(now);
+            userRepo.save(me);
+        }
+    }
+
+    /** True when either person has blocked the other (the social service's user_blocks table). */
+    private boolean blockedBetween(String a, String b) {
+        try {
+            Object n = entityManager.createNativeQuery(
+                    "SELECT COUNT(*) FROM user_blocks WHERE (blocker_id = ?1 AND blocked_id = ?2) OR (blocker_id = ?2 AND blocked_id = ?1)")
+                    .setParameter(1, a).setParameter(2, b)
+                    .getSingleResult();
+            return ((Number) n).longValue() > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean follows(UUID follower, UUID following) {
+        try {
+            Object n = entityManager.createNativeQuery(
+                    "SELECT COUNT(*) FROM follows WHERE follower_id = ?1 AND following_id = ?2")
+                    .setParameter(1, follower.toString()).setParameter(2, following.toString())
+                    .getSingleResult();
+            return ((Number) n).longValue() > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Whether {@code owner}'s audience setting admits {@code viewer}. */
+    private boolean audienceAdmits(String audience, User owner, User viewer) {
+        if (owner == null || viewer == null) return false;
+        String a = audience == null ? "EVERYONE" : audience;
+        return switch (a) {
+            case "NOBODY" -> false;
+            case "FOLLOWERS" -> follows(viewer.getId(), owner.getId());
+            case "MUTUALS" -> follows(viewer.getId(), owner.getId()) && follows(owner.getId(), viewer.getId());
+            default -> true;
+        };
+    }
+
+    /**
+     * Can {@code viewer} see {@code subject}'s online / last seen? Reciprocal like WhatsApp:
+     * a viewer who hides their own last seen cannot see anyone else's either.
+     */
+    private boolean presenceVisible(User viewer, User subject) {
+        if (viewer == null || subject == null) return false;
+        if ("NOBODY".equals(viewer.getLastSeenVisibility())) return false;
+        return audienceAdmits(subject.getLastSeenVisibility(), subject, viewer);
+    }
+
+    /** Blue ticks are shown only when both people have read receipts switched on. */
+    private static boolean receiptsVisible(User a, User b) {
+        return a != null && b != null && a.isReadReceipts() && b.isReadReceipts();
+    }
+
+    private static boolean isTyping(String from, String to) {
+        Long at = TYPING.get(from + ">" + to);
+        return at != null && System.currentTimeMillis() - at < 6000;
+    }
+
+    private User currentUser() {
+        String id = getCurrentUserId();
+        return id == null ? null : userRepo.findById(UUID.fromString(id)).orElse(null);
+    }
+
+    /**
+     * Heartbeat from an open app: keeps "online" accurate. <b>POST /direct-messages/presence</b>
+     */
+    @PostMapping("/presence")
+    public ResponseEntity<?> heartbeat() {
+        User me = currentUser();
+        if (me == null) return ResponseEntity.status(401).build();
+        touchPresence(me);
+        return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    /** Keystroke ping while composing. <b>POST /direct-messages/{partnerId}/typing</b> */
+    @PostMapping("/{partnerId}/typing")
+    public ResponseEntity<?> typing(@PathVariable String partnerId) {
+        String me = getCurrentUserId();
+        if (me == null) return ResponseEntity.status(401).build();
+        TYPING.put(me + ">" + partnerId, System.currentTimeMillis());
+        return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    /**
+     * The chat header line: online, last seen (privacy-aware) and typing.
+     * <b>GET /direct-messages/{partnerId}/presence</b>
+     */
+    @GetMapping("/{partnerId}/presence")
+    public ResponseEntity<?> presence(@PathVariable String partnerId) {
+        User me = currentUser();
+        if (me == null) return ResponseEntity.status(401).build();
+        touchPresence(me);
+        User them;
+        try { them = userRepo.findById(UUID.fromString(partnerId)).orElse(null); }
+        catch (IllegalArgumentException e) { return ResponseEntity.badRequest().build(); }
+        if (them == null) return ResponseEntity.notFound().build();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("typing", isTyping(partnerId, me.getId().toString()));
+        if (presenceVisible(me, them) && them.getLastActive() != null) {
+            out.put("online", them.getLastActive().isAfter(LocalDateTime.now().minusMinutes(2)));
+            out.put("lastSeen", them.getLastActive().toString());
+        } else {
+            out.put("online", false);
+        }
+        return ResponseEntity.ok(out);
+    }
+
+    /** Edit your own text message within 15 minutes. <b>PATCH /direct-messages/messages/{id}</b> */
+    @PatchMapping("/messages/{messageId}")
+    public ResponseEntity<?> editMessage(@PathVariable String messageId, @RequestBody Map<String, String> body) {
+        String me = getCurrentUserId();
+        if (me == null) return ResponseEntity.status(401).build();
+        DirectMessage m = dmRepo.findById(messageId).orElse(null);
+        if (m == null || !me.equals(m.getSenderId())) return ResponseEntity.status(404).build();
+        if (m.getDeletedAt() != null) return ResponseEntity.badRequest().body(Map.of("error", "This message was deleted"));
+        if (!"TEXT".equals(m.getMessageType())) return ResponseEntity.badRequest().body(Map.of("error", "Only text messages can be edited"));
+        if (m.getCreatedAt() != null && m.getCreatedAt().plus(EDIT_WINDOW).isBefore(LocalDateTime.now())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Messages can only be edited for 15 minutes"));
+        }
+        String content = body == null ? null : body.get("content");
+        if (content == null || content.trim().isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "Message cannot be empty"));
+        m.setContent(content.trim());
+        m.setEditedAt(LocalDateTime.now());
+        return ResponseEntity.ok(withDownloadUrl(dmRepo.save(m)));
+    }
+
+    /**
+     * Delete for everyone: wipes content and media and leaves a "This message was deleted"
+     * tombstone. Sender only, within 48 hours. <b>DELETE /direct-messages/messages/{id}</b>
+     * ("Delete for me" is handled on the device.)
+     */
+    @DeleteMapping("/messages/{messageId}")
+    public ResponseEntity<?> deleteForEveryone(@PathVariable String messageId) {
+        String me = getCurrentUserId();
+        if (me == null) return ResponseEntity.status(401).build();
+        DirectMessage m = dmRepo.findById(messageId).orElse(null);
+        if (m == null || !me.equals(m.getSenderId())) return ResponseEntity.status(404).build();
+        if (m.getCreatedAt() != null && m.getCreatedAt().plus(DELETE_WINDOW).isBefore(LocalDateTime.now())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Messages older than 48 hours can only be deleted for you"));
+        }
+        if ("OFFER".equals(m.getMessageType())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Price offers cannot be deleted — cancel the offer instead"));
+        }
+        m.setDeletedAt(LocalDateTime.now());
+        m.setContent("");
+        m.setMediaUrl(null);
+        m.setReactions(null);
+        return ResponseEntity.ok(dmRepo.save(m));
+    }
+
+    /**
+     * React with an emoji; the same emoji again removes it, an empty one clears it.
+     * <b>POST /direct-messages/messages/{id}/reactions</b> body {"emoji": "❤️"}
+     */
+    @PostMapping("/messages/{messageId}/reactions")
+    public ResponseEntity<?> react(@PathVariable String messageId, @RequestBody Map<String, String> body) {
+        String me = getCurrentUserId();
+        if (me == null) return ResponseEntity.status(401).build();
+        DirectMessage m = dmRepo.findById(messageId).orElse(null);
+        if (m == null || !isParticipant(m, me)) return ResponseEntity.status(404).build();
+        if (m.getDeletedAt() != null) return ResponseEntity.badRequest().body(Map.of("error", "This message was deleted"));
+        String emoji = body == null ? null : body.get("emoji");
+        if (emoji != null && emoji.length() > 16) return ResponseEntity.badRequest().body(Map.of("error", "Pick a single emoji"));
+        Map<String, String> reactions = new LinkedHashMap<>();
+        try {
+            if (m.getReactions() != null && !m.getReactions().isBlank()) {
+                reactions.putAll(JSON.readValue(m.getReactions(),
+                        new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {}));
+            }
+        } catch (Exception ignored) { /* a corrupt value is simply replaced */ }
+        if (emoji == null || emoji.isBlank() || emoji.equals(reactions.get(me))) reactions.remove(me);
+        else reactions.put(me, emoji);
+        try { m.setReactions(reactions.isEmpty() ? null : JSON.writeValueAsString(reactions)); }
+        catch (Exception e) { return ResponseEntity.internalServerError().build(); }
+        return ResponseEntity.ok(withDownloadUrl(dmRepo.save(m)));
+    }
+
+    /** WhatsApp privacy settings. <b>GET /direct-messages/privacy</b> */
+    @GetMapping("/privacy")
+    public ResponseEntity<?> privacy() {
+        User me = currentUser();
+        if (me == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(privacyOf(me));
+    }
+
+    /** <b>PUT /direct-messages/privacy</b> body: any of lastSeenVisibility, readReceipts, statusAudience */
+    @PutMapping("/privacy")
+    public ResponseEntity<?> updatePrivacy(@RequestBody Map<String, Object> body) {
+        User me = currentUser();
+        if (me == null) return ResponseEntity.status(401).build();
+        Set<String> audiences = Set.of("EVERYONE", "FOLLOWERS", "MUTUALS", "NOBODY");
+        Object lastSeen = body.get("lastSeenVisibility");
+        Object status = body.get("statusAudience");
+        Object receipts = body.get("readReceipts");
+        if (lastSeen != null) {
+            if (!audiences.contains(lastSeen.toString())) return ResponseEntity.badRequest().body(Map.of("error", "Unknown last seen setting"));
+            me.setLastSeenVisibility(lastSeen.toString());
+        }
+        if (status != null) {
+            if (!audiences.contains(status.toString())) return ResponseEntity.badRequest().body(Map.of("error", "Unknown status audience"));
+            me.setStatusAudience(status.toString());
+        }
+        if (receipts != null) me.setReadReceipts(Boolean.parseBoolean(receipts.toString()));
+        userRepo.save(me);
+        return ResponseEntity.ok(privacyOf(me));
+    }
+
+    private static Map<String, Object> privacyOf(User me) {
+        return Map.of(
+                "lastSeenVisibility", me.getLastSeenVisibility() == null ? "EVERYONE" : me.getLastSeenVisibility(),
+                "readReceipts", me.isReadReceipts(),
+                "statusAudience", me.getStatusAudience() == null ? "EVERYONE" : me.getStatusAudience());
     }
 }

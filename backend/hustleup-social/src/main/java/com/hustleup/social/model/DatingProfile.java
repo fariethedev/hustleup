@@ -130,6 +130,26 @@ public class DatingProfile {
     private String showMe;
 
     /**
+     * Up to six extra photos as a JSON array of URLs, shown as a Tinder-style tap-through
+     * carousel. {@link #imageUrl} stays the cover photo so older clients keep working.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String photos;
+
+    /**
+     * Whether this card's owner super liked the viewer — computed per request like
+     * {@link #likedYou}, never stored.
+     */
+    @Transient
+    private Boolean superLikedYou;
+
+    /**
+     * When the viewer and this profile matched; only set on the matches list.
+     */
+    @Transient
+    private java.time.LocalDateTime matchedAt;
+
+    /**
      * True when this profile has already liked the viewer, so the card can be badged
      * "likes you" — swiping right on it is guaranteed to produce a match.
      *
