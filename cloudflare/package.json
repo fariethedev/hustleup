@@ -1,0 +1,15 @@
+{
+  "name": "hustleup-cloudflare",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit",
+    "secrets": "wrangler secret bulk .secrets.env"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261112.1",
+    "typescript": "5.9.3",
+    "wrangler": "4.161.0"
+  }
+}

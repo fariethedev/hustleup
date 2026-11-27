@@ -1,0 +1,67 @@
+# Builds the web app and the five backend container images, then deploys the HustleUp
+# Worker to Cloudflare. Runs on GitHub's runners because Wrangler needs Docker to build
+# container images. Skips cleanly until CLOUDFLARE_API_TOKEN is configured.
+# Setup: backend/CLOUDFLARE_DEPLOYMENT.md
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**", "frontend/**", "cloudflare/**", ".github/workflows/deploy-cloudflare.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+    steps:
+      - name: Check configuration
+        id: cfg
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$PUBLIC_URL" ]; then
+            echo "CLOUDFLARE_API_TOKEN secret or PUBLIC_URL variable not set — skipping deploy."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.cfg.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.cfg.outputs.ready == 'true'
+        with:
+          node-version: 22
+
+      - name: Build web app
+        if: steps.cfg.outputs.ready == 'true'
+        working-directory: frontend
+        env:
+          # Same origin as the API: the Worker serves both.
+          VITE_API_URL: ${{ vars.PUBLIC_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          VITE_FACEBOOK_APP_ID: ${{ vars.VITE_FACEBOOK_APP_ID }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ vars.VITE_STRIPE_PUBLISHABLE_KEY }}
+          VITE_ALGOLIA_APP_ID: ${{ vars.VITE_ALGOLIA_APP_ID }}
+          VITE_ALGOLIA_SEARCH_KEY: ${{ vars.VITE_ALGOLIA_SEARCH_KEY }}
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          VITE_CRISP_WEBSITE_ID: ${{ vars.VITE_CRISP_WEBSITE_ID }}
+        run: npm ci && npm run build
+
+      - name: Deploy Worker and containers
+        if: steps.cfg.outputs.ready == 'true'
+        working-directory: cloudflare
+        run: |
+          npm ci
+          npx wrangler deploy \
+            --var "PUBLIC_URL:${PUBLIC_URL}" \
+            --var "EXTRA_CORS_ORIGINS:${{ vars.EXTRA_CORS_ORIGINS }}"

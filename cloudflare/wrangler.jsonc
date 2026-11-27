@@ -1,0 +1,66 @@
+// HustleUp on Cloudflare: one Worker serves the web app (static assets), replaces the
+// Spring Cloud Gateway (routing, rate limiting, CORS, security headers) and fronts five
+// Spring Boot services that run as Containers. MySQL is external (Aiven) — Cloudflare
+// has no MySQL. Deployed by .github/workflows/deploy-cloudflare.yml. Guide:
+// backend/CLOUDFLARE_DEPLOYMENT.md
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "hustleup",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-20",
+  "observability": { "enabled": true },
+
+  // Vite build of frontend/. API, upload and WebSocket paths go to the Worker first;
+  // everything else is a static file, with index.html as the SPA fallback.
+  "assets": {
+    "directory": "../frontend/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/uploads/*", "/ws/*"]
+  },
+
+  // Each service is one named instance (max_instances: 1). That is required, not just
+  // cheap: notification keeps an in-memory STOMP broker and marketplace runs the payout
+  // sweep, so a second copy of either would split chat or double-run payouts.
+  // Build context is the repo root, as the Dockerfiles expect.
+  "containers": [
+    { "class_name": "AuthService", "image": "../backend/hustleup-auth/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": { "vcpu": 0.5, "memory_mib": 1024, "disk_mb": 4000 } },
+    { "class_name": "SocialService", "image": "../backend/hustleup-social/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": { "vcpu": 0.5, "memory_mib": 1024, "disk_mb": 4000 } },
+    { "class_name": "MarketplaceService", "image": "../backend/hustleup-marketplace/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": { "vcpu": 0.5, "memory_mib": 1024, "disk_mb": 4000 } },
+    { "class_name": "SubscriptionService", "image": "../backend/hustleup-subscription/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": { "vcpu": 0.5, "memory_mib": 1024, "disk_mb": 4000 } },
+    { "class_name": "NotificationService", "image": "../backend/hustleup-notification/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": { "vcpu": 0.5, "memory_mib": 1024, "disk_mb": 4000 } }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "AUTH", "class_name": "AuthService" },
+      { "name": "SOCIAL", "class_name": "SocialService" },
+      { "name": "MARKETPLACE", "class_name": "MarketplaceService" },
+      { "name": "SUBSCRIPTION", "class_name": "SubscriptionService" },
+      { "name": "NOTIFICATION", "class_name": "NotificationService" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["AuthService", "SocialService", "MarketplaceService", "SubscriptionService", "NotificationService"] }
+  ],
+
+  // Same budgets as the old gateway (5 req/s on /api/v1/auth, 20 req/s elsewhere), in the
+  // 10-second periods the binding supports. Keyed on CF-Connecting-IP, which Cloudflare
+  // sets and a client cannot forge.
+  "ratelimits": [
+    { "name": "AUTH_LIMITER", "namespace_id": "1001", "simple": { "limit": 50, "period": 10 } },
+    { "name": "API_LIMITER", "namespace_id": "1002", "simple": { "limit": 200, "period": 10 } }
+  ],
+
+  // Every 5 minutes: keep the JVMs warm. A cold Spring Boot start takes minutes on half a
+  // vCPU, and the first user after an idle period should not be the one who waits.
+  "triggers": { "crons": ["*/5 * * * *"] },
+
+  // Non-secret settings. Secrets (DB, JWT, Stripe, AWS, Resend, ...) are set with
+  // `wrangler secret bulk` — see the guide. PUBLIC_URL is overridden by CI.
+  "vars": {
+    "PUBLIC_URL": "https://hustleup.workers.dev",
+    "EXTRA_CORS_ORIGINS": "",
+    "SENTRY_ENV": "production",
+    "AWS_REGION": "us-east-1"
+  }
+}
