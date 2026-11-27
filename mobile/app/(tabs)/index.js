@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { Image, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, RefreshControl, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { directMessagesApi, listingsApi, notificationsApi, shopsApi } from '../../src/api/client';
 import { mediaUrl } from '../../src/utils/media';
 import { LISTING_CATEGORIES } from '../../src/utils/marketplace';
-import FeaturedBanner, { buildFeatured } from '../../src/components/native/FeaturedBanner';
+import FeaturedBanner, { buildFeatured, featuredHeight } from '../../src/components/native/FeaturedBanner';
 import AboutHustleSpace from '../../src/components/native/AboutHustleSpace';
 import { useRemote } from '../../src/hooks/useRemote';
 import { Copy, Notice, Screen, Section, usePalette } from '../../src/components/native/Kit';
@@ -34,6 +34,7 @@ function CategoryChip({ item, onPress }) {
 export default function Home() {
   const router = useRouter();
   const c = usePalette();
+  const { width: screenWidth } = useWindowDimensions();
   const user = useSelector(s => s.auth.user);
   const [creating, setCreating] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -87,7 +88,7 @@ export default function Home() {
         return featured.length ? <View>
           <Section eyebrow="DON'T MISS" title="Happening on HustleSpace" />
           <FeaturedBanner featured={featured} onOpen={openListing} />
-        </View> : loading && !data ? <View style={{ height: 230, borderRadius: 26, backgroundColor: c.soft }} /> : null;
+        </View> : loading && !data ? <View style={{ height: featuredHeight(screenWidth), borderRadius: 28, backgroundColor: c.soft }} /> : null;
       })()}
 
       <View>

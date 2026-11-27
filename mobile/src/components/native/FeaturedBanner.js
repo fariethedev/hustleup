@@ -24,6 +24,11 @@ export function buildFeatured(events = [], trending = []) {
   return [...upcoming, ...hot];
 }
 
+/** Card height for a given screen width: a tall, poster-like card. Shared with the skeleton. */
+export function featuredHeight(screenWidth) {
+  return Math.round(Math.min(440, Math.max(340, (screenWidth - 40) * 1.1)));
+}
+
 function eventDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -33,6 +38,7 @@ export default function FeaturedBanner({ featured, onOpen }) {
   const c = usePalette();
   const { width } = useWindowDimensions();
   const cardW = width - 40;
+  const cardH = featuredHeight(width);
   const list = useRef(null);
   const [index, setIndex] = useState(0);
 
@@ -67,18 +73,19 @@ export default function FeaturedBanner({ featured, onOpen }) {
           const event = f.kind === 'event';
           return (
             <Pressable onPress={() => onOpen(l)} accessibilityRole="button" accessibilityLabel={`${event ? 'Event' : 'Trending'}: ${l.title}`}>
-              <ImageBackground source={{ uri: mediaUrl(l.mediaUrls?.[0]) }} style={{ width: cardW, height: 230, justifyContent: 'flex-end', backgroundColor: c.soft }} imageStyle={{ borderRadius: 26 }}>
-                <LinearGradient colors={['transparent', 'rgba(0,0,0,0.55)', 'rgba(10,4,24,0.95)']} style={{ borderRadius: 26, padding: 18, paddingTop: 60, gap: 8 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: event ? PURPLE : '#CDFF00' }}>
-                    <Feather name={event ? 'calendar' : 'trending-up'} size={12} color={event ? '#FFF' : '#111'} />
-                    <Text style={{ color: event ? '#FFF' : '#111', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 }}>{event ? eventDate(l.eventStartsAt).toUpperCase() : 'TRENDING NOW'}</Text>
-                  </View>
-                  <Text style={{ color: '#FFF', fontSize: 23, fontWeight: '900' }} numberOfLines={2}>{l.title}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={{ color: '#E9E4FF', fontSize: 13 }} numberOfLines={1}>{event ? (l.eventVenue || l.locationCity || '') : `${l.sellerName || ''}${l.locationCity ? ' · ' + l.locationCity : ''}`}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#CDFF00', paddingHorizontal: 12, minHeight: 34, borderRadius: 17 }}>
-                      <Text style={{ color: '#111', fontWeight: '900', fontSize: 13 }}>{Number(l.price) === 0 ? 'Free' : `${event ? 'From ' : ''}${money(l.price, l.currency)}`}</Text>
-                      <Feather name="arrow-right" size={14} color="#111" />
+              <ImageBackground source={{ uri: mediaUrl(l.mediaUrls?.[0]) }} style={{ width: cardW, height: cardH, justifyContent: 'space-between', backgroundColor: c.soft, borderRadius: 28, overflow: 'hidden' }} imageStyle={{ borderRadius: 28 }}>
+                {/* Badge sits on the photo's top edge so the image itself stays the hero. */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', margin: 14, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, backgroundColor: event ? PURPLE : '#CDFF00' }}>
+                  <Feather name={event ? 'calendar' : 'trending-up'} size={10} color={event ? '#FFF' : '#111'} />
+                  <Text style={{ color: event ? '#FFF' : '#111', fontSize: 9.5, fontWeight: '800', letterSpacing: 0.8 }}>{event ? eventDate(l.eventStartsAt).toUpperCase() : 'TRENDING NOW'}</Text>
+                </View>
+                <LinearGradient colors={['transparent', 'rgba(0,0,0,0.45)', 'rgba(10,4,24,0.92)']} locations={[0, 0.35, 1]} style={{ paddingHorizontal: 16, paddingTop: 70, paddingBottom: 16, gap: 6 }}>
+                  <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '800', lineHeight: 22 }} numberOfLines={2}>{l.title}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <Text style={{ flex: 1, color: '#E9E4FFCC', fontSize: 11.5 }} numberOfLines={1}>{event ? (l.eventVenue || l.locationCity || '') : `${l.sellerName || ''}${l.locationCity ? ' · ' + l.locationCity : ''}`}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#CDFF00', paddingHorizontal: 11, height: 30, borderRadius: 15 }}>
+                      <Text style={{ color: '#111', fontWeight: '800', fontSize: 11.5 }}>{Number(l.price) === 0 ? 'Free' : `${event ? 'From ' : ''}${money(l.price, l.currency)}`}</Text>
+                      <Feather name="arrow-right" size={12} color="#111" />
                     </View>
                   </View>
                 </LinearGradient>
