@@ -7,7 +7,9 @@ name: Deploy to Cloudflare
 on:
   push:
     branches: [main]
-    paths: ["backend/**", "frontend/**", "cloudflare/**", ".github/workflows/deploy-cloudflare.yml"]
+    # frontend/ is not listed: the web app is served by Vercel, and a container redeploy
+    # costs minutes of startup, so web-only changes must not trigger one.
+    paths: ["backend/**", "cloudflare/**", ".github/workflows/deploy-cloudflare.yml"]
   workflow_dispatch:
 
 concurrency:

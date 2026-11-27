@@ -131,7 +131,18 @@ export default {
     forwarded.headers.set("X-Forwarded-Host", url.host);
 
     const stub = (env[target.service] as DurableObjectNamespace<SpringService>).getByName("main");
-    const response = await stub.fetch(forwarded);
+    let response: Response;
+    try {
+      response = await stub.fetch(forwarded);
+    } catch (error) {
+      // Container still provisioning or booting: a retryable 503 the apps can show as
+      // "starting up", instead of Cloudflare's bare 1101 error page.
+      console.error(`${target.service} unavailable:`, error);
+      response = Response.json(
+        { error: "This part of HustleSpace is starting up. Please try again in a moment.", retryable: true },
+        { status: 503, headers: { "Retry-After": "30", "Cache-Control": "no-store" } },
+      );
+    }
 
     // A WebSocket upgrade must be returned untouched.
     if (response.status === 101 || response.webSocket) return response;
@@ -169,6 +180,8 @@ const SHARED_KEYS = [
 const IDLE_MS = 30 * 60 * 1000;
 /** Spring Boot on half a vCPU can take a few minutes to open its port. */
 const STARTUP_BUDGET_MS = 6 * 60 * 1000;
+/** How long a user's request waits for a starting service before getting a 503. */
+const REQUEST_WAIT_MS = 25 * 1000;
 
 abstract class SpringService extends DurableObject<Env> {
   protected abstract readonly port: number;
@@ -189,7 +202,14 @@ abstract class SpringService extends DurableObject<Env> {
   }
 
   override async fetch(request: Request): Promise<Response> {
-    await this.ready();
+    // A user request waits a short while for a booting JVM, then gets a retryable 503 from
+    // the Worker. Startup itself carries on (waitUntil keeps it alive) so the next request
+    // or cron tick finds the service ready.
+    const ready = this.ready();
+    this.ctx.waitUntil(ready.catch(() => undefined));
+    await Promise.race([ready, scheduler.wait(REQUEST_WAIT_MS).then(() => {
+      throw new Error(`${this.constructor.name} is still starting`);
+    })]);
     const url = new URL(request.url);
     url.protocol = "http:";
     url.host = "container";
@@ -267,7 +287,7 @@ abstract class SpringService extends DurableObject<Env> {
 
 export class AuthService extends SpringService {
   protected readonly port = 8081;
-  protected readonly heap = "1g";
+  protected readonly heap = "512m";
   protected readonly keys = ["GOOGLE_CLIENT_ID", "FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET",
     "TURNSTILE_SECRET_KEY", "GOOGLE_MAPS_SERVER_KEY"];
 }
@@ -282,7 +302,7 @@ export class SocialService extends SpringService {
 
 export class MarketplaceService extends SpringService {
   protected readonly port = 8083;
-  protected readonly heap = "1g";
+  protected readonly heap = "512m";
   protected readonly keys = ["STRIPE_SECRET_KEY", "STRIPE_CONNECT_WEBHOOK_SECRET", "STRIPE_PLATFORM_FEE_PERCENT",
     "ALGOLIA_APP_ID", "ALGOLIA_ADMIN_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY"];
 }

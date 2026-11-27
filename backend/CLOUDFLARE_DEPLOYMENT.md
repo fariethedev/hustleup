@@ -5,20 +5,22 @@
 | Web app (`frontend/`) | **Vercel** at hustlespace.space, with `VITE_API_URL=https://api.hustlespace.space`. The Worker also serves a copy of the build on its `workers.dev` URL. |
 | API | **`https://api.hustlespace.space`**, a custom domain on the Worker |
 | Gateway | **The Worker itself** ([cloudflare/src/index.ts](../cloudflare/src/index.ts)): same routes, rate limits, CORS and security headers. The `hustleup-gateway` service is not deployed. |
-| auth, social, marketplace | Cloudflare **Containers**, `standard-1` (1/2 vCPU, 4 GiB, 1 GiB heap) |
-| subscription, notification | Cloudflare **Containers**, `basic` (1/4 vCPU, 1 GiB) |
+| social | Cloudflare **Containers**, `standard-1` (1/2 vCPU, 4 GiB, 1 GiB heap) |
+| auth, marketplace | Cloudflare **Containers**, `basic` (1/4 vCPU, 1 GiB, 512 MB heap) |
+| subscription, notification | Cloudflare **Containers**, `basic` (1/4 vCPU, 1 GiB, 320 MB heap) |
 | MySQL | **Aiven free MySQL 8.4** (Cloudflare has no MySQL; D1 is SQLite and Java can't connect to it directly) |
 | Media | R2 bucket `hustlespace`, served from `images.hustlespace.space` |
 | Deploys | GitHub Actions ([deploy-cloudflare.yml](../.github/workflows/deploy-cloudflare.yml)) on every push to `main` |
 
 Every container runs as a single instance and is kept warm by a 5-minute cron.
 
-Custom instance types need at least 1 vCPU, so the presets above are used.
+Custom instance types need at least 1 vCPU, so the presets above are used. After a deploy,
+`basic` instances get capacity within seconds, while `standard-1` can wait 10 minutes or more.
+While a service is starting, the Worker returns `503` with `Retry-After: 30`.
 
 **Cost estimate (check Cloudflare's pricing page):** $5 Workers Paid plan plus about $6.50
-per GiB-month of memory, which is about $26 for each standard-1 and $6.50 for each basic,
-plus CPU while active. That's roughly **$95–100/month**, and Aiven's free tier is $0. Moving
-all five to `basic` costs about $40, but they start up and respond more slowly.
+per GiB-month of memory, which is about $26 for the standard-1 and $6.50 for each basic,
+plus CPU while active. That's roughly **$55–60/month**, and Aiven's free tier is $0.
 
 **Database bootstrap:** the Flyway migrations cannot build the schema from an empty
 database. V12 alters a `posts` table that no migration creates, because the earliest tables
