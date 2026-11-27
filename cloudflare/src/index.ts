@@ -223,6 +223,10 @@ abstract class SpringService extends DurableObject<Env> {
       env.SPRING_DATASOURCE_PASSWORD = dbPassword;
       env.MYSQL_PASSWORD = dbPassword;
     }
+    // Aiven's free MySQL allows few connections; Hikari's default pool of 10 per service
+    // (50 across five) exhausts it. Three each leaves headroom for migrations and admin.
+    env.SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE = "3";
+    env.SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE = "1";
     env.FRONTEND_URL = this.env.FRONTEND_URL;
     // Containers have no persistent disk: uploads must go to S3/R2. This only gives the
     // local-disk fallback somewhere harmless to point.
