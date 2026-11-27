@@ -7,7 +7,9 @@ import com.hustleup.common.push.ExpoPushService;
 import com.hustleup.common.repository.NotificationRepository;
 import com.hustleup.common.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import com.hustleup.common.email.EmailLayout;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -40,6 +42,10 @@ public class ShipmentService {
     /** In-app notification type for everything on the delivery track. */
     public static final String NOTIFICATION_TYPE = "ORDER";
 
+    /** Where email buttons send people: the web app's order list. */
+    @Value("${app.frontend.url:https://hustlespace.space}")
+    private String frontendUrl;
+
     // -------------------------------------------------------------------------
     // Payment
     // -------------------------------------------------------------------------
@@ -57,6 +63,13 @@ public class ShipmentService {
      */
     public void confirmPaid(Fulfilment fulfilment, String itemName, UUID orderId,
                             UUID buyerId, UUID sellerId) {
+        confirmPaid(fulfilment, OrderSummary.of(itemName), orderId, buyerId, sellerId);
+    }
+
+    /** As above, with the item's photo and price for the confirmation emails. */
+    public void confirmPaid(Fulfilment fulfilment, OrderSummary order, UUID orderId,
+                            UUID buyerId, UUID sellerId) {
+        String itemName = order.itemName();
         // Guard against a webhook Stripe has replayed: without this, a retried
         // checkout.session.completed would drag an order the seller has already marked
         // SHIPPED back to CONFIRMED, and re-announce it to both of them.
@@ -75,12 +88,20 @@ public class ShipmentService {
 
         notify(buyerId, orderId,
                 "Payment confirmed — " + itemName,
-                "Your order is confirmed and the seller has been notified. " + howItArrives);
+                "Thanks for your order! Your payment went through and the seller has been notified. " + howItArrives,
+                order, "Track your order");
 
+        // The money is held by HustleSpace until the buyer confirms receipt (or the holding
+        // period ends), so "you have been paid" would be untrue and send sellers looking for
+        // a Stripe balance that is not there yet.
         notify(sellerId, orderId,
-                "You have been paid for " + itemName,
-                "Payment has cleared. Update the delivery status from your dashboard so the buyer "
-                + "can follow it — you are sending this by " + method.label().toLowerCase() + ".");
+                "You made a sale — " + itemName,
+                "The buyer has paid. Your payout is held safely and released to your Stripe account "
+                + "once they confirm they received it (or automatically after the holding period). "
+                + (method == ShippingMethod.NONE
+                    ? "Contact the buyer to arrange the handover."
+                    : "Send it by " + method.label().toLowerCase() + " and update the delivery status so they can follow it."),
+                order, "Open the order");
     }
 
     // -------------------------------------------------------------------------
@@ -99,6 +120,13 @@ public class ShipmentService {
      */
     public String applyUpdate(Fulfilment fulfilment, FulfilmentUpdateRequest request,
                               String itemName, UUID orderId, UUID buyerId) {
+        return applyUpdate(fulfilment, request, OrderSummary.of(itemName), orderId, buyerId);
+    }
+
+    /** As above, with the item's photo and price for the buyer's update email. */
+    public String applyUpdate(Fulfilment fulfilment, FulfilmentUpdateRequest request,
+                              OrderSummary order, UUID orderId, UUID buyerId) {
+        String itemName = order.itemName();
 
         ShippingMethod method = fulfilment.methodOrDefault();
         FulfilmentStatus previous = fulfilment.getFulfilmentStatus();
@@ -153,7 +181,8 @@ public class ShipmentService {
         }
 
         if (target != previous) {
-            notify(buyerId, orderId, buyerHeadline(target, itemName), buyerBody(target, fulfilment));
+            notify(buyerId, orderId, buyerHeadline(target, itemName), buyerBody(target, fulfilment),
+                    order, "Track your order");
         }
         return null;
     }
@@ -217,6 +246,11 @@ public class ShipmentService {
      * the global alert listener polls and surfaces as a toast), email, and mobile push.
      */
     private void notify(UUID userId, UUID orderId, String title, String message) {
+        notify(userId, orderId, title, message, null, "Open HustleSpace");
+    }
+
+    private void notify(UUID userId, UUID orderId, String title, String message,
+                        OrderSummary order, String cta) {
         if (userId == null) return;
         try {
             notificationRepository.save(Notification.builder()
@@ -233,8 +267,13 @@ public class ShipmentService {
         try {
             User user = userRepository.findById(userId).orElse(null);
             if (user == null) return;
+            String card = order == null ? ""
+                    : EmailLayout.itemCard(order.imageUrl(), order.itemName(), order.detail(), order.priceText());
+            String link = frontendUrl.replaceAll("/+$", "") + "/dashboard?tab=orders";
             emailService.send(user.getEmail(), title,
-                    "<p>" + escape(message) + "</p><p>Track it in your HustleSpace dashboard.</p>");
+                    card
+                    + "<p style=\"margin:0\">" + escape(message) + "</p>"
+                    + EmailLayout.button(link, cta));
             // The push comes from NotificationPushRelay, off the notification stored above.
         } catch (Exception e) {
             log.warn("Could not send order notification to {}: {}", userId, e.getMessage());

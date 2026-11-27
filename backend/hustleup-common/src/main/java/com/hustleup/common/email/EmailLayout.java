@@ -46,6 +46,31 @@ public final class EmailLayout {
                 .formatted(INK, LIME, escape(value));
     }
 
+    /**
+     * The item an email is about — photo, name, a detail line and the price — like the
+     * product row in a shop's order confirmation. All text is escaped here; the image is
+     * only shown when it is an absolute https URL (email clients cannot load anything else).
+     */
+    public static String itemCard(String imageUrl, String title, String detail, String price) {
+        boolean showImage = imageUrl != null && imageUrl.startsWith("https://");
+        String image = showImage
+                ? ("<td width=\"92\" style=\"width:92px;padding-right:16px;vertical-align:top\">"
+                   + "<img src=\"%s\" width=\"92\" height=\"92\" alt=\"\" style=\"display:block;width:92px;height:92px;object-fit:cover;border-radius:14px;border:1px solid %s\"></td>")
+                        .formatted(escape(imageUrl), LINE)
+                : "";
+        return ("<table role=\"presentation\" width=\"100%%\" cellspacing=\"0\" cellpadding=\"0\" "
+                + "style=\"margin:4px 0 22px;border:1px solid %s;border-radius:18px;background:#FAFBF7\"><tr><td style=\"padding:14px\">"
+                + "<table role=\"presentation\" width=\"100%%\" cellspacing=\"0\" cellpadding=\"0\"><tr>%s"
+                + "<td style=\"vertical-align:top\">"
+                + "<div style=\"font-size:16px;font-weight:bold;line-height:1.35;color:%s\">%s</div>"
+                + "%s"
+                + "%s"
+                + "</td></tr></table></td></tr></table>")
+                .formatted(LINE, image, INK, escape(title == null || title.isBlank() ? "Your item" : title),
+                        detail == null || detail.isBlank() ? "" : "<div style=\"margin-top:4px;font-size:13px;line-height:1.5;color:" + MUTED + "\">" + escape(detail) + "</div>",
+                        price == null || price.isBlank() ? "" : "<div style=\"margin-top:10px;display:inline-block;padding:5px 12px;border-radius:999px;background:" + INK + ";color:" + LIME + ";font-size:14px;font-weight:bold\">" + escape(price) + "</div>");
+    }
+
     public static String wrap(String subject, String content) {
         if (content != null && content.contains("data-hustlespace-email")) return content;
         String body = content == null ? "" : content.replaceAll("(?is)<!doctype[^>]*>|</?(?:html|body)[^>]*>|<head>.*?</head>", "");

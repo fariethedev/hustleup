@@ -63,9 +63,12 @@ public class NotificationEmailRelay {
      * it switchable here would mean an environment could turn the per-listing mail back on
      * and send both, which is worse than either alone.
      *
+     * <p>ORDER and BOOKING_ACCEPTED are mailed by the marketplace itself, with the item's photo,
+     * price and a call to action — the generic mail here would arrive as a plain duplicate.
+     *
      * <p>The in-app notification is untouched — only the mail moved.
      */
-    private static final Set<String> BATCHED_ELSEWHERE = Set.of("LISTING");
+    private static final Set<String> BATCHED_ELSEWHERE = Set.of("LISTING", "ORDER", "BOOKING_ACCEPTED");
 
     /**
      * Notification types that stay in-app only.

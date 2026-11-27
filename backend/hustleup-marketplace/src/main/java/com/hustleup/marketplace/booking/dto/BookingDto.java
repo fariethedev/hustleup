@@ -42,6 +42,7 @@ public class BookingDto {
     // --- Linked listing ---
     private UUID listingId;      // UUID of the listing that was booked
     private String listingTitle; // resolved listing headline (not stored on entity — added by service)
+    private String listingImage; // first listing photo as a public URL, for order cards (added by service)
 
     // --- Three-price negotiation trail ---
     private BigDecimal offeredPrice;  // buyer's opening offer (may equal listing price if not customised)

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Alert, AppState, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { bookingsApi, shopsApi, claimsApi, payoutsApi } from '../../src/api/clie
 import { errorMessage, money } from '../../src/utils/marketplace';
 import { deliverySteps, orderLabel, orderState } from '../../src/utils/orderState';
 import { stripeUrl } from '../../src/utils/secureLinks';
+import { mediaUrl } from '../../src/utils/media';
 
 const reasons = [['NOT_RECEIVED', 'Not received'], ['DAMAGED', 'Arrived damaged'], ['NOT_AS_DESCRIBED', 'Not as described'], ['OTHER', 'Something else']];
 /**
@@ -75,6 +76,10 @@ export default function OrdersScreen() {
   const [delivery, setDelivery] = useState({ status: '', carrier: '', trackingNumber: '', trackingUrl: '', note: '' });
   const [feePercent, setFeePercent] = useState(null);
   const listRef = useRef(null);
+  // Stripe session of a payment started here. Confirmed with the server when the browser
+  // closes and again whenever the app returns to the foreground, so a paid booking shows as
+  // paid straight away instead of waiting on a webhook (which never reaches a dev server).
+  const pendingSession = useRef(null);
   // Set when another screen (a chat offer card, a notification) links to one booking: the
   // list switches to the tab that booking lives on, scrolls to it and highlights it.
   const focusId = typeof params.bookingId === 'string' ? params.bookingId : null;
@@ -94,12 +99,20 @@ export default function OrdersScreen() {
     setError(failed ? 'Some order information could not load. Pull down to retry. Receipt approval stays disabled if problem reports cannot be checked.' : '');
     setLoading(false); setRefreshing(false);
   }, []);
+  const confirmPending = useCallback(async () => {
+    const sessionId = pendingSession.current;
+    if (!sessionId) return;
+    try {
+      const res = await bookingsApi.confirmPayment(sessionId);
+      if (res.status === 200) pendingSession.current = null; // 202 = not settled yet, keep trying
+    } catch { /* the server-side reconciler catches anything missed here */ }
+  }, []);
   useFocusEffect(useCallback(() => {
-    load();
+    confirmPending().finally(load);
     payoutsApi.status().then(r => setFeePercent(Number(r.data?.platformFeePercent))).catch(() => {});
-    const listener = AppState.addEventListener('change', state => { if (state === 'active') load(); });
+    const listener = AppState.addEventListener('change', state => { if (state === 'active') confirmPending().finally(load); });
     return () => listener.remove();
-  }, [load]));
+  }, [load, confirmPending]));
 
   const run = async (operation, inDialog = false) => {
     if (busyRef.current) return;
@@ -121,6 +134,7 @@ export default function OrdersScreen() {
   const Button = ({ title, icon, onPress, disabled = false, primary = false }) => <Pressable accessibilityRole="button" accessibilityState={{ disabled: disabled || busy }} disabled={disabled || busy} onPress={onPress} style={[s.button, { borderColor: colors.line, backgroundColor: primary ? '#CDFF00' : colors.card, opacity: disabled || busy ? .45 : 1 }]}>
     {icon && <Feather name={icon} size={18} color={primary ? '#161A00' : colors.accent} />}<Text style={{ color: primary ? '#161A00' : colors.text, fontWeight: '700' }}>{title}</Text>
   </Pressable>;
+  const image = order => mediaUrl(order.listingImage || order.productImageUrl || order.imageUrl);
   const claimFor = order => claims.find(claim => claim.orderId === order.id && claim.orderType === (order.kind === 'shop' ? 'SHOP_ORDER' : 'BOOKING'));
   const filtered = orders.filter(order => tab === 'all' || (tab === 'buying') === orderState(order, user?.id).buyer);
 
@@ -163,9 +177,19 @@ export default function OrdersScreen() {
       {focused && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: '#CDFF00' }}>
         <Feather name="tag" size={12} color="#161A00" /><Text style={{ color: '#161A00', fontSize: 11, fontWeight: '800' }}>{state.canRespond ? 'THIS OFFER IS WAITING FOR YOU' : 'THE OFFER YOU OPENED'}</Text>
       </View>}
-      <Text style={{ color: colors.accent, fontSize: 12, textTransform: 'capitalize' }}>{order.kind === 'shop' ? 'Store order' : 'Marketplace booking'} · {orderLabel(order.status)}</Text>
-      <Text style={[s.title, { color: colors.text }]}>{order.listingTitle || order.productName || 'Order'}</Text>
-      <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>{money(order.totalPrice ?? order.agreedPrice ?? order.counterPrice ?? order.offeredPrice, order.currency)}</Text>
+      <View style={{ flexDirection: 'row', gap: 14 }}>
+        {image(order)
+          ? <Image source={{ uri: image(order) }} style={{ width: 76, height: 76, borderRadius: 16, backgroundColor: colors.line }} />
+          : <View style={{ width: 76, height: 76, borderRadius: 16, backgroundColor: colors.line, alignItems: 'center', justifyContent: 'center' }}><Feather name={order.kind === 'shop' ? 'shopping-bag' : 'package'} size={24} color={colors.muted} /></View>}
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ color: colors.muted, fontSize: 11, letterSpacing: 0.4 }}>{(order.kind === 'shop' ? 'STORE ORDER' : 'MARKETPLACE')}{order.quantity > 1 ? ` · ×${order.quantity}` : ''}</Text>
+          <Text style={[s.title, { color: colors.text, fontSize: 16 }]} numberOfLines={2}>{order.listingTitle || order.productName || 'Order'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Text style={{ color: colors.text, fontSize: 17, fontWeight: '800' }}>{money(order.totalPrice ?? order.agreedPrice ?? order.counterPrice ?? order.offeredPrice, order.currency)}</Text>
+            <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: state.paid ? '#22C55E22' : colors.line }}><Text style={{ color: state.paid ? '#16A34A' : colors.muted, fontSize: 11, fontWeight: '700', textTransform: 'capitalize' }}>{orderLabel(order.status)}</Text></View>
+          </View>
+        </View>
+      </View>
       {[['credit-card', 'Payment', state.paid ? 'Payment received' : orderLabel(order.paymentStatus || order.status)],
         ['truck', 'Delivery', orderLabel(order.fulfilment?.fulfilmentStatus)],
         ['shield', 'Seller payout', state.payout]].map(([icon, label, value]) => <View key={label} style={s.row}><Feather name={icon} size={20} color={colors.accent} /><View style={{ flex: 1 }}><Text style={{ color: colors.muted, fontSize: 12 }}>{label}</Text><Text style={{ color: colors.text, textTransform: 'capitalize', marginTop: 3 }}>{value}</Text></View></View>)}
@@ -178,7 +202,12 @@ export default function OrdersScreen() {
       {!!claim && <Text style={{ color: colors.accent }}>Problem report: {orderLabel(claim.status)}{claim.resolutionNote ? ' — ' + claim.resolutionNote : ''}</Text>}
       <View style={s.actions}>
         {state.canRespond && <><Button title="Accept offer" icon="check" primary onPress={() => run(() => bookingsApi.accept(order.id, order.version))} /><Button title="Counter offer" icon="edit-2" onPress={() => open('counter', order)} /></>}
-        {state.canPay && <Button title="Pay securely" icon="credit-card" primary onPress={() => run(async () => { const { data } = await bookingsApi.checkoutSession(order.id); await WebBrowser.openBrowserAsync(stripeUrl(data.url)); })} />}
+        {state.canPay && <Button title="Pay securely" icon="credit-card" primary onPress={() => run(async () => {
+          const { data } = await bookingsApi.checkoutSession(order.id);
+          pendingSession.current = data.url?.match(/cs_(test|live)_[A-Za-z0-9]+/)?.[0] || null;
+          await WebBrowser.openBrowserAsync(stripeUrl(data.url));
+          await confirmPending();
+        })} />}
         {state.canReceive && <Button title="Confirm received" icon="check-circle" primary disabled={!claimsReady} onPress={() => Alert.alert('Have you checked your goods?', 'Confirm only after checking your purchase. This approves the seller’s payment, subject to payout checks.', [{ text: 'Not yet', style: 'cancel' }, { text: 'Confirm received', onPress: () => run(() => api.confirmReceipt(order.id)) }])} />}
         {state.canReport && <Button title="Report a problem" icon="alert-circle" disabled={!claimsReady} onPress={() => open('claim', order)} />}
         {state.canTrack && <Button title="Update delivery" icon="truck" onPress={() => open('delivery', order)} />}

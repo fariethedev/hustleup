@@ -1,6 +1,9 @@
 package com.hustleup.marketplace.shop.service;
 
 import com.hustleup.common.model.User;
+import com.hustleup.common.storage.FileStorageService;
+import com.hustleup.common.util.Money;
+import com.hustleup.marketplace.shipping.OrderSummary;
 import com.hustleup.common.security.EmailVerificationGuard;
 import com.hustleup.marketplace.shipping.Fulfilment;
 import com.hustleup.marketplace.shipping.FulfilmentStatus;
@@ -41,6 +44,7 @@ public class ShopCheckoutService {
     private final ShopOrderRepository orderRepository;
     private final ShopInventoryService inventoryService;
     private final ShipmentService shipmentService;
+    private final FileStorageService fileStorageService; // product photo URL for the confirmation emails
     private final EmailVerificationGuard emailVerificationGuard;
 
     /** A shop's basket turned into orders, plus the shop for building return URLs. */
@@ -153,7 +157,7 @@ public class ShopCheckoutService {
                     if (session.getPaymentIntent() != null) o.setPaymentIntentId(session.getPaymentIntent());
                     // Money has actually arrived, so the buyer now has something to follow and
                     // the seller owes them goods. Both are told here, and only here.
-                    shipmentService.confirmPaid(o.getFulfilment(), o.getProductName(), o.getId(), o.getBuyerId(), o.getSellerId());
+                    shipmentService.confirmPaid(o.getFulfilment(), summaryOf(o), o.getId(), o.getBuyerId(), o.getSellerId());
                     o.setUpdatedAt(java.time.LocalDateTime.now());
                     paid.add(orderRepository.save(o));
                 });
@@ -176,5 +180,15 @@ public class ShopCheckoutService {
 
     private static String str(Object v) {
         return v != null && !String.valueOf(v).isBlank() ? String.valueOf(v) : null;
+    }
+
+    /** The ordered product as shown in emails: name, photo, total and quantity. */
+    private OrderSummary summaryOf(ShopOrder o) {
+        String image = null;
+        if (o.getProductImageUrl() != null && !o.getProductImageUrl().isBlank()) {
+            try { image = fileStorageService.refreshUrl(o.getProductImageUrl()); } catch (Exception ignored) { }
+        }
+        return new OrderSummary(o.getProductName(), image, Money.format(o.getTotalPrice(), o.getCurrency()),
+                Math.max(1, o.getQuantity()));
     }
 }

@@ -49,7 +49,11 @@ import com.hustleup.marketplace.shipping.ShippingMethod;
 import com.hustleup.marketplace.ticket.service.TicketService;
 import com.hustleup.marketplace.ticket.service.EventAvailabilityService;
 import com.hustleup.marketplace.luggage.service.LuggageAvailabilityService;
+import com.hustleup.common.email.EmailLayout;
 import com.hustleup.common.email.EmailService;
+import com.hustleup.common.storage.FileStorageService;
+import com.hustleup.common.util.Money;
+import com.hustleup.marketplace.shipping.OrderSummary;
 import com.hustleup.common.push.ExpoPushService;
 import com.hustleup.common.model.Notification;
 import com.hustleup.common.model.User;
@@ -87,6 +91,9 @@ public class BookingService {
      * <p>Same setting storefront orders use, because it is the same judgement: how long a
      * buyer gets to raise a problem, weighed against how long a seller waits to be paid.
      */
+    @Value("${app.frontend.url:https://hustlespace.space}")
+    private String frontendUrl;
+
     @Value("${app.payouts.hold-days:7}")
     private int holdDays;
 
@@ -114,6 +121,7 @@ public class BookingService {
     private final TicketService ticketService; // issues/voids digital tickets for EVENT bookings
     private final NotificationRepository notificationRepository; // in-app alerts — powers the real-time negotiation popup
     private final ShipmentService shipmentService; // delivery-track updates and the alerts they generate
+    private final FileStorageService fileStorageService; // public URL of a listing's photo, for emails and order cards
     /** The door: capacity and the sales window for EVENT listings. */
     private final EventAvailabilityService eventAvailabilityService;
     /** Remaining carrying weight for LUGGAGE listings. */
@@ -141,7 +149,9 @@ public class BookingService {
                           EventAvailabilityService eventAvailabilityService,
                           LuggageAvailabilityService luggageAvailabilityService,
                           ProtectionClaimService protectionClaimService,
-                          EmailVerificationGuard emailVerificationGuard) {
+                          EmailVerificationGuard emailVerificationGuard,
+                          FileStorageService fileStorageService) {
+        this.fileStorageService = fileStorageService;
         this.protectionClaimService = protectionClaimService;
         this.bookingRepository = bookingRepository;
         this.listingRepository = listingRepository;
@@ -483,7 +493,7 @@ public class BookingService {
         String buyerName = buyer.displayName();
         notifyEverywhere(listing.getSellerId(),
                 buyerName + " wants to book " + listing.getTitle(),
-                buyerName + " offered " + offer + " " + listing.getCurrency() + " for \"" + listing.getTitle() + "\".",
+                buyerName + " offered " + Money.format(offer, listing.getCurrency()) + " for \"" + listing.getTitle() + "\".",
                 "BOOKING_REQUEST", saved.getId());
 
         return enrichDto(saved);
@@ -756,7 +766,7 @@ public class BookingService {
         String sellerName = seller.displayName();
         notifyEverywhere(seller.getId().equals(booking.getBuyerId()) ? booking.getSellerId() : booking.getBuyerId(),
                 sellerName + " countered on " + listingTitle,
-                sellerName + " proposed " + counterPrice + " " + booking.getCurrency() + " for \"" + listingTitle + "\".",
+                sellerName + " proposed " + Money.format(counterPrice, booking.getCurrency()) + " for \"" + listingTitle + "\".",
                 "BOOKING_COUNTER", saved.getId());
 
         return enrichDto(saved);
@@ -835,15 +845,19 @@ public class BookingService {
             }
 
             String listingTitle = bookedListing != null ? bookedListing.getTitle() : "your booking";
+            String agreedText = Money.format(agreed, booking.getCurrency());
             notifyByPush(booking.getId(), booking.getBuyerId(), "Booking confirmed",
-                    listingTitle + " is confirmed at " + agreed + " " + booking.getCurrency() + ".");
+                    listingTitle + " is confirmed at " + agreedText + ".");
 
             // Let whichever party didn't just click "accept" know their offer/counter went
             // through — closes the loop on the negotiation popup for both sides.
             UUID otherParty = user.getId().equals(booking.getBuyerId()) ? booking.getSellerId() : booking.getBuyerId();
             notifyEverywhere(otherParty, "Booking confirmed: " + listingTitle,
-                    listingTitle + " is confirmed at " + agreed + " " + booking.getCurrency() + ".",
+                    listingTitle + " is confirmed at " + agreedText + ".",
                     "BOOKING_ACCEPTED", saved.getId());
+            // BOOKING_ACCEPTED is mailed here rather than by the generic relay, so the email can
+            // show the item and tell each side what happens next.
+            sendAcceptedEmail(saved, bookedListing, otherParty);
 
             return enrichDto(saved);
         } catch (ObjectOptimisticLockingFailureException e) {
@@ -979,9 +993,8 @@ public class BookingService {
             if (session.getPaymentIntent() != null) {
                 booking.setPaymentIntentId(session.getPaymentIntent());
             }
-            String title = listingRepository.findById(booking.getListingId())
-                    .map(Listing::getTitle).orElse("your order");
-            shipmentService.confirmPaid(booking.getFulfilment(), title,
+            Listing bought = listingRepository.findById(booking.getListingId()).orElse(null);
+            shipmentService.confirmPaid(booking.getFulfilment(), summaryOf(booking, bought),
                     booking.getId(), booking.getBuyerId(), booking.getSellerId());
 
             // Payment is what earns a ticket, so this is where one is minted. issueForBooking
@@ -1428,7 +1441,10 @@ public class BookingService {
         // Resolve seller display name
         userRepository.findById(booking.getSellerId()).ifPresent(u -> dto.setSellerName(u.displayName()));
         // Resolve the listing title so clients don't need a second API call
-        listingRepository.findById(booking.getListingId()).ifPresent(l -> dto.setListingTitle(l.getTitle()));
+        listingRepository.findById(booking.getListingId()).ifPresent(l -> {
+            dto.setListingTitle(l.getTitle());
+            dto.setListingImage(firstImageUrl(l));
+        });
         return dto;
     }
 
@@ -1437,6 +1453,54 @@ public class BookingService {
         dto.setRole(booking.getBuyerId().equals(currentUserId) ? "buyer" : "seller");
         dto.setReviewedByMe(reviewRepository.existsByBookingIdAndReviewerId(booking.getId(), currentUserId));
         return dto;
+    }
+
+    /** The booked item as shown in emails: name, first photo, total price and quantity. */
+    private OrderSummary summaryOf(Booking booking, Listing listing) {
+        BigDecimal total = booking.getAgreedPrice() != null ? booking.getAgreedPrice()
+                : booking.getCounterPrice() != null ? booking.getCounterPrice() : booking.getOfferedPrice();
+        return new OrderSummary(listing != null ? listing.getTitle() : "your order",
+                listing != null ? firstImageUrl(listing) : null,
+                Money.format(total, booking.getCurrency()),
+                booking.getQuantity() == null ? 1 : Math.max(1, booking.getQuantity()));
+    }
+
+    /**
+     * The listing's first photo as a public URL, or null. Videos are skipped (an email or a
+     * thumbnail cannot show them) as are the generated placeholder tiles.
+     */
+    private String firstImageUrl(Listing listing) {
+        if (listing == null || listing.getMediaUrls() == null || listing.getMediaUrls().isBlank()) return null;
+        for (String raw : listing.getMediaUrls().split(",")) {
+            String path = raw.trim();
+            if (path.isEmpty() || com.hustleup.marketplace.listing.service.ListingMediaLibrary.isGeneratedPadding(path)) continue;
+            if (path.toLowerCase().matches(".*\\.(mp4|mov|webm|m4v)(\\?.*)?$")) continue;
+            try {
+                return fileStorageService.refreshUrl(path);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * "Offer accepted" email for whichever side did not click accept: a buyer is asked to
+     * pay (nothing is reserved until they do), a seller is told payment is on its way.
+     */
+    private void sendAcceptedEmail(Booking booking, Listing listing, UUID recipientId) {
+        boolean toBuyer = recipientId.equals(booking.getBuyerId());
+        OrderSummary order = summaryOf(booking, listing);
+        String link = frontendUrl.replaceAll("/+$", "") + "/dashboard?tab=orders";
+        String body = EmailLayout.itemCard(order.imageUrl(), order.itemName(), order.detail(), order.priceText())
+                + (toBuyer
+                    ? "<p style=\"margin:0\">Good news — the seller accepted at <b>" + EmailLayout.escape(order.priceText())
+                      + "</b>. Pay now to secure it: your payment is held safely and only released to the seller once you confirm you received it.</p>"
+                      + EmailLayout.button(link, "Pay now")
+                    : "<p style=\"margin:0\">The buyer accepted your price of <b>" + EmailLayout.escape(order.priceText())
+                      + "</b>. We will let you know as soon as they pay — then it is time to send it.</p>"
+                      + EmailLayout.button(link, "Open the order"));
+        notifyByEmail(recipientId, toBuyer ? "Offer accepted — pay to confirm" : "Price agreed — " + order.itemName(), body);
     }
 
     /**
