@@ -235,7 +235,7 @@ public class ShipmentService {
             if (user == null) return;
             emailService.send(user.getEmail(), title,
                     "<p>" + escape(message) + "</p><p>Track it in your HustleSpace dashboard.</p>");
-            expoPushService.send(user.getPushToken(), title, message);
+            // The push comes from NotificationPushRelay, off the notification stored above.
         } catch (Exception e) {
             log.warn("Could not send order notification to {}: {}", userId, e.getMessage());
         }

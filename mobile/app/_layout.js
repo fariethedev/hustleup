@@ -13,7 +13,7 @@ import { Montserrat_800ExtraBold } from '@expo-google-fonts/montserrat/800ExtraB
 import { store } from '../src/store';
 import CartProvider from '../src/store/CartProvider';
 import { setUser } from '../src/store/authSlice';
-import { registerForPushNotifications } from '../src/utils/pushNotifications';
+import { registerForPushNotifications, usePushNavigation } from '../src/utils/pushNotifications';
 import BrandLoader from '../src/components/native/BrandLoader';
 
 // No-ops safely if extra.sentryDsn is blank. Note: this captures JS-level errors
@@ -75,6 +75,9 @@ function AuthGate({ children }) {
   useEffect(() => {
     if (hydrated && isAuthenticated) registerForPushNotifications();
   }, [hydrated, isAuthenticated]);
+
+  // Tapping a push opens what it is about, once the session is restored and signed in.
+  usePushNavigation(router, hydrated && isAuthenticated);
 
   // Render children always so the Stack mounts and navState.key becomes available.
   // Show a lime spinner overlay while we haven't finished reading AsyncStorage.

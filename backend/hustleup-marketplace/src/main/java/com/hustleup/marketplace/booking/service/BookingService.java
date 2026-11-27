@@ -182,7 +182,7 @@ public class BookingService {
         String plural = issued == 1 ? "ticket is" : "tickets are";
         notifyByEmail(booking.getBuyerId(), "Your ticket for " + listing.getTitle(),
                 "<p>Your " + plural + " ready. Open HustleSpace to view the QR code and show it at the door.</p>");
-        notifyByPush(booking.getBuyerId(), "Ticket ready",
+        notifyByPush(booking.getId(), booking.getBuyerId(), "Ticket ready",
                 issued + " " + plural + " ready for " + listing.getTitle() + ".");
     }
 
@@ -195,9 +195,13 @@ public class BookingService {
     }
 
     /** Same booking-lifecycle events as {@link #notifyByEmail}, delivered as a mobile push. */
-    private void notifyByPush(UUID userId, String title, String body) {
+    private void notifyByPush(UUID bookingId, UUID userId, String title, String body) {
         try {
-            userRepository.findById(userId).ifPresent(u -> expoPushService.send(u.getPushToken(), title, body));
+            // Push-only events have no in-app notification, so the booking reference rides in
+            // the push data: tapping it opens Orders focused on this booking.
+            Map<String, String> data = bookingId == null ? Map.of("type", "BOOKING")
+                    : Map.of("type", "BOOKING", "referenceId", bookingId.toString());
+            userRepository.findById(userId).ifPresent(u -> expoPushService.send(u.getPushToken(), title, body, data));
         } catch (Exception ignored) {
         }
     }
@@ -240,8 +244,8 @@ public class BookingService {
      */
     private void notifyEverywhere(UUID userId, String title, String message, String type, UUID referenceId) {
         notifyInApp(userId, title, message, type, referenceId);
-        // NotificationEmailRelay delivers the email once after this transaction commits.
-        notifyByPush(userId, title, message);
+        // NotificationEmailRelay and NotificationPushRelay deliver the email and the push
+        // once after this transaction commits.
     }
 
     /**
@@ -831,7 +835,7 @@ public class BookingService {
             }
 
             String listingTitle = bookedListing != null ? bookedListing.getTitle() : "your booking";
-            notifyByPush(booking.getBuyerId(), "Booking confirmed",
+            notifyByPush(booking.getId(), booking.getBuyerId(), "Booking confirmed",
                     listingTitle + " is confirmed at " + agreed + " " + booking.getCurrency() + ".");
 
             // Let whichever party didn't just click "accept" know their offer/counter went
@@ -912,7 +916,7 @@ public class BookingService {
         notifyByEmail(notifyUserId, "Booking cancelled: " + listingTitle,
                 "<p>The booking for <b>" + listingTitle + "</b> was cancelled"
                         + (reason != null && !reason.isBlank() ? ": " + reason : ".") + "</p>");
-        notifyByPush(notifyUserId, "Booking cancelled",
+        notifyByPush(booking.getId(), notifyUserId, "Booking cancelled",
                 listingTitle + " was cancelled"
                         + (reason != null && !reason.isBlank() ? ": " + reason : "."));
 
@@ -1052,7 +1056,7 @@ public class BookingService {
                 .map(Listing::getTitle).orElse("your booking");
         notifyByEmail(booking.getBuyerId(), "Completed: " + listingTitle,
                 "<p><b>" + listingTitle + "</b> is marked complete. Leave a review to help other buyers!</p>");
-        notifyByPush(booking.getBuyerId(), "Booking completed",
+        notifyByPush(booking.getId(), booking.getBuyerId(), "Booking completed",
                 listingTitle + " is marked complete. Leave a review to help other buyers!");
 
         return enrichDto(saved, user.getId());
@@ -1174,7 +1178,7 @@ public class BookingService {
                                 .map(Listing::getTitle).orElse("your booking");
                         notifyByEmail(booking.getSellerId(), "Funds released: " + title,
                                 "<p>Your earnings for <b>" + title + "</b> were transferred to your Stripe balance. Open Payments to check bank arrival dates.</p>");
-                        notifyByPush(booking.getSellerId(), "Funds released to Stripe", "Open Payments to check bank arrival dates for " + title + ".");
+                        notifyByPush(booking.getId(), booking.getSellerId(), "Funds released to Stripe", "Open Payments to check bank arrival dates for " + title + ".");
                     } catch (StripeException e) {
                         // Left PAID on purpose: recording a transfer that did not happen would
                         // erase, from the platform's own books, money it still owes. The sweep

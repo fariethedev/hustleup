@@ -696,8 +696,7 @@ public class DirectMessageController {
                     .referenceId(UUID.fromString(currentUserId)) // sender's UUID for deep-linking
                     .build());
 
-            userRepo.findById(UUID.fromString(partnerId))
-                    .ifPresent(u -> expoPushService.send(u.getPushToken(), "New message from " + senderName, preview));
+            // The push is sent by NotificationPushRelay once the notification above commits.
         } catch (Exception ignored) {
             // Notification creation is best-effort.  If partnerId is not a valid
             // UUID, or the notification repo throws, we still return the saved
@@ -792,8 +791,7 @@ public class DirectMessageController {
                     .referenceId(UUID.fromString(currentUserId))
                     .build());
 
-            userRepo.findById(UUID.fromString(partnerId))
-                    .ifPresent(u -> expoPushService.send(u.getPushToken(), "New message from " + senderName, mediaLabel));
+            // The push is sent by NotificationPushRelay once the notification above commits.
         } catch (Exception ignored) {
         }
 
