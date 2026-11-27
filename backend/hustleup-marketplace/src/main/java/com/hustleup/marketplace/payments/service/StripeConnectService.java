@@ -506,6 +506,16 @@ public class StripeConnectService {
      *
      * @return the Stripe Transfer id, stored on the booking for reconciliation
      */
+    /**
+     * What the seller receives for a sale: the price minus the platform fee, plus postage in
+     * full — the same arithmetic as the transfers below, for showing earnings before payout.
+     */
+    public BigDecimal sellerNet(BigDecimal gross, BigDecimal shipping) {
+        BigDecimal keepFraction = BigDecimal.ONE.subtract(platformFeePercent.divide(BigDecimal.valueOf(100)));
+        BigDecimal net = (gross == null ? BigDecimal.ZERO : gross).multiply(keepFraction);
+        return net.add(shipping == null ? BigDecimal.ZERO : shipping).setScale(2, RoundingMode.HALF_UP);
+    }
+
     public String transferToSeller(Booking booking, String sellerStripeAccountId) throws StripeException {
         BigDecimal keepFraction = BigDecimal.ONE.subtract(
                 platformFeePercent.divide(BigDecimal.valueOf(100)));

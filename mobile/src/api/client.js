@@ -347,6 +347,7 @@ export const payoutsApi = {
   dashboard: () => api.post('/payouts/dashboard'),
   status: () => api.get('/payouts/status'),
   connect: () => api.post('/payouts/connect'),
+  earnings: () => api.get('/payouts/earnings'),
 };
 
 export const notificationsApi = {

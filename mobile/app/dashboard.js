@@ -192,7 +192,7 @@ export default function Dashboard() {
 
       <Group title="Account">
         <Row icon="dollar-sign" label="Payments & payouts" value={payoutsReady ? 'Connected' : 'Not set up'} tone={payoutsReady ? 'accent' : 'warn'} onPress={() => go('/profile/bank')} />
-        <Row icon="briefcase" label="Wallet" tone="purple" onPress={() => go('/profile/wallet')} />
+        <Row icon="trending-up" label="Earnings" subtitle="Money on its way and released" tone="purple" onPress={() => go('/profile/wallet')} />
         <Row icon="bell" label="Notifications" count={unreadAlerts} onPress={() => go('/notifications')} />
         <Row icon="settings" label="Settings" tone="purple" onPress={() => go('/profile/settings')} />
       </Group>
