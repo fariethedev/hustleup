@@ -1228,7 +1228,7 @@ function MediaThumb({ file, isLead, onRemove, onCrop, onMakeCover }) {
       transition={{ type: 'spring', stiffness: 500, damping: 28 }}
       className="relative group"
     >
-      <UploadPreview file={file} alt={isLead ? 'Listing cover' : 'Listing photo'} className="w-28 h-28 rounded-xl object-contain bg-black" />
+      <UploadPreview file={file} alt={isLead ? 'Listing cover' : 'Listing photo'} className="w-28 h-28 rounded-xl object-cover bg-black" />
       {!isVideo && <button type="button" onClick={onCrop} className="mt-1 min-h-11 w-full rounded-lg border border-white/15 text-sm font-semibold text-white hover:bg-white/10">Crop photo</button>}
       {!isLead && <button type="button" onClick={onMakeCover} className="min-h-11 w-full text-xs text-gray-300 hover:text-[#CDFF00]">Make cover</button>}
 

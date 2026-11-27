@@ -27,7 +27,7 @@ export default function ListingCard({ listing, onDelete }) {
   return (
     <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111] transition-colors hover:border-white/25">
       <Link to={own && listing.shopId ? `/shop/${listing.shopSlug}` : detailUrl} aria-label={`View ${listing.title}`} className="listing-card-media media-overlay relative block aspect-[4/5] overflow-hidden bg-[var(--surface-card)]">
-        <CardCarousel media={media.length ? media : [cover].filter(Boolean)} title={listing.title} fallbackIcon={category.icon} fallbackClassName={category.color} imageClassName="h-full w-full object-contain" />
+        <CardCarousel media={media.length ? media : [cover].filter(Boolean)} title={listing.title} fallbackIcon={category.icon} fallbackClassName={category.color} imageClassName="h-full w-full object-cover" />
         {listing.listingType === 'EVENT' && listing.eventStartsAt && <span className="absolute top-3 left-3 rounded-full bg-black/70 px-3 py-1.5 text-xs font-semibold text-white">{new Date(listing.eventStartsAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>}
         {!available && <span className="absolute bottom-3 left-3 rounded-full bg-black/80 px-3 py-1 text-xs text-white">Unavailable</span>}
       </Link>

@@ -623,7 +623,7 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
         <Copy muted>Reposted</Copy>
         <TouchableOpacity accessibilityRole="button" onPress={() => onAuthorPress?.(item.repostOf.authorId)}><Copy heading>{item.repostOf.authorName || 'User'}</Copy></TouchableOpacity>
         {!!item.repostOf.content && <Copy>{item.repostOf.content}</Copy>}
-        {item.repostOf.media?.[0]?.type === 'IMAGE' && <CachedImage source={{ uri: resolveMediaUrl(item.repostOf.media[0].url) }} onLoad={event => recordMediaSize(item.repostOf.media[0], event)} contentFit="contain" cachePolicy="memory-disk" transition={150} style={{ width: '100%', aspectRatio: ratioFor(item.repostOf.media[0]) }} />}
+        {item.repostOf.media?.[0]?.type === 'IMAGE' && <CachedImage source={{ uri: resolveMediaUrl(item.repostOf.media[0].url) }} onLoad={event => recordMediaSize(item.repostOf.media[0], event)} contentFit="cover" cachePolicy="memory-disk" transition={150} style={{ width: '100%', aspectRatio: ratioFor(item.repostOf.media[0]) }} />}
         {item.repostOf.media?.[0]?.type === 'VIDEO' && <FeedVideo uri={resolveMediaUrl(item.repostOf.media[0].url)} style={{ width: '100%', height: CARD_MEDIA_HEIGHT }} shouldPlay={!!isVisible} isMuted />}
       </View>}
       {/* ── Text-only post ───────────────────────────────── */}
@@ -668,7 +668,7 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
                       )}
                     </TouchableOpacity>
                   ) : (
-                    <CachedImage key={idx} source={{ uri: mUrl }} onLoad={event => recordMediaSize(m, event)} style={{ width: CARD_WIDTH, height: mediaHeight }} contentFit="contain" cachePolicy="memory-disk" transition={150} recyclingKey={mUrl} />
+                    <CachedImage key={idx} source={{ uri: mUrl }} onLoad={event => recordMediaSize(m, event)} style={{ width: CARD_WIDTH, height: mediaHeight }} contentFit="cover" cachePolicy="memory-disk" transition={150} recyclingKey={mUrl} />
                   );
                 })}
               </ScrollView>
@@ -692,7 +692,7 @@ const FeedItem = ({ item, onCommentPress, isVisible, onListingPress, onAuthorPre
               )}
             </TouchableOpacity>
           ) : (
-            <CachedImage source={{ uri: rawMediaUrl }} onLoad={event => recordMediaSize(firstMedia, event)} style={[styles.feedMedia, { height: mediaHeight }]} contentFit="contain" cachePolicy="memory-disk" transition={150} recyclingKey={rawMediaUrl} />
+            <CachedImage source={{ uri: rawMediaUrl }} onLoad={event => recordMediaSize(firstMedia, event)} style={[styles.feedMedia, { height: mediaHeight }]} contentFit="cover" cachePolicy="memory-disk" transition={150} recyclingKey={rawMediaUrl} />
           )}
           {isVideo && (
             <TouchableOpacity style={styles.feedMuteBtn} onPress={() => setIsMuted(p => !p)} activeOpacity={0.8}>

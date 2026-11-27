@@ -1363,7 +1363,7 @@ export default function Feed() {
                             title="Crop & adjust"
                             className="group relative w-20 h-20 rounded-xl overflow-hidden border border-white/10 block"
                           >
-                            <UploadPreview file={file} alt={`Photo ${idx + 1}: tap to crop`} className="w-full h-full object-contain bg-black" />
+                            <UploadPreview file={file} alt={`Photo ${idx + 1}: tap to crop`} className="w-full h-full object-cover bg-black" />
                             <span className="absolute bottom-0 inset-x-0 bg-black/75 py-1.5 flex items-center justify-center gap-1">
                               <Frame className="w-4 h-4 text-[#CDFF00]" />
                               <span className="text-xs font-semibold text-white">Crop</span>
@@ -1852,7 +1852,7 @@ export default function Feed() {
               <div className="mb-3 flex gap-3 overflow-x-auto">
                 {(editingPost.media?.length ? editingPost.media : editingPost.imageUrl ? [{ type: 'IMAGE', url: editingPost.imageUrl }] : []).map((media, index) => media.type === 'IMAGE' && (
                   <div key={`${index}:${media.url}`} className="w-28 shrink-0">
-                    <img src={uploadUrl(media.url)} alt={`Post photo ${index + 1}`} className="h-28 w-28 rounded-xl object-contain bg-black" />
+                    <img src={uploadUrl(media.url)} alt={`Post photo ${index + 1}`} className="h-28 w-28 rounded-xl object-cover bg-black" />
                     <button type="button" disabled={loadingPhoto || savingEdit} onClick={() => openPhotoCrop(media, index)} className="min-h-11 w-full text-sm font-semibold text-[#CDFF00]">{loadingPhoto ? 'Opening…' : 'Crop photo'}</button>
                     <label className="flex min-h-11 cursor-pointer items-center justify-center text-xs text-gray-400">Replace photo<input type="file" accept="image/*" className="sr-only" disabled={savingEdit} onChange={(event) => { const file = event.target.files?.[0]; if (file) setEditingPhoto({ index, file }); event.target.value = ''; }} /></label>
                   </div>
