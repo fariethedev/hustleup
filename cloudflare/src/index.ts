@@ -19,7 +19,10 @@ interface Env {
   NOTIFICATION: DurableObjectNamespace<SpringService>;
   AUTH_LIMITER: RateLimit;
   API_LIMITER: RateLimit;
+  /** Where the API is served (api.hustlespace.space). */
   PUBLIC_URL: string;
+  /** Where the web app is served (Vercel). Used in email links and allowed by CORS. */
+  FRONTEND_URL: string;
   EXTRA_CORS_ORIGINS: string;
   // Secrets and vars are read by name when a container starts (see SHARED_KEYS).
   [key: string]: unknown;
@@ -71,7 +74,7 @@ const CORS_HEADERS = "Authorization, Content-Type, Accept, Origin, X-Requested-W
 function allowedOrigin(request: Request, env: Env): string | null {
   const origin = request.headers.get("Origin");
   if (!origin) return null;
-  const allowed = [new URL(env.PUBLIC_URL).origin, new URL(request.url).origin,
+  const allowed = [new URL(env.PUBLIC_URL).origin, new URL(env.FRONTEND_URL).origin, new URL(request.url).origin,
     ...env.EXTRA_CORS_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)];
   return allowed.includes(origin) ? origin : null;
 }
@@ -220,7 +223,7 @@ abstract class SpringService extends DurableObject<Env> {
       env.SPRING_DATASOURCE_PASSWORD = dbPassword;
       env.MYSQL_PASSWORD = dbPassword;
     }
-    env.FRONTEND_URL = this.env.PUBLIC_URL;
+    env.FRONTEND_URL = this.env.FRONTEND_URL;
     // Containers have no persistent disk: uploads must go to S3/R2. This only gives the
     // local-disk fallback somewhere harmless to point.
     env.UPLOAD_DIR = "/tmp/uploads";
@@ -260,14 +263,14 @@ abstract class SpringService extends DurableObject<Env> {
 
 export class AuthService extends SpringService {
   protected readonly port = 8081;
-  protected readonly heap = "400m";
+  protected readonly heap = "1g";
   protected readonly keys = ["GOOGLE_CLIENT_ID", "FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET",
     "TURNSTILE_SECRET_KEY", "GOOGLE_MAPS_SERVER_KEY"];
 }
 
 export class SocialService extends SpringService {
   protected readonly port = 8082;
-  protected readonly heap = "448m";
+  protected readonly heap = "1g";
   protected readonly keys: string[] = [];
   // In-process cache instead of Redis; CacheConfig already treats cache errors as misses.
   protected override readonly fixed = { CACHE_TYPE: "simple" };
@@ -275,7 +278,7 @@ export class SocialService extends SpringService {
 
 export class MarketplaceService extends SpringService {
   protected readonly port = 8083;
-  protected readonly heap = "448m";
+  protected readonly heap = "1g";
   protected readonly keys = ["STRIPE_SECRET_KEY", "STRIPE_CONNECT_WEBHOOK_SECRET", "STRIPE_PLATFORM_FEE_PERCENT",
     "ALGOLIA_APP_ID", "ALGOLIA_ADMIN_KEY", "ADZUNA_APP_ID", "ADZUNA_APP_KEY"];
 }

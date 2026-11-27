@@ -19,16 +19,18 @@
     "run_worker_first": ["/api/*", "/uploads/*", "/ws/*"]
   },
 
-  // Each service is one named instance (max_instances: 1). That is required, not just
+  // Sizes: custom types need at least 1 vCPU, so presets are used — standard-1
+  // (1/2 vCPU, 4 GiB) for the busy user-facing services, basic (1/4 vCPU, 1 GiB) for the
+  // light ones. Each service is one named instance (max_instances: 1). That is required, not just
   // cheap: notification keeps an in-memory STOMP broker and marketplace runs the payout
   // sweep, so a second copy of either would split chat or double-run payouts.
   // Build context is the repo root, as the Dockerfiles expect.
   "containers": [
-    { "class_name": "AuthService", "image": "../backend/hustleup-auth/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": { "vcpu": 0.5, "memory_mib": 1024, "disk_mb": 4000 } },
-    { "class_name": "SocialService", "image": "../backend/hustleup-social/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": { "vcpu": 0.5, "memory_mib": 1024, "disk_mb": 4000 } },
-    { "class_name": "MarketplaceService", "image": "../backend/hustleup-marketplace/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": { "vcpu": 0.5, "memory_mib": 1024, "disk_mb": 4000 } },
-    { "class_name": "SubscriptionService", "image": "../backend/hustleup-subscription/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": { "vcpu": 0.5, "memory_mib": 1024, "disk_mb": 4000 } },
-    { "class_name": "NotificationService", "image": "../backend/hustleup-notification/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": { "vcpu": 0.5, "memory_mib": 1024, "disk_mb": 4000 } }
+    { "class_name": "AuthService", "image": "../backend/hustleup-auth/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": "standard-1" },
+    { "class_name": "SocialService", "image": "../backend/hustleup-social/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": "standard-1" },
+    { "class_name": "MarketplaceService", "image": "../backend/hustleup-marketplace/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": "standard-1" },
+    { "class_name": "SubscriptionService", "image": "../backend/hustleup-subscription/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": "basic" },
+    { "class_name": "NotificationService", "image": "../backend/hustleup-notification/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": "basic" }
   ],
   "durable_objects": {
     "bindings": [
@@ -51,14 +53,19 @@
     { "name": "API_LIMITER", "namespace_id": "1002", "simple": { "limit": 200, "period": 10 } }
   ],
 
+  // The API's public hostname. The web app itself is served by Vercel at hustlespace.space
+  // (static assets above remain reachable on workers.dev as a fallback).
+  "routes": [{ "pattern": "api.hustlespace.space", "custom_domain": true }],
+
   // Every 5 minutes: keep the JVMs warm. A cold Spring Boot start takes minutes on half a
   // vCPU, and the first user after an idle period should not be the one who waits.
   "triggers": { "crons": ["*/5 * * * *"] },
 
   // Non-secret settings. Secrets (DB, JWT, Stripe, AWS, Resend, ...) are set with
-  // `wrangler secret bulk` — see the guide. PUBLIC_URL is overridden by CI.
+  // `wrangler secret bulk` — see the guide. CI may override PUBLIC_URL / FRONTEND_URL.
   "vars": {
-    "PUBLIC_URL": "https://hustleup.workers.dev",
+    "PUBLIC_URL": "https://api.hustlespace.space",
+    "FRONTEND_URL": "https://hustlespace.space",
     "EXTRA_CORS_ORIGINS": "",
     "SENTRY_ENV": "production",
     "AWS_REGION": "us-east-1"
