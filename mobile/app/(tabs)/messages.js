@@ -224,10 +224,10 @@ const Bubble = memo(function Bubble({ item, mine, theme, maxWidth, partnerName, 
     );
   } else if (type === 'OFFER') {
     body = (
-      <TouchableOpacity onPress={() => onOpenShared({ kind: 'orders' })} style={[st.shared, { borderColor: theme.line, padding: 12, gap: 4 }]}>
+      <TouchableOpacity onPress={() => onOpenShared({ kind: 'orders', id: item.offerBookingId })} style={[st.shared, { borderColor: theme.line, padding: 12, gap: 4 }]}>
         <Text style={{ color: theme.accent, fontWeight: '900' }}>🤝 Price offer</Text>
         {!!item.content && <Text style={{ color: fg }}>{item.content}</Text>}
-        <Text style={{ color: sub, fontSize: 12 }}>Tap to view and respond in Orders</Text>
+        <Text style={{ color: sub, fontSize: 12 }}>Tap to review the offer</Text>
       </TouchableOpacity>
     );
   } else if (type === 'STICKER') {
@@ -411,7 +411,7 @@ function ConversationView({ partner, me, prefsApi, onClose, onChanged }) {
   const openShared = useCallback(({ kind, id }) => {
     if (kind === 'listing' && id) { onClose(); router.push({ pathname: '/listing/[id]', params: { id } }); }
     else if (kind === 'profile' && id) { onClose(); router.push(`/profile/${id}`); }
-    else if (kind === 'orders') { onClose(); router.push('/profile/orders'); }
+    else if (kind === 'orders') { onClose(); router.push(id ? { pathname: '/profile/orders', params: { bookingId: String(id) } } : '/profile/orders'); }
   }, [onClose, router]);
 
   const retry = (m) => {

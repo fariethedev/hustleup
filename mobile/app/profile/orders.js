@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -74,6 +74,11 @@ export default function OrdersScreen() {
   const [formError, setFormError] = useState('');
   const [delivery, setDelivery] = useState({ status: '', carrier: '', trackingNumber: '', trackingUrl: '', note: '' });
   const [feePercent, setFeePercent] = useState(null);
+  const listRef = useRef(null);
+  // Set when another screen (a chat offer card, a notification) links to one booking: the
+  // list switches to the tab that booking lives on, scrolls to it and highlights it.
+  const focusId = typeof params.bookingId === 'string' ? params.bookingId : null;
+  const [highlightId, setHighlightId] = useState(null);
 
   const load = useCallback(async () => {
     const results = await Promise.allSettled([bookingsApi.getAll(), shopsApi.orders(), shopsApi.sales(), claimsApi.mine()]);
@@ -118,6 +123,32 @@ export default function OrdersScreen() {
   </Pressable>;
   const claimFor = order => claims.find(claim => claim.orderId === order.id && claim.orderType === (order.kind === 'shop' ? 'SHOP_ORDER' : 'BOOKING'));
   const filtered = orders.filter(order => tab === 'all' || (tab === 'buying') === orderState(order, user?.id).buyer);
+
+  // Step 1 of focusing a linked booking: once orders load, pick the tab it belongs to.
+  useEffect(() => {
+    if (!focusId || loading) return;
+    const target = orders.find(order => order.kind === 'booking' && String(order.id) === focusId);
+    if (!target) {
+      Alert.alert('Offer not found', 'This offer may have been cancelled, or it belongs to a different account.');
+      router.setParams({ bookingId: undefined });
+      return;
+    }
+    setTab(orderState(target, user?.id).buyer ? 'buying' : 'selling');
+    setHighlightId(target.id);
+  }, [focusId, loading, orders, router, user?.id]);
+
+  // Step 2: after the tab has re-rendered, scroll the card into view, then clear the param
+  // so pulling to refresh or coming back later does not jump again.
+  useEffect(() => {
+    if (!highlightId) return;
+    const index = filtered.findIndex(order => order.kind === 'booking' && order.id === highlightId);
+    if (index < 0) return;
+    const timer = setTimeout(() => {
+      listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.1 });
+      router.setParams({ bookingId: undefined });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [highlightId, filtered.length, tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const submit = () => {
     const { mode, order } = dialog;
     if (mode === 'claim') return run(() => claimsApi.raise(order.kind === 'shop' ? 'SHOP_ORDER' : 'BOOKING', order.id, reason, detail.trim()), true);
@@ -127,7 +158,11 @@ export default function OrdersScreen() {
   const renderOrder = ({ item: order }) => {
     const claim = claimFor(order), state = orderState(order, user?.id, claim);
     const api = order.kind === 'shop' ? shopsApi : bookingsApi;
-    return <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.line }]}>
+    const focused = order.kind === 'booking' && order.id === highlightId;
+    return <View style={[s.card, { backgroundColor: colors.card, borderColor: focused ? colors.accent : colors.line, borderWidth: focused ? 2 : 1 }]}>
+      {focused && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: '#CDFF00' }}>
+        <Feather name="tag" size={12} color="#161A00" /><Text style={{ color: '#161A00', fontSize: 11, fontWeight: '800' }}>{state.canRespond ? 'THIS OFFER IS WAITING FOR YOU' : 'THE OFFER YOU OPENED'}</Text>
+      </View>}
       <Text style={{ color: colors.accent, fontSize: 12, textTransform: 'capitalize' }}>{order.kind === 'shop' ? 'Store order' : 'Marketplace booking'} · {orderLabel(order.status)}</Text>
       <Text style={[s.title, { color: colors.text }]}>{order.listingTitle || order.productName || 'Order'}</Text>
       <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>{money(order.totalPrice ?? order.agreedPrice ?? order.counterPrice ?? order.offeredPrice, order.currency)}</Text>
@@ -157,7 +192,7 @@ export default function OrdersScreen() {
     <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile')} style={s.back}><Feather name="arrow-left" size={24} color={colors.text} /></Pressable><Text style={[s.heading, { color: colors.text }]}>Your orders</Text></View>
     <View style={s.tabs}>{['buying', 'selling', 'all'].map(value => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: tab === value }} onPress={() => setTab(value)} style={[s.button, { backgroundColor: tab === value ? '#CDFF00' : colors.card, borderColor: colors.line }]}><Text style={{ color: tab === value ? '#161A00' : colors.text, textTransform: 'capitalize', fontWeight: '700' }}>{value}</Text></Pressable>)}</View>
     {!!error && <Text accessibilityRole="alert" style={[s.error, { color: light ? '#9F2424' : '#FCA5A5' }]}>{error}</Text>}
-    {loading ? <ActivityIndicator color={colors.accent} style={{ margin: 40 }} /> : <FlatList data={filtered} keyExtractor={order => order.kind + order.id} renderItem={renderOrder} contentContainerStyle={s.list} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />} ListEmptyComponent={<View style={s.card}><Text style={{ color: colors.text, fontSize: 18 }}>{error ? 'Orders unavailable' : 'No orders here yet'}</Text><Button title={error ? 'Retry' : 'Explore listings'} onPress={() => error ? load() : router.push('/(tabs)/explore')} /></View>} />}
+    {loading ? <ActivityIndicator color={colors.accent} style={{ margin: 40 }} /> : <FlatList ref={listRef} onScrollToIndexFailed={({ index, averageItemLength }) => { listRef.current?.scrollToOffset({ offset: index * averageItemLength, animated: true }); setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.1 }), 300); }} data={filtered} keyExtractor={order => order.kind + order.id} renderItem={renderOrder} contentContainerStyle={s.list} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />} ListEmptyComponent={<View style={s.card}><Text style={{ color: colors.text, fontSize: 18 }}>{error ? 'Orders unavailable' : 'No orders here yet'}</Text><Button title={error ? 'Retry' : 'Explore listings'} onPress={() => error ? load() : router.push('/(tabs)/explore')} /></View>} />}
     <Modal visible={!!dialog} animationType="slide" onRequestClose={close} presentationStyle="pageSheet">
       <SafeAreaView style={[s.screen, { backgroundColor: colors.bg }]}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.list}>
         <Button title="Close" icon="x" onPress={close} />
