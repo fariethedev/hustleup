@@ -35,6 +35,18 @@ jobs:
             "$SRC_DB" > dump.sql
           echo "Dump size: $(du -h dump.sql | cut -f1), tables: $(grep -c '^CREATE TABLE' dump.sql)"
 
+      - name: Clear target tables
+        # A fresh database may hold a half-built schema from a failed first boot (the
+        # migrations cannot build the base tables from scratch), so start from empty.
+        run: |
+          DROPS=$(MYSQL_PWD="$MYSQL_PWD_DST" mysql -h "$DST_HOST" -P "$DST_PORT" -u "$DST_USER" --ssl-mode=REQUIRED -N \
+            -e "SELECT CONCAT('DROP TABLE IF EXISTS \`', table_name, '\`;') FROM information_schema.tables WHERE table_schema='$DST_DB' AND table_type='BASE TABLE';")
+          echo "Dropping $(echo "$DROPS" | grep -c DROP || true) tables"
+          if [ -n "$DROPS" ]; then
+            printf 'SET FOREIGN_KEY_CHECKS=0;\n%s\nSET FOREIGN_KEY_CHECKS=1;\n' "$DROPS" | \
+              MYSQL_PWD="$MYSQL_PWD_DST" mysql -h "$DST_HOST" -P "$DST_PORT" -u "$DST_USER" --ssl-mode=REQUIRED "$DST_DB"
+          fi
+
       - name: Restore into target
         run: |
           MYSQL_PWD="$MYSQL_PWD_DST" mysql -h "$DST_HOST" -P "$DST_PORT" -u "$DST_USER" \
