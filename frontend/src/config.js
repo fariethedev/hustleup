@@ -6,10 +6,10 @@
  * dev-server feature and does not exist in a production build, so a deployed frontend
  * has to address the backend absolutely.
  *
- * Set VITE_API_URL in the Vercel project to the gateway's origin — scheme and host
+ * Set VITE_API_URL in the Vercel project to the API's origin — scheme and host
  * only, no trailing slash and no /api path:
  *
- *   VITE_API_URL=https://hustleup-gateway-production.up.railway.app
+ *   VITE_API_URL=https://api.hustlespace.space
  */
 export const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 

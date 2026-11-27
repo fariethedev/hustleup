@@ -2,16 +2,32 @@
 
 | Piece | Runs on |
 |---|---|
-| Web app (`frontend/`) | Worker static assets |
+| Web app (`frontend/`) | **Vercel** at hustlespace.space, with `VITE_API_URL=https://api.hustlespace.space`. The Worker also serves a copy of the build on its `workers.dev` URL. |
+| API | **`https://api.hustlespace.space`**, a custom domain on the Worker |
 | Gateway | **The Worker itself** ([cloudflare/src/index.ts](../cloudflare/src/index.ts)): same routes, rate limits, CORS and security headers. The `hustleup-gateway` service is not deployed. |
-| auth, social, marketplace, subscription, notification | Cloudflare **Containers**: one instance each, 0.5 vCPU / 1 GiB, kept warm by a 5-minute cron |
-| MySQL | **Aiven free MySQL 8** (Cloudflare has no MySQL; D1 is SQLite and Java can't connect to it directly) |
-| Media | S3 / R2, unchanged |
+| auth, social, marketplace | Cloudflare **Containers**, `standard-1` (1/2 vCPU, 4 GiB, 1 GiB heap) |
+| subscription, notification | Cloudflare **Containers**, `basic` (1/4 vCPU, 1 GiB) |
+| MySQL | **Aiven free MySQL 8.4** (Cloudflare has no MySQL; D1 is SQLite and Java can't connect to it directly) |
+| Media | R2 bucket `hustlespace`, served from `images.hustlespace.space` |
 | Deploys | GitHub Actions ([deploy-cloudflare.yml](../.github/workflows/deploy-cloudflare.yml)) on every push to `main` |
 
+Every container runs as a single instance and is kept warm by a 5-minute cron.
+
+Custom instance types need at least 1 vCPU, so the presets above are used.
+
 **Cost estimate (check Cloudflare's pricing page):** $5 Workers Paid plan plus about $6.50
-per GiB-month of memory for 5 always-on containers, plus CPU while active. That's roughly
-**$40–50/month**, and Aiven's free tier is $0.
+per GiB-month of memory, which is about $26 for each standard-1 and $6.50 for each basic,
+plus CPU while active. That's roughly **$95–100/month**, and Aiven's free tier is $0. Moving
+all five to `basic` costs about $40, but they start up and respond more slowly.
+
+**Database bootstrap:** the Flyway migrations cannot build the schema from an empty
+database. V12 alters a `posts` table that no migration creates, because the earliest tables
+predate Flyway. Production was therefore initialised from a schema-only dump of an
+up-to-date database: 53 tables plus `flyway_schema_history` through V39, and the V32 sample
+rows. Later migrations apply normally. To rebuild from scratch, dump the structure with
+`mysqldump --no-data`, add the `flyway_schema_history` rows, and import it with
+`SET SESSION sql_require_primary_key=0` first, because four collection tables have no
+primary key.
 
 **Known limits:**
 - Aiven's free tier allows 1 GB of storage. Your data is currently under 1 MB.
@@ -59,27 +75,21 @@ Then go to Actions → **Deploy to Cloudflare** → Run workflow. The first run 
 images and takes about 15–20 minutes. Until the secret and variable are set, the workflow
 skips without failing.
 
-## 5. Copy the data (Railway → Aiven)
-1. On Railway, open the MySQL service → Settings → enable the **TCP Proxy** (public access).
-   Its Variables tab shows the host, port, user, password and database.
-2. Add the `SOURCE_MYSQL_HOST/PORT/USER/PASSWORD/DATABASE` and
-   `TARGET_MYSQL_HOST/PORT/USER/PASSWORD/DATABASE` repository secrets.
-3. Pause writes: scale the Railway services down. Then go to Actions →
-   **Copy database (Railway → Aiven)** → Run workflow, typing `overwrite`.
-4. Re-run **Deploy to Cloudflare** so the services restart against the copied data. Flyway
-   sees the copied migration history and applies only newer migrations.
-5. Turn the Railway TCP proxy off again.
+## 5. Database
+Production started from an empty database: the old Railway data was not carried over. See
+**Database bootstrap** above for how the schema was created.
 
 ## 6. Domain and third parties
-- **Domain:** Workers & Pages → hustleup → Settings → Domains & Routes → add
-  `hustlespace.space` as a custom domain. Then set the `PUBLIC_URL` variable to it and
-  redeploy.
-- **Stripe webhooks:** `https://<domain>/api/payments/webhook` (subscriptions) and
-  `https://<domain>/api/v1/payouts/webhook` (Connect payouts).
-- **Google OAuth:** add `https://<domain>` to *Authorized JavaScript origins*. Add the domain
-  for Facebook Login (App domains) and Turnstile (Hostnames) too.
-- **Mobile:** set `EXPO_PUBLIC_API_URL` and `apiBaseUrl` (`mobile/eas.json`,
-  `mobile/app.json`) to `https://<domain>/api/v1`, then ship a build or an EAS update.
+- **API domain:** `api.hustlespace.space` is declared in `wrangler.jsonc` (`routes`), and
+  Wrangler creates it on deploy. The web app stays on Vercel, so `FRONTEND_URL` (used in
+  email links and allowed by CORS) is `https://hustlespace.space`.
+- **Vercel:** the `hustleup` project's `VITE_API_URL` is `https://api.hustlespace.space`.
+- **Stripe webhooks:** `https://api.hustlespace.space/api/payments/webhook` (subscriptions) and
+  `https://api.hustlespace.space/api/v1/payouts/webhook` (Connect payouts).
+- **Google OAuth:** add `https://hustlespace.space` to *Authorized JavaScript origins*. Add the
+  domain for Facebook Login (App domains) and Turnstile (Hostnames) too.
+- **Mobile:** `EXPO_PUBLIC_API_URL` and `apiBaseUrl` (`mobile/eas.json`, `mobile/app.json`)
+  point at `https://api.hustlespace.space/api/v1`. Ship a build or an EAS update to apply.
 
 ## Operating it
 - **Logs:** run `npx wrangler tail` from `cloudflare/`, or use Dashboard → Workers → hustleup →

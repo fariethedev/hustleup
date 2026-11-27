@@ -40,7 +40,7 @@ import java.util.stream.Collectors;
  * <p>Runs at midnight and reports the calendar day that has just ended, in {@code app.digest.zone}
  * rather than the server's clock. The audience is in one city; a digest that arrives at 2am
  * local because the container runs UTC is a different product from one that arrives at
- * midnight, and Railway containers do not run in Warsaw.
+ * midnight, and the server containers do not run in Warsaw.
  *
  * <h2>Duplicate sends</h2>
  * <p>There is no lock. The cron fires once per instance, so a single instance sends one

@@ -54,7 +54,7 @@
       "expo-audio"
     ],
     "extra": {
-      "apiBaseUrl": "https://hustleup-gateway-production.up.railway.app/api/v1",
+      "apiBaseUrl": "https://api.hustlespace.space/api/v1",
       "sentryDsn": "",
       "googleClientId": "",
       "facebookAppId": ""
