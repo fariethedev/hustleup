@@ -1,13 +1,13 @@
 import React, { useCallback, useState } from 'react';
-import { Image, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Pressable, RefreshControl, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { bookingsApi, listingsApi, notificationsApi, payoutsApi, shopsApi, swapsApi, ticketsApi } from '../src/api/client';
 import { useRemote } from '../src/hooks/useRemote';
-import { Notice, usePalette } from '../src/components/native/Kit';
+import { Copy, fonts, LIME, Notice, Screen, usePalette } from '../src/components/native/Kit';
+import { Group, Row } from '../src/components/native/GroupedList';
 import CreateListingModal from '../src/components/listings/CreateListingModal';
 import { ticketIsPast } from '../src/utils/tickets';
 import { money } from '../src/utils/marketplace';
@@ -15,6 +15,44 @@ import { mediaUrl } from '../src/utils/media';
 
 const SALE_DONE = ['COMPLETED'];
 const SHOP_PAID = ['PAID', 'FULFILLED'];
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+}
+
+/** Round quick-action button under the earnings card. */
+function Action({ icon, label, onPress, primary }) {
+  const c = usePalette();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => ({ flex: 1, alignItems: 'center', gap: 7, opacity: pressed ? 0.75 : 1 })}>
+      <View style={{ width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: primary ? LIME : c.card, borderWidth: primary ? 0 : 1, borderColor: c.line }}>
+        <Feather name={icon} size={21} color={primary ? '#111' : c.text} />
+      </View>
+      <Copy style={{ fontSize: 11.5, fontFamily: fonts.medium }} numberOfLines={1}>{label}</Copy>
+    </Pressable>
+  );
+}
+
+/** Small stat tile: number on top, label underneath. */
+function Stat({ label, value, icon, onPress, warn }) {
+  const c = usePalette();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value}`} onPress={onPress}
+      style={({ pressed }) => ({ width: '48%', flexGrow: 1, padding: 14, gap: 10, borderRadius: 20, backgroundColor: c.card, borderWidth: 1, borderColor: warn ? '#F59E0B66' : c.line, opacity: pressed ? 0.85 : 1 })}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: warn ? '#F59E0B1F' : c.purpleSoft }}>
+          <Feather name={icon} size={15} color={warn ? '#F59E0B' : c.purple} />
+        </View>
+        <Feather name="arrow-up-right" size={15} color={c.muted} style={{ opacity: 0.6 }} />
+      </View>
+      <View>
+        <Copy heading style={{ fontSize: 22 }} numberOfLines={1} adjustsFontSizeToFit>{value}</Copy>
+        <Copy muted style={{ fontSize: 12 }}>{label}</Copy>
+      </View>
+    </Pressable>
+  );
+}
 
 export default function Dashboard() {
   const user = useSelector(s => s.auth.user);
@@ -35,6 +73,7 @@ export default function Dashboard() {
 
   const bookings = Array.isArray(data?.bookings) ? data.bookings : [];
   const sales = Array.isArray(data?.sales) ? data.sales : [];
+  const listings = Array.isArray(data?.listings) ? data.listings : [];
   const shop = data?.shop && data.shop.id ? data.shop : null;
   const sellerBookings = bookings.filter(b => b.role === 'seller');
   const needsReply = sellerBookings.filter(b => ['INQUIRED', 'NEGOTIATING'].includes(b.status) && (b.lastOfferBy || (b.status === 'NEGOTIATING' ? b.sellerId : b.buyerId)) !== user?.id);
@@ -47,136 +86,124 @@ export default function Dashboard() {
   const unreadAlerts = (Array.isArray(data?.alerts) ? data.alerts : []).filter(n => !n.read && !n.isRead).length;
   const pendingSwaps = (Array.isArray(data?.swaps) ? data.swaps : []).filter(s => s.status === 'PENDING').length;
   const openShopOrders = sales.filter(o => o.status === 'PAID').length;
-  const tasks = needsReply.length + openShopOrders + pendingSwaps;
+  const upcomingTickets = (Array.isArray(data?.tickets) ? data.tickets : []).filter(t => !ticketIsPast(t)).length;
+  const purchases = bookings.filter(b => b.role !== 'seller').length + (Array.isArray(data?.orders) ? data.orders.length : 0);
+  const events = listings.filter(l => l.listingType === 'EVENT');
   const go = (pathname, params) => router.push(params ? { pathname, params } : pathname);
+  const selling = () => go('/profile/orders', { view: 'selling' });
 
-  const kpis = [
-    { label: 'Earned', value: earned.length ? earned.map(([cur, v]) => money(v, cur)).join(' · ') : money(0, 'PLN'), icon: 'trending-up', highlight: true, onPress: () => go('/profile/orders', { view: 'selling' }) },
-    { label: 'Needs reply', value: needsReply.length, icon: 'message-circle', warn: needsReply.length > 0, onPress: () => go('/profile/orders', { view: 'selling' }) },
-    { label: 'In progress', value: inProgress.length + openShopOrders, icon: 'truck', onPress: () => go('/profile/orders', { view: 'selling' }) },
-    { label: 'Payouts', value: payoutsReady ? 'Ready' : 'Set up', icon: 'credit-card', warn: !payoutsReady, onPress: () => go('/profile/bank') },
-  ];
-  const groups = [
-    { title: 'Selling', items: [
-      ['Listings', 'grid', (data?.listings || []).length, () => go('/profile/listings')],
-      ['Shop', 'shopping-bag', shop ? (shop.productCount ?? 0) : '+', () => go(shop ? '/shop/manage' : '/shop/create')],
-      ['Sales', 'bar-chart-2', sellerBookings.length + sales.length, () => go('/profile/orders', { view: 'selling' })],
-      ['Swaps', 'repeat', pendingSwaps || '', () => go('/swaps')],
-    ] },
-    { title: 'Buying', items: [
-      ['Orders', 'package', bookings.filter(b => b.role !== 'seller').length + (data?.orders || []).length, () => go('/profile/orders', { view: 'buying' })],
-      ['Tickets', 'credit-card', (data?.tickets || []).filter(t => !ticketIsPast(t)).length, () => go('/tickets')],
-      ['Cart', 'shopping-cart', '', () => go('/cart')],
-      ['Reviews', 'star', '', () => go('/profile/reviews')],
-    ] },
-    { title: 'Account', items: [
-      ['Payments', 'dollar-sign', payoutsReady ? '✓' : '!', () => go('/profile/bank')],
-      ['Wallet', 'briefcase', '', () => go('/profile/wallet')],
-      ['Alerts', 'bell', unreadAlerts || '', () => go('/notifications')],
-      ['Settings', 'settings', '', () => go('/profile/settings')],
-    ] },
-  ];
+  // Everything waiting on the user, most urgent first. Payouts only nag sellers.
+  const attention = [
+    needsReply.length > 0 && { icon: 'message-circle', label: `${needsReply.length} offer${needsReply.length > 1 ? 's' : ''} waiting for your reply`, count: needsReply.length, onPress: selling },
+    openShopOrders > 0 && { icon: 'package', label: `${openShopOrders} shop order${openShopOrders > 1 ? 's' : ''} to send`, count: openShopOrders, onPress: selling },
+    pendingSwaps > 0 && { icon: 'repeat', label: `${pendingSwaps} swap offer${pendingSwaps > 1 ? 's' : ''} to review`, count: pendingSwaps, onPress: () => go('/swaps') },
+    !payoutsReady && (listings.length > 0 || shop) && { icon: 'credit-card', label: 'Set up payouts to get paid', subtitle: 'Connect your bank so sales can be paid out', onPress: () => go('/profile/bank') },
+  ].filter(Boolean);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={['top']}>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={c.purple} />}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <TouchableOpacity accessibilityLabel="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
-            <Feather name="arrow-left" size={19} color={c.text} />
-          </TouchableOpacity>
-          <Text style={{ color: c.text, fontSize: 18, fontWeight: '900', flex: 1 }}>Dashboard</Text>
+    <Screen back title="Dashboard" refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={c.purple} />}>
+      {/* Earnings */}
+      <LinearGradient colors={c.light ? ['#1C1033', '#0E0E10'] : ['#241446', '#0B0B0D']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={{ borderRadius: 26, padding: 20, gap: 14, borderWidth: 1, borderColor: '#FFFFFF14' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Copy style={{ color: '#C4B5FD', fontSize: 12.5 }}>{greeting()}, {user?.fullName?.split(' ')[0] || 'there'}</Copy>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF14' }}>
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: attention.length ? '#F59E0B' : LIME }} />
+            <Copy style={{ color: '#F5F3FF', fontSize: 11 }}>{attention.length ? `${attention.length} to do` : 'All caught up'}</Copy>
+          </View>
         </View>
+        <View style={{ gap: 2 }}>
+          <Copy style={{ color: '#A1A1AA', fontSize: 11, letterSpacing: 1, fontFamily: fonts.medium }}>TOTAL EARNED</Copy>
+          <Copy heading style={{ color: LIME, fontSize: 32 }} numberOfLines={1} adjustsFontSizeToFit>
+            {earned.length ? earned.map(([cur, v]) => money(v, cur)).join(' · ') : money(0, 'PLN')}
+          </Copy>
+          <Copy style={{ color: '#D4D4D8', fontSize: 12 }}>From completed bookings and paid shop orders</Copy>
+        </View>
+      </LinearGradient>
 
-        {/* Hero */}
-        <LinearGradient colors={['#8B5CF6', '#3B1D7A', '#120A26']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 24, padding: 18, gap: 10 }}>
-          <Text style={{ color: '#DDD6FE', fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>YOUR WORKSPACE</Text>
-          <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900', lineHeight: 28 }}>Good to see you, {user?.fullName?.split(' ')[0] || 'there'}.</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tasks ? '#F59E0B' : '#CDFF00' }} />
-            <Text style={{ color: '#EDE9FE', fontSize: 13 }}>{tasks ? `${tasks} thing${tasks > 1 ? 's' : ''} need${tasks > 1 ? '' : 's'} you` : 'All caught up — nothing waiting on you'}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-            <TouchableOpacity onPress={() => setCreating(true)} style={{ flex: 1, minHeight: 42, borderRadius: 21, backgroundColor: '#CDFF00', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}>
-              <Feather name="plus" size={16} color="#111" /><Text style={{ color: '#111', fontWeight: '900' }}>Add listing</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => go(shop ? '/shop/manage' : '/shop/create')} style={{ flex: 1, minHeight: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}>
-              <Feather name="shopping-bag" size={16} color="#FFF" /><Text style={{ color: '#FFF', fontWeight: '800' }}>{shop ? 'Manage shop' : 'Create shop'}</Text>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+      {/* Quick actions */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 4 }}>
+        <Action primary icon="plus" label="Add listing" onPress={() => setCreating(true)} />
+        <Action icon="shopping-bag" label={shop ? 'My shop' : 'Open shop'} onPress={() => go(shop ? '/shop/manage' : '/shop/create')} />
+        <Action icon="package" label="Orders" onPress={() => go('/profile/orders')} />
+        <Action icon="credit-card" label="Payouts" onPress={() => go('/profile/bank')} />
+      </View>
 
-        {error && <Notice message={error} onRetry={reload} />}
+      {error && <Notice message={error} onRetry={reload} />}
 
-        {/* KPIs */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-          {kpis.map(k => (
-            <Pressable key={k.label} onPress={k.onPress} style={{ width: '48%', flexGrow: 1, borderRadius: 18, padding: 14, gap: 6, backgroundColor: k.highlight ? 'transparent' : c.card, borderWidth: 1, borderColor: k.warn ? '#F59E0B66' : k.highlight ? '#CDFF0055' : c.line, overflow: 'hidden' }}>
-              {k.highlight && <LinearGradient colors={['#CDFF0033', '#CDFF0008']} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />}
-              <Feather name={k.icon} size={18} color={k.highlight ? c.accent : k.warn ? '#F59E0B' : c.purple} />
-              <Text style={{ color: c.text, fontSize: 19, fontWeight: '900' }} numberOfLines={1} adjustsFontSizeToFit>{k.value}</Text>
-              <Text style={{ color: c.muted, fontSize: 12 }}>{k.label}</Text>
+      {attention.length > 0 && (
+        <Group title="Needs you">
+          {attention.map(a => <Row key={a.label} icon={a.icon} label={a.label} subtitle={a.subtitle} count={a.count} tone="warn" onPress={a.onPress} />)}
+        </Group>
+      )}
+
+      {/* Stats */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        <Stat label="Active listings" value={listings.length} icon="grid" onPress={() => go('/profile/listings')} />
+        <Stat label="In progress" value={inProgress.length + openShopOrders} icon="truck" onPress={selling} />
+        <Stat label="Needs reply" value={needsReply.length} icon="message-circle" warn={needsReply.length > 0} onPress={selling} />
+        <Stat label="Upcoming tickets" value={upcomingTickets} icon="calendar" onPress={() => go('/tickets')} />
+      </View>
+
+      {/* Shop */}
+      {shop ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={`Manage ${shop.name}`} onPress={() => go('/shop/manage')}
+          style={({ pressed }) => ({ borderRadius: 24, overflow: 'hidden', backgroundColor: c.card, borderWidth: 1, borderColor: c.line, opacity: pressed ? 0.9 : 1 })}>
+          {shop.bannerUrl
+            ? <Image source={{ uri: mediaUrl(shop.bannerUrl) }} style={{ width: '100%', height: 96 }} />
+            : <LinearGradient colors={['#8B5CF6', '#3B1D7A']} style={{ height: 96 }} />}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Copy heading style={{ fontSize: 16 }} numberOfLines={1}>{shop.name}</Copy>
+              <Copy muted style={{ fontSize: 12 }} numberOfLines={1}>{[shop.category, `${shop.productCount ?? 0} products`, shop.published === false && 'Hidden'].filter(Boolean).join(' · ')}</Copy>
+            </View>
+            <Pressable accessibilityRole="button" onPress={() => go('/shop/[userId]', { userId: shop.ownerId, shopId: shop.id })} style={{ paddingHorizontal: 14, height: 36, borderRadius: 18, borderWidth: 1, borderColor: c.line, justifyContent: 'center' }}>
+              <Copy style={{ fontSize: 12.5, fontFamily: fonts.medium }}>View</Copy>
             </Pressable>
-          ))}
-        </View>
-
-        {/* Shop */}
-        {shop ? (
-          <View style={{ borderRadius: 20, overflow: 'hidden', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
-            {!!shop.bannerUrl && <Image source={{ uri: mediaUrl(shop.bannerUrl) }} style={{ width: '100%', height: 110 }} />}
-            <View style={{ padding: 14, gap: 10 }}>
-              <View><Text style={{ color: c.text, fontWeight: '900', fontSize: 16 }}>{shop.name}</Text><Text style={{ color: c.muted, fontSize: 12 }}>{shop.category} · {shop.productCount ?? 0} products{shop.published === false ? ' · Hidden' : ''}</Text></View>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TouchableOpacity onPress={() => go('/shop/[userId]', { userId: shop.ownerId, shopId: shop.id })} style={{ flex: 1, minHeight: 38, borderRadius: 19, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.text, fontWeight: '700' }}>View shop</Text></TouchableOpacity>
-                <TouchableOpacity onPress={() => go('/shop/manage')} style={{ flex: 1, minHeight: 38, borderRadius: 19, backgroundColor: c.purple, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFF', fontWeight: '800' }}>Manage</Text></TouchableOpacity>
-              </View>
-            </View>
           </View>
-        ) : data && (
-          <View style={{ borderRadius: 20, padding: 16, gap: 12, backgroundColor: c.card, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.purple }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Feather name="shopping-bag" size={18} color={c.purple} /></View>
-              <View style={{ flex: 1 }}><Text style={{ color: c.text, fontWeight: '900', fontSize: 16 }}>Start your shop — it’s free</Text><Text style={{ color: c.muted, fontSize: 12 }}>A storefront for your products or bookable services.</Text></View>
-            </View>
-            {['Name your shop and pick its type (store, salon, barber, tutor…)', 'Add a banner, then your products or services with prices', 'Connect payouts so sales land in your bank'].map((step, i) => (
-              <View key={step} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
-                <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: i % 2 ? c.purple : c.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: i % 2 ? '#FFF' : '#111', fontSize: 11, fontWeight: '900' }}>{i + 1}</Text></View>
-                <Text style={{ color: c.text, fontSize: 13, flex: 1, lineHeight: 19 }}>{step}</Text>
-              </View>
-            ))}
-            <TouchableOpacity onPress={() => go('/shop/create')} style={{ minHeight: 46, borderRadius: 23, backgroundColor: c.purple, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}>
-              <Feather name="plus" size={16} color="#FFF" /><Text style={{ color: '#FFF', fontWeight: '900' }}>Create my shop</Text>
-            </TouchableOpacity>
+        </Pressable>
+      ) : data && (
+        <Pressable accessibilityRole="button" onPress={() => go('/shop/create')}
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 24, backgroundColor: c.purpleSoft, borderWidth: 1, borderColor: c.purple + '55', opacity: pressed ? 0.85 : 1 })}>
+          <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: c.purple, alignItems: 'center', justifyContent: 'center' }}>
+            <Feather name="shopping-bag" size={20} color="#FFF" />
           </View>
-        )}
-
-        {/* Grouped tiles, like the web dashboard's sidebar */}
-        {groups.map(g => (
-          <View key={g.title} style={{ gap: 8 }}>
-            <Text style={{ color: c.muted, fontSize: 12, fontWeight: '800', letterSpacing: 0.6 }}>{g.title.toUpperCase()}</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {g.items.map(([label, icon, count, onPress]) => (
-                <Pressable key={label} onPress={onPress} style={({ pressed }) => ({ flex: 1, alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 16, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, opacity: pressed ? 0.8 : 1 })}>
-                  <View>
-                    <Feather name={icon} size={20} color={c.purple} />
-                    {count !== '' && count !== 0 && count != null && <View style={{ position: 'absolute', top: -8, right: -14, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#111', fontSize: 10, fontWeight: '900' }}>{count}</Text></View>}
-                  </View>
-                  <Text style={{ color: c.text, fontSize: 12, fontWeight: '700' }}>{label}</Text>
-                </Pressable>
-              ))}
-            </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Copy heading style={{ fontSize: 15 }}>Open your free shop</Copy>
+            <Copy muted style={{ fontSize: 12 }}>A storefront for products or bookable services, paid straight to your bank.</Copy>
           </View>
-        ))}
+          <Feather name="chevron-right" size={18} color={c.purple} />
+        </Pressable>
+      )}
 
-        {!!data?.listings?.some(l => l.listingType === 'EVENT') && <View style={{ gap: 8 }}>
-          <Text style={{ color: c.muted, fontSize: 12, fontWeight: '800', letterSpacing: 0.6 }}>EVENT DOORS</Text>
-          {data.listings.filter(l => l.listingType === 'EVENT').map(e => (
-            <TouchableOpacity key={e.id} onPress={() => go('/events/' + e.id + '/door')} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 16, backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
-              <Feather name="maximize" size={18} color={c.purple} /><Text style={{ color: c.text, fontWeight: '700', flex: 1 }} numberOfLines={1}>{e.title}</Text><Text style={{ color: c.purple, fontWeight: '800', fontSize: 12 }}>Scan tickets →</Text>
-            </TouchableOpacity>
-          ))}
-        </View>}
-      </ScrollView>
+      <Group title="Selling">
+        <Row icon="grid" label="My listings" count={listings.length} tone="purple" onPress={() => go('/profile/listings')} />
+        <Row icon="bar-chart-2" label="Sales" count={sellerBookings.length + sales.length} onPress={selling} />
+        <Row icon="repeat" label="Swaps" count={pendingSwaps} tone="purple" onPress={() => go('/swaps')} />
+        <Row icon="trending-up" label="Insights" onPress={() => go('/profile/insights')} />
+      </Group>
+
+      <Group title="Buying">
+        <Row icon="package" label="My orders" count={purchases} tone="purple" onPress={() => go('/profile/orders', { view: 'buying' })} />
+        <Row icon="credit-card" label="Tickets" count={upcomingTickets} onPress={() => go('/tickets')} />
+        <Row icon="shopping-cart" label="Cart" tone="purple" onPress={() => go('/cart')} />
+        <Row icon="star" label="Reviews" onPress={() => go('/profile/reviews')} />
+      </Group>
+
+      <Group title="Account">
+        <Row icon="dollar-sign" label="Payments & payouts" value={payoutsReady ? 'Connected' : 'Not set up'} tone={payoutsReady ? 'accent' : 'warn'} onPress={() => go('/profile/bank')} />
+        <Row icon="briefcase" label="Wallet" tone="purple" onPress={() => go('/profile/wallet')} />
+        <Row icon="bell" label="Notifications" count={unreadAlerts} onPress={() => go('/notifications')} />
+        <Row icon="settings" label="Settings" tone="purple" onPress={() => go('/profile/settings')} />
+      </Group>
+
+      {events.length > 0 && (
+        <Group title="Event doors" footer="Scan guests' tickets at the door.">
+          {events.map(e => <Row key={e.id} icon="maximize" label={e.title} value="Scan" tone="purple" onPress={() => go('/events/' + e.id + '/door')} />)}
+        </Group>
+      )}
+
       <CreateListingModal visible={creating} onClose={() => setCreating(false)} onCreated={reload} />
-    </SafeAreaView>
+    </Screen>
   );
 }
