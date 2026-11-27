@@ -115,7 +115,7 @@ app:
   cdn:
     domain: ${CDN_DOMAIN:}
   email:
-    from: ${EMAIL_FROM:HustleUp <notifications@hustleup.app>}
+    from: ${EMAIL_FROM:HustleSpace <notifications@hustlespace.space>}
     resend:
       api-key: ${RESEND_API_KEY:}
   adzuna:

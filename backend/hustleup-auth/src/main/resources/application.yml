@@ -80,7 +80,7 @@ app:
     domain: ${CDN_DOMAIN:}
   email:
     # Resend uses the production From address; SES fallback requires this address to be verified.
-    from: ${EMAIL_FROM:HustleUp <notifications@hustleup.app>}
+    from: ${EMAIL_FROM:HustleSpace <notifications@hustlespace.space>}
     resend:
       api-key: ${RESEND_API_KEY:}
 

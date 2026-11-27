@@ -242,7 +242,7 @@ CDN_DOMAIN=
 SENTRY_ENV=production
 SENTRY_DSN=
 RESEND_API_KEY=
-EMAIL_FROM=HustleUp <notifications@hustleup.app>
+EMAIL_FROM=HustleSpace <notifications@hustlespace.space>
 ```
 
 Generate a fresh JWT secret. The dev one in `backend/.env` should be treated as
