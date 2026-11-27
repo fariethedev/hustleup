@@ -685,9 +685,10 @@ public class AuthController {
                             .build());
                     String resetLink = frontendUrl + "/reset-password?token=" + token;
                     emailService.send(user.getEmail(), "Reset your HustleSpace password",
-                            "<p>Someone requested a password reset for your HustleSpace account.</p>"
-                                    + "<p><a href=\"" + resetLink + "\">Reset your password</a> (expires in 1 hour).</p>"
-                                    + "<p>If this wasn't you, you can safely ignore this email.</p>");
+                            "<p style=\"margin:0\">Someone requested a password reset for your HustleSpace account.</p>"
+                                    + com.hustleup.common.email.EmailLayout.button(resetLink, "Reset your password")
+                                    + "<p style=\"margin:0 0 12px\">The link expires in 1 hour.</p>"
+                                    + "<p style=\"margin:0\">If this wasn't you, you can safely ignore this email &mdash; your password stays the same.</p>");
                 } catch (Exception e) {
                     log.warn("Could not start password reset for {}: {}", email, e.getMessage());
                 }
@@ -766,10 +767,9 @@ public class AuthController {
     private void sendVerificationEmail(User user) {
         String code = issueVerificationCode(user);
         emailService.send(user.getEmail(), "Your HustleSpace verification code",
-                "<p>Welcome to HustleSpace! Enter this code to confirm your email:</p>"
-                        + "<p style=\"font-size:28px;font-weight:bold;letter-spacing:6px;margin:16px 0\">"
-                        + code + "</p>"
-                        + "<p>The code expires in " + (VERIFY_CODE_TTL_SECONDS / 60) + " minutes. "
+                "<p style=\"margin:0\">Welcome to HustleSpace! Enter this code to confirm your email:</p>"
+                        + com.hustleup.common.email.EmailLayout.code(code)
+                        + "<p style=\"margin:0\">The code expires in " + (VERIFY_CODE_TTL_SECONDS / 60) + " minutes. "
                         + "If you didn't create a HustleSpace account, you can ignore this email.</p>");
     }
 

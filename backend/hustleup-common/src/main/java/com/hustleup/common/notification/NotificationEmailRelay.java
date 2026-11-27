@@ -126,7 +126,7 @@ public class NotificationEmailRelay {
      * that drift apart.
      */
     private String body(Notification n) {
-        String title = escape(n.getTitle() == null ? "" : n.getTitle());
+        // The title is the subject, which EmailLayout already renders as the heading.
         String message = escape(n.getMessage() == null ? "" : n.getMessage());
         String type = n.getNotificationType() == null ? "" : n.getNotificationType();
         String path = type.equals("DIRECT_MESSAGE") && n.getReferenceId() != null ? "/dm/" + n.getReferenceId()
@@ -136,15 +136,13 @@ public class NotificationEmailRelay {
                 : type.startsWith("BOOKING") ? "Review the latest agreed price, booking status and payment details in your dashboard before taking the next step. An accepted offer is not proof of payment."
                 : type.equals("FOLLOW_REQUEST") ? "You decide who can follow your private account. Approve or decline this request in Privacy settings."
                 : "Open HustleSpace to see the full details and available next steps.";
-        String link = escape(frontendUrl.replaceAll("/+$", "") + path);
+        String link = frontendUrl.replaceAll("/+$", "") + path; // escaped by EmailLayout.button
         return """
-                <div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:520px">
-                  <p style="margin:0 0 8px;font-size:12px;color:#626859">%s</p>
-                  <p style="margin:0 0 16px;font-size:15px;line-height:1.5;color:#333">%s</p>
-                  <p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#626859">%s</p>
-                  <a href="%s" style="display:inline-block;padding:14px 22px;background:#cdff00;border-radius:10px;color:#111;font-weight:bold;text-decoration:none">View in HustleSpace →</a>
-                </div>
-                """.formatted(title, message, help, link);
+                <p style="margin:0 0 16px;font-size:16px;line-height:1.55;color:#111111">%s</p>
+                <p style="margin:0;font-size:14px;line-height:1.6;color:#5B5F57">%s</p>
+                %s
+                """.formatted(message, help,
+                com.hustleup.common.email.EmailLayout.button(link, "View in HustleSpace →"));
     }
 
     /** Notification text can contain a listing title someone else typed, so it is escaped. */
