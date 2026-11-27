@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 public class ShopService {
 
     private final ShopRepository shopRepository;
+    private final com.hustleup.marketplace.safety.SellerSafetyService sellerSafety;
     private final ShopProductRepository productRepository;
     private final ListingRepository listingRepository;
     private final ReviewRepository reviewRepository;
@@ -46,7 +47,8 @@ public class ShopService {
      * used to be fine, but this is the Explore shelf and it grows with the platform.
      */
     public List<ShopDto> browse() {
-        List<Shop> shops = shopRepository.findByPublishedTrue();
+        List<Shop> shops = shopRepository.findByPublishedTrue().stream()
+                .filter(shop -> !sellerSafety.suspended(shop.getOwnerId())).toList();
         if (shops.isEmpty()) return List.of();
 
         List<UUID> shopIds = shops.stream().map(Shop::getId).toList();

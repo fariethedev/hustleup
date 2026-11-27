@@ -105,5 +105,42 @@ public class ProtectionClaim {
      * Lifecycle. Only {@link #OPEN} freezes the money — both resolutions are terminal, and
      * which one it was is the record of where the money went.
      */
-    public enum ClaimStatus { OPEN, REFUNDED, REJECTED }
+    public enum ClaimStatus { OPEN, REFUNDED, PARTIALLY_REFUNDED, REJECTED, APPEALED }
+
+    // ── Dispute process (seller response, decision, one appeal) ─────────────────────────
+    /** What the decision was, kept so an appeal can be judged against it. */
+    public enum Decision { FULL_REFUND, PARTIAL_REFUND, RELEASE }
+
+    @Column(name = "seller_response", columnDefinition = "TEXT")
+    private String sellerResponse;
+
+    @Column(name = "seller_responded_at")
+    private LocalDateTime sellerRespondedAt;
+
+    /** The seller's deadline to answer; after it the decision is made on the buyer's evidence. */
+    @Column(name = "respond_by")
+    private LocalDateTime respondBy;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private Decision decision;
+
+    @Column(name = "refund_amount", precision = 19, scale = 4)
+    private java.math.BigDecimal refundAmount;
+
+    /** BUYER or SELLER — each side may appeal once. */
+    @Column(name = "appeal_by", length = 10)
+    private String appealBy;
+
+    @Column(name = "appeal_text", columnDefinition = "TEXT")
+    private String appealText;
+
+    @Column(name = "appealed_at")
+    private LocalDateTime appealedAt;
+
+    @Column(name = "appeal_note", columnDefinition = "TEXT")
+    private String appealNote;
+
+    @Column(name = "appeal_resolved_at")
+    private LocalDateTime appealResolvedAt;
 }

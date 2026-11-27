@@ -10,6 +10,7 @@ import { errorMessage, money } from '../../src/utils/marketplace';
 import { deliverySteps, orderLabel, orderState } from '../../src/utils/orderState';
 import { stripeUrl } from '../../src/utils/secureLinks';
 import { mediaUrl } from '../../src/utils/media';
+import { ClaimActions } from '../../src/components/trust/TrustWidgets';
 
 const reasons = [['NOT_RECEIVED', 'Not received'], ['DAMAGED', 'Arrived damaged'], ['NOT_AS_DESCRIBED', 'Not as described'], ['OTHER', 'Something else']];
 /**
@@ -200,6 +201,7 @@ export default function OrdersScreen() {
       </View>}
       {!state.buyer && feePercent > 0 && state.paid && <Text style={{ color: colors.muted, fontSize: 12 }}>You receive {money((Number(order.totalPrice ?? order.agreedPrice ?? 0)) * (1 - feePercent / 100) + Number(order.fulfilment?.shippingPrice || 0), order.currency)} after the {feePercent}% platform fee (delivery passes through in full).</Text>}
       {!!claim && <Text style={{ color: colors.accent }}>Problem report: {orderLabel(claim.status)}{claim.resolutionNote ? ' — ' + claim.resolutionNote : ''}</Text>}
+      {!!claim && <ClaimActions claim={claim} colors={colors} />}
       <View style={s.actions}>
         {state.canRespond && <><Button title="Accept offer" icon="check" primary onPress={() => run(() => bookingsApi.accept(order.id, order.version))} /><Button title="Counter offer" icon="edit-2" onPress={() => open('counter', order)} /></>}
         {state.canPay && <Button title="Pay securely" icon="credit-card" primary onPress={() => run(async () => {

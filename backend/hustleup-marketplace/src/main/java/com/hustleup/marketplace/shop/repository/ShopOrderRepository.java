@@ -16,6 +16,11 @@ import java.util.UUID;
 /** Data access for storefront orders. */
 @Repository
 public interface ShopOrderRepository extends JpaRepository<ShopOrder, UUID> {
+    /** Locking read sees committed reservations after waiting for the seller lock, even under MySQL REPEATABLE READ. */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_READ)
+    @Query("select o from ShopOrder o where o.sellerId = :sellerId")
+    List<ShopOrder> findSellerOrdersForAdmission(@Param("sellerId") UUID sellerId);
+
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from ShopOrder o where o.id = :id")
@@ -42,7 +47,7 @@ public interface ShopOrderRepository extends JpaRepository<ShopOrder, UUID> {
      * Orders whose money is due to be released to the seller.
      *
      * <p>Two ways an order becomes due, matching the two release triggers: the buyer confirmed
-     * receipt, or the seller dispatched it and the hold period has since elapsed. The dispatch
+     * receipt, or the seller reported delivery and the hold period has since elapsed. The delivery
      * timestamp is what the cutoff is measured against, not the payment — a seller who has not
      * sent anything should not accrue a claim on the buyer's money just by waiting.
      *
@@ -55,7 +60,14 @@ public interface ShopOrderRepository extends JpaRepository<ShopOrder, UUID> {
                AND o.status IN (com.hustleup.marketplace.shop.model.ShopOrder$ShopOrderStatus.PAID,
                                 com.hustleup.marketplace.shop.model.ShopOrder$ShopOrderStatus.FULFILLED)
                AND (o.fulfilment.buyerConfirmedAt IS NOT NULL
-                    OR (o.fulfilment.shippedAt IS NOT NULL AND o.fulfilment.shippedAt < :cutoff))
+                    OR o.fulfilment.carrierConfirmedAt < :carrierCutoff
+                    OR (o.fulfilment.deliveredAt IS NOT NULL AND o.fulfilment.deliveredAt < :cutoff))
             """)
-    List<ShopOrder> findReleasable(@Param("cutoff") LocalDateTime cutoff);
+    List<ShopOrder> findReleasable(@Param("cutoff") LocalDateTime cutoff,
+                                 @Param("carrierCutoff") LocalDateTime carrierCutoff);
+
+    @Query("select o from ShopOrder o where o.payoutStatus = 'HELD' and o.status in (com.hustleup.marketplace.shop.model.ShopOrder$ShopOrderStatus.PAID, com.hustleup.marketplace.shop.model.ShopOrder$ShopOrderStatus.FULFILLED) and o.fulfilment.carrierConfirmedAt is null "
+        + "and lower(o.fulfilment.carrier) = 'inpost' and o.fulfilment.trackingNumber is not null "
+        + "order by o.fulfilment.carrierCheckedAt asc")
+    List<ShopOrder> findPendingInPost(org.springframework.data.domain.Pageable page);
 }

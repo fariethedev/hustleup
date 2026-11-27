@@ -29,6 +29,15 @@ import java.util.UUID;
 
 // JpaRepository<Booking, UUID>: manages Booking entities, primary key type is UUID.
 public interface BookingRepository extends JpaRepository<Booking, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select b from Booking b where b.id=:id")
+    Optional<Booking> findLockedById(@Param("id") UUID id);
+
+    /** Locking read sees committed reservations after waiting for the seller lock, even under MySQL REPEATABLE READ. */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_READ)
+    @Query("select b from Booking b where b.sellerId = :sellerId")
+    List<Booking> findSellerOrdersForAdmission(@Param("sellerId") UUID sellerId);
+
 
     /** Tickets of one tier already sold or held by an in-flight checkout, for tier capacity. */
     @Query("SELECT COALESCE(SUM(b.quantity), 0) FROM Booking b WHERE b.listingId = :listingId AND b.ticketTier = :tier "
@@ -197,7 +206,14 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
                AND b.status IN (com.hustleup.marketplace.booking.model.BookingStatus.BOOKED,
                                 com.hustleup.marketplace.booking.model.BookingStatus.COMPLETED)
                AND (b.fulfilment.buyerConfirmedAt IS NOT NULL
+                    OR b.fulfilment.carrierConfirmedAt < :carrierCutoff
                     OR (b.fulfilment.deliveredAt IS NOT NULL AND b.fulfilment.deliveredAt < :cutoff))
             """)
-    List<Booking> findReleasable(@Param("cutoff") LocalDateTime cutoff);
+    List<Booking> findReleasable(@Param("cutoff") LocalDateTime cutoff,
+                                 @Param("carrierCutoff") LocalDateTime carrierCutoff);
+
+    @Query("select b from Booking b where b.paymentStatus = 'PAID' and b.fulfilment.carrierConfirmedAt is null "
+        + "and lower(b.fulfilment.carrier) = 'inpost' and b.fulfilment.trackingNumber is not null "
+        + "order by b.fulfilment.carrierCheckedAt asc")
+    List<Booking> findPendingInPost(org.springframework.data.domain.Pageable page);
 }

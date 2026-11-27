@@ -200,6 +200,7 @@ export default function SettingsScreen() {
         <Row icon="user" label="Edit profile" subtitle="Name, photo, bio and city" onPress={() => router.push('/profile/edit')} />
         <Row icon="lock" label="Privacy" subtitle="Who can see you and message you" tone="purple" onPress={() => setSheet('privacy')} />
         <Row icon="credit-card" label="Payments & payouts" subtitle="Where your earnings are sent" onPress={() => router.push('/profile/bank')} />
+        <Row icon="file-text" label="Seller details" subtitle="Private or business, and tax details" tone="purple" onPress={() => router.push('/profile/seller-details')} />
         <Row icon="trending-up" label="Earnings" subtitle="Money on its way and released" tone="purple" onPress={() => router.push('/profile/wallet')} />
       </Group>
 

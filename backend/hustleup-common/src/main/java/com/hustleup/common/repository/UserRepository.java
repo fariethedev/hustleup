@@ -36,6 +36,12 @@ import java.util.UUID;
  */
 public interface UserRepository extends JpaRepository<User, UUID> {
 
+    /** Serializes marketplace order admission across bookings and storefronts. */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select u from User u where u.id = :id")
+    Optional<User> findLockedById(@org.springframework.data.repository.query.Param("id") UUID id);
+
+
     /**
      * Looks up a user by their email address.
      *

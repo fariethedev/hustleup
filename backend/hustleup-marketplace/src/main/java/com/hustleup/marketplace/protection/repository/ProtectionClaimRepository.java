@@ -10,6 +10,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ProtectionClaimRepository extends JpaRepository<ProtectionClaim, UUID> {
+    List<ProtectionClaim> findBySellerIdAndStatusIn(UUID sellerId, List<ClaimStatus> statuses);
+
 
     /**
      * The freeze check, asked before any money moves.

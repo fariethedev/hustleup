@@ -158,6 +158,12 @@ public class ShipmentService {
                 && method.steps().indexOf(target) < method.steps().indexOf(previous))
             return "Delivery cannot move backwards. Add a note if a correction is needed.";
 
+        if ((request.getCarrier() != null && !java.util.Objects.equals(blankToNull(request.getCarrier()), fulfilment.getCarrier()))
+                || (request.getTrackingNumber() != null && !java.util.Objects.equals(blankToNull(request.getTrackingNumber()), fulfilment.getTrackingNumber()))) {
+            fulfilment.setCarrierConfirmedAt(null);
+            fulfilment.setCarrierCheckedAt(null);
+            fulfilment.setReleaseReminderAt(null);
+        }
         if (request.getCarrier() != null)        fulfilment.setCarrier(blankToNull(request.getCarrier()));
         if (request.getTrackingNumber() != null) fulfilment.setTrackingNumber(blankToNull(request.getTrackingNumber()));
         if (request.getTrackingUrl() != null)    fulfilment.setTrackingUrl(blankToNull(request.getTrackingUrl()));

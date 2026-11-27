@@ -341,6 +341,16 @@ export const shopsApi = {
 export const claimsApi = {
   mine: () => api.get('/claims/mine'),
   raise: (orderType, orderId, reason, detail) => api.post('/claims', { orderType, orderId, reason, detail }),
+  respond: (id, text) => api.post(`/claims/${id}/respond`, { text }),
+  appeal: (id, text) => api.post(`/claims/${id}/appeal`, { text }),
+};
+
+/** Reports, trader status (DSA) and seller legal details (DAC7). */
+export const trustApi = {
+  report: (targetType, targetId, reason, detail = '') => api.post('/listings/report', { targetType, targetId, reason, detail }),
+  trader: userId => api.get(`/listings/traders/${userId}`),
+  sellerProfile: () => api.get('/payouts/seller-profile'),
+  saveSellerProfile: body => api.put('/payouts/seller-profile', body),
 };
 
 export const payoutsApi = {

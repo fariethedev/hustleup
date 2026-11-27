@@ -6,6 +6,7 @@ import SwapOfferModal from '../components/SwapOfferModal';
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { listingsApi, usersApi, bookingsApi, availabilityApi, feedApi, ticketsApi } from '../api/client';
+import { ReportButton, TraderNotice } from '../components/TrustWidgets';
 import { addToCart, closeCart, selectCartItems } from '../store/cartSlice';
 import { selectUser } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
@@ -426,8 +427,11 @@ export default function ListingDetail() {
             >
               <Forward className="w-3.5 h-3.5" /> Share
             </button>
+            {listing?.id && <ReportButton targetType="LISTING" targetId={listing.id} />}
           </div>
         </div>
+
+        {listing?.sellerId && <div className="mb-6"><TraderNotice sellerId={listing.sellerId} /></div>}
 
         {/* 2-Column Layout */}
         <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-8 items-start">

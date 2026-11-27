@@ -13,6 +13,7 @@ import { canPurchaseListing, cartKey, categoryLabel, errorMessage, money, ticket
 import { mediaUrl } from '../../src/utils/media';
 import { useCart } from '../../src/store/CartProvider';
 import SwapOfferSheet from '../../src/components/listings/SwapOfferSheet';
+import { ReportButton, TraderNotice } from '../../src/components/trust/TrustWidgets';
 
 export default function Listing() {
   const { id } = useLocalSearchParams();
@@ -181,6 +182,8 @@ export default function Listing() {
           <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 21 }}>{listing.description}</Text>
         </View>}
         {listing.listingType === 'RENTAL' && <Text style={{ color: colors.muted, fontSize: 13 }}>Agent fee: {money(listing.agentFeeAmount || 0, listing.currency)}</Text>}
+        {!!listing.sellerId && <TraderNotice sellerId={listing.sellerId} />}
+        {!own && !!user && <ReportButton targetType="LISTING" targetId={listing.id} />}
 
         {event && !!data.tickets?.length && <TouchableOpacity onPress={() => router.push('/tickets')} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 16, backgroundColor: colors.purpleSoft }}><Feather name="credit-card" size={18} color={colors.purple} /><Text style={{ color: colors.purple, fontWeight: '800', flex: 1 }}>You have {data.tickets.length} ticket(s) — open wallet</Text><Feather name="chevron-right" size={18} color={colors.purple} /></TouchableOpacity>}
         {data.ticketError && <Notice message="Could not check your existing tickets." onRetry={reload} />}

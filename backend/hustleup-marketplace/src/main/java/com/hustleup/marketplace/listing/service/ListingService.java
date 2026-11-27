@@ -54,6 +54,10 @@ public class ListingService {
     /** Remaining carrying weight for LUGGAGE listings — see enrichDto. */
     private final LuggageAvailabilityService luggageAvailabilityService;
     private final EmailVerificationGuard emailVerificationGuard;
+    private final com.hustleup.marketplace.safety.SellerSafetyService sellerSafety;
+    private final com.hustleup.marketplace.trust.ListingRiskService listingRisk; // holds risky listings for review
+    private final com.hustleup.marketplace.trust.TrustService trust;
+    private final com.hustleup.marketplace.trust.SellerProfileRepository sellerProfiles; // DSA trader details
 
     public ListingService(ListingRepository listingRepository, UserRepository userRepository,
                           ReviewRepository reviewRepository, FileStorageService fileStorageService,
@@ -62,7 +66,15 @@ public class ListingService {
                           EventAvailabilityService eventAvailabilityService,
                           LuggageAvailabilityService luggageAvailabilityService,
                           EmailVerificationGuard emailVerificationGuard,
-                          com.hustleup.common.subscription.PremiumAccess premiumAccess) {
+                          com.hustleup.common.subscription.PremiumAccess premiumAccess,
+                          com.hustleup.marketplace.safety.SellerSafetyService sellerSafety,
+                          com.hustleup.marketplace.trust.ListingRiskService listingRisk,
+                          com.hustleup.marketplace.trust.TrustService trust,
+                          com.hustleup.marketplace.trust.SellerProfileRepository sellerProfiles) {
+        this.sellerSafety = sellerSafety;
+        this.listingRisk = listingRisk;
+        this.trust = trust;
+        this.sellerProfiles = sellerProfiles;
         this.listingRepository = listingRepository;
         this.userRepository = userRepository;
         this.reviewRepository = reviewRepository;
@@ -95,7 +107,7 @@ public class ListingService {
                     .collect(Collectors.toList());
         }
 
-        return listings.stream().map(this::enrichDto).collect(Collectors.toList());
+        return listings.stream().filter(l -> !sellerSafety.suspended(l.getSellerId())).map(this::enrichDto).collect(Collectors.toList());
     }
 
     /**
@@ -120,10 +132,12 @@ public class ListingService {
     public ListingDto getById(UUID id) {
         Listing listing = listingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Listing not found"));
+        sellerSafety.requireActive(listing.getSellerId());
         return enrichDto(listing);
     }
 
     public List<ListingDto> getByUser(UUID sellerId) {
+        if (sellerSafety.suspended(sellerId)) return List.of();
         return listingRepository.findBySellerIdAndStatusNot(sellerId, ListingStatus.DELETED)
                 .stream()
                 .map(this::enrichDto)
@@ -146,6 +160,12 @@ public class ListingService {
         // point selling needs a reachable address — not registration, and not every later
         // read/update of listings already posted while verified.
         emailVerificationGuard.require(seller, "list an item");
+        sellerSafety.requireActive(seller.getId());
+        // DSA trader traceability: a business may not list until it has said who it is.
+        sellerProfiles.findById(seller.getId()).filter(p -> !p.traderDetailsComplete()).ifPresent(p -> {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "Add your business details (name, registration number, address, contact email) in Settings → Seller details before listing.");
+        });
 
         String mediaUrlsCsv = "";
         if (images != null && !images.isEmpty()) {
@@ -214,7 +234,16 @@ public class ListingService {
                 .mediaUrls(mediaUrlsCsv)
                 .build();
 
+        // Fraud screening: counterfeit wording, high-risk items from new sellers, or prices far
+        // below the market are held for a moderator instead of going live.
+        java.util.Optional<String> risk = listingRisk.assess(seller.getId(), listing.getTitle(),
+                listing.getDescription(), listing.getPrice(), listing.getCurrency());
+        if (risk.isPresent()) listing.setStatus(ListingStatus.PENDING_REVIEW);
         Listing saved = listingRepository.save(listing);
+        if (risk.isPresent()) {
+            trust.hold(saved, risk.get());
+            return enrichDto(saved);
+        }
         notifyFollowersOfNewListing(seller, saved);
         algoliaIndexService.indexListing(saved);
         return enrichDto(saved);
@@ -331,13 +360,36 @@ public class ListingService {
             throw new RuntimeException("You don't own this listing");
         }
 
+        sellerSafety.requireActive(listing.getSellerId());
         if (title != null) listing.setTitle(title);
         if (description != null) listing.setDescription(description);
         if (price != null) listing.setPrice(price);
         listing.setNegotiable(negotiable);
         if (city != null) listing.setLocationCity(city);
         if (meta != null) listing.setMeta(meta);
-        if (status != null) listing.setStatus(ListingStatus.valueOf(status));
+        if (status != null) {
+            // Review and removal belong to moderators: a seller can neither publish a held
+            // listing nor resurrect a removed one, and can only move between their own states.
+            ListingStatus wanted;
+            try { wanted = ListingStatus.valueOf(status); }
+            catch (IllegalArgumentException e) { throw new RuntimeException("Unknown status " + status); }
+            if (listing.getStatus() == ListingStatus.PENDING_REVIEW || listing.getStatus() == ListingStatus.REMOVED) {
+                if (wanted != listing.getStatus() && wanted != ListingStatus.DELETED)
+                    throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                            listing.getStatus() == ListingStatus.REMOVED ? "This listing was removed by our team and cannot be republished."
+                                    : "This listing is being reviewed by our team and will go live once approved.");
+            } else if (wanted == ListingStatus.PENDING_REVIEW || wanted == ListingStatus.REMOVED) {
+                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid status");
+            }
+            listing.setStatus(wanted);
+        }
+        // A live listing edited into something risky (a new title, a slashed price) is
+        // screened again, so a bait-and-switch cannot skip the checks it passed at creation.
+        boolean contentChanged = title != null || description != null || price != null;
+        if (contentChanged && listing.getStatus() == ListingStatus.ACTIVE) {
+            listingRisk.assess(seller.getId(), listing.getTitle(), listing.getDescription(), listing.getPrice(), listing.getCurrency())
+                    .ifPresent(reason -> trust.hold(listing, reason));
+        }
         if (swapEnabled != null) listing.setSwapEnabled(swapEnabled);
         // Only overwrite on a method the enum actually knows — a typo should leave the
         // seller's existing delivery terms alone rather than blanking them.
@@ -481,7 +533,7 @@ public class ListingService {
 
         record Scored(Listing listing, double score) {}
 
-        List<ListingDto> result = active.stream()
+        List<ListingDto> result = active.stream().filter(l -> !sellerSafety.suspended(l.getSellerId()))
                 .map(l -> {
                     double rec  = listingRecency(l, nowMs);
                     double qual = listingQuality(l);

@@ -308,6 +308,37 @@ export const claimsApi = {
   open: () => api.get('/claims/open'),
   all: () => api.get('/claims'),
   resolve: (id, refund, note = '') => api.patch(`/claims/${id}`, { refund, note }),
+  /** decision: 'FULL_REFUND' | 'PARTIAL_REFUND' | 'RELEASE'; refundAmount only for a partial. */
+  decide: (id, decision, note = '', refundAmount) => api.patch(`/claims/${id}`, { decision, note, refundAmount }),
+  /** The seller's side of a claim, before the deadline. */
+  respond: (id, text) => api.post(`/claims/${id}/respond`, { text }),
+  /** Buyer or seller, once, within 7 days of the decision. */
+  appeal: (id, text) => api.post(`/claims/${id}/appeal`, { text }),
+  decideAppeal: (id, uphold, note) => api.post(`/claims/${id}/appeal/decision`, { uphold, note }),
+};
+
+/** Trust & safety: reports, seller details (DSA/DAC7) and the admin moderation console. */
+export const trustApi = {
+  /** targetType: 'LISTING' | 'SHOP' | 'SELLER'; reason: see MarketplaceReport.Reason. */
+  report: (targetType, targetId, reason, detail = '') => api.post('/listings/report', { targetType, targetId, reason, detail }),
+  trader: (userId) => api.get(`/listings/traders/${userId}`),
+  sellerProfile: () => api.get('/payouts/seller-profile'),
+  saveSellerProfile: (body) => api.put('/payouts/seller-profile', body),
+  // Admin
+  overview: () => api.get('/admin/trust/overview'),
+  reviewQueue: () => api.get('/admin/trust/listings/review'),
+  approveListing: (id, note = '') => api.post(`/admin/trust/listings/${id}/approve`, { note }),
+  removeListing: (id, reason, strike = false) => api.post(`/admin/trust/listings/${id}/remove`, { reason, strike: String(strike) }),
+  reports: (status = 'OPEN') => api.get('/admin/trust/reports', { params: { status } }),
+  resolveReport: (id, action, note = '') => api.post(`/admin/trust/reports/${id}/resolve`, { action, note }),
+  sellers: () => api.get('/admin/trust/sellers'),
+  strike: (id, reason) => api.post(`/admin/trust/sellers/${id}/strike`, { reason }),
+  suspend: (id, reason) => api.post(`/admin/trust/sellers/${id}/suspend`, { reason }),
+  retryRecovery: (id) => api.post(`/admin/safety/sellers/${id}/retry`),
+  disputes: () => api.get('/admin/safety/disputes'),
+  retryDispute: (id) => api.post(`/admin/safety/disputes/${id}/retry`),
+  dac7: (year) => api.get('/admin/trust/dac7', { params: { year } }),
+  dac7Csv: (year, onlyReportable = true) => api.get('/admin/trust/dac7.csv', { params: { year, onlyReportable }, responseType: 'blob' }),
 };
 
 // Digital event tickets. There is no create() here on purpose — tickets are issued by the

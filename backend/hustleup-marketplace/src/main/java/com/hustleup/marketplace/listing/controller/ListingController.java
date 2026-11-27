@@ -35,12 +35,15 @@ import java.util.stream.Collectors;
 public class ListingController {
 
     private final ListingService listingService;
+    private final com.hustleup.marketplace.safety.SellerSafetyService sellerSafety;
     private final ListingRepository listingRepository;
     private final SavedListingRepository savedListingRepository;
     private final UserRepository userRepository;
 
     public ListingController(ListingService listingService, ListingRepository listingRepository,
-                              SavedListingRepository savedListingRepository, UserRepository userRepository) {
+                              SavedListingRepository savedListingRepository, UserRepository userRepository,
+                              com.hustleup.marketplace.safety.SellerSafetyService sellerSafety) {
+        this.sellerSafety = sellerSafety;
         this.listingService = listingService;
         this.listingRepository = listingRepository;
         this.savedListingRepository = savedListingRepository;
@@ -234,6 +237,7 @@ public class ListingController {
         List<Listing> listings = savedListingRepository.findByUserId(currentUser.getId()).stream()
                 .sorted(Comparator.comparing(SavedListing::getCreatedAt).reversed())
                 .map(SavedListing::getListing)
+                .filter(l -> !sellerSafety.suspended(l.getSellerId()))
                 .toList();
         List<ListingDto> dtos = listings.stream().map(ListingDto::fromEntity).collect(Collectors.toList());
         dtos.forEach(dto -> dto.setSavedByCurrentUser(true));

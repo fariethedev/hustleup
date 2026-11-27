@@ -10,6 +10,7 @@ import { uploadUrl } from '../config';
 import SalesTab from '../components/admin/SalesTab';
 import ReportsTab from '../components/admin/ReportsTab';
 import SupportTab from '../components/admin/SupportTab';
+import TrustTab from '../components/admin/TrustTab';
 import { Skeleton, Empty } from '../components/admin/shared';
 
 const TABS = [
@@ -17,6 +18,8 @@ const TABS = [
   { id: 'sales', name: 'Sales', icon: ChartLine },
   // The two queues people are actually waiting in. Reports sat unread for the life of the
   // feature because nothing could read the table; disputes freeze a payout while they wait.
+  // Fraud, disputes, suspensions and tax reporting — the marketplace's safety net.
+  { id: 'trust', name: 'Trust & Safety', icon: ShieldX },
   { id: 'reports', name: 'Reports', icon: ShieldBan },
   { id: 'support', name: 'Support', icon: LifeBuoy },
   { id: 'publishers', name: 'Verification', icon: ShieldCheck },
@@ -100,6 +103,7 @@ export default function Admin() {
         >
           {tab === 'dashboard' && <DashboardTab onJump={setTab} />}
           {tab === 'sales' && <SalesTab />}
+          {tab === 'trust' && <TrustTab />}
           {tab === 'reports' && <ReportsTab />}
           {tab === 'support' && <SupportTab />}
           {tab === 'publishers' && <PublishersTab />}

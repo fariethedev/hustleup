@@ -60,7 +60,7 @@ public class AdminSupportController {
                 wanted = ProtectionClaim.ClaimStatus.valueOf(status.toUpperCase());
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of("error", "Unknown status. Allowed: OPEN, REFUNDED, REJECTED, ALL"));
+                        .body(Map.of("error", "Unknown status. Allowed: OPEN, APPEALED, REFUNDED, PARTIALLY_REFUNDED, REJECTED, ALL"));
             }
             rows = rows.stream().filter(c -> c.getStatus() == wanted).collect(Collectors.toList());
         }
@@ -100,6 +100,15 @@ public class AdminSupportController {
         m.put("resolutionNote", c.getResolutionNote());
         m.put("resolvedAt", c.getResolvedAt());
         m.put("createdAt", c.getCreatedAt());
+        m.put("respondBy", c.getRespondBy());
+        m.put("sellerResponse", c.getSellerResponse());
+        m.put("sellerRespondedAt", c.getSellerRespondedAt());
+        m.put("decision", c.getDecision());
+        m.put("refundAmount", c.getRefundAmount());
+        m.put("appealBy", c.getAppealBy());
+        m.put("appealText", c.getAppealText());
+        m.put("appealedAt", c.getAppealedAt());
+        m.put("appealNote", c.getAppealNote());
 
         m.put("buyerId", c.getBuyerId());
         m.put("sellerId", c.getSellerId());

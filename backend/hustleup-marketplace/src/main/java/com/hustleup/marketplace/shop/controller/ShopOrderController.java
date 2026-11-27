@@ -136,14 +136,13 @@ public class ShopOrderController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "Only the shop owner can update this order"));
         }
-        try {
-            order.setStatus(ShopOrder.ShopOrderStatus.valueOf(String.valueOf(body.get("status")).toUpperCase()));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error",
-                    "Invalid status. Allowed: AWAITING_PAYMENT, PAID, FULFILLED, CANCELLED, REFUNDED"));
+        // Payment, receipt and refund handlers own commercial state. A seller-written
+        // CANCELLED/REFUNDED flag would otherwise free admission slots without returning money.
+        if (order.getStatus().name().equalsIgnoreCase(body.get("status"))) {
+            return ResponseEntity.ok(order);
         }
-        order.setUpdatedAt(java.time.LocalDateTime.now());
-        return ResponseEntity.ok(orderRepository.save(order));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error",
+                "Order status cannot be changed directly. Use delivery updates, buyer receipt confirmation, or the protection claim refund process."));
     }
 
     /**

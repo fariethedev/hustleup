@@ -21,7 +21,9 @@ import static org.mockito.Mockito.*;
 
 class StripeConnectServiceTest {
     private final StripeConnectService service = new StripeConnectService(
-            mock(SellerPayoutAccountRepository.class), mock(UserRepository.class));
+            mock(SellerPayoutAccountRepository.class), mock(UserRepository.class),
+            mock(com.hustleup.marketplace.safety.SellerSafetyService.class),
+            mock(com.hustleup.marketplace.safety.PaymentDisputeRepository.class));
 
     @Test void orderAndBookingTransfersUseDistinctStableKeysAndSourceCharge() throws Exception {
         ReflectionTestUtils.setField(service, "platformFeePercent", new BigDecimal("8"));
@@ -134,5 +136,45 @@ class StripeConnectServiceTest {
             assertEquals(1, replays.get());
             assertEquals(!alreadyPaid && knownGroupFailure ? 1 : 0, newKeyCalls.get());
         }
+    }
+
+    @Test void recoveryOnlyReversesRemainingFundsAndSkipsCompletedReversal() throws Exception {
+        Transfer transfer = new Transfer(); transfer.setId("tr_paid");
+        transfer.setAmount(9200L); transfer.setAmountReversed(2000L); transfer.setReversed(false);
+        var reversals = mock(com.stripe.model.TransferReversalCollection.class);
+        transfer.setReversals(reversals);
+        try (var transfers = mockStatic(Transfer.class)) {
+            transfers.when(() -> Transfer.retrieve("tr_paid")).thenReturn(transfer);
+            service.recoverTransfer("tr_paid");
+            verify(reversals).create(
+                    argThat((com.stripe.param.TransferReversalCollectionCreateParams p) -> p.getAmount() == 7200L),
+                    argThat((RequestOptions o) -> "recover_tr_paid_7200".equals(o.getIdempotencyKey())));
+            transfer.setReversed(true);
+            service.recoverTransfer("tr_paid");
+            verifyNoMoreInteractions(reversals);
+        }
+    }
+
+    @Test void refundRetryFindsExistingOrderRefundEvenAfterIdempotencyKeyExpiry() throws Exception {
+        UUID order = UUID.randomUUID();
+        var previous = new com.stripe.model.Refund(); previous.setStatus("succeeded");
+        previous.setMetadata(java.util.Map.of("orderId",order.toString()));
+        var refunds = mock(com.stripe.model.RefundCollection.class);
+        when(refunds.autoPagingIterable()).thenReturn(java.util.List.of(previous));
+        try (var api = mockStatic(com.stripe.model.Refund.class)) {
+            api.when(() -> com.stripe.model.Refund.list(any(com.stripe.param.RefundListParams.class))).thenReturn(refunds);
+            service.refundPayment("pi_paid",new BigDecimal("100"),order);
+            api.verify(() -> com.stripe.model.Refund.create(any(com.stripe.param.RefundCreateParams.class),any(RequestOptions.class)),never());
+        }
+    }
+
+    @Test void knownDisputeBlocksBothRefundAndSellerTransfer() throws Exception {
+        var disputes = mock(com.hustleup.marketplace.safety.PaymentDisputeRepository.class);
+        var guarded = new StripeConnectService(mock(SellerPayoutAccountRepository.class),mock(UserRepository.class),
+                mock(com.hustleup.marketplace.safety.SellerSafetyService.class),disputes);
+        when(disputes.existsByPaymentIntentId("pi_disputed")).thenReturn(true);
+        var order = ShopOrder.builder().paymentIntentId("pi_disputed").build();
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,()->guarded.transferToSeller(order,"acct_owner"));
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,()->guarded.refundPayment("pi_disputed",new BigDecimal("100"),UUID.randomUUID()));
     }
 }

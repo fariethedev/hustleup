@@ -9,6 +9,7 @@ import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { useSellerAccess } from '../hooks/useSellerAccess';
 import SellerUpgrade, { SellerUpgradeButton } from '../components/SellerUpgrade';
 import { bookingsApi, listingsApi, notificationsApi, availabilityApi, payoutsApi, ticketsApi, reviewsApi, shopsApi, feedbackApi, claimsApi, dispatchToast } from '../api/client';
+import { ClaimActions } from '../components/TrustWidgets';
 import { BOOKING_STATUS_MAP, LISTING_TYPES, POLISH_CITIES, formatPrice } from '../utils/constants';
 import { ChevronDown, Cog, CirclePlus, Archive, ClipboardCheck, CircleCheck, CircleX, MessagesSquare, ListChecks, Boxes, BellDot, ChartLine, CalendarRange, SquarePen, Building2, Eraser, CircleSlash, Building, WalletCards, ShieldPlus, ShieldX, TicketCheck, QrCode, MoveRight, Sparkle, Forklift, Box, Speech, CircleUser, Store, ArrowUpRight, Activity } from 'lucide-react';
 import HeroBrief from '../components/HeroBrief';
@@ -850,6 +851,7 @@ export default function Dashboard() {
                             is the one who has to act on it — and to the buyer, because a typo
                             in a delivery address is only findable if it is shown back. */}
                         <OrderJourney order={booking} forBuyer={isBuyer} claim={claim} />
+                        {claim && <ClaimActions claim={claim} />}
                         <BuyerDetails booking={booking} />
 
                         {/* Renders itself away for anything with no delivery track — an
@@ -1437,6 +1439,7 @@ function ShopOrderCard({ order, onTrack, forBuyer = false, claim, onReport, onRe
       </div>
 
       <OrderJourney order={order} forBuyer={forBuyer} claim={claim} />
+      {claim && <ClaimActions claim={claim} />}
       <OrderTracker fulfilment={order.fulfilment} forBuyer={forBuyer} />
       {forBuyer && ['PAID', 'FULFILLED'].includes(order.status) && <div className="flex flex-wrap gap-3 mt-4">{!order.fulfilment?.buyerConfirmedAt && claim?.status !== 'OPEN' && <button disabled={receiptDisabled} onClick={onReceive} className="min-h-11 px-4 rounded-xl bg-[#CDFF00] text-black text-sm font-semibold">Confirm received</button>}<button disabled={claim?.status === 'OPEN'} onClick={onReport} className="min-h-11 px-4 rounded-xl border border-white/20 text-sm disabled:opacity-50">{claim?.status === 'OPEN' ? 'Problem under review' : 'Report a problem'}</button></div>}
     </div>

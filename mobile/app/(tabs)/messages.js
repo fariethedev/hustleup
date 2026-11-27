@@ -41,6 +41,7 @@ import { chatVisible, messageVisible, useChatPrefs } from '../../src/components/
 import { RecordingBar, VoicePlayer, useVoiceRecorder } from '../../src/components/chat/VoiceNote';
 import StoryViewer from '../../src/components/stories/StoryViewer';
 import CreateStoryModal from '../../src/components/stories/CreateStoryModal';
+import { SafetyNotice } from '../../src/components/trust/TrustWidgets';
 
 const READ_BLUE = '#53BDEB';
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -233,7 +234,10 @@ const Bubble = memo(function Bubble({ item, mine, theme, maxWidth, partnerName, 
   } else if (type === 'STICKER') {
     body = <Text style={{ fontSize: 46 }}>{item.content}</Text>;
   } else {
-    body = <Text style={[st.text, { color: fg }]} selectable>{item.content}</Text>;
+    body = <>
+      <Text style={[st.text, { color: fg }]} selectable>{item.content}</Text>
+      {!!item.safetyFlag && <SafetyNotice flag={item.safetyFlag} mine={mine} />}
+    </>;
   }
 
   return (

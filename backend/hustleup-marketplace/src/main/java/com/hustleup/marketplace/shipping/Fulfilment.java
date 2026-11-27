@@ -103,6 +103,31 @@ public class Fulfilment {
     @Column(name = "buyer_confirmed_at")
     private LocalDateTime buyerConfirmedAt;
 
+    /** Set only after a server-to-server carrier check with order/recipient matching. */
+    @Column(name="carrier_confirmed_at") private LocalDateTime carrierConfirmedAt;
+    @Column(name="carrier_checked_at") private LocalDateTime carrierCheckedAt;
+    @Column(name="carrier_verification_error", length=250) private String carrierVerificationError;
+
+    public LocalDateTime automaticReleaseEligibleAt(int holdDays) {
+        if (buyerConfirmationRequired) return null;
+        return carrierConfirmedAt != null ? carrierConfirmedAt.plusDays(7)
+                : deliveredAt == null ? null : deliveredAt.plusDays(Math.max(30, holdDays));
+    }
+
+    /** Snapshotted when ordered. Legacy orders default to buyer-confirmation protection. */
+    @Column(name = "buyer_confirmation_required", nullable = false)
+    private boolean buyerConfirmationRequired = true;
+
+    /** Persisted before automatic release; buyers receive at least 48 hours to report. */
+    @Column(name = "release_reminder_at")
+    private LocalDateTime releaseReminderAt;
+
+    public boolean automaticReleaseReady(LocalDateTime now, int holdDays) {
+        LocalDateTime eligible = automaticReleaseEligibleAt(holdDays);
+        return eligible != null && !eligible.isAfter(now)
+                && releaseReminderAt != null && !releaseReminderAt.plusHours(48).isAfter(now);
+    }
+
     /** Last time anything here changed — drives "updated 2h ago" on the tracker. */
     @Column(name = "fulfilment_updated_at")
     private LocalDateTime updatedAt;

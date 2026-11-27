@@ -37,11 +37,8 @@ import java.util.UUID;
  * until a person decides — which is why {@link #isFrozen} is consulted by every release path
  * rather than only by the sweep.
  *
- * <h2>No reimbursement from the platform's own money</h2>
- * Deliberately not the Allegro model of paying the buyer immediately and then chasing the
- * seller for it. Because the funds are still held here, there is nothing to chase in the
- * ordinary case: the refund comes out of the buyer's own captured charge. The one case that
- * model exists for — money already gone to the seller — is exactly what the freeze prevents.
+ * Paid-out orders must recover their seller transfer before refunding the buyer. If Stripe
+ * refuses recovery, resolution fails and the claim stays open for an operator to retry.
  */
 @Service
 @Slf4j
@@ -53,13 +50,21 @@ public class ProtectionClaimService {
     private final StripeConnectService stripeConnectService;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    /** Strikes on decisions against the seller. Lazy: trust services sit above this one. */
+    private final com.hustleup.marketplace.trust.TrustService trust;
+
+    /** How long a seller has to answer a claim, and either side to appeal a decision. */
+    static final int RESPOND_DAYS = 3;
+    static final int APPEAL_DAYS = 7;
 
     public ProtectionClaimService(ProtectionClaimRepository claimRepository,
                                   BookingRepository bookingRepository,
                                   ShopOrderRepository shopOrderRepository,
                                   StripeConnectService stripeConnectService,
                                   NotificationRepository notificationRepository,
-                                  UserRepository userRepository) {
+                                  UserRepository userRepository,
+                                  @org.springframework.context.annotation.Lazy com.hustleup.marketplace.trust.TrustService trust) {
+        this.trust = trust;
         this.claimRepository = claimRepository;
         this.bookingRepository = bookingRepository;
         this.shopOrderRepository = shopOrderRepository;
@@ -75,7 +80,9 @@ public class ProtectionClaimService {
      * costs one indexed lookup on the hourly sweep rather than loading rows nobody reads.
      */
     public boolean isFrozen(ClaimOrderType orderType, UUID orderId) {
-        return claimRepository.existsByOrderTypeAndOrderIdAndStatus(orderType, orderId, ClaimStatus.OPEN);
+        // An appeal re-opens the question, so it holds the money just as the claim did.
+        return claimRepository.existsByOrderTypeAndOrderIdAndStatus(orderType, orderId, ClaimStatus.OPEN)
+                || claimRepository.existsByOrderTypeAndOrderIdAndStatus(orderType, orderId, ClaimStatus.APPEALED);
     }
 
     /**
@@ -124,12 +131,15 @@ public class ProtectionClaimService {
                 .reason(reason)
                 .detail(detail)
                 .status(ClaimStatus.OPEN)
+                .respondBy(LocalDateTime.now().plusDays(RESPOND_DAYS))
                 .build());
 
         // The seller is told, because a claim freezes money they were expecting and finding
         // that out from a missing payout is the worst way to learn it.
-        notify(sellerId, "A buyer opened a claim",
-                "A problem with this order is under review. Any payout not already released is on hold.");
+        notify(sellerId, "A buyer opened a claim - respond within " + RESPOND_DAYS + " days",
+                "A buyer reported a problem with this order. Your payout is on hold while we review it. "
+                + "Open the order and respond with your side (tracking, photos, what was agreed) within "
+                + RESPOND_DAYS + " days - after that we decide on the buyer's evidence.");
         notify(buyer.getId(), "Claim received",
                 "We will review your report. Any payout not already released is on hold; funds already transferred cannot be frozen retroactively.");
 
@@ -147,48 +157,188 @@ public class ProtectionClaimService {
      */
     @Transactional
     public ProtectionClaim resolve(UUID claimId, boolean refund, String note) {
+        return decide(claimId, refund ? ProtectionClaim.Decision.FULL_REFUND : ProtectionClaim.Decision.RELEASE, null, note);
+    }
+
+    /**
+     * An operator's decision on an open claim: refund in full, refund part of the price (the
+     * seller is then paid the rest), or release the payment to the seller. Any refund counts
+     * as a strike against the seller. Both sides are told the reasons and how to appeal.
+     */
+    @Transactional
+    public ProtectionClaim decide(UUID claimId, ProtectionClaim.Decision decision, java.math.BigDecimal amount, String note) {
         User admin = currentUser();
         ProtectionClaim claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Claim not found"));
         if (claim.getStatus() != ClaimStatus.OPEN) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This claim has already been decided");
         }
+        if (decision == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a decision");
 
-        if (refund) {
-            refundOrder(claim);
+        switch (decision) {
+            case FULL_REFUND -> refundOrder(claim);
+            case PARTIAL_REFUND -> partialRefund(claim, amount);
+            case RELEASE -> { }
         }
 
-        claim.setStatus(refund ? ClaimStatus.REFUNDED : ClaimStatus.REJECTED);
+        claim.setDecision(decision);
+        claim.setRefundAmount(decision == ProtectionClaim.Decision.PARTIAL_REFUND ? amount : null);
+        claim.setStatus(switch (decision) {
+            case FULL_REFUND -> ClaimStatus.REFUNDED;
+            case PARTIAL_REFUND -> ClaimStatus.PARTIALLY_REFUNDED;
+            case RELEASE -> ClaimStatus.REJECTED;
+        });
         claim.setResolutionNote(note);
         claim.setResolvedBy(admin.getId());
         claim.setResolvedAt(LocalDateTime.now());
 
-        String outcome = refund ? "refunded" : "closed without a refund";
-        notify(claim.getBuyerId(), "Your claim was " + outcome,
-                note == null || note.isBlank() ? "The review is complete." : note);
-        notify(claim.getSellerId(), "A claim on your sale was " + outcome,
-                refund ? "The buyer has been refunded and the payment will not be released."
-                       : "The hold has been lifted and your payout will follow.");
+        String reasons = note == null || note.isBlank() ? "" : " Reason: " + note.trim();
+        String appeal = " You can appeal once within " + APPEAL_DAYS + " days from the order.";
+        switch (decision) {
+            case FULL_REFUND -> {
+                notify(claim.getBuyerId(), "Your claim was refunded", "You will get a full refund to your original payment method." + reasons + appeal);
+                notify(claim.getSellerId(), "A claim on your sale was refunded", "The buyer was refunded and this sale will not be paid out." + reasons + appeal);
+            }
+            case PARTIAL_REFUND -> {
+                notify(claim.getBuyerId(), "Your claim was partly refunded", "You will get a partial refund to your original payment method." + reasons + appeal);
+                notify(claim.getSellerId(), "A claim on your sale was partly refunded", "Part of the price was refunded to the buyer; the rest will be paid out to you." + reasons + appeal);
+            }
+            case RELEASE -> {
+                notify(claim.getBuyerId(), "Your claim was closed without a refund", "We reviewed the evidence and released the payment to the seller." + reasons + appeal);
+                notify(claim.getSellerId(), "A claim on your sale was closed", "The hold has been lifted and your payout will follow." + reasons);
+            }
+        }
+        if (decision != ProtectionClaim.Decision.RELEASE && trust != null) {
+            trust.addStrike(claim.getSellerId(), "A buyer claim (" + claim.getReason() + ") was decided against you");
+        }
 
-        log.info("Protection claim {} resolved as {} by {}", claimId, claim.getStatus(), admin.getId());
+        log.info("Protection claim {} decided {} by {}", claimId, decision, admin.getId());
+        return claimRepository.save(claim);
+    }
+
+    /** The seller's side of the story, before the deadline and before a decision. */
+    @Transactional
+    public ProtectionClaim respond(UUID claimId, String text) {
+        User seller = currentUser();
+        ProtectionClaim claim = claimRepository.findById(claimId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Claim not found"));
+        if (!seller.getId().equals(claim.getSellerId()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the seller can respond to this claim");
+        if (claim.getStatus() != ClaimStatus.OPEN)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This claim has already been decided");
+        if (text == null || text.trim().length() < 10 || text.trim().length() > 2000)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Write 10-2000 characters: what you sent, when, tracking and anything the buyer agreed to");
+        claim.setSellerResponse(text.trim());
+        claim.setSellerRespondedAt(LocalDateTime.now());
+        notify(claim.getBuyerId(), "The seller responded to your claim", "Our team now has both sides and will decide shortly.");
+        return claimRepository.save(claim);
+    }
+
+    /** One appeal per claim, within {@value #APPEAL_DAYS} days of the decision. */
+    @Transactional
+    public ProtectionClaim appeal(UUID claimId, String text) {
+        User me = currentUser();
+        ProtectionClaim claim = claimRepository.findById(claimId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Claim not found"));
+        String side = me.getId().equals(claim.getBuyerId()) ? "BUYER" : me.getId().equals(claim.getSellerId()) ? "SELLER" : null;
+        if (side == null) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the buyer or seller can appeal");
+        if (claim.getStatus() == ClaimStatus.OPEN || claim.getStatus() == ClaimStatus.APPEALED)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, claim.getStatus() == ClaimStatus.OPEN ? "This claim has not been decided yet" : "An appeal is already being reviewed");
+        if (claim.getAppealedAt() != null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This decision has already been appealed - the appeal decision is final");
+        if (claim.getResolvedAt() != null && claim.getResolvedAt().plusDays(APPEAL_DAYS).isBefore(LocalDateTime.now()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "The " + APPEAL_DAYS + "-day appeal window has passed");
+        if (text == null || text.trim().length() < 10 || text.trim().length() > 2000)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Explain in 10-2000 characters what the decision got wrong, with any new information");
+        claim.setAppealBy(side);
+        claim.setAppealText(text.trim());
+        claim.setAppealedAt(LocalDateTime.now());
+        claim.setStatus(ClaimStatus.APPEALED);
+        UUID other = "BUYER".equals(side) ? claim.getSellerId() : claim.getBuyerId();
+        notify(me.getId(), "Appeal received", "A different member of our team will review the decision. Any payout not yet released stays on hold.");
+        notify(other, "The other side appealed a claim decision", "A different member of our team will review it. Any payout not yet released stays on hold.");
         return claimRepository.save(claim);
     }
 
     /**
-     * Returns the buyer's money and takes the order out of the payout path for good.
-     *
-     * <p>The refund is against the captured PaymentIntent, so it comes out of the charge the
-     * buyer actually made rather than the platform's own balance — possible only because the
-     * money never left. An order with nothing captured is marked refunded without calling
-     * Stripe: there is no charge to reverse, and failing here would block a decision that is
-     * otherwise correct.
+     * Final decision on an appeal. Upholding restores the original outcome. Overturning a
+     * release refunds the buyer in full; overturning a refund cannot take money back from the
+     * buyer, so it removes the seller's strike and is recorded.
      */
+    @Transactional
+    public ProtectionClaim resolveAppeal(UUID claimId, boolean uphold, String note) {
+        User admin = currentUser();
+        ProtectionClaim claim = claimRepository.findById(claimId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Claim not found"));
+        if (claim.getStatus() != ClaimStatus.APPEALED)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "There is no appeal waiting on this claim");
+        if (note == null || note.isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Give the reasons for the appeal decision");
+        ProtectionClaim.Decision original = claim.getDecision() == null ? ProtectionClaim.Decision.RELEASE : claim.getDecision();
+        ClaimStatus finalStatus = switch (original) {
+            case FULL_REFUND -> ClaimStatus.REFUNDED;
+            case PARTIAL_REFUND -> ClaimStatus.PARTIALLY_REFUNDED;
+            case RELEASE -> ClaimStatus.REJECTED;
+        };
+        if (!uphold) {
+            if (original == ProtectionClaim.Decision.RELEASE) {
+                refundOrder(claim);
+                claim.setDecision(ProtectionClaim.Decision.FULL_REFUND);
+                finalStatus = ClaimStatus.REFUNDED;
+                if (trust != null) trust.addStrike(claim.getSellerId(), "A claim was decided against you on appeal");
+            } else if (trust != null) {
+                trust.removeStrike(claim.getSellerId());
+            }
+        }
+        claim.setStatus(finalStatus);
+        claim.setAppealNote(note.trim());
+        claim.setAppealResolvedAt(LocalDateTime.now());
+        String outcome = uphold ? "The original decision stands." : "The original decision was changed.";
+        notify(claim.getBuyerId(), "Appeal decided", outcome + " " + note.trim() + " This decision is final within HustleSpace.");
+        notify(claim.getSellerId(), "Appeal decided", outcome + " " + note.trim() + " This decision is final within HustleSpace.");
+        log.info("Appeal on claim {} {} by {}", claimId, uphold ? "upheld" : "overturned", admin.getId());
+        return claimRepository.save(claim);
+    }
+
+    /**
+     * Refunds part of the price before the seller is paid: the buyer gets {@code amount}
+     * back and the order's price drops by the same, so the eventual payout is the remainder.
+     * After a payout only a full refund is possible (the whole transfer is recovered).
+     */
+    private void partialRefund(ProtectionClaim claim, java.math.BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter the amount to refund");
+        if (claim.getOrderType() == ClaimOrderType.BOOKING) {
+            Booking booking = bookingRepository.findById(claim.getOrderId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+            if ("TRANSFERRED".equals(booking.getPaymentStatus()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "The seller has been paid - only a full refund (with recovery) is possible now");
+            if (booking.getAgreedPrice() == null || amount.compareTo(booking.getAgreedPrice()) >= 0)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A partial refund must be less than the price - use a full refund instead");
+            attemptRefund(booking.getPaymentIntentId(), claim.getId(), amount);
+            booking.setAgreedPrice(booking.getAgreedPrice().subtract(amount));
+            booking.setUpdatedAt(LocalDateTime.now());
+            bookingRepository.save(booking);
+        } else {
+            ShopOrder order = shopOrderRepository.findById(claim.getOrderId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+            if ("RELEASED".equals(order.getPayoutStatus()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "The seller has been paid - only a full refund (with recovery) is possible now");
+            if (order.getTotalPrice() == null || amount.compareTo(order.getTotalPrice()) >= 0)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A partial refund must be less than the price - use a full refund instead");
+            attemptRefund(order.getPaymentIntentId(), claim.getId(), amount);
+            order.setTotalPrice(order.getTotalPrice().subtract(amount));
+            order.setUpdatedAt(LocalDateTime.now());
+            shopOrderRepository.save(order);
+        }
+    }
+
     private void refundOrder(ProtectionClaim claim) {
         if (claim.getOrderType() == ClaimOrderType.BOOKING) {
             Booking booking = bookingRepository.findById(claim.getOrderId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
             if ("TRANSFERRED".equals(booking.getPaymentStatus()))
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "The seller has already been paid. Review and recover the transfer before refunding this claim");
+                recoverTransfer(booking.getTransferId());
             attemptRefund(booking.getPaymentIntentId(), claim.getOrderId(),
                     booking.getAgreedPrice() == null ? null : booking.getAgreedPrice().add(booking.getFulfilment().shippingPriceOrZero()));
             booking.setPaymentStatus("REFUNDED");
@@ -200,7 +350,7 @@ public class ProtectionClaimService {
             ShopOrder order = shopOrderRepository.findById(claim.getOrderId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
             if ("RELEASED".equals(order.getPayoutStatus()))
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "The seller has already been paid. Review and recover the transfer before refunding this claim");
+                recoverTransfer(order.getTransferId());
             attemptRefund(order.getPaymentIntentId(), claim.getOrderId(), order.grandTotal());
             order.setStatus(ShopOrder.ShopOrderStatus.REFUNDED);
             // Takes it out of findReleasable for good, so no later sweep can pay a seller for
@@ -208,6 +358,18 @@ public class ProtectionClaimService {
             order.setPayoutStatus("REFUNDED");
             order.setUpdatedAt(LocalDateTime.now());
             shopOrderRepository.save(order);
+        }
+    }
+
+    private void recoverTransfer(String transferId) {
+        if (transferId == null || transferId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Paid-out order has no transfer reference; manual reconciliation required");
+        }
+        try {
+            stripeConnectService.recoverTransfer(transferId);
+        } catch (StripeException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "Seller funds could not be recovered; the claim remains open for retry", e);
         }
     }
 

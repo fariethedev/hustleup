@@ -4,6 +4,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { directMessagesApi, notificationsApi, usersApi, bookingsApi, storiesApi, dispatchToast } from '../api/client';
+import { SafetyNotice } from '../components/TrustWidgets';
 import { formatPrice } from '../utils/constants';
 import { uploadUrl } from '../config';
 import { shortName } from '../utils/displayName';
@@ -1805,6 +1806,7 @@ export default function DirectMessages() {
                                   </span>
                                 </>
                               )}
+                              {msg.safetyFlag && <SafetyNotice flag={msg.safetyFlag} isMe={isMe} />}
                             </div>
                           </motion.div>
                         );

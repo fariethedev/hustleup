@@ -317,4 +317,13 @@ public class DirectMessage {
     /** Length of a voice note or video, in milliseconds. */
     @Column(name = "media_duration_ms")
     private Integer mediaDurationMs;
+
+    /**
+     * Set when the text tries to move a deal off HustleSpace (OFF_PLATFORM_PAYMENT) or onto
+     * another channel (CONTACT_SHARING) — see OffPlatformDetector. The message is still
+     * delivered; the apps show the reader a warning that paying outside the app has no
+     * buyer protection.
+     */
+    @Column(name = "safety_flag", length = 40)
+    private String safetyFlag;
 }

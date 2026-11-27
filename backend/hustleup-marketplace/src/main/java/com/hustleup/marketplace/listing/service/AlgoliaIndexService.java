@@ -48,6 +48,12 @@ public class AlgoliaIndexService {
 
     public void indexListing(Listing listing) {
         if (client == null) return;
+        // Only live listings are searchable: one held for review, removed or paused must not
+        // be findable through search even though it still exists.
+        if (listing.getStatus() != com.hustleup.marketplace.listing.model.ListingStatus.ACTIVE) {
+            deleteListing(listing.getId().toString());
+            return;
+        }
         try {
             client.saveObject(INDEX_NAME, toRecord(listing));
         } catch (Exception e) {

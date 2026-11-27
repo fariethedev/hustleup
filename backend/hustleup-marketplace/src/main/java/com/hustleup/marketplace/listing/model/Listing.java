@@ -282,4 +282,16 @@ public class Listing {
     @Column(name = "updated_at")
     @Builder.Default
     private LocalDateTime updatedAt = LocalDateTime.now(); // when the listing was last modified
+
+    // ── Moderation (trust & safety) ─────────────────────────────────────────────────────
+    /** Why the listing is held or was removed — shown to the seller as the statement of reasons. */
+    @Column(name = "review_reason", length = 500)
+    private String reviewReason;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.VARCHAR)
+    @Column(name = "reviewed_by", columnDefinition = "VARCHAR(36)")
+    private UUID reviewedBy;
 }

@@ -80,9 +80,40 @@ public class ProtectionClaimController {
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProtectionClaim> resolve(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
-        boolean refund = Boolean.TRUE.equals(body.get("refund"));
         String note = body.get("note") instanceof String s ? s : null;
+        // New clients send a decision (FULL_REFUND | PARTIAL_REFUND | RELEASE, with refundAmount
+        // for a partial); older ones a boolean "refund".
+        if (body.get("decision") instanceof String d && !d.isBlank()) {
+            ProtectionClaim.Decision decision = parseEnum(ProtectionClaim.Decision.class, d, "decision");
+            java.math.BigDecimal amount = null;
+            if (body.get("refundAmount") != null) {
+                try { amount = new java.math.BigDecimal(String.valueOf(body.get("refundAmount")).replace(',', '.')); }
+                catch (NumberFormatException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "refundAmount must be a number"); }
+            }
+            return ResponseEntity.ok(claimService.decide(id, decision, amount, note));
+        }
+        boolean refund = Boolean.TRUE.equals(body.get("refund"));
         return ResponseEntity.ok(claimService.resolve(id, refund, note));
+    }
+
+    /** POST /api/v1/claims/{id}/respond — the seller's side, body {@code {"text": "..."}}. */
+    @PostMapping("/{id}/respond")
+    public ResponseEntity<ProtectionClaim> respond(@PathVariable UUID id, @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(claimService.respond(id, body.get("text")));
+    }
+
+    /** POST /api/v1/claims/{id}/appeal — buyer or seller, once, within 7 days of the decision. */
+    @PostMapping("/{id}/appeal")
+    public ResponseEntity<ProtectionClaim> appeal(@PathVariable UUID id, @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(claimService.appeal(id, body.get("text")));
+    }
+
+    /** POST /api/v1/claims/{id}/appeal/decision — admin, body {@code {"uphold": true, "note": "..."}}. */
+    @PostMapping("/{id}/appeal/decision")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ProtectionClaim> decideAppeal(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
+        String note = body.get("note") instanceof String s ? s : null;
+        return ResponseEntity.ok(claimService.resolveAppeal(id, Boolean.TRUE.equals(body.get("uphold")), note));
     }
 
     private UUID parseUuid(String raw) {

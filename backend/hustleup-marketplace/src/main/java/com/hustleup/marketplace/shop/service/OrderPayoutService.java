@@ -16,11 +16,11 @@
  *       their goods has no reason to wait for their money to reach the seller.</li>
  *   <li><b>The hold period expires.</b> Buyers forget. A seller whose payout depended solely
  *       on a buyer remembering to press a button would be financing the platform indefinitely
- *       through no fault of their own, so an order the seller marked delivered releases on its
- *       own after {@code app.payouts.hold-days}.</li>
+ *       through no fault of their own, so an order the seller marked delivered waits at least 30 days and a further
+ *       48 hours after a persisted buyer reminder.</li>
  * </ul>
  *
- * The timer starts at dispatch, not at payment: a seller who has not sent anything should not
+ * The timer starts at reported delivery, not at payment: a seller who has not sent anything should not
  * be accruing a claim on the buyer's money, and the buyer's window to object should begin when
  * there is something to object about.
  *
@@ -59,6 +59,8 @@ public class OrderPayoutService {
     private static final Logger log = LoggerFactory.getLogger(OrderPayoutService.class);
 
     private final ShopOrderRepository orderRepository;
+    private final com.hustleup.marketplace.safety.SellerSafetyService sellerSafety;
+    private final org.springframework.transaction.PlatformTransactionManager transactions;
     private final SellerPayoutAccountRepository payoutAccountRepository;
     private final StripeConnectService stripeConnectService;
     private final NotificationRepository notificationRepository;
@@ -66,19 +68,23 @@ public class OrderPayoutService {
     private final ProtectionClaimService protectionClaimService;
 
     /**
-     * How long a dispatched order waits before releasing without the buyer saying anything.
+     * How long a seller-reported delivery waits before releasing without the buyer saying anything.
      *
      * <p>Configurable because it is a policy judgement, not a technical constant: it trades a
      * buyer's window to raise a problem against how long a seller waits to be paid.
      */
-    @Value("${app.payouts.hold-days:7}")
+    @Value("#{T(java.lang.Math).max(30, ${app.payouts.hold-days:30})}")
     private int holdDays;
 
     public OrderPayoutService(ShopOrderRepository orderRepository,
                               SellerPayoutAccountRepository payoutAccountRepository,
                               StripeConnectService stripeConnectService,
                               NotificationRepository notificationRepository,
-                              ProtectionClaimService protectionClaimService) {
+                              ProtectionClaimService protectionClaimService,
+                              com.hustleup.marketplace.safety.SellerSafetyService sellerSafety,
+                              org.springframework.transaction.PlatformTransactionManager transactions) {
+        this.sellerSafety = sellerSafety;
+        this.transactions = transactions;
         this.orderRepository = orderRepository;
         this.payoutAccountRepository = payoutAccountRepository;
         this.stripeConnectService = stripeConnectService;
@@ -93,6 +99,8 @@ public class OrderPayoutService {
      */
     @Transactional
     public boolean release(ShopOrder order) {
+        if (sellerSafety.suspended(order.getSellerId())) return false;
+        sellerSafety.lockAndRequireActive(order.getSellerId());
         // Already released, refunded, or never paid for. Re-releasing would pay a seller twice
         // out of a single charge, so this guard is the one that must not be removed.
         if (!"HELD".equals(order.getPayoutStatus())) return false;
@@ -100,6 +108,27 @@ public class OrderPayoutService {
                 || order.getStatus() == ShopOrder.ShopOrderStatus.CANCELLED
                 || order.getStatus() == ShopOrder.ShopOrderStatus.REFUNDED) {
             return false;
+        }
+
+        var fulfilment = order.getFulfilment();
+        if (fulfilment.getBuyerConfirmedAt() == null) {
+            if (fulfilment.isBuyerConfirmationRequired()) return false;
+            LocalDateTime now = LocalDateTime.now();
+            if (fulfilment.automaticReleaseEligibleAt(holdDays) == null
+                    || fulfilment.automaticReleaseEligibleAt(holdDays).isAfter(now)) return false;
+            if (fulfilment.getReleaseReminderAt() == null) {
+                // Do not stamp a failed notification: the next sweep must retry it.
+                notificationRepository.save(Notification.builder()
+                        .userId(order.getBuyerId()).referenceId(order.getId())
+                        .notificationType("PAYOUT")
+                        .title("Got it? Confirm or report")
+                        .message("Your seller's payment is due for release in 48 hours. Confirm receipt or open a protection claim from your order if there is a problem.")
+                        .build());
+                fulfilment.setReleaseReminderAt(now);
+                orderRepository.save(order);
+                return false;
+            }
+            if (!fulfilment.automaticReleaseReady(now, holdDays)) return false;
         }
 
         // An open buyer claim freezes the money. The hold period protects a buyer who never
@@ -180,12 +209,21 @@ public class OrderPayoutService {
     @Scheduled(fixedDelayString = "${app.payouts.sweep-ms:3600000}")
     public void releaseDueOrders() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(holdDays);
-        List<ShopOrder> due = orderRepository.findReleasable(cutoff);
+        List<ShopOrder> due = orderRepository.findReleasable(cutoff,
+                // Carrier-confirmed delivery still waits 48 hours, so the buyer can open the parcel
+                // and report a fake or broken item before the money leaves.
+                LocalDateTime.now().minusHours(48));
         if (due.isEmpty()) return;
 
         int released = 0;
         for (ShopOrder order : due) {
-            if (release(order)) released++;
+            try {
+                Boolean paid = new org.springframework.transaction.support.TransactionTemplate(transactions).execute(status -> {
+                    sellerSafety.lockAndRequireActive(order.getSellerId());
+                    return orderRepository.findLockedById(order.getId()).map(this::release).orElse(false);
+                });
+                if (Boolean.TRUE.equals(paid)) released++;
+            } catch (RuntimeException e) { log.warn("Order {} remains held", order.getId()); }
         }
         log.info("Payout sweep: {} of {} due order(s) released", released, due.size());
     }

@@ -35,6 +35,7 @@ import java.util.Optional;
 public class PayoutController {
 
     private final StripeConnectService stripeConnectService;
+    private final com.hustleup.marketplace.safety.DisputeService disputeService;
     private final SellerPayoutAccountRepository payoutAccountRepository;
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
@@ -60,7 +61,9 @@ public class PayoutController {
                              com.hustleup.marketplace.booking.service.BookingService bookingService,
                              EmailVerificationGuard emailVerificationGuard,
                              com.hustleup.marketplace.shop.service.ShopInventoryService inventoryService,
-                             com.hustleup.marketplace.shop.service.ShopCheckoutService shopCheckoutService) {
+                             com.hustleup.marketplace.shop.service.ShopCheckoutService shopCheckoutService,
+                             com.hustleup.marketplace.safety.DisputeService disputeService) {
+        this.disputeService = disputeService;
         this.stripeConnectService = stripeConnectService;
         this.payoutAccountRepository = payoutAccountRepository;
         this.userRepository = userRepository;
@@ -166,8 +169,8 @@ public class PayoutController {
         }
     }
 
+    // Each handler owns its transaction; suspension must commit before external recovery.
     @PostMapping("/webhook")
-    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<Void> webhook(@RequestBody String payload,
                                          @RequestHeader("Stripe-Signature") String sigHeader) {
         try {
@@ -198,6 +201,12 @@ public class PayoutController {
             });
 
             switch (event.getType()) {
+                case "charge.dispute.created", "charge.dispute.updated", "charge.dispute.closed",
+                     "charge.dispute.funds_withdrawn", "charge.dispute.funds_reinstated" -> {
+                    if (!(stripeObject instanceof com.stripe.model.Dispute dispute))
+                        return ResponseEntity.status(500).build();
+                    disputeService.handle(dispute.getId());
+                }
                 case "account.updated" -> {
                     if (stripeObject instanceof com.stripe.model.Account account) {
                         payoutAccountRepository.findByStripeAccountId(account.getId()).ifPresent(pa -> {

@@ -56,7 +56,7 @@ function route(path: string): Route | null {
     "/api/v1/news", "/api/v1/dating")) return to("SOCIAL");
   if (under(path, "/api/v1/listings", "/api/v1/bookings", "/api/v1/reviews", "/api/v1/availability",
     "/api/v1/payouts", "/api/v1/feedback", "/api/v1/claims", "/api/v1/jobs")) return to("MARKETPLACE");
-  if (under(path, "/api/v1/admin/orders") ||
+  if (under(path, "/api/v1/admin/orders", "/api/v1/admin/safety", "/api/v1/admin/trust") ||
     ["/api/v1/admin/jobs", "/api/v1/admin/marketplace-stats", "/api/v1/admin/sales", "/api/v1/admin/claims"].includes(path)) return to("MARKETPLACE");
   if (under(path, "/api/v1/admin/reports")) return to("SOCIAL");
   if (under(path, "/api/v1/admin", "/api/v1/publishers")) return to("AUTH");

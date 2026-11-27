@@ -68,6 +68,8 @@ public class StripeConnectService {
 
     private final SellerPayoutAccountRepository payoutAccountRepository;
     private final UserRepository userRepository;
+    private final com.hustleup.marketplace.safety.SellerSafetyService sellerSafety;
+    private final com.hustleup.marketplace.safety.PaymentDisputeRepository disputes;
 
     @Value("${app.stripe.secret-key}")
     private String secretKey;
@@ -79,7 +81,11 @@ public class StripeConnectService {
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
-    public StripeConnectService(SellerPayoutAccountRepository payoutAccountRepository, UserRepository userRepository) {
+    public StripeConnectService(SellerPayoutAccountRepository payoutAccountRepository, UserRepository userRepository,
+            com.hustleup.marketplace.safety.SellerSafetyService sellerSafety,
+            com.hustleup.marketplace.safety.PaymentDisputeRepository disputes) {
+        this.sellerSafety = sellerSafety;
+        this.disputes = disputes;
         this.payoutAccountRepository = payoutAccountRepository;
         this.userRepository = userRepository;
     }
@@ -191,7 +197,10 @@ public class StripeConnectService {
      * @param listingTitle shown as the line-item name on Stripe's hosted payment page
      * @return the Stripe-hosted checkout URL to redirect the buyer to
      */
+    @org.springframework.transaction.annotation.Transactional
     public CheckoutResult createPaymentCheckoutSession(Booking booking, String listingTitle) throws StripeException {
+        sellerSafety.lockAndRequireActive(booking.getSellerId());
+        rejectDisputedRefund(booking.getPaymentIntentId());
         int quantity = Math.max(1, booking.getQuantity());
         long totalMinorUnits = toMinorUnits(booking.getAgreedPrice());
 
@@ -249,12 +258,14 @@ public class StripeConnectService {
      * @param titles   display names, index-aligned with {@code bookings}
      * @return the hosted checkout URL plus the PaymentIntent id to persist on every booking
      */
+    @org.springframework.transaction.annotation.Transactional
     public CheckoutResult createCartCheckoutSession(java.util.List<Booking> bookings,
                                                     java.util.List<String> titles) throws StripeException {
         if (bookings == null || bookings.isEmpty()) {
             throw new IllegalArgumentException("Cannot start a checkout with no items");
         }
 
+        for (var b : bookings) sellerSafety.lockAndRequireActive(b.getSellerId());
         // Stripe requires every line item in one session to share a currency.
         String currency = bookings.get(0).getCurrency();
         for (Booking b : bookings) {
@@ -330,12 +341,14 @@ public class StripeConnectService {
      * @param orders   the storefront orders in this purchase, all for the same buyer
      * @param shopSlug used to build the return URLs back to the right storefront
      */
+    @org.springframework.transaction.annotation.Transactional
     public CheckoutResult createShopCheckoutSession(java.util.List<com.hustleup.marketplace.shop.model.ShopOrder> orders,
                                                     String shopSlug) throws StripeException {
         if (orders == null || orders.isEmpty()) {
             throw new IllegalArgumentException("Cannot start a checkout with no items");
         }
 
+        for (var o : orders) sellerSafety.lockAndRequireActive(o.getSellerId());
         String currency = orders.get(0).getCurrency();
         for (var o : orders) {
             if (!currency.equalsIgnoreCase(o.getCurrency())) {
@@ -400,11 +413,14 @@ public class StripeConnectService {
      * of the order is done. Both id lists go in the session metadata, so the webhook (and
      * the buyer's return) mark every booking and every shop order paid from one event.
      */
+    @org.springframework.transaction.annotation.Transactional
     public CheckoutResult createUnifiedCheckoutSession(java.util.List<Booking> bookings, java.util.List<String> titles,
                                                        java.util.List<com.hustleup.marketplace.shop.model.ShopOrder> orders)
             throws StripeException {
         bookings = bookings == null ? java.util.List.of() : bookings;
         orders = orders == null ? java.util.List.of() : orders;
+        for (var b : bookings) sellerSafety.lockAndRequireActive(b.getSellerId());
+        for (var o : orders) sellerSafety.lockAndRequireActive(o.getSellerId());
         if (bookings.isEmpty() && orders.isEmpty()) {
             throw new IllegalArgumentException("Cannot start a checkout with no items");
         }
@@ -516,7 +532,10 @@ public class StripeConnectService {
         return net.add(shipping == null ? BigDecimal.ZERO : shipping).setScale(2, RoundingMode.HALF_UP);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public String transferToSeller(Booking booking, String sellerStripeAccountId) throws StripeException {
+        sellerSafety.lockAndRequireActive(booking.getSellerId());
+        rejectDisputedRefund(booking.getPaymentIntentId());
         BigDecimal keepFraction = BigDecimal.ONE.subtract(
                 platformFeePercent.divide(BigDecimal.valueOf(100)));
         long payoutMinorUnits = BigDecimal.valueOf(toMinorUnits(booking.getAgreedPrice()))
@@ -555,7 +574,10 @@ public class StripeConnectService {
      *
      * @return the Stripe Transfer id, stored on the order for reconciliation
      */
+    @org.springframework.transaction.annotation.Transactional
     public String transferToSeller(ShopOrder order, String sellerStripeAccountId) throws StripeException {
+        sellerSafety.lockAndRequireActive(order.getSellerId());
+        rejectDisputedRefund(order.getPaymentIntentId());
         BigDecimal keepFraction = BigDecimal.ONE.subtract(
                 platformFeePercent.divide(BigDecimal.valueOf(100)));
         long payoutMinorUnits = BigDecimal.valueOf(toMinorUnits(order.getTotalPrice()))
@@ -651,8 +673,33 @@ public class StripeConnectService {
         }
     }
 
+    /** Recovers the remaining seller transfer before a claim refund; safe to retry. */
+    private void rejectDisputedRefund(String paymentIntentId) {
+        if (paymentIntentId != null && disputes.existsByPaymentIntentId(paymentIntentId))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "This payment has a bank dispute; reconcile it through the dispute process to avoid a duplicate refund");
+    }
+
+    public void pauseBankPayouts(String accountId) throws StripeException {
+        com.stripe.model.Account.retrieve(accountId).update(java.util.Map.of(
+                "settings", java.util.Map.of("payouts", java.util.Map.of("schedule", java.util.Map.of("interval", "manual")))));
+    }
+
+    public void recoverTransfer(String transferId) throws StripeException {
+        Transfer transfer = Transfer.retrieve(transferId);
+        // Stripe remains the source of truth if a refund failed after a successful reversal,
+        // including retries after Stripe's idempotency-key retention window.
+        if (Boolean.TRUE.equals(transfer.getReversed())) return;
+        long remaining = transfer.getAmount() - (transfer.getAmountReversed() == null ? 0 : transfer.getAmountReversed());
+        if (remaining <= 0) return;
+        transfer.getReversals().create(
+                com.stripe.param.TransferReversalCollectionCreateParams.builder().setAmount(remaining).build(),
+                RequestOptions.builder().setIdempotencyKey("recover_" + transferId + "_" + remaining).build());
+    }
+
     /** Refunds the whole PaymentIntent. Only correct when the charge paid for nothing else. */
     public void refundPayment(String paymentIntentId) throws StripeException {
+        rejectDisputedRefund(paymentIntentId);
         Refund.create(RefundCreateParams.builder().setPaymentIntent(paymentIntentId).build());
     }
 
@@ -671,16 +718,28 @@ public class StripeConnectService {
      * @param reference the booking or shop order id, used as the idempotency key
      */
     public void refundPayment(String paymentIntentId, BigDecimal amount, UUID reference) throws StripeException {
+        rejectDisputedRefund(paymentIntentId);
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             refundPayment(paymentIntentId);
             return;
         }
-        Refund.create(RefundCreateParams.builder()
+        // Survives Stripe's idempotency-key retention window if a previous API success
+        // was followed by a local commit failure. Match this order, not a whole cart.
+        for (Refund previous : Refund.list(com.stripe.param.RefundListParams.builder()
+                .setPaymentIntent(paymentIntentId).setLimit(100L).build()).autoPagingIterable()) {
+            if (previous.getMetadata() != null && String.valueOf(reference).equals(previous.getMetadata().get("orderId"))) {
+                if ("succeeded".equals(previous.getStatus()) || "pending".equals(previous.getStatus())) return;
+                throw new IllegalStateException("Previous order refund requires manual reconciliation");
+            }
+        }
+        Refund result = Refund.create(RefundCreateParams.builder()
                         .setPaymentIntent(paymentIntentId)
                         .setAmount(toMinorUnits(amount))
                         .putMetadata("orderId", String.valueOf(reference))
                         .build(),
                 RequestOptions.builder().setIdempotencyKey("refund_" + reference).build());
+        if (!"succeeded".equals(result.getStatus()) && !"pending".equals(result.getStatus()))
+            throw new IllegalStateException("Stripe refund requires manual reconciliation");
     }
 
     // Stripe amounts are always integers in the currency's smallest unit (e.g. groszy for PLN).

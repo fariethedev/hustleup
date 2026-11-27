@@ -25,6 +25,8 @@
  */
 package com.hustleup.marketplace.booking.service;
 
+import com.hustleup.marketplace.payments.service.SellerRiskService;
+
 import com.hustleup.marketplace.availability.model.Availability;
 import com.hustleup.marketplace.availability.repository.AvailabilityRepository;
 import com.hustleup.marketplace.booking.dto.BookingDto;
@@ -94,7 +96,7 @@ public class BookingService {
     @Value("${app.frontend.url:https://hustlespace.space}")
     private String frontendUrl;
 
-    @Value("${app.payouts.hold-days:7}")
+    @Value("#{T(java.lang.Math).max(30, ${app.payouts.hold-days:30})}")
     private int holdDays;
 
     /**
@@ -130,6 +132,9 @@ public class BookingService {
     /** Consulted before every payout: an open buyer claim freezes the money where it is. */
     private final ProtectionClaimService protectionClaimService;
     /** Refuses an unconfirmed account at the one point buying actually commits money. */
+    private final SellerRiskService sellerRiskService;
+    private final com.hustleup.marketplace.safety.SellerSafetyService sellerSafety;
+    private final org.springframework.transaction.PlatformTransactionManager transactions;
     private final EmailVerificationGuard emailVerificationGuard;
 
     /**
@@ -150,7 +155,13 @@ public class BookingService {
                           LuggageAvailabilityService luggageAvailabilityService,
                           ProtectionClaimService protectionClaimService,
                           EmailVerificationGuard emailVerificationGuard,
-                          FileStorageService fileStorageService) {
+                          FileStorageService fileStorageService,
+                          SellerRiskService sellerRiskService,
+                          com.hustleup.marketplace.safety.SellerSafetyService sellerSafety,
+                          org.springframework.transaction.PlatformTransactionManager transactions) {
+        this.sellerSafety = sellerSafety;
+        this.transactions = transactions;
+        this.sellerRiskService = sellerRiskService;
         this.fileStorageService = fileStorageService;
         this.protectionClaimService = protectionClaimService;
         this.bookingRepository = bookingRepository;
@@ -309,12 +320,17 @@ public class BookingService {
         emailVerificationGuard.require(buyer, "buy");
         Listing listing = listingRepository.findById(listingId)
                 .orElseThrow(() -> new RuntimeException("Listing not found"));
+        // Held for review, removed, paused or sold out: not for sale, whatever the client sends.
+        if (listing.getStatus() != com.hustleup.marketplace.listing.model.ListingStatus.ACTIVE)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This listing is not available right now");
 
         // Business rule: you cannot book your own listing.
         // This prevents sellers from gaming their own booking/review counts.
         if (listing.getSellerId().equals(buyer.getId())) {
             throw new RuntimeException("Cannot book your own listing");
         }
+
+        var sellerRisk = sellerRiskService.admit(listing.getSellerId(), 1);
 
         int qty = quantity != null && quantity > 0 ? quantity : 1;
 
@@ -341,7 +357,7 @@ public class BookingService {
                     .offeredPrice(listing.getPrice())
                     .agreedPrice(listing.getPrice())
                     .currency(listing.getCurrency())
-                    .fulfilment(deliveryFor(listing))
+                    .fulfilment(deliveryFor(listing, sellerRisk.buyerConfirmationRequired()))
                     .scheduledAt(slot.getStartTime())
                     .availabilitySlotId(slot.getId())
                     .quantity(1)
@@ -373,7 +389,7 @@ public class BookingService {
                     .offeredPrice(listing.getPrice())
                     .agreedPrice(listing.getPrice().multiply(BigDecimal.valueOf(qty)))
                     .currency(listing.getCurrency())
-                    .fulfilment(deliveryFor(listing))
+                    .fulfilment(deliveryFor(listing, sellerRisk.buyerConfirmationRequired()))
                     .scheduledAt(scheduledAt)
                     .quantity(qty)
                     .status(BookingStatus.BOOKED)
@@ -406,7 +422,7 @@ public class BookingService {
                     .offeredPrice(listing.getPrice())
                     .agreedPrice(listing.getPrice().multiply(BigDecimal.valueOf(qty)))
                     .currency(listing.getCurrency())
-                    .fulfilment(deliveryFor(listing))
+                    .fulfilment(deliveryFor(listing, sellerRisk.buyerConfirmationRequired()))
                     .scheduledAt(scheduledAt)
                     .quantity(qty)
                     .status(BookingStatus.BOOKED)
@@ -454,7 +470,7 @@ public class BookingService {
                     .offeredPrice(listing.getPrice())
                     .agreedPrice(agreed)
                     .currency(listing.getCurrency())
-                    .fulfilment(deliveryFor(listing))
+                    .fulfilment(deliveryFor(listing, sellerRisk.buyerConfirmationRequired()))
                     .scheduledAt(scheduledAt)
                     .quantity(effectiveQty)
                     .status(BookingStatus.BOOKED)
@@ -479,7 +495,7 @@ public class BookingService {
                 // Use the buyer's custom offer if provided; otherwise default to the listing price
                 .offeredPrice(offer)
                 .currency(listing.getCurrency()) // lock in the currency from the listing
-                .fulfilment(deliveryFor(listing))
+                .fulfilment(deliveryFor(listing, sellerRisk.buyerConfirmationRequired()))
                 .scheduledAt(scheduledAt)
                 .quantity(qty)
                 .status(BookingStatus.INQUIRED) // explicitly start at INQUIRED (formal request sent)
@@ -706,7 +722,7 @@ public class BookingService {
         }
         // Allow retrying if a previous checkout session was started but never completed
         // (e.g. the buyer closed the tab) — only a genuinely finished payment blocks a new one.
-        if (List.of("PAID", "TRANSFERRED", "REFUNDED").contains(booking.getPaymentStatus())) {
+        if (List.of("PAID", "TRANSFERRED", "REFUNDED", "DISPUTED").contains(booking.getPaymentStatus())) {
             throw new RuntimeException("This booking has already been paid for");
         }
 
@@ -987,7 +1003,7 @@ public class BookingService {
         List<BookingDto> updated = new ArrayList<>();
         for (Booking booking : paid) {
             // Never walk a refund or a completed payout backwards.
-            if (!List.of("PAID", "TRANSFERRED", "REFUNDED").contains(booking.getPaymentStatus())) {
+            if (!List.of("PAID", "TRANSFERRED", "REFUNDED", "DISPUTED").contains(booking.getPaymentStatus())) {
                 booking.setPaymentStatus("PAID");
             }
             if (session.getPaymentIntent() != null) {
@@ -1138,7 +1154,30 @@ public class BookingService {
      * own books, money it still owes. Left PAID, the sweep picks it up again later.
      */
     private void releasePayout(Booking booking) {
+        if (sellerSafety.suspended(booking.getSellerId())) return;
+        sellerSafety.lockAndRequireActive(booking.getSellerId());
         if (!"PAID".equals(booking.getPaymentStatus())) return;
+
+        var fulfilment = booking.getFulfilment();
+        if (fulfilment.getBuyerConfirmedAt() == null) {
+            if (fulfilment.isBuyerConfirmationRequired()) return;
+            LocalDateTime now = LocalDateTime.now();
+            if (fulfilment.automaticReleaseEligibleAt(holdDays) == null
+                    || fulfilment.automaticReleaseEligibleAt(holdDays).isAfter(now)) return;
+            if (fulfilment.getReleaseReminderAt() == null) {
+                // Do not stamp a failed notification: the next sweep must retry it.
+                notificationRepository.save(Notification.builder()
+                        .userId(booking.getBuyerId()).referenceId(booking.getId())
+                        .notificationType("PAYOUT")
+                        .title("Got it? Confirm or report")
+                        .message("Your seller's payment is due for release in 48 hours. Confirm receipt or open a protection claim from your order if there is a problem.")
+                        .build());
+                fulfilment.setReleaseReminderAt(now);
+                bookingRepository.save(booking);
+                return;
+            }
+            if (!fulfilment.automaticReleaseReady(now, holdDays)) return;
+        }
 
         // An open protection claim freezes the money where it is. Checked here rather than in
         // findReleasable so it covers every route to a payout: the sweep, and a buyer who
@@ -1216,16 +1255,24 @@ public class BookingService {
     @Scheduled(fixedDelayString = "${app.payouts.sweep-ms:3600000}")
     public void releaseDueBookings() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(holdDays);
-        List<Booking> due = bookingRepository.findReleasable(cutoff);
+        List<Booking> due = bookingRepository.findReleasable(cutoff,
+                // Carrier-confirmed delivery still waits 48 hours, so the buyer can open the parcel
+                // and report a fake or broken item before the money leaves.
+                LocalDateTime.now().minusHours(48));
         if (due.isEmpty()) return;
 
         int released = 0;
         for (Booking booking : due) {
-            releasePayout(booking);
-            if ("TRANSFERRED".equals(booking.getPaymentStatus())) {
-                bookingRepository.save(booking);
-                released++;
-            }
+            try {
+                Boolean paid = new org.springframework.transaction.support.TransactionTemplate(transactions).execute(status -> {
+                    sellerSafety.lockAndRequireActive(booking.getSellerId());
+                    var current = bookingRepository.findLockedById(booking.getId()).orElseThrow();
+                    releasePayout(current);
+                    bookingRepository.save(current);
+                    return "TRANSFERRED".equals(current.getPaymentStatus());
+                });
+                if (Boolean.TRUE.equals(paid)) released++;
+            } catch (RuntimeException e) { log.warn("Booking {} remains held", booking.getId()); }
         }
         log.info("Booking payout sweep: {} of {} due booking(s) released", released, due.size());
     }
@@ -1318,8 +1365,9 @@ public class BookingService {
      * Even the instant-purchase paths that open BOOKED have not been paid yet — the
      * delivery track only starts when the Stripe webhook says money arrived.
      */
-    private Fulfilment deliveryFor(Listing listing) {
+    private Fulfilment deliveryFor(Listing listing, boolean buyerConfirmationRequired) {
         Fulfilment fulfilment = new Fulfilment();
+        fulfilment.setBuyerConfirmationRequired(buyerConfirmationRequired);
         fulfilment.setShippingMethod(listing.getShippingMethod() != null
                 ? listing.getShippingMethod() : ShippingMethod.NONE);
         // Postage is charged once per order, not per unit — a buyer taking three of

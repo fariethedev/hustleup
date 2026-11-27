@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Paintbrush, CircleUser, ShieldPlus, BellElectric, SunMedium, MoonStar, MonitorSmartphone, CircleCheck, Loader, Navigation, Earth, Hash, PhoneCall, AtSign, DoorOpen, Key, CircleSlash, Building, BookOpenText, SquareArrowOutUpRight, Ban, CalendarClock } from 'lucide-react';
 import { selectUser, loadUserProfile, logout } from '../store/authSlice';
 import { usersApi, authApi, followsApi, payoutsApi, publishersApi, subscriptionsApi, dispatchToast } from '../api/client';
+import { SellerDetailsForm } from '../components/TrustWidgets';
 import { useTheme } from '../context/ThemeContext';
 import { POLISH_CITIES } from '../utils/constants';
 import { formatDateTime } from '../utils/time';
@@ -606,6 +607,10 @@ function SellingPanel() {
             })}
           </div>
         )}
+      </Section>
+
+      <Section title="Seller details" description="Whether you sell as a private person or a business, and the legal details EU rules require (DSA trader information and DAC7 tax reporting). Only business details are shown to buyers.">
+        <SellerDetailsForm />
       </Section>
 
       <Section title="Notifications" description="What HustleSpace sends you.">

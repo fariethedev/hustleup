@@ -612,7 +612,8 @@ public class DirectMessageController {
                 .senderId(currentUserId)
                 .receiverId(partnerId)
                 .content(content)
-                .messageType(type);
+                .messageType(type)
+                .safetyFlag(com.hustleup.common.safety.OffPlatformDetector.classify(content));
 
         if (isListingShare) {
             builder.sharedListingId(listingId)

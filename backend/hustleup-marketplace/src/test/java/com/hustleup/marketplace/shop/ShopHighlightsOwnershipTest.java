@@ -21,7 +21,7 @@ class ShopHighlightsOwnershipTest {
     final ShopRepository shops = mock(ShopRepository.class);
     final UserRepository users = mock(UserRepository.class);
     final ShopService service = mock(ShopService.class);
-    final ShopController controller = new ShopController(shops, mock(ShopProductRepository.class), service, users, mock(FileStorageService.class));
+    final ShopController controller = new ShopController(shops, mock(com.hustleup.marketplace.safety.SellerSafetyService.class), mock(ShopProductRepository.class), service, users, mock(FileStorageService.class));
     final UUID owner = UUID.randomUUID();
     final Shop shop = Shop.builder().id(UUID.randomUUID()).ownerId(owner).published(false).build();
     @BeforeEach void setup() {

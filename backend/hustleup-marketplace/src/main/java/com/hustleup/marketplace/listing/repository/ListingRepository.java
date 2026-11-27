@@ -43,4 +43,14 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
                                   @Param("city") String city,
                                   @Param("maxPrice") BigDecimal maxPrice,
                                   @Param("negotiable") Boolean negotiable);
+
+    /** Prices of live listings whose title mentions a keyword — the baseline for price checks. */
+    @Query("SELECT l.price FROM Listing l WHERE l.status = 'ACTIVE' AND l.price IS NOT NULL "
+         + "AND l.currency = :currency AND LOWER(l.title) LIKE CONCAT('%', :keyword, '%')")
+    List<BigDecimal> findActivePricesByTitleKeyword(@Param("keyword") String keyword, @Param("currency") String currency);
+
+    /** The moderation queue: listings held for review, oldest first. */
+    List<Listing> findByStatusOrderByCreatedAtAsc(ListingStatus status);
+
+    long countByStatus(ListingStatus status);
 }

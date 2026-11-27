@@ -40,5 +40,9 @@ public enum ListingStatus {
      * and {@link com.hustleup.marketplace.review.model.Review} records that reference this
      * listing ID remain consistent. Deleted listings are never shown to buyers.
      */
-    DELETED
+    DELETED,
+    /** Held for a moderator by ListingRiskService; hidden from browse and not purchasable. */
+    PENDING_REVIEW,
+    /** Taken down by a moderator, with a statement of reasons sent to the seller. */
+    REMOVED
 }

@@ -41,6 +41,7 @@ import java.util.UUID;
 public class ShopController {
 
     private final ShopRepository shopRepository;
+    private final com.hustleup.marketplace.safety.SellerSafetyService sellerSafety;
     private final ShopProductRepository productRepository;
     private final ShopService shopService;
     private final UserRepository userRepository;
@@ -59,6 +60,7 @@ public class ShopController {
 
     private User requireUser() {
         User user = currentUserOrNull();
+        if (user != null) sellerSafety.requireActive(user.getId());
         if (user == null) throw new AccessDeniedException("Authentication required");
         return user;
     }
@@ -124,6 +126,7 @@ public class ShopController {
         // An unpublished shop is visible to its owner only — otherwise "hidden" would mean
         // nothing more than "not linked from the browse page".
         User me = currentUserOrNull();
+        if (sellerSafety.suspended(shop.getOwnerId())) return ResponseEntity.notFound().build();
         if (!shop.isPublished() && (me == null || !shop.getOwnerId().equals(me.getId()))) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Shop not found");
         }

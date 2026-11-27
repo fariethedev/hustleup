@@ -52,6 +52,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class ShopServiceController {
+    private final com.hustleup.marketplace.safety.SellerSafetyService sellerSafety;
 
     private final ShopRepository shopRepository;
     private final ShopBookableServiceRepository serviceRepository;
@@ -315,6 +316,7 @@ public class ShopServiceController {
     public ResponseEntity<ShopAppointmentDto> book(@PathVariable String idOrSlug, @RequestBody Map<String, Object> body) {
         Shop shop = requireShop(idOrSlug);
         User buyer = requireUser();
+        sellerSafety.lockAndRequireActive(shop.getOwnerId());
         if (shop.getOwnerId().equals(buyer.getId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot book your own shop");
         }

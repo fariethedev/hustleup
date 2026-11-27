@@ -1,5 +1,7 @@
 package com.hustleup.marketplace.payments.controller;
 
+import com.hustleup.marketplace.payments.service.SellerRiskService;
+
 import com.hustleup.common.model.User;
 import com.hustleup.common.repository.UserRepository;
 import com.hustleup.common.storage.FileStorageService;
@@ -52,48 +54,62 @@ public class EarningsController {
     private final SellerPayoutAccountRepository payoutAccountRepository;
     private final StripeConnectService stripeConnectService;
     private final FileStorageService fileStorageService;
+    private final SellerRiskService sellerRiskService;
+    private final com.hustleup.marketplace.safety.SellerSafetyService sellerSafety;
 
-    @Value("${app.payouts.hold-days:7}")
-    private int holdDays = 7;
+    @Value("#{T(java.lang.Math).max(30, ${app.payouts.hold-days:30})}")
+    private int holdDays = 30;
+
+    private LocalDateTime releaseEstimate(com.hustleup.marketplace.shipping.Fulfilment f) {
+        // A reminder must be persisted before an automatic release can be scheduled.
+        if (f.isBuyerConfirmationRequired() || f.getReleaseReminderAt() == null) return null;
+        LocalDateTime holdEnds = f.automaticReleaseEligibleAt(holdDays);
+        if (holdEnds == null) return null;
+        LocalDateTime reminderEnds = f.getReleaseReminderAt().plusHours(48);
+        return holdEnds.isAfter(reminderEnds) ? holdEnds : reminderEnds;
+    }
 
     @GetMapping("/earnings")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> earnings() {
         User seller = userRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        boolean suspended = sellerSafety.suspended(seller.getId());
         List<Map<String, Object>> items = new ArrayList<>();
         Map<String, BigDecimal[]> totals = new TreeMap<>(); // currency -> [onTheWay, released]
 
         for (Booking b : bookingRepository.findBySellerIdOrderByCreatedAtDesc(seller.getId())) {
             String pay = b.getPaymentStatus();
-            boolean held = "PAID".equals(pay) && b.getStatus() != BookingStatus.CANCELLED;
+            boolean held = "DISPUTED".equals(pay) || ("PAID".equals(pay) && b.getStatus() != BookingStatus.CANCELLED);
             boolean released = "TRANSFERRED".equals(pay);
             if (!held && !released) continue;
             Listing listing = listingRepository.findById(b.getListingId()).orElse(null);
             var f = b.getFulfilment();
             BigDecimal net = stripeConnectService.sellerNet(b.getAgreedPrice(), f == null ? null : f.shippingPriceOrZero());
-            LocalDateTime releaseAt = !held ? null
+            LocalDateTime releaseAt = !held || suspended ? null
                     : f != null && f.getBuyerConfirmedAt() != null ? LocalDateTime.now()
-                    : f != null && f.getDeliveredAt() != null ? f.getDeliveredAt().plusDays(holdDays) : null;
+                    : f != null ? releaseEstimate(f) : null;
             items.add(item("booking", b.getId().toString(), listing != null ? listing.getTitle() : "Booking",
                     listing != null ? firstImage(listing.getMediaUrls()) : null, net, b.getCurrency(), held,
                     releaseAt, released ? b.getUpdatedAt() : null,
                     f != null && f.getBuyerConfirmedAt() != null));
+            if ("DISPUTED".equals(pay)) items.get(items.size()-1).put("state", "DISPUTED");
             add(totals, b.getCurrency(), net, held);
         }
 
         for (ShopOrder o : shopOrderRepository.findBySellerIdOrderByCreatedAtDesc(seller.getId())) {
             boolean paid = o.getStatus() == ShopOrder.ShopOrderStatus.PAID || o.getStatus() == ShopOrder.ShopOrderStatus.FULFILLED;
-            boolean held = paid && "HELD".equals(o.getPayoutStatus());
+            boolean held = "DISPUTED".equals(o.getPayoutStatus()) || (paid && "HELD".equals(o.getPayoutStatus()));
             boolean released = "RELEASED".equals(o.getPayoutStatus());
             if (!held && !released) continue;
             var f = o.getFulfilment();
             BigDecimal net = stripeConnectService.sellerNet(o.getTotalPrice(), f == null ? null : f.shippingPriceOrZero());
-            LocalDateTime releaseAt = !held ? null
+            LocalDateTime releaseAt = !held || suspended ? null
                     : f != null && f.getBuyerConfirmedAt() != null ? LocalDateTime.now()
-                    : f != null && f.getShippedAt() != null ? f.getShippedAt().plusDays(holdDays) : null;
+                    : f != null ? releaseEstimate(f) : null;
             items.add(item("shop", o.getId().toString(), o.getProductName(), image(o.getProductImageUrl()), net,
                     o.getCurrency(), held, releaseAt, o.getReleasedAt(), f != null && f.getBuyerConfirmedAt() != null));
+            if ("DISPUTED".equals(o.getPayoutStatus())) items.get(items.size()-1).put("state", "DISPUTED");
             add(totals, o.getCurrency(), net, held);
         }
 
@@ -105,8 +121,10 @@ public class EarningsController {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("totals", summary);
         body.put("items", items);
-        body.put("payoutsEnabled", payoutsEnabled);
+        body.put("payoutsEnabled", payoutsEnabled && !suspended);
         body.put("holdDays", holdDays);
+        body.put("sellerSuspended", suspended);
+        body.put("sellerRisk", sellerRiskService.status(seller.getId()));
         body.put("platformFeePercent", stripeConnectService.getPlatformFeePercent());
         return ResponseEntity.ok().header("Cache-Control", "no-store").body(body);
     }

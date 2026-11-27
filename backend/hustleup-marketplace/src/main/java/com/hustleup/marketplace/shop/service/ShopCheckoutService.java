@@ -1,5 +1,7 @@
 package com.hustleup.marketplace.shop.service;
 
+import com.hustleup.marketplace.payments.service.SellerRiskService;
+
 import com.hustleup.common.model.User;
 import com.hustleup.common.storage.FileStorageService;
 import com.hustleup.common.util.Money;
@@ -46,6 +48,7 @@ public class ShopCheckoutService {
     private final ShipmentService shipmentService;
     private final FileStorageService fileStorageService; // product photo URL for the confirmation emails
     private final EmailVerificationGuard emailVerificationGuard;
+    private final SellerRiskService sellerRiskService;
 
     /** A shop's basket turned into orders, plus the shop for building return URLs. */
     public record CreatedOrders(Shop shop, List<ShopOrder> orders) {}
@@ -82,6 +85,7 @@ public class ShopCheckoutService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Each item needs a valid product and positive whole quantity");
             }
         }
+        var sellerRisk = sellerRiskService.admit(shop.getOwnerId(), quantities.size());
         Map<?, ?> details = customer == null ? Map.of() : customer;
         String name = str(details.get("fullName")) != null ? str(details.get("fullName")) : str(details.get("name"));
 
@@ -110,6 +114,7 @@ public class ShopCheckoutService {
             // Delivery terms are snapshotted from the shelf for the same reason the name and
             // price are: repricing postage tomorrow must not rewrite what was agreed today.
             Fulfilment delivery = new Fulfilment();
+            delivery.setBuyerConfirmationRequired(sellerRisk.buyerConfirmationRequired());
             delivery.setShippingMethod(product.getShippingMethod() != null ? product.getShippingMethod() : ShippingMethod.PICKUP);
             // Charged once per line, not per unit — three of an item is still one parcel.
             delivery.setShippingPrice(product.getShippingPrice() != null ? product.getShippingPrice() : BigDecimal.ZERO);
@@ -152,7 +157,7 @@ public class ShopCheckoutService {
         for (String raw : csv.split(",")) {
             try {
                 orderRepository.findLockedById(UUID.fromString(raw.trim())).ifPresent(o -> {
-                    if (o.getStatus() != ShopOrder.ShopOrderStatus.AWAITING_PAYMENT) return;
+                    if ("DISPUTED".equals(o.getPayoutStatus()) || o.getStatus() != ShopOrder.ShopOrderStatus.AWAITING_PAYMENT) return;
                     o.setStatus(ShopOrder.ShopOrderStatus.PAID);
                     if (session.getPaymentIntent() != null) o.setPaymentIntentId(session.getPaymentIntent());
                     // Money has actually arrived, so the buyer now has something to follow and
