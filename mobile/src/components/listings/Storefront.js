@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ImageBackground, ScrollView, Share, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Image, ScrollView, Share, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -17,15 +17,6 @@ import { usePalette, BackButton } from '../native/Kit';
 
 const appointmentTypes = ['HAIR_SALON', 'BARBERSHOP', 'NAIL_STUDIO', 'SPA_MASSAGE', 'TATTOO_PIERCING', 'FITNESS_TRAINING', 'TUTORING_LESSONS', 'REPAIR_SERVICES'];
 
-function Stat({ value, label, c }) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center', gap: 2 }}>
-      <Text style={{ color: c.text, fontSize: 17, fontWeight: '900' }}>{value}</Text>
-      <Text style={{ color: c.muted, fontSize: 11 }}>{label}</Text>
-    </View>
-  );
-}
-
 export default function Storefront({ shopId }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -40,9 +31,11 @@ export default function Storefront({ shopId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [following, setFollowing] = useState(null);
+  const [productFilter, setProductFilter] = useState('All');
+  const [aboutOpen, setAboutOpen] = useState(false);
   const request = useRef(0);
   const owner = shop?.ownerId && shop.ownerId === user?.id;
-  const bannerHeight = Math.round(Math.min(height * 0.42, width * 0.95));
+  const bannerHeight = Math.round(Math.min(height * 0.32, width * 0.62));
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -85,95 +78,156 @@ export default function Storefront({ shopId }) {
   );
 
   const products = shop.products || [];
+  const categories = ['All', ...new Set(products.map(p => p.category).filter(Boolean))];
+  const shown = productFilter === 'All' ? products : products.filter(p => p.category === productFilter);
+  const bookable = appointmentTypes.includes(shop.businessType);
+  const cardW = (width - 32 - 12) / 2;
+  const message = () => (user ? router.push({ pathname: '/(tabs)/messages', params: { partnerId: shop.ownerId, partnerName: shop.ownerName || shop.name } }) : router.push('/login'));
+  const facts = [
+    shop.rating ? ['star', `${Number(shop.rating).toFixed(1)}`, `${shop.reviewCount || 0} review${shop.reviewCount === 1 ? '' : 's'}`] : null,
+    ['package', `${shop.productCount ?? products.length}`, 'products'],
+    shop.listingCount ? ['tag', `${shop.listingCount}`, 'listings'] : null,
+  ].filter(Boolean);
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
-        {/* Full-width banner */}
-        <ImageBackground source={shop.bannerUrl ? { uri: mediaUrl(shop.bannerUrl) } : undefined} style={{ width, height: bannerHeight, backgroundColor: c.purpleSoft }} resizeMode="cover">
-          <LinearGradient colors={['rgba(0,0,0,0.45)', 'transparent', 'rgba(0,0,0,0.55)']} style={{ flex: 1, paddingTop: insets.top + 8, paddingHorizontal: 14 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <BackButton overlay />
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {owner && <TouchableOpacity accessibilityLabel="Manage shop" onPress={() => router.push('/shop/manage')} style={roundBtn}><Feather name="edit-2" size={18} color="#FFF" /></TouchableOpacity>}
-                <TouchableOpacity accessibilityLabel="Share shop" onPress={() => Share.share({ message: `${shop.name} on HustleSpace${shop.tagline ? ` — ${shop.tagline}` : ''}` })} style={roundBtn}><Feather name="share-2" size={18} color="#FFF" /></TouchableOpacity>
-              </View>
+        {/* Cover */}
+        <View style={{ width, height: bannerHeight, backgroundColor: c.purpleSoft }}>
+          {shop.bannerUrl ? <Image source={{ uri: mediaUrl(shop.bannerUrl) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+            : <LinearGradient colors={[c.purple, '#4C1D95']} style={{ flex: 1 }} />}
+          <LinearGradient colors={['rgba(0,0,0,0.45)', 'transparent']} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 110 }} />
+          <View style={{ position: 'absolute', top: insets.top + 8, left: 14, right: 14, flexDirection: 'row', justifyContent: 'space-between' }}>
+            <BackButton overlay />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {owner && <TouchableOpacity accessibilityLabel="Manage shop" onPress={() => router.push('/shop/manage')} style={roundBtn}><Feather name="pencil" size={18} color="#FFF" /></TouchableOpacity>}
+              <TouchableOpacity accessibilityLabel="Share shop" onPress={() => Share.share({ message: `${shop.name} on HustleSpace${shop.tagline ? `: ${shop.tagline}` : ''}` })} style={roundBtn}><Feather name="share-2" size={18} color="#FFF" /></TouchableOpacity>
             </View>
-          </LinearGradient>
-        </ImageBackground>
+          </View>
+        </View>
 
-        {/* Profile-style header: logo, name, stats, actions */}
-        <View style={{ paddingHorizontal: 18, marginTop: -46, gap: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12 }}>
-            <View style={{ width: 96, height: 96, borderRadius: 48, padding: 3, backgroundColor: c.bg }}>
-              <LinearGradient colors={['#CDFF00', '#7D39EB']} style={{ flex: 1, borderRadius: 45, padding: 3 }}>
-                {shop.ownerAvatarUrl
-                  ? <Image source={{ uri: mediaUrl(shop.ownerAvatarUrl) }} style={{ flex: 1, borderRadius: 42 }} />
-                  : <View style={{ flex: 1, borderRadius: 42, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.purple, fontSize: 32, fontWeight: '900' }}>{shop.name[0]}</Text></View>}
-              </LinearGradient>
+        {/* Shop card */}
+        <View style={{ marginHorizontal: 16, marginTop: -40, padding: 16, borderRadius: 22, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, gap: 14,
+          shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 3 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <View style={{ width: 68, height: 68, borderRadius: 20, overflow: 'hidden', backgroundColor: c.purpleSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.line }}>
+              {shop.ownerAvatarUrl ? <Image source={{ uri: mediaUrl(shop.ownerAvatarUrl) }} style={{ width: '100%', height: '100%' }} />
+                : <Text style={{ color: c.purple, fontSize: 28, fontWeight: '900' }}>{shop.name[0]}</Text>}
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text numberOfLines={2} style={{ color: c.text, fontSize: 20, fontWeight: '800', lineHeight: 25, flexShrink: 1 }}>{shop.name}</Text>
+                {shop.ownerVerified && <MaterialCommunityIcons name="check-decagram" size={18} color={c.purple} accessibilityLabel="Verified" />}
+              </View>
+              <Text numberOfLines={1} style={{ color: c.muted, fontSize: 13 }}>{[shop.category, shop.city].filter(Boolean).join(' · ') || 'Local shop'}</Text>
+              {!!shop.ownerName && <Text numberOfLines={1} style={{ color: c.muted, fontSize: 12 }}>by {shop.ownerName}</Text>}
             </View>
           </View>
-          <View style={{ gap: 2 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ color: c.text, fontSize: 22, fontWeight: '900', lineHeight: 28, flexShrink: 1 }}>{shop.name}</Text>
-              {shop.ownerVerified && <MaterialCommunityIcons name="check-decagram" size={18} color={c.purple} />}
-            </View>
-            <Text style={{ color: c.muted, fontSize: 13 }}>{[shop.category, shop.city].filter(Boolean).join(' · ')}{shop.ownerName ? ` · by ${shop.ownerName}` : ''}</Text>
+
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {facts.map(([icon, value, label]) => (
+              <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, height: 32, borderRadius: 16, backgroundColor: c.soft }}>
+                <Feather name={icon} size={13} color={icon === 'star' ? '#D97706' : c.muted} />
+                <Text style={{ color: c.text, fontSize: 13, fontWeight: '800' }}>{value}</Text>
+                <Text style={{ color: c.muted, fontSize: 12 }}>{label}</Text>
+              </View>
+            ))}
+            {bookable && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, height: 32, borderRadius: 16, backgroundColor: c.purpleSoft }}>
+              <Feather name="calendar-check" size={13} color={c.purple} /><Text style={{ color: c.purple, fontSize: 12, fontWeight: '800' }}>Takes bookings</Text>
+            </View>}
           </View>
-          <View style={{ flexDirection: 'row', paddingVertical: 12, borderRadius: 18, backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
-            <Stat value={shop.productCount ?? products.length} label="Products" c={c} />
-            <Stat value={shop.rating ? `★ ${Number(shop.rating).toFixed(1)}` : '—'} label="Rating" c={c} />
-            <Stat value={shop.reviewCount ?? 0} label="Reviews" c={c} />
-            <Stat value={shop.listingCount ?? 0} label="Listings" c={c} />
-          </View>
+
           {!owner ? (
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity onPress={toggleFollow} style={{ flex: 1, minHeight: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: following ? c.card : c.accent, borderWidth: 1, borderColor: following ? c.line : c.accent }}>
-                <Text style={{ color: following ? c.text : (c.light ? '#FFF' : '#111'), fontWeight: '800' }}>{following ? 'Following' : 'Follow'}</Text>
+              <TouchableOpacity onPress={toggleFollow} accessibilityRole="button" accessibilityState={{ selected: !!following }}
+                style={{ flex: 1, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: following ? c.card : c.lime, borderWidth: 1, borderColor: following ? c.line : c.lime }}>
+                <Feather name={following ? 'check' : 'user-plus'} size={16} color={following ? c.text : c.onLime} />
+                <Text style={{ color: following ? c.text : c.onLime, fontWeight: '800', fontSize: 15 }}>{following ? 'Following' : 'Follow'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => (user ? router.push({ pathname: '/(tabs)/messages', params: { partnerId: shop.ownerId, partnerName: shop.ownerName || shop.name } }) : router.push('/login'))}
-                style={{ flex: 1, minHeight: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, borderWidth: 1, borderColor: c.purple }}>
-                <Feather name="message-circle" size={16} color={c.purple} /><Text style={{ color: c.purple, fontWeight: '800' }}>Message</Text>
+              <TouchableOpacity onPress={message} accessibilityRole="button"
+                style={{ flex: 1, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, borderWidth: 1, borderColor: c.line, backgroundColor: c.card }}>
+                <Feather name="message-circle" size={16} color={c.text} /><Text style={{ color: c.text, fontWeight: '800', fontSize: 15 }}>Message</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity onPress={() => router.push('/shop/manage')} style={{ minHeight: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: c.lime }}>
-              <Feather name="settings" size={16} color="#151A00" /><Text style={{ color: '#151A00', fontWeight: '800' }}>Manage shop</Text>
+            <TouchableOpacity onPress={() => router.push('/shop/manage')} accessibilityRole="button" style={{ height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: c.lime }}>
+              <Feather name="settings" size={16} color={c.onLime} /><Text style={{ color: c.onLime, fontWeight: '800', fontSize: 15 }}>Manage shop</Text>
             </TouchableOpacity>
           )}
-          {!!shop.tagline && <Text style={{ color: c.text, fontWeight: '700' }}>{shop.tagline}</Text>}
-          {!!shop.description && <Text style={{ color: c.muted, fontSize: 13, lineHeight: 20 }}>{shop.description}</Text>}
+        </View>
+
+        <View style={{ paddingHorizontal: 16, paddingTop: 18, gap: 22 }}>
+          {(!!shop.tagline || !!shop.description) && <View style={{ gap: 6 }}>
+            <Text style={{ color: c.text, fontSize: 17, fontWeight: '800' }}>About</Text>
+            {!!shop.tagline && <Text style={{ color: c.text, fontSize: 15, fontWeight: '600', lineHeight: 21 }}>{shop.tagline}</Text>}
+            {!!shop.description && <>
+              <Text numberOfLines={aboutOpen ? undefined : 3} style={{ color: c.muted, fontSize: 14, lineHeight: 21 }}>{shop.description}</Text>
+              {shop.description.length > 140 && <TouchableOpacity onPress={() => setAboutOpen(v => !v)} hitSlop={8}><Text style={{ color: c.purple, fontSize: 14, fontWeight: '700' }}>{aboutOpen ? 'Show less' : 'Read more'}</Text></TouchableOpacity>}
+            </>}
+          </View>}
 
           <ShopHighlights key={shop.id} shop={shop} isOwner={owner} onSaved={setShop} onOpenProduct={openProduct} />
 
-          {appointmentTypes.includes(shop.businessType) && <View style={{ gap: 10 }}>
-            <Text style={{ color: c.text, fontSize: 18, fontWeight: '800' }}>Book an appointment</Text>
-            {!services.length && <Text style={{ color: c.muted }}>The shop has not added services yet.</Text>}
-            {services.filter(service => service.active !== false).map(service => (
-              <TouchableOpacity key={service.id} disabled={busy} onPress={() => chooseService(service)} style={{ padding: 14, backgroundColor: c.card, borderWidth: 1.5, borderColor: selected?.id === service.id ? c.purple : c.line, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ flex: 1 }}><Text style={{ color: c.text, fontWeight: '800' }}>{service.name}</Text><Text style={{ color: c.muted, fontSize: 12 }}>{service.durationMinutes} min</Text></View>
-                <Text style={{ color: c.accent, fontWeight: '900' }}>{money(service.price, service.currency)}</Text>
-                
-              </TouchableOpacity>
-            ))}
-            {busy && <ActivityIndicator color={c.purple} />}
-            {selected && !busy && !slots.length && <Text style={{ color: c.muted }}>No upcoming times for this service.</Text>}
-            {!!slots.length && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {slots.map(slot => (
-                <TouchableOpacity key={slot.id} disabled={busy || owner} onPress={() => book(slot)} style={{ paddingHorizontal: 14, minHeight: 40, borderRadius: 20, justifyContent: 'center', backgroundColor: c.purpleSoft, borderWidth: 1, borderColor: c.purple }}>
-                  <Text style={{ color: c.purple, fontWeight: '800', fontSize: 13 }}>{new Date(slot.startTime).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
+          {bookable && <View style={{ gap: 10 }}>
+            <Text style={{ color: c.text, fontSize: 17, fontWeight: '800' }}>Book an appointment</Text>
+            {!services.length && <Text style={{ color: c.muted, fontSize: 14 }}>This shop has not added services yet.</Text>}
+            {services.filter(service => service.active !== false).map(service => {
+              const on = selected?.id === service.id;
+              return (
+                <TouchableOpacity key={service.id} disabled={busy} onPress={() => chooseService(service)} accessibilityRole="button" accessibilityState={{ selected: on }}
+                  style={{ padding: 14, backgroundColor: c.card, borderWidth: on ? 2 : 1, borderColor: on ? c.purple : c.line, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Feather name="scissors" size={17} color={c.purple} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.text, fontWeight: '800', fontSize: 15 }}>{service.name}</Text>
+                    <Text style={{ color: c.muted, fontSize: 13 }}>{service.durationMinutes} min</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    <Text style={{ color: c.text, fontWeight: '900', fontSize: 15 }}>{money(service.price, service.currency)}</Text>
+                    <Text style={{ color: c.purple, fontSize: 12, fontWeight: '800' }}>{on ? 'Selected' : 'Choose'}</Text>
+                  </View>
                 </TouchableOpacity>
-              ))}
-            </View>}
+              );
+            })}
+            {busy && <ActivityIndicator color={c.purple} />}
+            {selected && !busy && !slots.length && <Text style={{ color: c.muted, fontSize: 14 }}>No upcoming times for this service.</Text>}
+            {!!slots.length && <>
+              <Text style={{ color: c.text, fontSize: 14, fontWeight: '700', marginTop: 4 }}>Pick a time</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {slots.map(slot => (
+                  <TouchableOpacity key={slot.id} disabled={busy || owner} onPress={() => book(slot)} accessibilityRole="button"
+                    style={{ paddingHorizontal: 14, height: 44, borderRadius: 22, justifyContent: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
+                    <Text style={{ color: c.text, fontWeight: '700', fontSize: 13 }}>{new Date(slot.startTime).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>}
           </View>}
 
-          {(products.length > 0 || !appointmentTypes.includes(shop.businessType)) && <View style={{ gap: 10 }}>
-            <Text style={{ color: c.text, fontSize: 18, fontWeight: '800' }}>Products <Text style={{ color: c.muted, fontSize: 14, fontWeight: '600' }}>{products.length}</Text></Text>
-            {!products.length && <Text style={{ color: c.muted }}>No products yet.</Text>}
+          {(products.length > 0 || !bookable) && <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+              <Text style={{ color: c.text, fontSize: 17, fontWeight: '800' }}>{bookable ? 'Products' : 'Shop'}</Text>
+              <Text style={{ color: c.muted, fontSize: 13, fontWeight: '600' }}>{products.length} item{products.length === 1 ? '' : 's'}</Text>
+            </View>
+            {categories.length > 2 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              {categories.map(cat => {
+                const on = productFilter === cat;
+                return (
+                  <TouchableOpacity key={cat} onPress={() => setProductFilter(cat)} accessibilityRole="button" accessibilityState={{ selected: on }}
+                    style={{ paddingHorizontal: 14, height: 36, borderRadius: 18, justifyContent: 'center', backgroundColor: on ? c.text : c.card, borderWidth: 1, borderColor: on ? c.text : c.line }}>
+                    <Text style={{ color: on ? c.bg : c.text, fontWeight: '700', fontSize: 13 }}>{cat}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>}
+            {!products.length && <View style={{ alignItems: 'center', gap: 6, padding: 24, borderRadius: 18, backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
+              <Feather name="package" size={24} color={c.muted} />
+              <Text style={{ color: c.text, fontWeight: '700' }}>Nothing on the shelf yet</Text>
+            </View>}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-              {products.map(product => <ListingCard key={product.id} item={storeListing(shop, product)} onOpen={() => openProduct(product)} style={{ width: (width - 36 - 12) / 2 }} />)}
+              {shown.map(product => <ListingCard key={product.id} item={storeListing(shop, product)} onOpen={() => openProduct(product)} style={{ width: cardW }} />)}
             </View>
           </View>}
-          {!!error && <Text accessibilityRole="alert" style={{ color: '#FCA5A5' }}>{error}</Text>}
+          {!!error && <Text accessibilityRole="alert" style={{ color: c.danger, fontSize: 14 }}>{error}</Text>}
         </View>
       </ScrollView>
       <FloatingCart bottom={24} />

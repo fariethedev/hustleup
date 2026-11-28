@@ -33,6 +33,7 @@ export default function Listing() {
   const [offerBusy, setOfferBusy] = useState(false);
   const [tierId, setTierId] = useState(null);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [descOpen, setDescOpen] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const gallery = useRef(null);
@@ -146,17 +147,29 @@ export default function Listing() {
   const purchasable = listing && !own && !rental && !luggage && canPurchaseListing(listing);
   const rentalBar = rental && !own;
   const luggageBar = luggage && !own;
-  const sellerCard = listing?.sellerId && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }}>
-    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.purple, fontWeight: '900', fontSize: 18 }}>{(listing.sellerName || '?')[0]}</Text></View>
-    <View style={{ flex: 1 }}>
-      <Text style={{ color: colors.muted, fontSize: 11 }}>{event ? 'Organiser' : 'Sold by'}</Text>
-      <Text style={{ color: colors.text, fontWeight: '800' }} numberOfLines={1}>{listing.sellerName || 'Community member'}</Text>
-      <View style={{ flexDirection: 'row', gap: 14, marginTop: 6 }}>
-        <Pressable onPress={() => router.push('/profile/' + listing.sellerId)} hitSlop={6}><Text style={{ color: colors.purple, fontSize: 12, fontWeight: '800' }}>Profile</Text></Pressable>
-        {!own && <Pressable onPress={follow} disabled={followingBusy} hitSlop={6}><Text style={{ color: colors.purple, fontSize: 12, fontWeight: '800' }}>{relationship?.isFollowing ? 'Following' : relationship?.followRequested ? 'Requested' : 'Follow'}</Text></Pressable>}
-        {!own && <Pressable onPress={() => user ? router.push({ pathname: '/(tabs)/messages', params: { partnerId: listing.sellerId, partnerName: listing.sellerName || 'Seller' } }) : router.push('/login')} hitSlop={6}><Text style={{ color: colors.purple, fontSize: 12, fontWeight: '800' }}>Message</Text></Pressable>}
+  const sellerAvatar = listing?.sellerAvatarUrl ? mediaUrl(listing.sellerAvatarUrl) : null;
+  const messageSeller = () => (user ? router.push({ pathname: '/(tabs)/messages', params: { partnerId: listing.sellerId, partnerName: listing.sellerName || 'Seller' } }) : router.push('/login'));
+  const sellerCard = listing?.sellerId && <View style={{ padding: 14, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, gap: 12 }}>
+    <Pressable onPress={() => router.push('/profile/' + listing.sellerId)} accessibilityRole="button" accessibilityLabel={`${listing.sellerName || 'Seller'}, view profile`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <View style={{ width: 48, height: 48, borderRadius: 24, overflow: 'hidden', backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+        {sellerAvatar ? <Image source={{ uri: sellerAvatar }} style={{ width: '100%', height: '100%' }} /> : <Text style={{ color: colors.purple, fontWeight: '900', fontSize: 19 }}>{(listing.sellerName || '?')[0].toUpperCase()}</Text>}
       </View>
-    </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: colors.muted, fontSize: 12 }}>{event ? 'Organised by' : 'Sold by'}</Text>
+        <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }} numberOfLines={1}>{listing.sellerName || 'Community member'}</Text>
+        {listing.avgRating > 0 && <Text style={{ color: colors.muted, fontSize: 12 }}>★ {Number(listing.avgRating).toFixed(1)}{listing.reviewCount ? ` · ${listing.reviewCount} reviews` : ''}</Text>}
+      </View>
+      <Text style={{ color: colors.purple, fontSize: 13, fontWeight: '700' }}>Profile</Text>
+    </Pressable>
+    {!own && <View style={{ flexDirection: 'row', gap: 10 }}>
+      <Pressable onPress={messageSeller} accessibilityRole="button" style={({ pressed }) => ({ flex: 1, height: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.line, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
+        <Feather name="message-circle" size={16} color={colors.text} /><Text style={{ color: colors.text, fontWeight: '800', fontSize: 14 }}>Message</Text>
+      </Pressable>
+      <Pressable onPress={follow} disabled={followingBusy} accessibilityRole="button" style={({ pressed }) => ({ flex: 1, height: 44, borderRadius: 22, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: relationship?.isFollowing || relationship?.followRequested ? colors.soft : colors.lime, opacity: pressed || followingBusy ? 0.7 : 1 })}>
+        <Feather name={relationship?.isFollowing ? 'check' : 'user-plus'} size={16} color={relationship?.isFollowing || relationship?.followRequested ? colors.text : colors.onLime} />
+        <Text style={{ color: relationship?.isFollowing || relationship?.followRequested ? colors.text : colors.onLime, fontWeight: '800', fontSize: 14 }}>{relationship?.isFollowing ? 'Following' : relationship?.followRequested ? 'Requested' : 'Follow'}</Text>
+      </Pressable>
+    </View>}
   </View>;
 
   return <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -169,6 +182,9 @@ export default function Listing() {
           onScroll={e => setPhotoIndex(Math.round(e.nativeEvent.contentOffset.x / imageWidth))}>
           {images.map((uri, index) => <Image key={uri + index} source={{ uri }} accessibilityLabel={'Listing photo ' + (index + 1)} resizeMode="cover" style={{ width: imageWidth, height: Math.round(imageWidth * 1.05), backgroundColor: colors.soft }} />)}
         </ScrollView> : <View style={{ width: imageWidth, height: Math.round(imageWidth * 0.7), backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' }}><Feather name="image" size={36} color={colors.muted} /></View>}
+        {images.length > 1 && <View style={{ position: 'absolute', right: 14, bottom: 14, paddingHorizontal: 10, height: 26, borderRadius: 13, backgroundColor: '#000000A0', justifyContent: 'center' }}>
+          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>{photoIndex + 1} / {images.length}</Text>
+        </View>}
         <View style={{ position: 'absolute', top: insets.top + 8, left: 14, right: 14, flexDirection: 'row', justifyContent: 'space-between' }}>
           <BackButton overlay />
           <TouchableOpacity accessibilityLabel="Share" onPress={() => Share.share({ message: `${listing.title} — ${money(listing.price, listing.currency)} on HustleSpace` })} style={overlayBtn}><Feather name="share-2" size={18} color="#FFF" /></TouchableOpacity>
@@ -181,12 +197,15 @@ export default function Listing() {
         </Pressable>)}
       </ScrollView>}
 
-      <View style={{ padding: 18, gap: 12 }}>
-        <View style={{ gap: 4 }}>
-          <Text style={{ color: colors.muted, fontSize: 12 }}>{categoryLabel(listing.listingType)}{listing.locationCity ? ' · ' + listing.locationCity : ''}</Text>
-          <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800', lineHeight: 26 }}>{listing.title}</Text>
-          <Text style={{ color: colors.accent, fontSize: 18, fontWeight: '900' }}>{Number(listing.price) === 0 ? 'Free' : (tiers.length ? 'From ' : '') + money(listing.price, listing.currency)}{event && !tiers.length ? ' / ticket' : ''}</Text>
-          {!!listing.swapEnabled && <View style={{ alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: colors.purpleSoft, marginTop: 4 }}><Text style={{ color: colors.purple, fontSize: 12, fontWeight: '800' }}>⇄ Open to swaps · cash top-ups welcome</Text></View>}
+      <View style={{ padding: 16, gap: 16 }}>
+        <View style={{ gap: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            <View style={{ paddingHorizontal: 10, height: 26, borderRadius: 13, backgroundColor: colors.purpleSoft, justifyContent: 'center' }}><Text style={{ color: colors.purple, fontSize: 12, fontWeight: '700' }}>{categoryLabel(listing.listingType)}</Text></View>
+            {!!listing.locationCity && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, height: 26, borderRadius: 13, backgroundColor: colors.soft }}><Feather name="map-pin" size={12} color={colors.muted} /><Text style={{ color: colors.text, fontSize: 12, fontWeight: '600' }}>{listing.locationCity}</Text></View>}
+          </View>
+          <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800', lineHeight: 28 }}>{listing.title}</Text>
+          <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900' }}>{Number(listing.price) === 0 ? 'Free' : (tiers.length ? 'From ' : '') + money(listing.price, listing.currency)}{event && !tiers.length ? ' / ticket' : ''}</Text>
+          {!!listing.swapEnabled && <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, backgroundColor: colors.purpleSoft }}><Feather name="repeat" size={13} color={colors.purple} /><Text style={{ color: colors.purple, fontSize: 12, fontWeight: '800' }}>Open to swaps · cash top-ups welcome</Text></View>}
         </View>
 
         {event && <View style={{ gap: 6, padding: 14, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }}>
@@ -208,9 +227,10 @@ export default function Listing() {
           })}
         </View>}
 
-        {!!listing.description && <View style={{ gap: 4 }}>
-          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }}>{event ? 'About this event' : 'Description'}</Text>
-          <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 21 }}>{listing.description}</Text>
+        {!!listing.description && <View style={{ gap: 6 }}>
+          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 17 }}>{event ? 'About this event' : 'About this item'}</Text>
+          <Text numberOfLines={descOpen ? undefined : 5} style={{ color: colors.text, fontSize: 15, lineHeight: 23 }}>{listing.description}</Text>
+          {listing.description.length > 220 && <Pressable onPress={() => setDescOpen(v => !v)} hitSlop={8}><Text style={{ color: colors.purple, fontSize: 14, fontWeight: '700' }}>{descOpen ? 'Show less' : 'Read more'}</Text></Pressable>}
         </View>}
         {luggage && <View style={{ gap: 10, padding: 14, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -243,8 +263,8 @@ export default function Listing() {
         {data.ticketError && <Notice message="Could not check your existing tickets." onRetry={reload} />}
 
         {!own && !unavailable && !event && !rental && (listing.negotiable || listing.swapEnabled) && <View style={{ flexDirection: 'row', gap: 10 }}>
-          {!!listing.negotiable && <TouchableOpacity onPress={() => (user ? setOfferOpen(true) : router.push('/login'))} style={{ flex: 1, minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}><Feather name="tag" size={15} color={colors.text} /><Text style={{ color: colors.text, fontWeight: '700' }}>Make an offer</Text></TouchableOpacity>}
-          {!!listing.swapEnabled && <TouchableOpacity onPress={() => (user ? setSwapOpen(true) : router.push('/login'))} style={{ flex: 1, minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.purple, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}><Feather name="repeat" size={15} color={colors.purple} /><Text style={{ color: colors.purple, fontWeight: '800' }}>Offer a swap</Text></TouchableOpacity>}
+          {!!listing.negotiable && <TouchableOpacity onPress={() => (user ? setOfferOpen(true) : router.push('/login'))} style={{ flex: 1, height: 46, borderRadius: 23, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}><Feather name="tag" size={15} color={colors.text} /><Text style={{ color: colors.text, fontWeight: '700' }}>Make an offer</Text></TouchableOpacity>}
+          {!!listing.swapEnabled && <TouchableOpacity onPress={() => (user ? setSwapOpen(true) : router.push('/login'))} style={{ flex: 1, height: 46, borderRadius: 23, borderWidth: 1, borderColor: colors.purple, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}><Feather name="repeat" size={15} color={colors.purple} /><Text style={{ color: colors.purple, fontWeight: '800' }}>Offer a swap</Text></TouchableOpacity>}
         </View>}
 
         {own && <View style={{ padding: 14, borderRadius: 16, backgroundColor: colors.card, gap: 8 }}><Text style={{ color: colors.muted }}>This is your {event ? 'event' : 'listing'}.</Text>{event && <Button onPress={() => router.push('/events/' + listing.id + '/door')}>Guest list & scanner</Button>}</View>}
