@@ -108,7 +108,7 @@ public class ListingService {
                     .collect(Collectors.toList());
         }
 
-        return listings.stream().filter(l -> !sellerSafety.suspended(l.getSellerId())).map(this::enrichDto).collect(Collectors.toList());
+        return enrichAll(listings);
     }
 
     /**
@@ -139,10 +139,7 @@ public class ListingService {
 
     public List<ListingDto> getByUser(UUID sellerId) {
         if (sellerSafety.suspended(sellerId)) return List.of();
-        return listingRepository.findBySellerIdAndStatusNot(sellerId, ListingStatus.DELETED)
-                .stream()
-                .map(this::enrichDto)
-                .collect(Collectors.toList());
+        return enrichAll(listingRepository.findBySellerIdAndStatusNot(sellerId, ListingStatus.DELETED), false);
     }
 
     public ListingDto create(String title, String description, String listingType, BigDecimal price,
@@ -477,8 +474,7 @@ public class ListingService {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User seller = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        return listingRepository.findBySellerId(seller.getId()).stream()
-                .map(this::enrichDto).collect(Collectors.toList());
+        return enrichAll(listingRepository.findBySellerId(seller.getId()), false);
     }
 
     public void delete(UUID id) {
@@ -497,20 +493,64 @@ public class ListingService {
         algoliaIndexService.deleteListing(id.toString());
     }
 
-    private ListingDto enrichDto(Listing listing) {
-        ListingDto dto = ListingDto.fromEntity(listing, fileStorageService::refreshUrl);
+    /** What every card needs about a seller — looked up once per seller per request. */
+    private record SellerCard(String name, boolean premium, String avatarUrl, boolean verified,
+                              double avgRating, int reviewCount, boolean suspended) {}
+
+    private SellerCard sellerCard(java.util.UUID sellerId) {
+        String name = null, avatar = null;
+        boolean premium = false, verified = false;
+        double avg = 0.0;
+        int reviews = 0;
         try {
-            userRepository.findById(listing.getSellerId()).ifPresent(seller -> {
-                dto.setSellerName(seller.displayName());
-                dto.setSellerPremium(premiumAccess.isPremium(seller.getId()));
-                String avatarUrl = seller.getAvatarUrl();
-                dto.setSellerAvatarUrl(avatarUrl != null ? fileStorageService.refreshUrl(avatarUrl) : null);
-                dto.setSellerVerified(seller.isIdVerified());
-            });
-            Double avg = reviewRepository.averageRatingForUser(listing.getSellerId());
-            dto.setAvgRating(avg != null ? avg : 0.0);
-            dto.setReviewCount(reviewRepository.countByReviewedId(listing.getSellerId()));
-        } catch (Exception e) {
+            var seller = userRepository.findById(sellerId).orElse(null);
+            if (seller != null) {
+                name = seller.displayName();
+                premium = premiumAccess.isPremium(seller.getId());
+                avatar = seller.getAvatarUrl() != null ? fileStorageService.refreshUrl(seller.getAvatarUrl()) : null;
+                verified = seller.isIdVerified();
+            }
+            Double a = reviewRepository.averageRatingForUser(sellerId);
+            avg = a != null ? a : 0.0;
+            reviews = (int) reviewRepository.countByReviewedId(sellerId);
+        } catch (Exception ignored) {
+            // A failed lookup costs the card its seller details, not the whole page.
+        }
+        return new SellerCard(name, premium, avatar, verified, avg, reviews, sellerSafety.suspended(sellerId));
+    }
+
+    /**
+     * Enriches a whole list while sharing seller lookups. A browse page shows many listings
+     * from few sellers; looking each seller up once instead of once per card cut the queries
+     * on a page from ~6 per listing to ~6 per seller.
+     */
+    private List<ListingDto> enrichAll(java.util.Collection<Listing> listings) {
+        return enrichAll(listings, true);
+    }
+
+    /** {@code hideSuspended=false} for a seller's own list, which they still see while suspended. */
+    private List<ListingDto> enrichAll(java.util.Collection<Listing> listings, boolean hideSuspended) {
+        java.util.Map<java.util.UUID, SellerCard> sellers = new java.util.HashMap<>();
+        return listings.stream()
+                .filter(l -> !(sellers.computeIfAbsent(l.getSellerId(), this::sellerCard).suspended() && hideSuspended))
+                .map(l -> enrichDto(l, sellers.get(l.getSellerId())))
+                .collect(Collectors.toList());
+    }
+
+    private ListingDto enrichDto(Listing listing) {
+        return enrichDto(listing, sellerCard(listing.getSellerId()));
+    }
+
+    private ListingDto enrichDto(Listing listing, SellerCard seller) {
+        ListingDto dto = ListingDto.fromEntity(listing, fileStorageService::refreshUrl);
+        if (seller != null) {
+            if (seller.name() != null) dto.setSellerName(seller.name());
+            dto.setSellerPremium(seller.premium());
+            dto.setSellerAvatarUrl(seller.avatarUrl());
+            dto.setSellerVerified(seller.verified());
+            dto.setAvgRating(seller.avgRating());
+            dto.setReviewCount(seller.reviewCount());
+        } else {
             dto.setAvgRating(0.0);
             dto.setReviewCount(0);
         }
@@ -581,7 +621,9 @@ public class ListingService {
 
         record Scored(Listing listing, double score) {}
 
-        List<ListingDto> result = active.stream().filter(l -> !sellerSafety.suspended(l.getSellerId()))
+        java.util.Map<java.util.UUID, SellerCard> sellers = new java.util.HashMap<>();
+        List<ListingDto> result = active.stream()
+                .filter(l -> !sellers.computeIfAbsent(l.getSellerId(), this::sellerCard).suspended())
                 .map(l -> {
                     double rec  = listingRecency(l, nowMs);
                     double qual = listingQuality(l);
@@ -592,7 +634,7 @@ public class ListingService {
                     return new Scored(l, rec + qual + fol + loc);
                 })
                 .sorted(Comparator.comparingDouble(Scored::score).reversed())
-                .map(s -> enrichDto(s.listing()))
+                .map(s -> enrichDto(s.listing(), sellers.get(s.listing().getSellerId())))
                 .collect(Collectors.toList());
 
         return result;
