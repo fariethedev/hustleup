@@ -15,7 +15,7 @@ export default function Footer() {
   const [open, setOpen] = useState(false);
 
   return (
-    <footer className="py-10 md:py-24 bg-black border-t border-white/5 relative overflow-hidden">
+    <footer className="py-10 md:py-24 bg-transparent border-t border-white/5 relative overflow-hidden">
       {/* Background Glows */}
       <div className="ambient-glow ambient-glow-lime bottom-[-10%] right-[-10%] opacity-10" />
       

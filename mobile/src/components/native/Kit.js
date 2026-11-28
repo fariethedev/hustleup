@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Circle, Defs, Pattern, Rect } from 'react-native-svg';
 import { Feather } from './Icon';
 import { useRouter } from 'expo-router';
 import { usePalette } from '../../theme/ThemeProvider';
@@ -22,7 +23,23 @@ export function Copy({ children, style, heading, muted, ...props }) {
   const lineHeight = flat.lineHeight && flat.lineHeight >= size * 1.15 ? flat.lineHeight : Math.round(size * (heading ? 1.3 : 1.5));
   return <Text {...props} style={[{ color: muted ? c.muted : c.text, fontFamily: heading ? fonts.heading : fonts.body, fontSize: 15 }, style, { fontSize: size, lineHeight }]}>{children}</Text>;
 }
-export function Dots() { return null; }
+/**
+ * The HustleSpace dotted backdrop, the same as the website's body background: two lime dots
+ * per 40px tile, fixed behind the content (it does not scroll), fainter on the light theme.
+ */
+export function Dots() {
+  const c = usePalette();
+  const [a, b] = c.light ? [0.16, 0.1] : [0.13, 0.07];
+  return <Svg pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <Defs>
+      <Pattern id="hs-dots" width={40} height={40} patternUnits="userSpaceOnUse">
+        <Circle cx={10} cy={10} r={2} fill="#B5DC1E" fillOpacity={a} />
+        <Circle cx={30} cy={30} r={2} fill="#B5DC1E" fillOpacity={b} />
+      </Pattern>
+    </Defs>
+    <Rect x={0} y={0} width="100%" height="100%" fill="url(#hs-dots)" />
+  </Svg>;
+}
 export function IconButton({ icon, label, onPress, badge }) {
   const c = usePalette();
   return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={k.icon}><Feather name={icon} size={21} color={c.text} />{badge > 0 && <View style={k.badge}><Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '700' }}>{badge > 9 ? '9+' : badge}</Text></View>}</Pressable>;

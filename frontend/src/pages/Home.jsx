@@ -9,9 +9,9 @@ import { formatPrice, displayCity } from '../utils/constants';
 import { useShops } from '../hooks/useShops';
 import SmartImage from '../components/SmartImage';
 import { uploadUrl } from '../config';
+import '../styles/home-hero.css';
 
-// The hero is a single full-bleed photograph, so one source at full-viewport width.
-const heroImage = 'https://images.unsplash.com/photo-1744320911030-1ab998d994d7?auto=format&fit=crop&w=2400&q=80';
+const heroImage = '/marketplace-hero.webp';
 
 const aboutImage = 'https://images.unsplash.com/photo-1565703321618-2571b730ffe1?auto=format&fit=crop&w=1000&q=80';
 
@@ -289,66 +289,32 @@ export default function Home() {
   return (
     <div className="min-h-screen font-sans">
 
-      {/* ── HERO ──
-          Two layouts in one section. On mobile the photograph gets a block of its own at the
-          top, uninterrupted, and the copy sits beneath it on the page background. From md up
-          it returns to the full-bleed frame with the copy laid over the lower third. */}
-      <section className="relative mx-auto grid max-w-7xl gap-8 overflow-hidden bg-[#090909] px-5 pb-12 pt-28 sm:px-8 md:min-h-[680px] md:grid-cols-2 md:items-center md:gap-12 md:pb-20 md:pt-36">
-        {/* 100svh (not 100vh) so mobile browser chrome appearing and disappearing doesn't make
-            the section jump height mid-scroll. */}
-        <div className="relative order-2 w-full">
-          <div className="relative h-64 w-full overflow-hidden rounded-[2rem] md:h-[460px]">
-            <img
-              src={heroImage}
-              alt="Students gathered together on their campus steps"
-              className="w-full h-full object-cover object-center"
-              fetchPriority="high"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
-          </div>
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <div>
-              <p className="text-sm font-semibold text-white">Good things happen locally.</p>
-              <p className="mt-1 text-xs text-gray-400">Meet the people behind the products.</p>
+      {/* The first screen introduces the marketplace and gives visitors a clear next step. */}
+      <section className="home-hero" aria-labelledby="home-hero-heading">
+        <div className="home-hero-inner">
+          <div className="home-hero-copy">
+            <p className="home-hero-eyebrow"><span aria-hidden="true" /> YOUR COMMUNITY, ALL IN ONE PLACE</p>
+            <h1 id="home-hero-heading">Good things<br /><em>start locally.</em></h1>
+            <p className="home-hero-description">Discover independent shops, book services and find what you need from people in your community.</p>
+            <div className="home-hero-actions">
+              <Link to="/explore" className="home-hero-primary">Explore the marketplace <MoveRight aria-hidden="true" size={19} /></Link>
+              <Link to={isAuthenticated ? '/dashboard?tab=shop' : '/register'} className="home-hero-secondary">Start your shop <MoveRight aria-hidden="true" size={18} /></Link>
             </div>
-            <Link to="/explore/shops" aria-label="Discover local shops" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#CDFF00] text-black">
-              <MoveRight className="h-5 w-5" />
-            </Link>
+            <div className="home-hero-explore" aria-label="Popular ways to explore">
+              <span>LOOKING FOR</span>
+              <Link to="/explore/shops">Local shops <MoveRight aria-hidden="true" size={15} /></Link>
+              <Link to="/explore/listings?type=HAIR_BEAUTY">Hair &amp; beauty <MoveRight aria-hidden="true" size={15} /></Link>
+              <Link to="/explore/listings?type=FOOD">Food &amp; drink <MoveRight aria-hidden="true" size={15} /></Link>
+            </div>
+          </div>
+          <div className="home-hero-visual">
+            <div className="home-hero-image">
+              <img src={heroImage} alt="A local shop owner shows a handmade mug to a customer" width="1536" height="1024" fetchPriority="high" />
+              <div className="home-hero-image-label"><span aria-hidden="true">✦</span><p>Made by people.<br /><strong>Found by you.</strong></p></div>
+            </div>
+            <div className="home-hero-note"><span className="home-hero-note-icon" aria-hidden="true"><Handshake size={21} /></span><p><strong>Meet your community</strong><br />Real people, local possibilities.</p><Link to="/explore/shops" aria-label="Discover local shops"><MoveRight aria-hidden="true" size={21} /></Link></div>
           </div>
         </div>
-
-        <div className="relative order-1 w-full">
-          <Motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="max-w-xl"
-          >
-            <h1 className="mb-5 text-[42px] font-heading font-extrabold leading-[1.06] tracking-tight text-white sm:text-6xl lg:text-7xl">
-              Find your people.<br /><span className="text-[#CDFF00]">Make it happen.</span>
-            </h1>
-            <p className="mb-7 max-w-md text-base leading-relaxed text-gray-400">Shop local finds, book a fresh look, or turn your own idea into a business. It starts with the people around you.</p>
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Desktop offers both routes. Mobile leads with browsing alone: a signed-out
-                  visitor meets the sign-up wall the moment they act on anything they find,
-                  so putting the choice up front only adds a decision before the value. */}
-              <Link
-                to="/explore"
-                className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#CDFF00] px-6 py-3.5 text-sm font-bold text-black hover:brightness-110"
-              >
-                Explore the marketplace <MoveRight className="w-4 h-4" />
-              </Link>
-              <Link
-                to={isAuthenticated ? '/dashboard?tab=shop' : '/register'}
-                className="inline-flex min-h-12 items-center rounded-full border border-white/25 px-6 py-3.5 text-sm font-semibold text-white hover:bg-white/5"
-              >
-                Start your shop
-              </Link>
-            </div>
-            <div className="mt-8 flex flex-wrap gap-x-5 gap-y-3 border-t border-white/10 pt-5 text-xs text-gray-400"><Link to="/explore/listings?type=FOOD" className="min-h-8 py-2 hover:text-white">Food & groceries</Link><Link to="/explore/listings?type=HAIR_BEAUTY" className="min-h-8 py-2 hover:text-white">Hair & beauty</Link><Link to="/feed" className="min-h-8 py-2 hover:text-white">Community conversations</Link></div>
-          </Motion.div>
-        </div>
-
       </section>
 
       {/* ── FEATURES ── */}

@@ -1,0 +1,53 @@
+.home-hero {
+  --hero-surface: #090909;
+  --hero-ink: #f7f7f7;
+  --hero-muted: #c4c4c4;
+  --hero-border: #ffffff2d;
+  --hero-accent: #cdff00;
+  /* Transparent so the site-wide dotted backdrop runs through the hero. */
+  background: transparent;
+  color: var(--hero-ink);
+  padding: 112px 24px 62px;
+}
+.home-hero-inner { max-width: 1220px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.05fr; align-items: center; gap: clamp(38px, 6vw, 88px); }
+.home-hero-copy { min-width: 0; }
+.home-hero-eyebrow { display: flex; gap: 10px; align-items: center; font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--hero-muted); }
+.home-hero-eyebrow span { width: 9px; height: 9px; border-radius: 50%; background: var(--hero-accent); }
+.home-hero h1 { margin: 24px 0; font-size: clamp(46px, 5.9vw, 78px); line-height: 1.07; letter-spacing: -.055em; font-weight: 800; color: var(--hero-ink); }
+.home-hero h1 em { font-style: normal; color: var(--hero-accent); }
+.home-hero-description { max-width: 470px; font-size: 18px; line-height: 1.7; color: var(--hero-muted); }
+.home-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.home-hero-actions a { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 56px; padding: 14px 22px; border-radius: 12px; font-size: 15px; font-weight: 700; transition: transform .2s, background-color .2s; }
+.home-hero-actions a:hover { transform: translateY(-2px); }
+.home-hero-primary { background: #cdff00; color: #172000; }
+.home-hero-secondary { border: 1px solid var(--hero-border); color: var(--hero-ink); }
+.home-hero-secondary:hover { background: #ffffff12; }
+.home-hero-explore { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--hero-border); }
+.home-hero-explore span { color: var(--hero-muted); font-size: 11px; font-weight: 700; letter-spacing: .1em; width: 100%; }
+.home-hero-explore a { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; color: var(--hero-ink); font-size: 14px; font-weight: 600; }
+.home-hero-explore a:hover { text-decoration: underline; }
+.home-hero-visual { min-width: 0; }
+.home-hero-image { position: relative; overflow: hidden; border-radius: 26px; aspect-ratio: 1.13; background: #d8d6c4; }
+.home-hero-image img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.home-hero-image-label { position: absolute; left: 18px; bottom: 18px; display: flex; align-items: center; gap: 12px; padding: 13px 17px; border-radius: 16px; background: #ffffffed; color: #202a1d; box-shadow: 0 8px 25px #0002; font-size: 13px; line-height: 1.4; }
+.home-hero-image-label span { color: #526e20; font-size: 25px; }
+.home-hero-image-label strong { font-size: 15px; }
+.home-hero-note { display: flex; align-items: center; gap: 14px; margin-top: 12px; border: 1px solid var(--hero-border); border-radius: 18px; padding: 14px; color: var(--hero-muted); font-size: 13px; line-height: 1.5; }
+.home-hero-note strong { color: var(--hero-ink); font-size: 15px; }
+.home-hero-note-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: #cdff0020; color: var(--hero-accent); flex-shrink: 0; }
+.home-hero-note p { flex: 1; }
+.home-hero-note a { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: #cdff00; color: #172000; flex-shrink: 0; }
+[data-theme="light"] .home-hero { --hero-surface: #f7f7f5; --hero-ink: #18181b; --hero-muted: #52525b; --hero-border: #18181b40; --hero-accent: #496b24; }
+[data-theme="light"] .home-hero-secondary:hover { background: #e8e8e6; }
+[data-theme="light"] .home-hero-note-icon { background: #e7eadf; }
+@media (max-width: 767px) {
+  .home-hero { padding: 95px 20px 38px; }
+  .home-hero-inner { grid-template-columns: 1fr; gap: 28px; }
+  .home-hero h1 { margin: 18px 0; font-size: clamp(43px, 12vw, 62px); }
+  .home-hero-description { font-size: 16px; }
+  .home-hero-actions { align-items: stretch; }
+  .home-hero-actions a { flex: 1 1 220px; }
+  .home-hero-explore { margin-top: 26px; }
+  .home-hero-image { aspect-ratio: 1.2; }
+}
+@media (prefers-reduced-motion: reduce) { .home-hero-actions a { transition: none; } }
