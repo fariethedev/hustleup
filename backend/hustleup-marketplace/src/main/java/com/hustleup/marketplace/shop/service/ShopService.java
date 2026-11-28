@@ -39,6 +39,7 @@ public class ShopService {
     private final UserRepository userRepository;
     private final com.hustleup.common.subscription.PremiumAccess premiumAccess;
     private final FileStorageService fileStorageService;
+    private final com.hustleup.marketplace.shop.repository.ShopBookableServiceRepository bookableServiceRepository;
 
     /**
      * Every published shop, each with its product list attached.
@@ -89,6 +90,13 @@ public class ShopService {
             return item;
         }).toList());
         dto.setProductCount(products.size());
+
+        // A clothing shop that also does alterations, or a general store with a barber's chair,
+        // takes bookings too. The business type only decides the default; once a shop has a
+        // live service on its menu, it shows the booking side whatever kind of shop it is.
+        if (!dto.isAppointmentBased() && bookableServiceRepository.countByShopIdAndActiveTrue(shop.getId()) > 0) {
+            dto.setAppointmentBased(true);
+        }
 
         // Derived from the owner's real reviews — never accepted from the client.
         Double avg = reviewRepository.averageRatingForUser(shop.getOwnerId());

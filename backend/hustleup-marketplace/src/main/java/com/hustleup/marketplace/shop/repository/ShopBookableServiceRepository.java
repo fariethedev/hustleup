@@ -14,4 +14,7 @@ public interface ShopBookableServiceRepository extends JpaRepository<ShopBookabl
     List<ShopBookableService> findByShopIdAndActiveTrueOrderBySortOrderAsc(UUID shopId);
 
     long countByShopId(UUID shopId);
+
+    /** Whether a shop has anything bookable — what makes any shop, not just a salon, take appointments. */
+    long countByShopIdAndActiveTrue(UUID shopId);
 }

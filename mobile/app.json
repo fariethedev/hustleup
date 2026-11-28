@@ -59,7 +59,8 @@
       "expo-status-bar",
       "expo-web-browser",
       "expo-video",
-      "expo-audio"
+      "expo-audio",
+      "expo-asset"
     ],
     "extra": {
       "apiBaseUrl": "https://api.hustlespace.space/api/v1",
