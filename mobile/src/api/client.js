@@ -233,6 +233,8 @@ export const feedApi = {
     if (parentId) body.parentId = parentId;
     return api.post(`/feed/${id}/comments`, body);
   },
+  likeComment: (postId, commentId) => api.post(`/feed/${postId}/comments/${commentId}/likes`),
+  unlikeComment: (postId, commentId) => api.delete(`/feed/${postId}/comments/${commentId}/likes`),
 };
 
 /**

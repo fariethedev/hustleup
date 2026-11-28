@@ -17,11 +17,13 @@ import {
   ScrollView,
   Alert,
   RefreshControl,
+  Pressable,
   useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import SocialIcon from '../components/native/SocialIcon';
+import { Feather } from '../components/native/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Image as CachedImage } from 'expo-image';
@@ -287,38 +289,56 @@ const cs = StyleSheet.create({
 });
 
 // ─── Comments Sheet ───────────────────────────────────────────────────────────
+const commentAgo = (iso) => {
+  if (!iso) return '';
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
+  const m = Math.max(0, (Date.now() - d.getTime()) / 60000);
+  if (m < 1) return 'now';
+  if (m < 60) return `${Math.floor(m)}m`;
+  if (m < 1440) return `${Math.floor(m / 60)}h`;
+  if (m < 10080) return `${Math.floor(m / 1440)}d`;
+  return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+};
+
+function CommentAvatar({ uri, name, size = 36 }) {
+  const palette = usePalette();
+  const src = uri ? resolveMediaUrl(uri) : null;
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: palette.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+      {src ? <Image source={{ uri: src }} style={{ width: '100%', height: '100%' }} />
+        : <Text style={{ color: palette.purple, fontSize: size * 0.4, fontWeight: '800' }}>{(name || '?')[0].toUpperCase()}</Text>}
+    </View>
+  );
+}
+
 const CommentsSheet = ({ visible, postId, onClose, onCountChange }) => {
-  const styles = useSocialStyles(baseStyles);
+  const palette = usePalette();
+  const insets = useSafeAreaInsets();
+  const me = useSelector(selectUser);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState(null); // { id, authorName }
   const [submitting, setSubmitting] = useState(false);
+  const inputRef = useRef(null);
 
-  useEffect(() => {
-    if (visible && postId) {
-      loadComments();
-    } else {
-      setComments([]);
-      setCommentText('');
-      setReplyTo(null);
-    }
-  }, [visible, postId]);
-
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     setLoading(true);
     try {
       const res = await feedApi.getComments(postId);
       setComments(res.data || []);
-    } catch (e) {
-      console.error('Comments fetch error:', e);
-    } finally {
+    } catch { /* keep what we had */ } finally {
       setLoading(false);
     }
-  };
+  }, [postId]);
+
+  useEffect(() => {
+    if (!visible || !postId) { setComments([]); setCommentText(''); setReplyTo(null); return; }
+    loadComments();
+  }, [visible, postId, loadComments]);
 
   const handleSubmit = async () => {
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || submitting) return;
     setSubmitting(true);
     try {
       await feedApi.addComment(postId, commentText.trim(), replyTo?.id || null);
@@ -327,105 +347,129 @@ const CommentsSheet = ({ visible, postId, onClose, onCountChange }) => {
       await loadComments();
       onCountChange && onCountChange(postId);
     } catch (e) {
-      Alert.alert('Error', 'Could not post comment.');
+      Alert.alert('Comment not posted', e?.sessionExpired ? 'Your session expired. Sign in again.' : 'Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Build flat list: top-level comments followed immediately by their indented replies
+  const toggleLike = async (comment) => {
+    const liked = !comment.likedByCurrentUser;
+    setComments(list => list.map(x => (x.id === comment.id ? { ...x, likedByCurrentUser: liked, likesCount: Math.max(0, (x.likesCount || 0) + (liked ? 1 : -1)) } : x)));
+    try { await (liked ? feedApi.likeComment(postId, comment.id) : feedApi.unlikeComment(postId, comment.id)); }
+    catch { setComments(list => list.map(x => (x.id === comment.id ? comment : x))); }
+  };
+
+  const reply = (comment) => {
+    setReplyTo({ id: comment.parentId || comment.id, authorName: comment.authorName });
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  // Top-level comments followed by their replies, indented under them.
   const topLevel = comments.filter((c) => !c.parentId);
   const repliesMap = {};
-  comments.forEach((c) => {
-    if (c.parentId) {
-      if (!repliesMap[c.parentId]) repliesMap[c.parentId] = [];
-      repliesMap[c.parentId].push(c);
-    }
-  });
+  comments.forEach((c) => { if (c.parentId) (repliesMap[c.parentId] ||= []).push(c); });
   const listData = [];
   topLevel.forEach((c) => {
     listData.push({ ...c, _indent: false });
     (repliesMap[c.id] || []).forEach((r) => listData.push({ ...r, _indent: true }));
   });
 
-  const renderComment = ({ item }) => (
-    <View style={[styles.commentItem, item._indent && styles.commentIndented]}>
-      <View style={styles.commentAvatar}>
-        <Text style={styles.commentAvatarText}>{item.authorName?.[0] || '?'}</Text>
+  const renderComment = ({ item }) => {
+    const likes = item.likesCount || 0;
+    return (
+      <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 10, paddingLeft: item._indent ? 46 : 0 }}>
+        <CommentAvatar uri={item.authorAvatarUrl} name={item.authorName} size={item._indent ? 28 : 36} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: palette.text, fontSize: 14, lineHeight: 20 }}>
+            <Text style={{ fontWeight: '800' }}>{item.authorName || 'Member'}</Text>{'  '}
+            <Text>{item.content}</Text>
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 4 }}>
+            <Text style={{ color: palette.muted, fontSize: 12 }}>{commentAgo(item.createdAt)}</Text>
+            {likes > 0 && <Text style={{ color: palette.muted, fontSize: 12, fontWeight: '700' }}>{likes} like{likes === 1 ? '' : 's'}</Text>}
+            <Pressable onPress={() => reply(item)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Reply to ${item.authorName || 'comment'}`}>
+              <Text style={{ color: palette.muted, fontSize: 12, fontWeight: '800' }}>Reply</Text>
+            </Pressable>
+          </View>
+        </View>
+        <Pressable onPress={() => toggleLike(item)} hitSlop={10} accessibilityRole="button" accessibilityState={{ selected: !!item.likedByCurrentUser }} accessibilityLabel={item.likedByCurrentUser ? 'Unlike comment' : 'Like comment'}
+          style={{ width: 32, alignItems: 'center', paddingTop: 4 }}>
+          <Feather name="heart" size={16} color={item.likedByCurrentUser ? '#E11D48' : palette.muted} fill={item.likedByCurrentUser ? '#E11D48' : 'none'} />
+        </Pressable>
       </View>
-      <View style={styles.commentBody}>
-        <Text style={styles.commentAuthor}>{item.authorName || 'Unknown'}</Text>
-        <Text style={styles.commentText}>{item.content}</Text>
-        <TouchableOpacity onPress={() => setReplyTo({ id: item.id, authorName: item.authorName })}>
-          <Text style={styles.replyBtn}>Reply</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
+  const canSend = !!commentText.trim() && !submitting;
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.commentsOverlay}>
-        <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
-        <View style={styles.commentsSheet}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>COMMENTS</Text>
-            <TouchableOpacity onPress={onClose}>
-              <SocialIcon name="x" size={22} color="#FFF" />
-            </TouchableOpacity>
+      <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000066' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close comments" />
+        <View style={{ backgroundColor: palette.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: height * 0.82, minHeight: height * 0.45, paddingTop: 8 }}>
+          <View style={{ alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: palette.line, marginBottom: 6 }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.line }}>
+            <View style={{ width: 36 }} />
+            <Text style={{ flex: 1, textAlign: 'center', color: palette.text, fontSize: 16, fontWeight: '800' }} accessibilityRole="header">
+              Comments{comments.length ? ` · ${comments.length}` : ''}
+            </Text>
+            <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close"
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: palette.soft, alignItems: 'center', justifyContent: 'center' }}>
+              <Feather name="x" size={18} color={palette.text} />
+            </Pressable>
           </View>
 
-          {loading ? (
-            <View style={styles.commentsLoader}>
-              <ActivityIndicator size="large" color={LIME} />
-            </View>
+          {loading && !comments.length ? (
+            <View style={{ height: 200, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={palette.purple} /></View>
           ) : (
             <FlatList
               data={listData}
-              keyExtractor={(item) => item.id.toString()}
+              keyExtractor={(item) => String(item.id)}
               renderItem={renderComment}
-              contentContainerStyle={styles.commentsList}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 12, flexGrow: 1 }}
               ListEmptyComponent={
-                <Text style={styles.noComments}>No comments yet. Be the first!</Text>
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 8 }}>
+                  <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: palette.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Feather name="message-circle" size={28} color={palette.purple} />
+                  </View>
+                  <Text style={{ color: palette.text, fontSize: 16, fontWeight: '800' }}>No comments yet</Text>
+                  <Text style={{ color: palette.muted, fontSize: 13 }}>Start the conversation.</Text>
+                </View>
               }
             />
           )}
 
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line, paddingHorizontal: 12, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 10), backgroundColor: palette.bg }}>
             {replyTo && (
-              <View style={styles.replyChip}>
-                <Text style={styles.replyChipText}>Replying to {replyTo.authorName}</Text>
-                <TouchableOpacity onPress={() => setReplyTo(null)}>
-                  <SocialIcon name="x" size={14} color={LIME} />
-                </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 6, paddingBottom: 8 }}>
+                <Text style={{ flex: 1, color: palette.muted, fontSize: 13 }}>Replying to <Text style={{ color: palette.text, fontWeight: '700' }}>{replyTo.authorName || 'comment'}</Text></Text>
+                <Pressable onPress={() => setReplyTo(null)} hitSlop={10} accessibilityLabel="Cancel reply"><Feather name="x" size={15} color={palette.muted} /></Pressable>
               </View>
             )}
-            <View style={styles.commentInputRow}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Add a comment..."
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                value={commentText}
-                onChangeText={setCommentText}
-                returnKeyType="send"
-                onSubmitEditing={handleSubmit}
-              />
-              <TouchableOpacity
-                style={styles.sendButton}
-                onPress={handleSubmit}
-                disabled={submitting || !commentText.trim()}
-              >
-                {submitting ? (
-                  <ActivityIndicator size="small" color={BG} />
-                ) : (
-                  <SocialIcon name="send" size={18} color={BG} />
-                )}
-              </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
+              <CommentAvatar uri={me?.avatarUrl} name={me?.fullName || me?.username} size={34} />
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', minHeight: 42, borderRadius: 21, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.card, paddingLeft: 14, paddingRight: 4 }}>
+                <TextInput
+                  ref={inputRef}
+                  style={{ flex: 1, color: palette.text, fontSize: 15, maxHeight: 110, paddingVertical: Platform.OS === 'ios' ? 11 : 8 }}
+                  placeholder={replyTo ? `Reply to ${replyTo.authorName || 'comment'}…` : 'Add a comment…'}
+                  placeholderTextColor={palette.muted}
+                  value={commentText}
+                  onChangeText={setCommentText}
+                  multiline
+                  maxLength={1000}
+                  accessibilityLabel="Comment"
+                />
+                <Pressable onPress={handleSubmit} disabled={!canSend} accessibilityRole="button" accessibilityLabel="Post comment"
+                  style={{ width: 34, height: 34, borderRadius: 17, marginBottom: 4, backgroundColor: canSend ? palette.lime : palette.soft, alignItems: 'center', justifyContent: 'center' }}>
+                  {submitting ? <ActivityIndicator size="small" color={palette.onLime} /> : <Feather name="arrow-up" size={18} color={canSend ? palette.onLime : palette.muted} />}
+                </Pressable>
+              </View>
             </View>
-          </KeyboardAvoidingView>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
