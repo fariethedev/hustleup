@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, PanResponder, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Image, Modal, PanResponder, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { Feather } from './Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
@@ -17,7 +17,11 @@ const hosts = [];
 export function cropImage(asset, aspect) {
   const host = hosts[hosts.length - 1];
   if (!host || !asset?.width || !asset?.height) return Promise.resolve(asset);
-  return new Promise(resolve => host({ asset, aspect, resolve }));
+  // Callers arrive straight from the system photo picker. iOS refuses to present a new modal
+  // while the picker is still animating away, and the cropper then never appears (the caller
+  // waits forever), so give the picker time to finish closing first.
+  const delay = Platform.OS === 'ios' ? 550 : 50;
+  return new Promise(resolve => setTimeout(() => host({ asset, aspect, resolve }), delay));
 }
 
 const PRESETS = [['original', 'Original', 'maximize'], ['1:1', 'Square', 'square'], ['4:5', 'Portrait', 'smartphone'], ['16:9', 'Wide', 'monitor'], ['9:16', 'Story', 'film']];
