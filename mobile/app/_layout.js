@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { ThemeProvider, useAppTheme } from '../src/theme/ThemeProvider';
 import { Stack, useRouter, useSegments, useRootNavigationState, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -16,7 +16,7 @@ import CartProvider from '../src/store/CartProvider';
 import NotificationToaster from '../src/components/native/NotificationToaster';
 import { CropHost } from '../src/components/native/ImageCropper';
 import { setUser } from '../src/store/authSlice';
-import { authApi } from '../src/api/client';
+import { authApi, onSessionExpired } from '../src/api/client';
 import { registerForPushNotifications, usePushNavigation } from '../src/utils/pushNotifications';
 import BrandLoader from '../src/components/native/BrandLoader';
 
@@ -88,6 +88,15 @@ function AuthGate({ children }) {
   // change made on the web) showed until the next launch, then the stale copy saved at
   // sign-in came back: refresh from the server once per launch, and persist every change.
   const user = useSelector(s => s.auth.user);
+  // A session that can't be renewed signs the app out, once, with a clear reason.
+  useEffect(() => {
+    let shown = false;
+    onSessionExpired(() => {
+      dispatch(setUser(null));
+      if (!shown) { shown = true; Alert.alert('Please sign in again', 'Your session expired, so you have been signed out.', [{ text: 'OK', onPress: () => { shown = false; } }]); }
+    });
+    return () => onSessionExpired(null);
+  }, [dispatch]);
   useEffect(() => {
     if (!hydrated || !isAuthenticated) return;
     authApi.me().then(({ data }) => { if (data?.id) dispatch(setUser(data)); }).catch(() => {});

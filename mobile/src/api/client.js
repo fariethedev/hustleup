@@ -99,6 +99,11 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Called when the session can no longer be renewed, so the app can sign out properly instead
+// of carrying on looking signed in while every request fails without a token.
+let _sessionExpired = null;
+export const onSessionExpired = (fn) => { _sessionExpired = fn; };
+
 let _isRefreshing = false;
 let _failedQueue = [];
 
@@ -133,7 +138,10 @@ api.interceptors.response.use(
       } catch (refreshErr) {
         _processQueue(refreshErr, null);
         await AsyncStorage.multiRemove(['hustleup_token', 'hustleup_refresh', 'hustleup_user']);
-        return Promise.reject(refreshErr);
+        const expired = refreshErr instanceof Error ? refreshErr : new Error('Session expired');
+        expired.sessionExpired = true;
+        try { _sessionExpired?.(); } catch { /* never block the rejection */ }
+        return Promise.reject(expired);
       } finally {
         _isRefreshing = false;
       }

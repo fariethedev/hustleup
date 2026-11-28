@@ -147,7 +147,7 @@ export default function CreateStoryModal({ visible, onClose, onCreated }) {
       onCreated?.();
       onClose();
     } catch (e) {
-      setError(e.response?.data?.message || e.response?.data?.error || (e.code === 'ECONNABORTED' ? 'The upload took too long. Try a shorter clip or a better connection.' : 'Your story could not be posted. Please try again.'));
+      setError(e.sessionExpired || e.response?.status === 401 ? 'Your session expired. Sign in again, then share your story.' : e.response?.data?.message || e.response?.data?.error || (e.code === 'ECONNABORTED' ? 'The upload took too long. Try a shorter clip or a better connection.' : !e.response ? 'Could not reach HustleSpace. Check your connection and try again.' : `Your story could not be posted (error ${e.response.status}). Please try again.`));
     } finally {
       setPosting(false);
     }
