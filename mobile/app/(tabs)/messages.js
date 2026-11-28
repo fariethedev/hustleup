@@ -903,7 +903,7 @@ export default function MessagesScreen() {
     <Screen scroll={false} showHeader={false}>
       <View style={{ flex: 1, backgroundColor: theme.bg }}>
         <View style={st.topBar}>
-          <Text style={{ color: theme.text, fontSize: 28, fontWeight: '900', flex: 1 }}>{tab === 'chats' ? 'Chats' : 'Status'}</Text>
+          <Text style={{ color: theme.text, fontSize: 28, fontWeight: '900', flex: 1 }}>Messages</Text>
           <TouchableOpacity accessibilityLabel="Privacy settings" onPress={() => setPrivacy(true)} style={st.iconBtn}><Feather name="lock" size={20} color={theme.text} /></TouchableOpacity>
           <TouchableOpacity accessibilityLabel="New chat" onPress={() => setNewChat(true)} style={[st.fab, { backgroundColor: theme.accent }]}><Feather name="edit" size={18} color="#111" /></TouchableOpacity>
         </View>

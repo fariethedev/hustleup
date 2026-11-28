@@ -10,12 +10,14 @@ import { useSelector } from 'react-redux';
 import { directMessagesApi } from '../../api/client';
 import { usePalette } from '../../theme/ThemeProvider';
 
+// Same destinations, names, order and icons as the website's bottom bar (Navbar.jsx):
+// Home, Explore, Feed, Messages, then More.
 const tabs = [
   ['/', '/(tabs)', 'home', 'Home'],
-  ['/explore', '/(tabs)/explore', 'search', 'Browse'],
-  ['/messages', '/(tabs)/messages', 'message-circle', 'Messages'],
-  ['/feed', '/(tabs)/feed', 'users', 'Community'],
-  ['/more', '/(tabs)/more', 'menu', 'More'],
+  ['/explore', '/(tabs)/explore', 'compass', 'Explore'],
+  ['/feed', '/(tabs)/feed', 'layers', 'Feed'],
+  ['/messages', '/(tabs)/messages', 'send', 'Messages'],
+  ['/more', '/(tabs)/more', 'layout-grid', 'More'],
 ];
 
 /**
@@ -65,7 +67,7 @@ export default function FloatingNav() {
         <BlurView tint={c.light ? "systemChromeMaterialLight" : "systemChromeMaterialDark"} intensity={70} blurMethod="dimezisBlurViewSdk31Plus" style={StyleSheet.absoluteFill} />
         {tabs.map(([match, route, icon, label]) => {
           const selected = path === match;
-          const badge = icon === 'message-circle' && authenticated && unread > 0;
+          const badge = route === '/(tabs)/messages' && authenticated && unread > 0;
           return (
             <Pressable key={route} accessibilityRole="tab" accessibilityLabel={badge ? `${label}, ${unread} unread` : label}
               accessibilityState={{ selected }} onPress={() => { if (!selected) LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity')); router.navigate(route); }} hitSlop={4}

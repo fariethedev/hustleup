@@ -62,7 +62,7 @@ function ExploreContent({ initialTab, initialCategory, appointmentsOnly }) {
         {/* Compact top row, like Home: title + round filter and add buttons */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 }}>
           <View style={{ flex: 1 }}>
-            <Copy heading style={{ fontSize: 24, lineHeight: 30 }}>{appointmentsOnly ? 'Book an appointment' : 'Browse'}</Copy>
+            <Copy heading style={{ fontSize: 24, lineHeight: 30 }}>{appointmentsOnly ? 'Book an appointment' : 'Explore'}</Copy>
             <Copy muted style={{ fontSize: 15 }}>Shops, services, events and people near you</Copy>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel={`Filters${activeFilters.length ? `, ${activeFilters.length} active` : ''}`} onPress={() => setFiltersOpen(true)}
