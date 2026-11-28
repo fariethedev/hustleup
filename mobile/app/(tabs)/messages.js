@@ -30,7 +30,6 @@ import { useSelector } from 'react-redux';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import SocialIcon from '../../src/components/native/SocialIcon';
 import { Feather } from '../../src/components/native/Icon';
 import { blocksApi, directMessagesApi, storiesApi, usersApi } from '../../src/api/client';
 import { selectUser } from '../../src/store/authSlice';
@@ -612,35 +611,64 @@ function ConversationView({ partner, me, prefsApi, onClose, onChanged }) {
 }
 
 // ─── Chat list row ────────────────────────────────────────────────────────────
-const ChatRow = memo(function ChatRow({ partner, theme, pinned, muted, hasStatus, onPress, onLongPress }) {
+const ChatRow = memo(function ChatRow({ partner, theme, pinned, muted, hasStatus, first, last, onPress, onLongPress }) {
   const unread = Number(partner.unreadCount) || 0;
-  const preview = partner.typing ? 'typing…' : (partner.lastMessage || (partner.isBondMatch ? 'New Bond match — say hi 👋' : 'Tap to chat'));
+  const preview = partner.typing ? 'typing…' : (partner.lastMessage || (partner.isBondMatch ? 'New Bond match. Say hi!' : 'Tap to start chatting'));
+  const name = partner.name || 'User';
+  const label = `${name}${partner.online ? ', online' : ''}. ${preview}.${unread ? ` ${unread} unread message${unread === 1 ? '' : 's'}.` : ''}`;
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} delayLongPress={300} style={({ pressed }) => [st.chatRow, pressed && { backgroundColor: theme.soft }]}>
+    <Pressable onPress={onPress} onLongPress={onLongPress} delayLongPress={300} accessibilityRole="button" accessibilityLabel={label} accessibilityHint="Long press for options"
+      android_ripple={{ color: theme.soft }}
+      style={({ pressed }) => [st.chatRow, { backgroundColor: pressed ? theme.soft : theme.card, borderTopLeftRadius: first ? 20 : 0, borderTopRightRadius: first ? 20 : 0, borderBottomLeftRadius: last ? 20 : 0, borderBottomRightRadius: last ? 20 : 0 }]}>
       <View>
-        <Avatar uri={partner.avatarUrl} name={partner.name} size={54} ring={hasStatus ? theme.purple : null} />
-        {partner.online && <View style={[st.onlineDot, { borderColor: theme.bg }]} />}
+        <Avatar uri={partner.avatarUrl} name={name} size={52} ring={hasStatus ? theme.purple : null} />
+        {partner.online && <View style={[st.onlineDot, { backgroundColor: theme.success, borderColor: theme.card }]} />}
       </View>
-      <View style={{ flex: 1, gap: 3 }}>
+      <View style={[st.rowBody, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.line }]}>
         <View style={st.rowTop}>
-          <Text style={[st.chatName, { color: theme.text }]} numberOfLines={1}>{partner.name || 'User'}{partner.isBondMatch ? ' 💚' : ''}{partner.streak > 1 ? ` 🔥${partner.streak}` : ''}</Text>
-          <Text style={{ color: unread ? theme.accent : theme.muted, fontSize: 12 }}>{listTime(partner.lastMessageAt || partner.matchedAt)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
+            <Text style={[st.chatName, { color: theme.text }]} numberOfLines={1}>{name}</Text>
+            {partner.isBondMatch && <Feather name="heart" size={13} color="#DB2777" />}
+            {partner.streak > 1 && <View style={st.streak}><Feather name="flame" size={12} color="#EA580C" /><Text style={{ color: '#EA580C', fontSize: 12, fontWeight: '800' }}>{partner.streak}</Text></View>}
+          </View>
+          <Text style={{ color: unread ? theme.purple : theme.muted, fontSize: 12, fontWeight: unread ? '700' : '500' }}>{listTime(partner.lastMessageAt || partner.matchedAt)}</Text>
         </View>
         <View style={st.rowTop}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 4 }}>
             {partner.lastMessageMine && !partner.typing && !partner.lastMessageDeleted && <Ticks message={{ readAt: partner.lastMessageRead }} theme={theme} />}
-            <Text style={{ color: partner.typing ? theme.accent : theme.muted, fontSize: 14, flex: 1, fontStyle: partner.lastMessageDeleted ? 'italic' : 'normal' }} numberOfLines={1}>{preview}</Text>
+            <Text style={{ color: partner.typing ? theme.purple : unread ? theme.text : theme.muted, fontSize: 14, fontWeight: unread ? '600' : '400', flex: 1, fontStyle: partner.lastMessageDeleted ? 'italic' : 'normal' }} numberOfLines={1}>{preview}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             {muted && <Feather name="bell-off" size={14} color={theme.muted} />}
-            {pinned && <Feather name="bookmark" size={14} color={theme.muted} />}
-            {unread > 0 && <View style={[st.unread, { backgroundColor: muted ? theme.muted : theme.accent }]}><Text style={st.unreadText}>{unread > 99 ? '99+' : unread}</Text></View>}
+            {pinned && <Feather name="pin" size={14} color={theme.muted} />}
+            {unread > 0 && <View style={[st.unread, { backgroundColor: muted ? theme.muted : theme.purple }]}><Text style={st.unreadText}>{unread > 99 ? '99+' : unread}</Text></View>}
           </View>
         </View>
       </View>
     </Pressable>
   );
 });
+
+/** People you chat with who are online right now, as a strip above the list. */
+function ActiveNow({ people, theme, onOpen }) {
+  if (!people.length) return null;
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <Text style={[st.sectionHeader, { color: theme.muted, paddingTop: 2 }]}>Active now</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingHorizontal: 16 }}>
+        {people.map(p => (
+          <Pressable key={p.id} onPress={() => onOpen(p)} accessibilityRole="button" accessibilityLabel={`Chat with ${p.name || 'user'}, online`} style={{ alignItems: 'center', width: 60, gap: 5 }}>
+            <View>
+              <Avatar uri={p.avatarUrl} name={p.name} size={54} />
+              <View style={[st.onlineDot, { width: 15, height: 15, borderRadius: 8, backgroundColor: theme.success, borderColor: theme.bg }]} />
+            </View>
+            <Text numberOfLines={1} style={{ color: theme.text, fontSize: 12, fontWeight: '600' }}>{(p.name || 'User').split(' ')[0]}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
 
 // ─── Status tab (WhatsApp Status = HustleSpace stories) ──────────────────────
 function StatusTab({ me, theme, onOpenPrivacy, refreshKey }) {
@@ -678,7 +706,7 @@ function StatusTab({ me, theme, onOpenPrivacy, refreshKey }) {
     <Pressable onPress={onPress} style={({ pressed }) => [st.chatRow, pressed && { backgroundColor: theme.soft }]}>
       <View>
         <Avatar uri={g?.avatar || me?.avatarUrl} name={g?.name || me?.fullName} size={54} ring={g ? (g.allViewed ? theme.line : theme.purple) : null} />
-        {onAdd && <TouchableOpacity onPress={onAdd} style={[st.addStatus, { backgroundColor: theme.accent, borderColor: theme.bg }]}><Feather name="plus" size={14} color="#111" /></TouchableOpacity>}
+        {onAdd && <TouchableOpacity onPress={onAdd} accessibilityLabel="Add a status update" hitSlop={10} style={[st.addStatus, { backgroundColor: theme.purple, borderColor: theme.bg }]}><Feather name="plus" size={14} color="#FFFFFF" /></TouchableOpacity>}
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[st.chatName, { color: theme.text }]}>{label}</Text>
@@ -697,7 +725,7 @@ function StatusTab({ me, theme, onOpenPrivacy, refreshKey }) {
         ListHeaderComponent={
           <View>
             {row(mine, 'My status', () => (mine ? setViewing(mine) : setCreating(true)), () => setCreating(true))}
-            <TouchableOpacity onPress={onOpenPrivacy} style={{ paddingHorizontal: 18, paddingBottom: 8 }}><Text style={{ color: theme.accent, fontSize: 13 }}><Feather name="lock" size={12} /> Status privacy</Text></TouchableOpacity>
+            <Pressable onPress={onOpenPrivacy} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 18, minHeight: 44 }}><Feather name="lock" size={13} color={theme.purple} /><Text style={{ color: theme.purple, fontSize: 13, fontWeight: '700' }}>Status privacy</Text></Pressable>
           </View>
         }
         renderSectionHeader={({ section }) => <Text style={[st.sectionHeader, { color: theme.muted, backgroundColor: theme.bg }]}>{section.title}</Text>}
@@ -903,16 +931,28 @@ export default function MessagesScreen() {
     <Screen scroll={false} showHeader={false}>
       <View style={{ flex: 1 }}>
         <View style={st.topBar}>
-          <Text style={{ color: theme.text, fontSize: 28, fontWeight: '900', flex: 1 }}>Messages</Text>
-          <TouchableOpacity accessibilityLabel="Privacy settings" onPress={() => setPrivacy(true)} style={st.iconBtn}><Feather name="lock" size={20} color={theme.text} /></TouchableOpacity>
-          <TouchableOpacity accessibilityLabel="New chat" onPress={() => setNewChat(true)} style={[st.fab, { backgroundColor: theme.accent }]}><Feather name="edit" size={18} color="#111" /></TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: theme.text, fontSize: 24, fontWeight: '800' }} accessibilityRole="header">Messages</Text>
+            <Text style={{ color: theme.muted, fontSize: 13 }}>{unreadChats ? `${unreadChats} unread chat${unreadChats === 1 ? '' : 's'}` : 'You’re all caught up'}</Text>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Privacy settings" onPress={() => setPrivacy(true)} style={({ pressed }) => [st.iconBtn, { backgroundColor: theme.card, borderColor: theme.line, opacity: pressed ? 0.7 : 1 }]}>
+            <Feather name="lock" size={18} color={theme.text} />
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="New chat" onPress={() => setNewChat(true)} style={({ pressed }) => [st.fab, { backgroundColor: theme.purple, opacity: pressed ? 0.85 : 1 }]}>
+            <Feather name="square-pen" size={18} color="#FFFFFF" />
+          </Pressable>
         </View>
-        <View style={[st.segment, { backgroundColor: theme.card, borderColor: theme.line }]}>
-          {[['chats', `Chats${unreadChats ? ` (${unreadChats})` : ''}`], ['status', 'Status']].map(([key, label]) => (
-            <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: tab === key }} onPress={() => setTab(key)} style={[st.segmentBtn, tab === key && { backgroundColor: theme.accent }]}>
-              <Text style={{ color: tab === key ? '#111' : theme.muted, fontWeight: '800' }}>{label}</Text>
-            </Pressable>
-          ))}
+        <View style={[st.segment, { backgroundColor: theme.soft }]} accessibilityRole="tablist">
+          {[['chats', 'Chats', unreadChats], ['status', 'Status', statusAuthors.size]].map(([key, label, count]) => {
+            const on = tab === key;
+            return (
+              <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={count ? `${label}, ${count} new` : label} onPress={() => setTab(key)}
+                style={[st.segmentBtn, on && { backgroundColor: theme.card, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }]}>
+                <Text style={{ color: on ? theme.text : theme.muted, fontWeight: '700', fontSize: 14 }}>{label}</Text>
+                {count > 0 && <View style={[st.segmentCount, { backgroundColor: on ? theme.purple : theme.line }]}><Text style={{ color: on ? '#FFFFFF' : theme.text, fontSize: 11, fontWeight: '800' }}>{count > 99 ? '99+' : count}</Text></View>}
+              </Pressable>
+            );
+          })}
         </View>
 
         {tab === 'status' ? (
@@ -920,41 +960,53 @@ export default function MessagesScreen() {
         ) : (
           <>
             <View style={[st.search, { backgroundColor: theme.card, borderColor: theme.line }]}>
-              <Feather name="search" size={16} color={theme.muted} />
-              <TextInput style={{ flex: 1, color: theme.text, fontSize: 15 }} placeholder="Search chats" placeholderTextColor={theme.muted} value={search} onChangeText={setSearch} accessibilityLabel="Search chats" />
-              {!!search && <TouchableOpacity onPress={() => setSearch('')}><Feather name="x" size={16} color={theme.muted} /></TouchableOpacity>}
+              <Feather name="search" size={17} color={theme.muted} />
+              <TextInput style={{ flex: 1, color: theme.text, fontSize: 15 }} placeholder="Search chats" placeholderTextColor={theme.muted} value={search} onChangeText={setSearch} accessibilityLabel="Search chats" returnKeyType="search" />
+              {!!search && <Pressable onPress={() => setSearch('')} hitSlop={10} accessibilityLabel="Clear search"><Feather name="circle-x" size={17} color={theme.muted} /></Pressable>}
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={st.filters} style={{ flexGrow: 0 }}>
-              {[['all', 'All'], ['unread', `Unread${unreadChats ? ` ${unreadChats}` : ''}`], ['bond', 'Bond'], ['archived', `Archived${archivedCount ? ` ${archivedCount}` : ''}`]].map(([key, label]) => (
-                <Pressable key={key} onPress={() => setFilter(key)} style={[st.filter, { borderColor: theme.line }, filter === key && { backgroundColor: `${theme.purple}26`, borderColor: theme.purple }]}>
-                  <Text style={{ color: filter === key ? theme.purple : theme.muted, fontWeight: '700', fontSize: 13 }}>{label}</Text>
-                </Pressable>
-              ))}
+              {[['all', 'All', 0], ['unread', 'Unread', unreadChats], ['bond', 'Bond', 0], ['archived', 'Archived', archivedCount]].map(([key, label, count]) => {
+                const on = filter === key;
+                return (
+                  <Pressable key={key} onPress={() => setFilter(key)} accessibilityRole="button" accessibilityState={{ selected: on }} hitSlop={{ top: 4, bottom: 4 }}
+                    style={[st.filter, { backgroundColor: on ? theme.text : theme.card, borderColor: on ? theme.text : theme.line }]}>
+                    <Text style={{ color: on ? theme.bg : theme.text, fontWeight: '700', fontSize: 13 }}>{label}{count ? ` ${count}` : ''}</Text>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
-            {loading ? <View style={st.center}><ActivityIndicator color={theme.accent} /></View> : (
+            {loading ? <View style={st.center}><ActivityIndicator color={theme.purple} /></View> : (
               <FlatList
                 data={list}
                 keyExtractor={p => String(p.id)}
                 initialNumToRender={12}
                 windowSize={9}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); setStatusKey(k => k + 1); }} tintColor={theme.accent} />}
-                contentContainerStyle={{ paddingBottom: 120 }}
-                renderItem={({ item }) => (
-                  <ChatRow
-                    partner={item}
-                    theme={theme}
-                    pinned={!!prefs.pinned[item.id]}
-                    muted={!!prefs.muted[item.id]}
-                    hasStatus={statusAuthors.has(String(item.id))}
-                    onPress={() => setOpen(item)}
-                    onLongPress={() => setRowMenu(item)}
-                  />
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); setStatusKey(k => k + 1); }} tintColor={theme.purple} />}
+                contentContainerStyle={{ paddingTop: 4, paddingBottom: 140 }}
+                ListHeaderComponent={filter === 'all' && !search ? <ActiveNow people={visible.filter(p => p.online && !prefs.archived[p.id]).slice(0, 12)} theme={theme} onOpen={setOpen} /> : null}
+                renderItem={({ item, index }) => (
+                  <View style={{ marginHorizontal: 12 }}>
+                    <ChatRow
+                      partner={item}
+                      theme={theme}
+                      first={index === 0}
+                      last={index === list.length - 1}
+                      pinned={!!prefs.pinned[item.id]}
+                      muted={!!prefs.muted[item.id]}
+                      hasStatus={statusAuthors.has(String(item.id))}
+                      onPress={() => setOpen(item)}
+                      onLongPress={() => setRowMenu(item)}
+                    />
+                  </View>
                 )}
                 ListEmptyComponent={
-                  <View style={[st.center, { paddingTop: 60 }]}>
-                    <SocialIcon name="message-circle" size={36} color={theme.accent} />
-                    <Text style={{ color: theme.text, fontWeight: '800', fontSize: 16, marginTop: 10 }}>{search ? 'No chats found' : filter === 'unread' ? 'You’re all caught up' : filter === 'archived' ? 'No archived chats' : 'No chats yet'}</Text>
-                    {!search && filter === 'all' && <TouchableOpacity onPress={() => setNewChat(true)} style={[st.cta, { backgroundColor: theme.accent }]}><Text style={{ color: '#111', fontWeight: '800' }}>Start a chat</Text></TouchableOpacity>}
+                  <View style={[st.center, { paddingTop: 50, paddingHorizontal: 32 }]}>
+                    <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: theme.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+                      <Feather name={search ? 'search-x' : filter === 'unread' ? 'circle-check' : filter === 'archived' ? 'archive' : 'messages-square'} size={34} color={theme.purple} />
+                    </View>
+                    <Text style={{ color: theme.text, fontWeight: '800', fontSize: 17, marginTop: 14 }}>{search ? 'No chats found' : filter === 'unread' ? 'You’re all caught up' : filter === 'archived' ? 'No archived chats' : filter === 'bond' ? 'No Bond chats yet' : 'No chats yet'}</Text>
+                    <Text style={{ color: theme.muted, fontSize: 14, textAlign: 'center', marginTop: 4, lineHeight: 20 }}>{search ? 'Try a different name or word.' : filter === 'all' ? 'Message a seller from any listing, or start a chat with someone you follow.' : 'Nothing here right now.'}</Text>
+                    {!search && filter === 'all' && <Pressable onPress={() => setNewChat(true)} accessibilityRole="button" style={({ pressed }) => [st.cta, { backgroundColor: theme.purple, opacity: pressed ? 0.85 : 1 }]}><Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>Start a chat</Text></Pressable>}
                   </View>
                 }
               />
@@ -984,23 +1036,26 @@ export default function MessagesScreen() {
 
 const st = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  topBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 10 },
-  fab: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  iconBtn: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
-  segment: { flexDirection: 'row', marginHorizontal: 16, borderRadius: 14, padding: 3, borderWidth: 1, marginBottom: 10 },
-  segmentBtn: { flex: 1, minHeight: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  search: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginBottom: 8, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, minHeight: 46 },
-  filters: { gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
-  filter: { minHeight: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, justifyContent: 'center' },
-  chatRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 10 },
+  topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  fab: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  segment: { flexDirection: 'row', marginHorizontal: 16, borderRadius: 16, padding: 4, marginBottom: 12 },
+  segmentBtn: { flex: 1, minHeight: 44, borderRadius: 12, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' },
+  segmentCount: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginBottom: 10, borderRadius: 23, borderWidth: 1, paddingHorizontal: 16, minHeight: 46 },
+  filters: { gap: 8, paddingHorizontal: 16, paddingBottom: 12 },
+  filter: { minHeight: 36, paddingHorizontal: 15, borderRadius: 18, borderWidth: 1, justifyContent: 'center' },
+  chatRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 14, minHeight: 76, overflow: 'hidden' },
+  rowBody: { flex: 1, gap: 3, alignSelf: 'stretch', justifyContent: 'center', paddingRight: 14, paddingVertical: 12 },
+  streak: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  chatName: { fontSize: 16, fontWeight: '800', flex: 1 },
+  chatName: { fontSize: 15.5, fontWeight: '700', flexShrink: 1 },
   onlineDot: { position: 'absolute', right: 1, bottom: 1, width: 14, height: 14, borderRadius: 7, backgroundColor: '#25D366', borderWidth: 2 },
   unread: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
-  unreadText: { color: '#111', fontSize: 11, fontWeight: '900' },
+  unreadText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
   addStatus: { position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
-  sectionHeader: { fontSize: 13, fontWeight: '800', paddingHorizontal: 18, paddingTop: 14, paddingBottom: 4, textTransform: 'uppercase', letterSpacing: 0.6 },
-  cta: { marginTop: 14, minHeight: 46, paddingHorizontal: 22, borderRadius: 23, justifyContent: 'center' },
+  sectionHeader: { fontSize: 12, fontWeight: '700', paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6, textTransform: 'uppercase', letterSpacing: 0.6 },
+  cta: { marginTop: 18, minHeight: 48, paddingHorizontal: 26, borderRadius: 24, justifyContent: 'center' },
   convHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingBottom: 10, paddingTop: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   dayWrap: { alignItems: 'center', marginVertical: 10 },
   day: { fontSize: 12, fontWeight: '700', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10, overflow: 'hidden' },
