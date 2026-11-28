@@ -37,6 +37,7 @@ import Leaderboard from './pages/Leaderboard';
 import ShopDetail from './pages/ShopDetail';
 import ShopNegotiation from './pages/ShopNegotiation';
 import ShopCheckout from './pages/ShopCheckout';
+import ShopProduct from './pages/ShopProduct';
 import ShopConfirmation from './pages/ShopConfirmation';
 import Checkout from './pages/Checkout';
 import CheckoutConfirmation from './pages/CheckoutConfirmation';
@@ -111,6 +112,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/shop/:id" element={<ShopDetail />} />
             <Route path="/shop/:id/product/:productId/negotiate" element={<ShopNegotiation />} />
+            <Route path="/shop/:id/product/:productId" element={<ShopProduct />} />
             <Route path="/shop/:id/product/:productId/checkout" element={<ShopCheckout />} />
             <Route path="/shop/:id/product/:productId/confirmation" element={<ShopConfirmation />} />
             <Route path="/create" element={<CreateListing />} />

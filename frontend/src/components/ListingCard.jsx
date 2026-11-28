@@ -14,7 +14,8 @@ export default function ListingCard({ listing, onDelete }) {
   const navigate = useNavigate();
   const items = useSelector(selectCartItems);
   const own = user?.id === listing.sellerId;
-  const detailUrl = listing.shopId ? `/shop/${listing.shopSlug}/product/${listing.productId}/checkout` : `/listing/${listing.id}`;
+  // Shop products open their own page; checkout is a step you choose, not where a tap lands.
+  const detailUrl = listing.shopId ? `/shop/${listing.shopSlug}/product/${listing.productId}` : `/listing/${listing.id}`;
   const inCart = items.some((item) => item.listingId === String(listing.id));
   const category = LISTING_TYPES.find((type) => type.value === listing.listingType) || LISTING_TYPES[4];
   const media = mediaList(listing);
