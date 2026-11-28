@@ -14,6 +14,7 @@ import { mediaUrl } from '../../src/utils/media';
 import { useCart } from '../../src/store/CartProvider';
 import SwapOfferSheet from '../../src/components/listings/SwapOfferSheet';
 import { ReportButton, TraderNotice } from '../../src/components/trust/TrustWidgets';
+import { RentalCosts, ViewingSheet, ViewingSummary, confirmCancelViewing, useViewings } from '../../src/components/listings/RentalViewing';
 
 export default function Listing() {
   const { id } = useLocalSearchParams();
@@ -68,6 +69,12 @@ export default function Listing() {
   const event = listing?.listingType === 'EVENT';
   const unavailable = listing?.status && listing.status !== 'ACTIVE';
   const images = (listing?.mediaUrls || []).map(mediaUrl).filter(Boolean);
+  // Rooms and flats are viewed before anything else: no offers or counter-offers, just a
+  // straight path to booking a viewing, with the full cost of moving in laid out.
+  const rental = listing?.listingType === 'RENTAL';
+  const viewings = useViewings(listing?.id, rental && !String(id).startsWith('shop:'));
+  const [viewingOpen, setViewingOpen] = useState(false);
+  const openViewing = () => (user ? setViewingOpen(true) : router.push('/login'));
   // Full-bleed gallery: the photos lead the page, the details below stay compact.
   const imageWidth = width;
   const relationship = followOverride?.id === id ? followOverride.value : data?.relationship;
@@ -114,7 +121,8 @@ export default function Listing() {
     } catch (e) { Alert.alert('Offer not sent', errorMessage(e, 'Please try again.')); }
     finally { setOfferBusy(false); }
   };
-  const purchasable = listing && !own && canPurchaseListing(listing);
+  const purchasable = listing && !own && !rental && canPurchaseListing(listing);
+  const rentalBar = rental && !own;
   const sellerCard = listing?.sellerId && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }}>
     <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.purple, fontWeight: '900', fontSize: 18 }}>{(listing.sellerName || '?')[0]}</Text></View>
     <View style={{ flex: 1 }}>
@@ -131,7 +139,7 @@ export default function Listing() {
   return <View style={{ flex: 1, backgroundColor: colors.bg }}>
     {loading ? <View style={{ flex: 1, paddingTop: insets.top + 60, padding: 20 }}><Notice loading message="Loading listing…" /></View>
       : error ? <View style={{ flex: 1, paddingTop: insets.top + 60, padding: 20 }}><Notice message={error} onRetry={reload} /></View>
-      : listing && <ScrollView contentContainerStyle={{ paddingBottom: purchasable ? 120 : 40 }} showsVerticalScrollIndicator={false}>
+      : listing && <ScrollView contentContainerStyle={{ paddingBottom: purchasable || rentalBar ? 120 : 40 }} showsVerticalScrollIndicator={false}>
       {/* Main photo, swipeable; thumbnails underneath show which one you're viewing */}
       <View>
         {images.length ? <ScrollView ref={gallery} horizontal pagingEnabled showsHorizontalScrollIndicator={false} scrollEventThrottle={16}
@@ -181,14 +189,15 @@ export default function Listing() {
           <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }}>{event ? 'About this event' : 'Description'}</Text>
           <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 21 }}>{listing.description}</Text>
         </View>}
-        {listing.listingType === 'RENTAL' && <Text style={{ color: colors.muted, fontSize: 13 }}>Agent fee: {money(listing.agentFeeAmount || 0, listing.currency)}</Text>}
+        {rental && <RentalCosts listing={listing} />}
+        {rental && <ViewingSummary data={viewings.data} own={own} onBook={openViewing} onCancel={() => confirmCancelViewing(listing.id, viewings.reload)} />}
         {!!listing.sellerId && <TraderNotice sellerId={listing.sellerId} />}
         {!own && !!user && <ReportButton targetType="LISTING" targetId={listing.id} />}
 
         {event && !!data.tickets?.length && <TouchableOpacity onPress={() => router.push('/tickets')} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 16, backgroundColor: colors.purpleSoft }}><Feather name="credit-card" size={18} color={colors.purple} /><Text style={{ color: colors.purple, fontWeight: '800', flex: 1 }}>You have {data.tickets.length} ticket(s) — open wallet</Text><Feather name="chevron-right" size={18} color={colors.purple} /></TouchableOpacity>}
         {data.ticketError && <Notice message="Could not check your existing tickets." onRetry={reload} />}
 
-        {!own && !unavailable && !event && (listing.negotiable || listing.swapEnabled) && <View style={{ flexDirection: 'row', gap: 10 }}>
+        {!own && !unavailable && !event && !rental && (listing.negotiable || listing.swapEnabled) && <View style={{ flexDirection: 'row', gap: 10 }}>
           {!!listing.negotiable && <TouchableOpacity onPress={() => (user ? setOfferOpen(true) : router.push('/login'))} style={{ flex: 1, minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}><Feather name="tag" size={15} color={colors.text} /><Text style={{ color: colors.text, fontWeight: '700' }}>Make an offer</Text></TouchableOpacity>}
           {!!listing.swapEnabled && <TouchableOpacity onPress={() => (user ? setSwapOpen(true) : router.push('/login'))} style={{ flex: 1, minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.purple, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}><Feather name="repeat" size={15} color={colors.purple} /><Text style={{ color: colors.purple, fontWeight: '800' }}>Offer a swap</Text></TouchableOpacity>}
         </View>}
@@ -224,7 +233,26 @@ export default function Listing() {
         </TouchableOpacity>
       </>}
     </View>}
-    {listing && !own && <FloatingCart bottom={purchasable ? 92 : 24} />}
+    {rentalBar && <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 12), backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.line }}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: colors.muted, fontSize: 11 }}>Rent</Text>
+        <Text style={{ color: colors.text, fontSize: 17, fontWeight: '900' }} numberOfLines={1}>{money(listing.price, listing.currency)}<Text style={{ fontSize: 12, fontWeight: '600', color: colors.muted }}> / month</Text></Text>
+        {!!viewings.data?.count && <Text style={{ color: colors.purple, fontSize: 11, fontWeight: '700' }}>{viewings.data.count} viewing{viewings.data.count === 1 ? '' : 's'} booked</Text>}
+      </View>
+      {unavailable ? <View style={{ minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: colors.soft, justifyContent: 'center' }}><Text style={{ color: colors.muted, fontWeight: '800' }}>No longer available</Text></View> : <>
+        {!!listing.payOnPlatform && <TouchableOpacity accessibilityLabel="Reserve and pay" onPress={buyNow} disabled={!cart.ready}
+          style={{ minHeight: 48, paddingHorizontal: 16, borderRadius: 24, borderWidth: 1.5, borderColor: colors.purple, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: colors.purple, fontWeight: '800' }}>Reserve</Text>
+        </TouchableOpacity>}
+        <TouchableOpacity onPress={openViewing} style={{ minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: colors.accent, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Feather name="calendar" size={17} color="#FFF" />
+          <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 15 }}>{viewings.data?.mine ? 'Change viewing' : 'Book a viewing'}</Text>
+        </TouchableOpacity>
+      </>}
+    </View>}
+    {listing && rental && <ViewingSheet visible={viewingOpen} listing={listing} data={viewings.data} onClose={() => setViewingOpen(false)}
+      onBooked={t => { setViewingOpen(false); viewings.reload(); Alert.alert('Viewing booked', `See you ${t.toLocaleString([], { weekday: 'long', hour: '2-digit', minute: '2-digit' })}. The agent has been told.`); }} />}
+    {listing && !own && <FloatingCart bottom={purchasable || rentalBar ? 92 : 24} />}
 
     <SwapOfferSheet visible={swapOpen} target={listing} onClose={() => setSwapOpen(false)} />
     <Modal visible={offerOpen} transparent animationType="slide" onRequestClose={() => setOfferOpen(false)}>

@@ -1,3 +1,4 @@
+import { useSocialStyles } from '../../src/components/native/socialStyles';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
@@ -11,6 +12,7 @@ const LIME = '#CDFF00';
 const BG   = '#050505';
 
 function StatCard({ icon, value, label, color = LIME, sub }) {
+  const s = useSocialStyles(baseStyles);
   return (
     <View style={s.statCard}>
       <View style={[s.statIconBox, { backgroundColor: color + '15' }]}>
@@ -24,6 +26,7 @@ function StatCard({ icon, value, label, color = LIME, sub }) {
 }
 
 function BarRow({ label, value, max, color }) {
+  const s = useSocialStyles(baseStyles);
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   return (
     <View style={s.barRow}>
@@ -43,6 +46,7 @@ const TYPE_COLORS = {
 };
 
 export default function InsightsScreen() {
+  const s = useSocialStyles(baseStyles);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
@@ -213,7 +217,7 @@ export default function InsightsScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG, paddingTop: 56 },
   center: { flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 16 },

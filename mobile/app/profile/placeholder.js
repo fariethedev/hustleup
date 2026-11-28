@@ -1,9 +1,11 @@
+import { useSocialStyles } from '../../src/components/native/socialStyles';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 export default function GenericProfileScreen() {
+  const styles = useSocialStyles(baseStyles);
   const { title = 'Page', icon, color } = useLocalSearchParams();
   const router = useRouter();
   return (
@@ -22,7 +24,7 @@ export default function GenericProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050505', paddingTop: 60 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 20 },
   title: { color: '#FFF', fontSize: 20, fontWeight: '900', letterSpacing: 2 },

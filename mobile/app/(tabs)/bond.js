@@ -38,9 +38,11 @@ const MAX_INTERESTS = 5;
 const MAX_PHOTOS = 6;
 const FILTER_KEY = 'hustlespace_bond_filters_v1';
 
+// Light, matching the website: #F5F6F3 page, white cards. Lime stays as a fill and on photos;
+// accentInk is the readable green for icons and spinners on white.
 const C = {
-  bg: '#050505', card: '#121212', line: '#262626', text: '#FFFFFF', muted: '#9CA3AF',
-  accent: '#CDFF00', like: '#2EE6A6', nope: '#FF4D6D', superLike: '#3BA7FF', gold: '#FFC83D',
+  bg: '#F5F6F3', card: '#FFFFFF', line: '#E4E4E7', text: '#18181B', muted: '#52525B',
+  accent: '#CDFF00', accentInk: '#6D28D9', like: '#16A34A', nope: '#E11D48', superLike: '#0284C7', gold: '#D97706',
 };
 
 const parsePhotos = (profile) => {
@@ -275,7 +277,7 @@ function ProfileEditor({ visible, existing, onClose, onSaved }) {
             <TouchableOpacity onPress={onClose} accessibilityLabel="Close"><Feather name="x" size={24} color={C.text} /></TouchableOpacity>
             <Text style={s.sheetTitle}>Edit Bond profile</Text>
             <TouchableOpacity onPress={save} disabled={saving} accessibilityLabel="Save profile">
-              {saving ? <ActivityIndicator color={C.accent} /> : <Text style={{ color: C.accent, fontWeight: '800', fontSize: 16 }}>Save</Text>}
+              {saving ? <ActivityIndicator color={C.accentInk} /> : <Text style={{ color: C.accentInk, fontWeight: '800', fontSize: 16 }}>Save</Text>}
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ padding: 18, gap: 22, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
@@ -291,7 +293,7 @@ function ProfileEditor({ visible, existing, onClose, onSaved }) {
                     </View>
                   ) : (
                     <TouchableOpacity key={i} style={[s.photoSlot, s.photoEmpty]} onPress={addPhoto} disabled={i !== photos.length} accessibilityLabel="Add photo">
-                      {i === photos.length && <Feather name="plus" size={24} color={C.accent} />}
+                      {i === photos.length && <Feather name="plus" size={24} color={C.accentInk} />}
                     </TouchableOpacity>
                   );
                 })}
@@ -529,11 +531,11 @@ export default function BondScreen() {
 
   let body;
   if (loading && me === undefined) {
-    body = <View style={s.center}><ActivityIndicator color={C.accent} size="large" /><Text style={s.muted}>Finding people near you…</Text></View>;
+    body = <View style={s.center}><ActivityIndicator color={C.accentInk} size="large" /><Text style={s.muted}>Finding people near you…</Text></View>;
   } else if (needsSetup) {
     body = (
       <View style={s.center}>
-        <View style={s.emptyIcon}><Feather name="heart" size={34} color={C.accent} /></View>
+        <View style={s.emptyIcon}><Feather name="heart" size={34} color={C.accentInk} /></View>
         <Text style={s.emptyTitle}>Create your Bond profile</Text>
         <Text style={s.muted}>Add photos, say who you are and who you want to meet. Bond is free for everyone.</Text>
         <TouchableOpacity style={s.primaryBtn} onPress={() => setEditing(true)}><Text style={s.primaryBtnText}>Get started</Text></TouchableOpacity>
@@ -596,10 +598,10 @@ export default function BondScreen() {
           {error ? (
             <View style={s.center}><Text style={s.emptyTitle}>Something went wrong</Text><Text style={s.muted}>{error}</Text><TouchableOpacity style={s.primaryBtn} onPress={loadDeck}><Text style={s.primaryBtnText}>Retry</Text></TouchableOpacity></View>
           ) : loading ? (
-            <ActivityIndicator color={C.accent} size="large" />
+            <ActivityIndicator color={C.accentInk} size="large" />
           ) : !current ? (
             <View style={s.center}>
-              <View style={s.emptyIcon}><Feather name="compass" size={32} color={C.accent} /></View>
+              <View style={s.emptyIcon}><Feather name="compass" size={32} color={C.accentInk} /></View>
               <Text style={s.emptyTitle}>You’ve seen everyone</Text>
               <Text style={s.muted}>Widen your age range or check back soon for new people.</Text>
               <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -639,7 +641,7 @@ export default function BondScreen() {
           <RoundButton icon="x" color={C.nope} size={64} label="Pass" onPress={() => swipe('pass')} disabled={!current} />
           <RoundButton icon="star" color={C.superLike} size={50} label="Super like" onPress={() => swipe('super')} disabled={!current} />
           <RoundButton icon="heart" color={C.like} size={64} label="Like" onPress={() => swipe('like')} disabled={!current} />
-          <RoundButton icon="message-circle" color={C.accent} size={46} label="Matches" onPress={() => setTab('matches')} />
+          <RoundButton icon="message-circle" color={C.accentInk} size={46} label="Matches" onPress={() => setTab('matches')} />
         </View>
       </View>
     );
@@ -677,8 +679,8 @@ const s = StyleSheet.create({
   deck: { alignItems: 'center', justifyContent: 'center', marginTop: 6 },
   cardSlot: { position: 'absolute' },
   card: { borderRadius: 22, overflow: 'hidden', backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
-  noPhoto: { backgroundColor: '#1B1B1B', alignItems: 'center', justifyContent: 'center' },
-  noPhotoInitial: { color: C.accent, fontSize: 72, fontWeight: '900' },
+  noPhoto: { backgroundColor: '#F0EEF4', alignItems: 'center', justifyContent: 'center' },
+  noPhotoInitial: { color: C.accentInk, fontSize: 72, fontWeight: '900' },
   photoBars: { position: 'absolute', top: 8, left: 10, right: 10, flexDirection: 'row', gap: 4 },
   photoBar: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)' },
   photoBarOn: { backgroundColor: '#FFF' },

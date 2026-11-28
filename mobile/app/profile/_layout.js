@@ -1,7 +1,9 @@
+import { useAppTheme } from '../../src/theme/ThemeProvider';
 import { Stack } from 'expo-router';
 
 export default function ProfileLayout() {
+  const { palette, reducedMotion } = useAppTheme();
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#050505' }, animation: 'slide_from_right' }} />
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg }, animation: reducedMotion ? 'none' : 'slide_from_right' }} />
   );
 }

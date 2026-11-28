@@ -1,11 +1,12 @@
+import { usePalette } from '../theme/ThemeProvider';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, ScrollView, Switch, Text, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Alert, Modal, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { authApi, usersApi, followsApi } from '../api/client';
 
 export default function PrivacyScreen({ visible, onClose }) {
-  const dark = useColorScheme() === 'dark';
+  const dark = !usePalette().light;
   const backgroundColor = dark ? '#101214' : '#F5F6F8';
   const color = dark ? '#FAFAFA' : '#17201C';
   const card = dark ? '#202522' : '#FFFFFF';

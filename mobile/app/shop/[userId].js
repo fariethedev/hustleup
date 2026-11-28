@@ -1,3 +1,4 @@
+import { useSocialStyles } from '../../src/components/native/socialStyles';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
@@ -86,6 +87,7 @@ export default function ShopPage() {
 }
 
 function SellerListings() {
+  const sh = useSocialStyles(baseStyles);
   const { userId } = useLocalSearchParams();
   const router = useRouter();
   const currentUser = useSelector(selectUser);
@@ -294,7 +296,7 @@ function SellerListings() {
   );
 }
 
-const sh = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
   loadingBox: { flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center' },
   appBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },

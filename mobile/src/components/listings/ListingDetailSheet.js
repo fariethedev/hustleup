@@ -1,3 +1,4 @@
+import { useSocialStyles } from '../native/socialStyles';
 import React, { useEffect, useState } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -10,6 +11,7 @@ import { mediaUrl } from '../../utils/media';
 import { discoveryCartItem } from '../../utils/discovery';
 
 export default function ListingDetailSheet({ listing, visible, onClose }) {
+  const s = useSocialStyles(baseStyles);
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -67,6 +69,6 @@ export default function ListingDetailSheet({ listing, visible, onClose }) {
   </Modal>;
 }
 
-const s = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: '#000B', justifyContent: 'flex-end' }, sheet: { backgroundColor: '#101010', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }, header: { paddingLeft: 20, paddingRight: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, icon: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }, content: { padding: 20, gap: 16 }, title: { color: '#FFF', fontSize: 24, fontWeight: '700' }, price: { color: '#CDFF00', fontSize: 25, fontWeight: '700' }, text: { color: '#FFF', fontSize: 15, fontWeight: '600' }, subtitle: { color: '#AAA', fontSize: 13, lineHeight: 20 }, description: { color: '#DDD', fontSize: 15, lineHeight: 23 }, seller: { flexDirection: 'row', gap: 12, alignItems: 'center', padding: 16, backgroundColor: '#202020', borderRadius: 16 }, primary: { flexDirection: 'row', minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 16, backgroundColor: '#CDFF00' }, primaryText: { fontSize: 16, fontWeight: '700', color: '#050505' }, secondary: { flexDirection: 'row', minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1, borderColor: '#555', borderRadius: 14 }, disabled: { opacity: 0.5 }, error: { color: '#FCA5A5' }, confirmation: { color: '#CDFF00', fontSize: 13 },
 });

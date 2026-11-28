@@ -7,7 +7,7 @@ import { Eye, EyeClosed } from 'lucide-react-native';
 import { registerUser, clearError } from '../src/store/authSlice';
 import { authApi } from '../src/api/client';
 import { passwordError, PASSWORD_RULES } from '../src/utils/password';
-import { DottedBackground, styles } from '../src/components/native/AuthForm';
+import { DottedBackground, useAuthStyles } from '../src/components/native/AuthForm';
 
 function Field({ label, value, onChangeText, password, ...props }) {
   const [visible, setVisible] = useState(false);
@@ -18,6 +18,7 @@ function Field({ label, value, onChangeText, password, ...props }) {
 }
 
 export default function RegisterScreen() {
+  const styles = useAuthStyles();
   const router = useRouter(), dispatch = useDispatch();
   const { loading, error } = useSelector(s => s.auth);
   const busy = useRef(false);

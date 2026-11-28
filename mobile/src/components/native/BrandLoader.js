@@ -1,13 +1,17 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+
+import { useAppTheme } from '../../theme/ThemeProvider';
 
 const logo = require('../../../assets/images/icon.png');
 
 export default function BrandLoader({ fullScreen = false, label = 'Loading', testID }) {
-  const spin = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(1)).current;
+  const { palette, reducedMotion } = useAppTheme();
+  const [spin] = useState(() => new Animated.Value(0));
+  const [pulse] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
+    if (reducedMotion) return;
     const rotation = Animated.loop(Animated.timing(spin, {
       toValue: 1,
       duration: 1100,
@@ -21,17 +25,17 @@ export default function BrandLoader({ fullScreen = false, label = 'Loading', tes
     rotation.start();
     breathing.start();
     return () => { rotation.stop(); breathing.stop(); };
-  }, [pulse, spin]);
+  }, [pulse, spin, reducedMotion]);
 
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   return (
     <View testID={testID} accessibilityRole="progressbar" accessibilityLabel={label}
-      style={[styles.container, fullScreen && styles.fullScreen]}>
+      style={[styles.container, fullScreen && [styles.fullScreen, { backgroundColor: palette.bg }]]}>
       <View style={styles.markWrap}>
         <Animated.View style={[styles.ring, { transform: [{ rotate }] }]} />
         <Animated.Image source={logo} resizeMode="cover" style={[styles.logo, { transform: [{ scale: pulse }] }]} />
       </View>
-      {!fullScreen && <Text style={styles.label}>{label}</Text>}
+      <Text style={[styles.label, { color: palette.muted, fontSize: 16 }]}>{label}</Text>
     </View>
   );
 }

@@ -1,3 +1,4 @@
+import { useSocialStyles } from '../../src/components/native/socialStyles';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
@@ -30,6 +31,7 @@ const Field = ({ label, value, onChangeText, placeholder, multiline, keyboardTyp
 );
 
 export default function EditProfile() {
+  const styles = useSocialStyles(baseStyles);
   const router = useRouter();
   const dispatch = useDispatch();
   const storeUser = useSelector(selectUser);
@@ -175,7 +177,7 @@ export default function EditProfile() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG, paddingTop: Platform.OS === 'ios' ? 60 : 40 },
   loadingScreen: { flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center' },
 

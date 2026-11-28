@@ -30,10 +30,10 @@ export function ListingCard({ item, onOpen, style }) {
       <View style={{ position: 'absolute', top: 9, left: 9, backgroundColor: '#000B', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 12 }}><Copy style={{ color: '#FFF', fontSize: 10 }}>{item.listingType === 'EVENT' && item.eventStartsAt ? new Date(item.eventStartsAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : categoryLabel(item.listingType)}</Copy></View>
     </Pressable>
     <View style={{ padding: 10, gap: 7, flex: 1 }}>
-      <Pressable onPress={() => onOpen(item)}><Copy numberOfLines={2} style={{ minHeight: 38, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 }}>{item.title}</Copy></Pressable>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}>
-        <Copy heading numberOfLines={1} adjustsFontSizeToFit style={{ flexShrink: 1, color: c.accent, fontSize: 19, lineHeight: 24 }}>{money(item.price, item.currency)}</Copy>
-        {own ? <Copy muted style={{ fontSize: 10 }}>Your listing</Copy> : <Pressable accessibilityRole="button" accessibilityLabel={instant ? (added ? 'Open cart' : 'Add to cart') : 'View listing details'} disabled={instant && (!ready || unavailable || pending)} onPress={instant ? addItem : () => onOpen(item)} style={{ minWidth: 36, height: 34, paddingHorizontal: instant && !added && !unavailable ? 10 : 0, borderRadius: 12, backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5, opacity: instant && (!ready || unavailable || pending) ? 0.55 : 1 }}>
+      <Pressable onPress={() => onOpen(item)}><Copy numberOfLines={2} style={{ minHeight: 38, fontFamily: fonts.medium, fontSize: 16, lineHeight: 24 }}>{item.title}</Copy></Pressable>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}>
+        <Copy heading  style={{ flexShrink: 1, color: c.accent, fontSize: 19, lineHeight: 24 }}>{money(item.price, item.currency)}</Copy>
+        {own ? <Copy muted style={{ fontSize: 10 }}>Your listing</Copy> : <Pressable accessibilityRole="button" accessibilityLabel={instant ? (added ? 'Open cart' : 'Add to cart') : 'View listing details'} disabled={instant && (!ready || unavailable || pending)} onPress={instant ? addItem : () => onOpen(item)} style={{ minWidth: 48, minHeight: 48, paddingHorizontal: instant && !added && !unavailable ? 10 : 0, borderRadius: 12, backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5, opacity: instant && (!ready || unavailable || pending) ? 0.55 : 1 }}>
           <Feather name={instant ? added ? 'check' : 'shopping-bag' : 'arrow-right'} size={15} color={c.text} />
           {instant && <Copy style={{ fontSize: 10, fontFamily: fonts.medium }}>{unavailable ? 'Sold out' : pending ? 'Pending' : added ? 'In cart' : 'Add'}</Copy>}
         </Pressable>}
@@ -75,7 +75,7 @@ export function PersonCard({ person, onPress }) {
     <Copy muted numberOfLines={3} style={{ fontSize: 12, lineHeight: 18 }}>{person.bio || 'A member of your local HustleSpace community.'}</Copy>
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderColor: c.line, paddingTop: 11 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}><Feather name="users" size={15} color={c.accent} /><Copy style={{ fontFamily: fonts.medium, fontSize: 12 }}>{followerText}</Copy><Copy muted style={{ fontSize: 11 }}>followers</Copy></View>
-      <Pressable accessibilityRole="button" onPress={onPress} style={{ paddingHorizontal: 13, minHeight: 34, borderRadius: 12, backgroundColor: c.soft, justifyContent: 'center' }}><Copy style={{ fontSize: 11, fontFamily: fonts.medium, color: c.accent }}>View profile</Copy></Pressable>
+      <Pressable accessibilityRole="button" onPress={onPress} style={{ paddingHorizontal: 13, minHeight: 48, borderRadius: 12, backgroundColor: c.soft, justifyContent: 'center' }}><Copy style={{ fontSize: 11, fontFamily: fonts.medium, color: c.accent }}>View profile</Copy></Pressable>
     </View>
   </Panel>;
 }

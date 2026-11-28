@@ -1,5 +1,6 @@
+import { usePalette } from '../../src/theme/ThemeProvider';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Alert, AppState, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -58,7 +59,7 @@ export default function OrdersScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const user = useSelector(state => state.auth.user);
-  const light = useColorScheme() === 'light';
+  const light = usePalette().light;
   const colors = light ? { bg: '#F7F7F5', card: '#FFF', text: '#171717', muted: '#666', line: '#DDD', accent: '#526B00' } : { bg: '#080808', card: '#151515', text: '#FFF', muted: '#AAA', line: '#333', accent: '#CDFF00' };
   const [orders, setOrders] = useState([]);
   const [claims, setClaims] = useState([]);

@@ -6,9 +6,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useDispatch } from 'react-redux';
 import { authApi } from '../src/api/client';
 import { setUser } from '../src/store/authSlice';
-import { DottedBackground, styles } from '../src/components/native/AuthForm';
+import { DottedBackground, useAuthStyles } from '../src/components/native/AuthForm';
 
 export default function VerifyCode() {
+  const styles = useAuthStyles();
   const { email } = useLocalSearchParams();
   const router = useRouter(), dispatch = useDispatch();
   const [code, setCode] = useState(''), [busy, setBusy] = useState(false), [message, setMessage] = useState('');

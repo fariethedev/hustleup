@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
+import { ThemeProvider, useAppTheme } from '../src/theme/ThemeProvider';
 import { Stack, useRouter, useSegments, useRootNavigationState, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Provider, useDispatch, useSelector } from 'react-redux';
@@ -26,6 +27,7 @@ Sentry.init({
 });
 
 function AuthGate({ children }) {
+  const { palette } = useAppTheme();
   const router = useRouter();
   const segments = useSegments();
   const { returnTo } = useLocalSearchParams();
@@ -59,14 +61,14 @@ function AuthGate({ children }) {
       welcomeShown.current = true;
       if (segments[0] !== 'welcome' && !recoveryScreen) { router.replace('/welcome'); return; }
     }
-    if (segments[0] === 'welcome') { if (isAuthenticated) router.replace('/(tabs)/feed'); return; }
-    const publicTab = segments[0] === '(tabs)' && (!segments[1] || ['index', 'explore', 'feed'].includes(segments[1]));
+    if (segments[0] === 'welcome') { if (isAuthenticated) router.replace('/(tabs)'); return; }
+    const publicTab = segments[0] === '(tabs)' && (!segments[1] || ['index', 'explore', 'feed', 'more'].includes(segments[1]));
     const publicDetail = segments[0] === 'listing' || (segments[0] === 'profile' && segments[1] === '[id]');
     if (!isAuthenticated && !inAuthScreen && !publicTab && !publicDetail && !recoveryScreen) {
       const requestedBond = segments[0] === 'bond' || (segments[0] === '(tabs)' && segments[1] === 'bond');
       router.replace(requestedBond ? { pathname: '/login', params: { returnTo: '/bond' } } : '/login');
     } else if (isAuthenticated && inAuthScreen) {
-      router.replace(returnTo === '/bond' ? '/bond' : '/(tabs)/feed');
+      router.replace(returnTo === '/bond' ? '/bond' : '/(tabs)');
     }
   }, [hydrated, isAuthenticated, needsWelcome, segments, navState?.key, router, returnTo]);
 
@@ -87,7 +89,7 @@ function AuthGate({ children }) {
       {!hydrated && (
         <View testID="auth-hydration" style={{
           position: 'absolute', inset: 0,
-          backgroundColor: '#050505',
+          backgroundColor: palette.bg,
           alignItems: 'center', justifyContent: 'center',
         }}>
           <BrandLoader fullScreen label="Restoring your session" />
@@ -97,9 +99,10 @@ function AuthGate({ children }) {
   );
 }
 
-function RootLayout() {
+function AppRoot() {
+  const { palette, ready, reducedMotion } = useAppTheme();
   const [fontsLoaded, fontError] = useFonts({ Poppins_400Regular, Poppins_600SemiBold, Montserrat_800ExtraBold });
-  if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: '#050505', justifyContent: 'center' }}><BrandLoader label="Loading HustleSpace" /></View>;
+  if (!ready || (!fontsLoaded && !fontError)) return <View style={{ flex: 1, backgroundColor: palette.bg, justifyContent: 'center' }}><BrandLoader label="Loading HustleSpace" /></View>;
   return (
     <Provider store={store}>
       <AuthGate>
@@ -107,21 +110,22 @@ function RootLayout() {
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: '#050505' },
-            animation: 'fade',
+            contentStyle: { backgroundColor: palette.bg },
+            animation: reducedMotion ? 'none' : 'fade',
           }}
         >
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="login" />
           <Stack.Screen name="register" />
-          <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
+          <Stack.Screen name="welcome" options={{ animation: reducedMotion ? 'none' : 'fade' }} />
         </Stack>
-        <StatusBar style="light" />
+        <StatusBar style={palette.light ? "dark" : "light"} />
         </CartProvider>
       </AuthGate>
     </Provider>
   );
 }
 
+function RootLayout() { return <ThemeProvider><AppRoot /></ThemeProvider>; }
 export default Sentry.wrap(RootLayout);
 

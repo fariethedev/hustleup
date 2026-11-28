@@ -11,6 +11,7 @@ import PrivacyScreen from '../../src/components/PrivacyScreen';
 import { Button, Copy, fonts, LIME, Screen, usePalette } from '../../src/components/native/Kit';
 import { Group, Row } from '../../src/components/native/GroupedList';
 import BrandLogo from '../../src/components/native/BrandLogo';
+import AppearancePicker from '../../src/components/native/AppearancePicker';
 import { mediaUrl } from '../../src/utils/media';
 
 const SITE = 'https://hustlespace.space';
@@ -43,7 +44,7 @@ function Sheet({ visible, onClose, title, children }) {
 }
 
 const FAQ = [
-  ['How do I create a listing?', 'Open your Dashboard and tap “Add listing”, or use the + on the Home screen. Add photos, a price and a description, then publish.'],
+  ['How do I create a listing?', 'Open your Dashboard and tap “Add listing”, or tap “Sell something” on the Home screen. Add photos, a price and a description, then publish.'],
   ['How does negotiating work?', 'On a listing marked negotiable, tap “Make an offer”. The seller can accept, decline or counter, and you will see every turn in your orders.'],
   ['How do I contact a seller?', 'Tap “Message” on any listing or profile to start a direct conversation.'],
   ['How do I get paid?', 'Set up payouts under Settings → Payments & payouts. Money from completed sales is sent to your bank after the holding period.'],
@@ -208,9 +209,9 @@ export default function SettingsScreen() {
         <Row icon="key" label="Reset password" subtitle="Get a secure reset link by email" onPress={resetPassword} />
       </Group>
 
-      <Group title="Preferences" footer="Notification sounds and alerts are controlled in your phone's settings, and the app follows your phone's light or dark mode.">
+      <AppearancePicker />
+      <Group title="Preferences" footer="Notification sounds and alerts are controlled in your phone's settings.">
         <Row icon="bell" label="Notifications" subtitle="Open your phone's settings for HustleSpace" onPress={() => Linking.openSettings()} />
-        <Row icon={c.light ? 'sun' : 'moon'} label="Appearance" value={c.light ? 'Light' : 'Dark'} tone="purple" chevron={false} />
       </Group>
 
       <Group title="Support">

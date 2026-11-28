@@ -12,7 +12,7 @@ export function Group({ title, footer, children }) {
   const rows = React.Children.toArray(children).filter(Boolean);
   return (
     <View style={{ gap: 8 }}>
-      {!!title && <Copy style={{ color: c.muted, fontFamily: fonts.medium, fontSize: 11, letterSpacing: 1, marginLeft: 6 }}>{title.toUpperCase()}</Copy>}
+      {!!title && <Copy style={{ color: c.muted, fontFamily: fonts.medium, fontSize: 18, letterSpacing: 0, marginLeft: 6 }}>{title}</Copy>}
       <View style={{ borderRadius: 20, backgroundColor: c.card, borderWidth: StyleSheet.hairlineWidth, borderColor: c.line, overflow: 'hidden' }}>
         {rows.map((row, i) => (
           <React.Fragment key={i}>
@@ -21,7 +21,7 @@ export function Group({ title, footer, children }) {
           </React.Fragment>
         ))}
       </View>
-      {!!footer && <Copy muted style={{ fontSize: 11.5, marginHorizontal: 6 }}>{footer}</Copy>}
+      {!!footer && <Copy muted style={{ fontSize: 14, marginHorizontal: 6 }}>{footer}</Copy>}
     </View>
   );
 }
@@ -41,14 +41,14 @@ export function Row({ icon, label, subtitle, value, count, onPress, tone = 'acce
       accessibilityLabel={[label, subtitle, showCount ? `${count}` : value].filter(Boolean).join(', ')}
       onPress={onPress}
       disabled={!onPress}
-      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 60, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: pressed ? c.soft : 'transparent' })}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 72, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: pressed ? c.soft : 'transparent' })}
     >
-      <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: tileBg, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 40, height: 40, borderRadius: 11, backgroundColor: tileBg, alignItems: 'center', justifyContent: 'center' }}>
         <Feather name={icon} size={17} color={tint} />
       </View>
       <View style={{ flex: 1, gap: 1 }}>
-        <Copy style={{ fontFamily: fonts.medium, fontSize: 14, color: danger ? '#EF4444' : c.text }} numberOfLines={1}>{label}</Copy>
-        {!!subtitle && <Copy muted style={{ fontSize: 12 }} numberOfLines={2}>{subtitle}</Copy>}
+        <Copy style={{ fontFamily: fonts.medium, fontSize: 17, color: danger ? '#EF4444' : c.text }} >{label}</Copy>
+        {!!subtitle && <Copy muted style={{ fontSize: 15 }}>{subtitle}</Copy>}
       </View>
       {showCount && (
         <View style={{ minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, backgroundColor: tone === 'warn' ? '#F59E0B' : c.purple, alignItems: 'center', justifyContent: 'center' }}>

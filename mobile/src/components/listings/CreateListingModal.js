@@ -35,6 +35,7 @@ export default function CreateListingModal({ visible, onClose, onCreated }) {
     fieldLabel: [baseStyles.fieldLabel, { color: colors.light ? '#6D28D9' : '#C4B5FD' }],
     currencySelect: [baseStyles.currencySelect, { backgroundColor: colors.light ? '#FBFAFF' : '#111018', borderColor: currencyOpen ? PURPLE : (colors.light ? '#DDD6FE' : '#382A4C') }],
     currencyMenu: [baseStyles.currencyMenu, { backgroundColor: colors.light ? '#FFFFFF' : '#17141F', borderColor: colors.light ? '#DDD6FE' : '#382A4C' }],
+    header: [baseStyles.header, { borderColor: colors.line }],
   };
   const move = value => { setStep(value); scroll.current?.scrollTo({ y: 0, animated: false }); };
   const [draft, setDraft] = useState(blank);

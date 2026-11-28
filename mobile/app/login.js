@@ -12,6 +12,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginUser, clearError } from '../src/store/authSlice';
 import { fonts } from '../src/components/native/Kit';
+import { useSocialStyles } from '../src/components/native/socialStyles';
+import { useAppTheme } from '../src/theme/ThemeProvider';
 import BrandLogo from '../src/components/native/BrandLogo';
 
 const BG = '#050605';
@@ -21,18 +23,20 @@ const MUTED = '#9CA096';
 
 /** Input with an icon, a lime focus ring and an optional trailing control. */
 function Field({ icon, label, focused, onFocus, onBlur, trailing, inputRef, ...input }) {
+  const s = useSocialStyles(baseStyles);
+  const { palette } = useAppTheme();
   return (
     <View style={{ gap: 8 }}>
       <Text style={s.label}>{label}</Text>
       <View style={[s.inputWrap, focused && s.inputFocused]}>
-        <Feather name={icon} size={18} color={focused ? LIME : '#7D827A'} />
+        <Feather name={icon} size={18} color={focused ? palette.accent : palette.muted} />
         <TextInput
           ref={inputRef}
           {...input}
           accessibilityLabel={label}
           onFocus={onFocus}
           onBlur={onBlur}
-          placeholderTextColor="#62665F"
+          placeholderTextColor={palette.muted}
           selectionColor={LIME}
           style={s.input}
         />
@@ -43,6 +47,8 @@ function Field({ icon, label, focused, onFocus, onBlur, trailing, inputRef, ...i
 }
 
 export default function LoginScreen() {
+  const s = useSocialStyles(baseStyles);
+  const { palette, reducedMotion } = useAppTheme();
   const router = useRouter();
   const { returnTo } = useLocalSearchParams();
   const dispatch = useDispatch();
@@ -59,16 +65,16 @@ export default function LoginScreen() {
   const [enter] = useState(() => new Animated.Value(0));
   const [shake] = useState(() => new Animated.Value(0));
   useEffect(() => {
-    Animated.timing(enter, { toValue: 1, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-  }, [enter]);
+    Animated.timing(enter, { toValue: 1, duration: reducedMotion ? 0 : 250, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [enter, reducedMotion]);
 
   const message = localError || error;
   useEffect(() => {
-    if (!message) return;
+    if (!message || reducedMotion) return;
     try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch { /* optional */ }
     shake.setValue(0);
     Animated.sequence([10, -10, 7, -7, 0].map(x => Animated.timing(shake, { toValue: x, duration: 55, useNativeDriver: true }))).start();
-  }, [message, shake]);
+  }, [message, shake, reducedMotion]);
 
   const canSubmit = !!email.trim() && !!password && !loading;
   const handleLogin = async () => {
@@ -77,7 +83,7 @@ export default function LoginScreen() {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setLocalError('Enter a valid email address.'); return; }
     dispatch(clearError());
     const result = await dispatch(loginUser({ email: email.trim(), password }));
-    if (loginUser.fulfilled.match(result)) router.replace(returnTo === '/bond' ? '/bond' : '/(tabs)/feed');
+    if (loginUser.fulfilled.match(result)) router.replace(returnTo === '/bond' ? '/bond' : '/(tabs)');
   };
 
   const rise = (distance) => ({
@@ -87,7 +93,7 @@ export default function LoginScreen() {
 
   return (
     <View style={s.screen}>
-      <StatusBar style="light" />
+      <StatusBar style={palette.light ? "dark" : "light"} />
       {/* Ambient brand glow behind everything */}
       <LinearGradient colors={['rgba(205,255,0,0.20)', 'rgba(205,255,0,0)']} style={[s.glow, { top: -height * 0.18 }]} />
       <LinearGradient colors={['rgba(205,255,0,0)', 'rgba(205,255,0,0.07)']} style={[s.glow, { bottom: -height * 0.25, left: -120 }]} />
@@ -171,7 +177,7 @@ export default function LoginScreen() {
   );
 }
 
-const s = {
+const baseStyles = {
   screen: { flex: 1, backgroundColor: BG },
   glow: { position: 'absolute', alignSelf: 'center', width: 520, height: 520, borderRadius: 260 },
   scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 20, paddingVertical: 28 },
