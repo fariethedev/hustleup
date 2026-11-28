@@ -84,6 +84,14 @@ public class Comment {
     @Column(name = "parent_id", columnDefinition = "VARCHAR(36)")
     private String parentId;
 
+    /** A photo attached to the comment (stored object key / URL), or null. */
+    @Column(name = "media_url", length = 1024)
+    private String mediaUrl;
+
+    /** A sticker sent as the comment (one emoji glyph from the shared pack), or null. */
+    @Column(name = "sticker", length = 32)
+    private String sticker;
+
     /**
      * Denormalised like count, same trade-off as {@code Post.likesCount}: slightly more work
      * on write in exchange for not running a COUNT(*) per comment on every thread load.
@@ -137,6 +145,10 @@ public class Comment {
     public void setAuthorName(String authorName) { this.authorName = authorName; }
 
     /** Returns the text content of the comment. */
+    public String getMediaUrl() { return mediaUrl; }
+    public void setMediaUrl(String mediaUrl) { this.mediaUrl = mediaUrl; }
+    public String getSticker() { return sticker; }
+    public void setSticker(String sticker) { this.sticker = sticker; }
     public String getContent() { return content; }
     /** Sets the text content of the comment. */
     public void setContent(String content) { this.content = content; }

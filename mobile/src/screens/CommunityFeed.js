@@ -23,6 +23,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import SocialIcon from '../components/native/SocialIcon';
+import { STICKERS } from '../utils/stickers';
 import { Feather } from '../components/native/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -320,6 +321,8 @@ const CommentsSheet = ({ visible, postId, onClose, onCountChange }) => {
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState(null); // { id, authorName }
   const [submitting, setSubmitting] = useState(false);
+  const [tray, setTray] = useState(false);
+  const [photo, setPhoto] = useState(null);
   const inputRef = useRef(null);
 
   const loadComments = useCallback(async () => {
@@ -333,16 +336,29 @@ const CommentsSheet = ({ visible, postId, onClose, onCountChange }) => {
   }, [postId]);
 
   useEffect(() => {
-    if (!visible || !postId) { setComments([]); setCommentText(''); setReplyTo(null); return; }
+    if (!visible || !postId) { setComments([]); setCommentText(''); setReplyTo(null); setTray(false); setPhoto(null); return; }
     loadComments();
   }, [visible, postId, loadComments]);
 
-  const handleSubmit = async () => {
-    if (!commentText.trim() || submitting) return;
+  const handleSubmit = async (sticker) => {
+    if (submitting || (!sticker && !photo && !commentText.trim())) return;
     setSubmitting(true);
     try {
-      await feedApi.addComment(postId, commentText.trim(), replyTo?.id || null);
-      setCommentText('');
+      if (sticker) {
+        await feedApi.addStickerComment(postId, sticker, replyTo?.id || null);
+      } else if (photo) {
+        const form = new FormData();
+        form.append('media', uploadAsset(photo));
+        if (commentText.trim()) form.append('content', commentText.trim());
+        if (replyTo?.id) form.append('parentId', replyTo.id);
+        await feedApi.addMediaComment(postId, form);
+        setPhoto(null);
+        setCommentText('');
+      } else {
+        await feedApi.addComment(postId, commentText.trim(), replyTo?.id || null);
+        setCommentText('');
+      }
+      setTray(false);
       setReplyTo(null);
       await loadComments();
       onCountChange && onCountChange(postId);
@@ -358,6 +374,11 @@ const CommentsSheet = ({ visible, postId, onClose, onCountChange }) => {
     setComments(list => list.map(x => (x.id === comment.id ? { ...x, likedByCurrentUser: liked, likesCount: Math.max(0, (x.likesCount || 0) + (liked ? 1 : -1)) } : x)));
     try { await (liked ? feedApi.likeComment(postId, comment.id) : feedApi.unlikeComment(postId, comment.id)); }
     catch { setComments(list => list.map(x => (x.id === comment.id ? comment : x))); }
+  };
+
+  const pickPhoto = async () => {
+    try { const asset = await pickCroppedPhoto([4, 5]); if (asset) { setPhoto(asset); setTray(false); } }
+    catch (e) { Alert.alert('Photo access', e.message || 'Allow photo access to add a photo.'); }
   };
 
   const reply = (comment) => {
@@ -382,9 +403,12 @@ const CommentsSheet = ({ visible, postId, onClose, onCountChange }) => {
         <CommentAvatar uri={item.authorAvatarUrl} name={item.authorName} size={item._indent ? 28 : 36} />
         <View style={{ flex: 1 }}>
           <Text style={{ color: palette.text, fontSize: 14, lineHeight: 20 }}>
-            <Text style={{ fontWeight: '800' }}>{item.authorName || 'Member'}</Text>{'  '}
-            <Text>{item.content}</Text>
+            <Text style={{ fontWeight: '800' }}>{item.authorName || 'Member'}</Text>{item.content ? '  ' : ''}
+            {!!item.content && <Text>{item.content}</Text>}
           </Text>
+          {!!item.sticker && <Text style={{ fontSize: 56, lineHeight: 66, marginTop: 2 }} accessibilityLabel={`Sticker ${item.sticker}`}>{item.sticker}</Text>}
+          {!!item.mediaUrl && <Image source={{ uri: resolveMediaUrl(item.mediaUrl) }} accessibilityLabel="Photo in comment" resizeMode="cover"
+            style={{ width: Math.min(220, width * 0.55), aspectRatio: 0.8, borderRadius: 14, marginTop: 6, backgroundColor: palette.soft }} />}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 4 }}>
             <Text style={{ color: palette.muted, fontSize: 12 }}>{commentAgo(item.createdAt)}</Text>
             {likes > 0 && <Text style={{ color: palette.muted, fontSize: 12, fontWeight: '700' }}>{likes} like{likes === 1 ? '' : 's'}</Text>}
@@ -401,7 +425,7 @@ const CommentsSheet = ({ visible, postId, onClose, onCountChange }) => {
     );
   };
 
-  const canSend = !!commentText.trim() && !submitting;
+  const canSend = (!!commentText.trim() || !!photo) && !submitting;
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000066' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -447,8 +471,22 @@ const CommentsSheet = ({ visible, postId, onClose, onCountChange }) => {
                 <Pressable onPress={() => setReplyTo(null)} hitSlop={10} accessibilityLabel="Cancel reply"><Feather name="x" size={15} color={palette.muted} /></Pressable>
               </View>
             )}
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
-              <CommentAvatar uri={me?.avatarUrl} name={me?.fullName || me?.username} size={34} />
+            {!!photo && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6, paddingBottom: 8 }}>
+                <Image source={{ uri: photo.uri }} style={{ width: 52, height: 64, borderRadius: 10 }} />
+                <Text style={{ flex: 1, color: palette.muted, fontSize: 13 }}>Photo added. Write a caption or just send it.</Text>
+                <Pressable onPress={() => setPhoto(null)} hitSlop={10} accessibilityLabel="Remove photo"><Feather name="x" size={16} color={palette.muted} /></Pressable>
+              </View>
+            )}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
+              <Pressable onPress={() => { setTray(v => !v); if (!tray) inputRef.current?.blur(); }} accessibilityRole="button" accessibilityState={{ expanded: tray }} accessibilityLabel="Stickers" hitSlop={4}
+                style={{ width: 38, height: 42, alignItems: 'center', justifyContent: 'center' }}>
+                <Feather name={tray ? 'keyboard' : 'sticker'} size={22} color={tray ? palette.purple : palette.muted} />
+              </Pressable>
+              <Pressable onPress={pickPhoto} accessibilityRole="button" accessibilityLabel="Add a photo" hitSlop={4}
+                style={{ width: 34, height: 42, alignItems: 'center', justifyContent: 'center' }}>
+                <Feather name="image" size={22} color={photo ? palette.purple : palette.muted} />
+              </Pressable>
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-end', minHeight: 42, borderRadius: 21, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.card, paddingLeft: 14, paddingRight: 4 }}>
                 <TextInput
                   ref={inputRef}
@@ -457,16 +495,27 @@ const CommentsSheet = ({ visible, postId, onClose, onCountChange }) => {
                   placeholderTextColor={palette.muted}
                   value={commentText}
                   onChangeText={setCommentText}
+                  onFocus={() => setTray(false)}
                   multiline
                   maxLength={1000}
                   accessibilityLabel="Comment"
                 />
-                <Pressable onPress={handleSubmit} disabled={!canSend} accessibilityRole="button" accessibilityLabel="Post comment"
+                <Pressable onPress={() => handleSubmit()} disabled={!canSend} accessibilityRole="button" accessibilityLabel="Post comment"
                   style={{ width: 34, height: 34, borderRadius: 17, marginBottom: 4, backgroundColor: canSend ? palette.lime : palette.soft, alignItems: 'center', justifyContent: 'center' }}>
                   {submitting ? <ActivityIndicator size="small" color={palette.onLime} /> : <Feather name="arrow-up" size={18} color={canSend ? palette.onLime : palette.muted} />}
                 </Pressable>
               </View>
             </View>
+            {tray && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingTop: 8 }}>
+                {STICKERS.map(g => (
+                  <Pressable key={g} onPress={() => handleSubmit(g)} disabled={submitting} accessibilityRole="button" accessibilityLabel={`Send sticker ${g}`}
+                    style={({ pressed }) => ({ width: '12.5%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: pressed ? palette.soft : 'transparent' })}>
+                    <Text style={{ fontSize: 30 }}>{g}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>

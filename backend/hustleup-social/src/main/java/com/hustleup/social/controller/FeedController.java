@@ -861,7 +861,9 @@ public class FeedController {
         // comment entirely is worse than showing it slightly out of place.
         Map<String, CommentDto> byId = new LinkedHashMap<>();
         for (Comment c : all) {
-            byId.put(c.getId(), CommentDto.from(c, likedIds.contains(c.getId()), avatars.get(c.getAuthorId())));
+            CommentDto dto = CommentDto.from(c, likedIds.contains(c.getId()), avatars.get(c.getAuthorId()));
+            if (dto.getMediaUrl() != null) dto.setMediaUrl(storageService.refreshUrl(dto.getMediaUrl()));
+            byId.put(c.getId(), dto);
         }
 
         List<CommentDto> roots = new ArrayList<>();
@@ -1029,9 +1031,36 @@ public class FeedController {
     @Transactional
     public ResponseEntity<?> addComment(@PathVariable String postId, @RequestBody Map<String, String> payload) {
         String content = payload.get("content");
-        if (content == null || content.isBlank()) {
+        String sticker = payload.get("sticker");
+        // A sticker is one short glyph from the shared pack; anything longer is rejected so the
+        // field cannot smuggle a paragraph past the content rules.
+        if (sticker != null && (sticker.isBlank() || sticker.length() > 16)) sticker = null;
+        if ((content == null || content.isBlank()) && sticker == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Comment content is required"));
         }
+        return saveComment(postId, content, payload.get("parentId"), sticker, null);
+    }
+
+    /**
+     * A comment with a photo (and optional text). <b>POST /api/v1/feed/{postId}/comments/media</b>
+     * multipart: {@code media} (image), optional {@code content} and {@code parentId}.
+     */
+    @PostMapping(value = "/{postId}/comments/media", consumes = "multipart/form-data")
+    @Transactional
+    public ResponseEntity<?> addMediaComment(@PathVariable String postId,
+                                             @RequestParam("media") org.springframework.web.multipart.MultipartFile media,
+                                             @RequestParam(value = "content", required = false) String content,
+                                             @RequestParam(value = "parentId", required = false) String parentId) {
+        if (media == null || media.isEmpty()) return ResponseEntity.badRequest().body(Map.of("error", "Choose a photo"));
+        if (media.getContentType() == null || !media.getContentType().startsWith("image/"))
+            return ResponseEntity.badRequest().body(Map.of("error", "Only photos can be added to comments"));
+        String url;
+        try { url = storageService.storePublicMedia(media); }
+        catch (IllegalArgumentException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
+        return saveComment(postId, content, parentId, null, url);
+    }
+
+    private ResponseEntity<?> saveComment(String postId, String content, String parentId, String sticker, String mediaUrl) {
 
         User currentUser = requireCurrentUser();
 
@@ -1047,10 +1076,11 @@ public class FeedController {
         comment.setPostId(postId);
         comment.setAuthorId(currentUser.getId().toString());
         comment.setAuthorName(currentUser.displayName());
-        comment.setContent(content.trim());
+        comment.setContent(content == null ? "" : content.trim());
+        comment.setSticker(sticker);
+        comment.setMediaUrl(mediaUrl);
 
         // If parentId is supplied, this is a reply; store the reference for threading.
-        String parentId = payload.get("parentId");
         if (parentId != null && !parentId.isBlank()) {
             comment.setParentId(parentId);
         }
@@ -1067,7 +1097,9 @@ public class FeedController {
         // an entity here meant the comment you had just written was the one row missing an
         // avatar, a like count and a replies array — it rendered differently from every other
         // comment until the next reload put it right.
-        return ResponseEntity.ok(CommentDto.from(saved, false, currentUser.getAvatarUrl()));
+        CommentDto dto = CommentDto.from(saved, false, currentUser.getAvatarUrl());
+        if (dto.getMediaUrl() != null) dto.setMediaUrl(storageService.refreshUrl(dto.getMediaUrl()));
+        return ResponseEntity.ok(dto);
     }
 
     /**

@@ -41,6 +41,7 @@ import { RecordingBar, VoicePlayer, useVoiceRecorder } from '../../src/component
 import StoryViewer from '../../src/components/stories/StoryViewer';
 import CreateStoryModal from '../../src/components/stories/CreateStoryModal';
 import { SafetyNotice } from '../../src/components/trust/TrustWidgets';
+import { STICKERS } from '../../src/utils/stickers';
 
 const READ_BLUE = '#53BDEB';
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -231,7 +232,7 @@ const Bubble = memo(function Bubble({ item, mine, theme, maxWidth, partnerName, 
       </TouchableOpacity>
     );
   } else if (type === 'STICKER') {
-    body = <Text style={{ fontSize: 46 }}>{item.content}</Text>;
+    body = <Text style={{ fontSize: 64, lineHeight: 76 }} accessibilityLabel={`Sticker ${item.content}`}>{item.content}</Text>;
   } else {
     body = <>
       <Text style={[st.text, { color: fg }]} selectable>{item.content}</Text>
@@ -244,7 +245,7 @@ const Bubble = memo(function Bubble({ item, mine, theme, maxWidth, partnerName, 
       <Pressable
         onLongPress={() => { haptic(); onLongPress(item); }}
         delayLongPress={280}
-        style={[st.bubble, { maxWidth, backgroundColor: bg }, mine ? st.bubbleMine : st.bubbleTheirs, !theme.light && !mine && { borderWidth: 1, borderColor: theme.line }]}
+        style={[st.bubble, { maxWidth, backgroundColor: type === 'STICKER' ? 'transparent' : bg }, mine ? st.bubbleMine : st.bubbleTheirs, !theme.light && !mine && type !== 'STICKER' && { borderWidth: 1, borderColor: theme.line }]}
       >
         {!!item.replyPreview && !deleted && (
           <View style={[st.quote, { borderLeftColor: theme.accent, backgroundColor: theme.light ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.07)' }]}>
@@ -288,6 +289,7 @@ function ConversationView({ partner, me, prefsApi, onClose, onChanged }) {
   const [replyTo, setReplyTo] = useState(null);
   const [editing, setEditing] = useState(null);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [panel, setPanel] = useState('stickers');
   const [actionFor, setActionFor] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
@@ -361,6 +363,21 @@ function ConversationView({ partner, me, prefsApi, onClose, onChanged }) {
     setText(''); setReplyTo(null); setShowEmoji(false);
     try {
       const { data } = await directMessagesApi.sendMessage(partner.id, content, quote ? { replyToId: quote.id } : {});
+      setMessages(list => [...list, data]);
+      setPending(p => p.filter(m => m.id !== tmpId));
+      onChanged?.();
+    } catch (e) {
+      setPending(p => p.map(m => (m.id === tmpId ? { ...m, pending: false, failed: true, error: errorMessage(e) } : m)));
+    }
+  };
+
+  const sendSticker = async (glyph) => {
+    const tmpId = `tmp-${Date.now()}`;
+    const quote = replyTo;
+    setPending(p => [...p, { id: tmpId, pending: true, senderId: me.id, receiverId: partner.id, content: glyph, messageType: 'STICKER', createdAt: new Date().toISOString() }]);
+    setReplyTo(null);
+    try {
+      const { data } = await directMessagesApi.sendMessage(partner.id, glyph, { type: 'STICKER', ...(quote ? { replyToId: quote.id } : {}) });
       setMessages(list => [...list, data]);
       setPending(p => p.filter(m => m.id !== tmpId));
       onChanged?.();
@@ -534,7 +551,7 @@ function ConversationView({ partner, me, prefsApi, onClose, onChanged }) {
               ) : (
                 <View style={st.composerRow}>
                   <View style={[st.composer, { backgroundColor: theme.card, borderColor: theme.line }]}>
-                    <TouchableOpacity accessibilityLabel={showEmoji ? 'Keyboard' : 'Emoji'} onPress={() => { if (!showEmoji) Keyboard.dismiss(); setShowEmoji(v => !v); }} style={st.iconBtn}>
+                    <TouchableOpacity accessibilityLabel={showEmoji ? 'Keyboard' : 'Emoji and stickers'} onPress={() => { if (!showEmoji) Keyboard.dismiss(); setShowEmoji(v => !v); }} style={st.iconBtn}>
                       <Feather name={showEmoji ? 'type' : 'smile'} size={22} color={theme.muted} />
                     </TouchableOpacity>
                     <TextInput
@@ -562,9 +579,30 @@ function ConversationView({ partner, me, prefsApi, onClose, onChanged }) {
                 </View>
               )}
               {showEmoji && (
-                <ScrollView style={{ maxHeight: 220 }} contentContainerStyle={st.emojiGrid} keyboardShouldPersistTaps="always">
-                  {EMOJIS.map(e => <TouchableOpacity key={e} style={st.emojiBtn} onPress={() => setText(t => t + e)}><Text style={{ fontSize: 26 }}>{e}</Text></TouchableOpacity>)}
-                </ScrollView>
+                <View>
+                  <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingTop: 8 }}>
+                    {[['emoji', 'Emoji', 'smile'], ['stickers', 'Stickers', 'sticker']].map(([key, label, icon]) => {
+                      const on = panel === key;
+                      return <Pressable key={key} onPress={() => setPanel(key)} accessibilityRole="tab" accessibilityState={{ selected: on }}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 34, borderRadius: 17, backgroundColor: on ? theme.lime : theme.soft }}>
+                        <Feather name={icon} size={14} color={on ? theme.onLime : theme.muted} />
+                        <Text style={{ color: on ? theme.onLime : theme.text, fontWeight: '700', fontSize: 13 }}>{label}</Text>
+                      </Pressable>;
+                    })}
+                  </View>
+                  {panel === 'emoji' ? (
+                    <ScrollView style={{ maxHeight: 220 }} contentContainerStyle={st.emojiGrid} keyboardShouldPersistTaps="always">
+                      {EMOJIS.map(e => <TouchableOpacity key={e} style={st.emojiBtn} onPress={() => setText(t => t + e)}><Text style={{ fontSize: 26 }}>{e}</Text></TouchableOpacity>)}
+                    </ScrollView>
+                  ) : (
+                    <ScrollView style={{ maxHeight: 240 }} contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', padding: 6 }} keyboardShouldPersistTaps="always">
+                      {STICKERS.map(g => <Pressable key={g} onPress={() => sendSticker(g)} accessibilityRole="button" accessibilityLabel={`Send sticker ${g}`}
+                        style={({ pressed }) => ({ width: '25%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: pressed ? theme.soft : 'transparent', transform: [{ scale: pressed ? 0.92 : 1 }] })}>
+                        <Text style={{ fontSize: 44 }}>{g}</Text>
+                      </Pressable>)}
+                    </ScrollView>
+                  )}
+                </View>
               )}
             </View>
           )}

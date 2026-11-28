@@ -234,6 +234,8 @@ export const feedApi = {
     return api.post(`/feed/${id}/comments`, body);
   },
   likeComment: (postId, commentId) => api.post(`/feed/${postId}/comments/${commentId}/likes`),
+  addStickerComment: (id, sticker, parentId) => api.post(`/feed/${id}/comments`, parentId ? { sticker, parentId } : { sticker }),
+  addMediaComment: (id, formData) => api.post(`/feed/${id}/comments/media`, formData),
   unlikeComment: (postId, commentId) => api.delete(`/feed/${postId}/comments/${commentId}/likes`),
 };
 

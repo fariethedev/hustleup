@@ -41,6 +41,12 @@ public class CommentDto {
     /** The comment this replies to, or null for a top-level comment. */
     String parentId;
 
+    /** Photo attached to the comment, as a fetchable URL, or null. */
+    String mediaUrl;
+
+    /** Sticker glyph when the comment is a sticker, or null. */
+    String sticker;
+
     Integer likesCount;
 
     /** Computed per-viewer; false for anonymous callers. */
@@ -68,6 +74,8 @@ public class CommentDto {
                 .authorAvatarUrl(authorAvatarUrl)
                 .content(c.getContent())
                 .parentId(c.getParentId())
+                .mediaUrl(c.getMediaUrl())
+                .sticker(c.getSticker())
                 .likesCount(c.getLikesCount())
                 .likedByCurrentUser(likedByCurrentUser)
                 .createdAt(c.getCreatedAt())
