@@ -85,7 +85,7 @@ export default function ProfileScreen() {
   };
 
   const shareProfile = async () => {
-    try { await Share.share({ title: 'HustleSpace profile', message: `Check out ${user?.fullName || 'my'} profile on HustleSpace: https://hustleup.app/profile/${user?.id}` }); }
+    try { await Share.share({ title: 'HustleSpace profile', message: `Check out ${user?.fullName || 'my'} profile on HustleSpace: https://hustlespace.space/profile/${user?.id}` }); }
     catch (e) { /* The native share sheet may be dismissed. */ }
   };
 
@@ -95,9 +95,9 @@ export default function ProfileScreen() {
   ]);
 
   const openListing = item => router.push({ pathname: '/listing/[id]', params: { id: item.id } });
-  if (loading && !data && !user) return <Screen><Notice loading message="Loading your profile…" /></Screen>;
+  if (loading && !data && !user) return <Screen back title="Profile"><Notice loading message="Loading your profile…" /></Screen>;
 
-  return <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={c.accent} />}>
+  return <Screen back title="Profile" refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={c.accent} />}>
     <View style={{ gap: 22, paddingTop: 4 }}>
       {(error || data?.partial) && <Notice message={error || 'Some profile details could not load. Pull down to try again.'} onRetry={reload} />}
 
