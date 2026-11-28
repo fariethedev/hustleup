@@ -4,7 +4,7 @@ import { motion as Motion } from "framer-motion";
 import { useSelector } from 'react-redux';
 import { useShop, useShops } from '../hooks/useShops';
 import { listingsApi, followsApi } from '../api/client';
-import { displayCity } from '../utils/constants';
+import { displayCity, formatPrice } from '../utils/constants';
 import { selectUser, selectIsAuthenticated } from '../store/authSlice';
 import { useToast } from '../context/ToastContext';
 import { Sparkle, Navigation, MoveLeft, Box, Forward, ThumbsUp, SquarePen, ClipboardCheck, MessagesSquare } from 'lucide-react';
@@ -128,6 +128,8 @@ export default function ShopDetail() {
     );
   }
 
+  const appointmentShop = shop.appointmentBased || isAppointmentBusiness(shop.businessType);
+  const serviceListings = ownerListings.filter((l) => ['HAIR_BEAUTY', 'SKILL'].includes(l.listingType) && (!l.status || l.status === 'ACTIVE'));
   const products = shop.products || [];
   const categories = ['All', ...new Set(products.map((p) => p.category).filter(Boolean))];
   const selectedCategory = categories.includes(activeCategory) ? activeCategory : 'All';
@@ -296,10 +298,35 @@ export default function ShopDetail() {
       {/* Main Content Area */}
       <div className="max-w-[1120px] mx-auto px-4 sm:px-6 py-8 sm:py-10">
         <ShopHighlights key={shop.id} shop={shop} isOwner={isOwner} />
-        <div className={`grid gap-6 lg:gap-10 items-start ${isOwner || shop.appointmentBased || isAppointmentBusiness(shop.businessType) ? 'lg:grid-cols-[minmax(0,1fr)_280px]' : ''}`}>
+        <div className={`grid gap-6 lg:gap-10 items-start ${isOwner ? 'lg:grid-cols-[minmax(0,1fr)_280px]' : ''}`}>
 
           {/* Left Column: Feed & Explore */}
           <div className="order-2 lg:order-1 min-w-0">
+            {/* Services this seller lists on the marketplace (a barber's haircut, a tutor's lesson).
+                They are booked from their own page, so a shop not set up as an appointment
+                business still shows them, and the way to book, right here. */}
+            {!isOwner && serviceListings.length > 0 && <section className="mb-8" aria-label="Book a service">
+              <h2 className="text-xl font-bold mb-3">Book a service</h2>
+              <div className="flex flex-col gap-2.5">
+                {serviceListings.map((l) => (
+                  <Link key={l.id} to={`/listing/${l.id}`} className="flex items-center gap-3 p-3 rounded-2xl border border-white/10 bg-white/[0.03] hover:border-white/25 transition-colors">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-white/5 shrink-0">
+                      {l.mediaUrls?.[0] ? <img src={uploadUrl(l.mediaUrls[0])} alt="" className="w-full h-full object-cover" /> : null}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">{l.title}</p>
+                      <p className="text-xs text-gray-400">From {formatPrice(l.price, l.currency)}</p>
+                    </div>
+                    <span className="shrink-0 px-4 py-2 rounded-xl bg-[#CDFF00] text-black text-xs font-bold">Book</span>
+                  </Link>
+                ))}
+              </div>
+            </section>}
+            {appointmentShop && <section className="mb-8" aria-label="Services and appointments">
+              <h2 className="text-xl font-bold mb-3">Services & appointments</h2>
+              <AppointmentBooking key={shop.id} shop={shop} />
+              {isOwner && <Link to="/dashboard?tab=shop" className="inline-block mt-3 text-sm font-bold text-[#CDFF00]">Manage services, availability & appointments</Link>}
+            </section>}
             <ShopReviews
               shopId={shop.id}
               ownerId={shop.ownerId}
@@ -320,9 +347,10 @@ export default function ShopDetail() {
               </div>
             )}
 
+            {(!appointmentShop || products.length > 0) && <>
             {/* Breadcrumb Navigation */}
             <div className="flex items-center justify-between gap-3 mb-5">
-              <h2 className="text-xl font-bold tracking-tight text-white">Shop the collection</h2>
+              <h2 className="text-xl font-bold tracking-tight text-white">{appointmentShop ? 'Retail products' : 'Shop the collection'}</h2>
               <span className="text-xs text-gray-400 shrink-0">{products.length} products</span>
             </div>
 
@@ -367,7 +395,7 @@ export default function ShopDetail() {
                 </h3>
                 {isOwner && products.length === 0 ? (
                   <Link
-                    to="/dashboard"
+                    to="/dashboard?tab=shop"
                     className="inline-block mt-2 px-6 py-2.5 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] transition-colors"
                   >
                     Add your first product
@@ -382,12 +410,13 @@ export default function ShopDetail() {
                 )}
               </div>
             )}
+            </>}
           </div>
 
           {/* Right Column: Sidebar. `order-1` on mobile puts the booking widget and the
               message button directly under the hero instead of below every product; sticky
               is desktop-only, where there is actually a second column to stick beside. */}
-          {(isOwner || shop.appointmentBased || isAppointmentBusiness(shop.businessType)) && <aside className="order-1 lg:order-2 lg:sticky lg:top-24 flex flex-col gap-5 lg:gap-8 w-full min-w-0">
+          {(isOwner) && <aside className="order-1 lg:order-2 lg:sticky lg:top-24 flex flex-col gap-5 lg:gap-8 w-full min-w-0">
              {isOwner && (
                <div className="p-5 rounded-3xl sm:rounded-[32px] bg-[#CDFF00]/5 border border-[#CDFF00]/30">
                   <h5 className="text-[10px] font-black tracking-widest text-[#CDFF00] mb-1.5">This is your shop</h5>
@@ -399,12 +428,12 @@ export default function ShopDetail() {
                     to="/dashboard?tab=shop"
                     className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] transition-colors"
                   >
-                    <SquarePen className="w-3.5 h-3.5" /> Edit shop
+                    <SquarePen className="w-3.5 h-3.5" /> {appointmentShop ? 'Manage appointments' : 'Edit shop'}
                   </Link>
                </div>
              )}
 
-             {(shop.appointmentBased || isAppointmentBusiness(shop.businessType)) && <AppointmentBooking key={shop.id} shop={shop} />}
+
 
           </aside>}
         </div>

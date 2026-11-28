@@ -6,7 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Feather } from '../native/Icon';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
-import { followsApi, shopsApi } from '../../api/client';
+import { followsApi, listingsApi, shopsApi } from '../../api/client';
 import { errorMessage, money } from '../../utils/marketplace';
 import { mediaUrl } from '../../utils/media';
 import { storeListing } from '../../utils/discovery';
@@ -33,6 +33,7 @@ export default function Storefront({ shopId }) {
   const [following, setFollowing] = useState(null);
   const [productFilter, setProductFilter] = useState('All');
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [serviceListings, setServiceListings] = useState([]);
   const request = useRef(0);
   const owner = shop?.ownerId && shop.ownerId === user?.id;
   const bannerHeight = Math.round(Math.min(height * 0.32, width * 0.62));
@@ -42,6 +43,12 @@ export default function Storefront({ shopId }) {
     try {
       const { data } = await shopsApi.get(shopId); setShop(data);
       if (appointmentTypes.includes(data.businessType)) { const response = await shopsApi.services(shopId); setServices(response.data || []); }
+      // Services the owner lists on the marketplace (a haircut, a lesson) are booked from their
+      // own page; show them here so a shop not set up for appointments can still be booked.
+      listingsApi.browse({}).then(r => {
+        const list = Array.isArray(r.data) ? r.data : r.data?.content || [];
+        setServiceListings(list.filter(l => l.sellerId === data.ownerId && ['HAIR_BEAUTY', 'SKILL'].includes(l.listingType) && (!l.status || l.status === 'ACTIVE')));
+      }).catch(() => setServiceListings([]));
       if (user && data.ownerId && data.ownerId !== user.id) followsApi.relationship(data.ownerId).then(r => setFollowing(!!(r.data?.isFollowing || r.data?.followRequested))).catch(() => {});
     } catch (failure) { setError(errorMessage(failure, 'Could not load this shop.')); }
     finally { setLoading(false); }
@@ -167,6 +174,26 @@ export default function Storefront({ shopId }) {
           </View>}
 
           <ShopHighlights key={shop.id} shop={shop} isOwner={owner} onSaved={setShop} onOpenProduct={openProduct} />
+
+          {!owner && serviceListings.length > 0 && <View style={{ gap: 10 }}>
+            <Text style={{ color: c.text, fontSize: 17, fontWeight: '800' }}>Book a service</Text>
+            {serviceListings.map(l => {
+              const photo = l.mediaUrls?.[0] || l.imageUrl;
+              return (
+                <TouchableOpacity key={l.id} onPress={() => router.push({ pathname: '/listing/[id]', params: { id: l.id } })} accessibilityRole="button" accessibilityLabel={`Book ${l.title}`}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
+                  <View style={{ width: 54, height: 54, borderRadius: 12, overflow: 'hidden', backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center' }}>
+                    {photo ? <Image source={{ uri: mediaUrl(photo) }} style={{ width: '100%', height: '100%' }} /> : <Feather name="scissors" size={18} color={c.purple} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={1} style={{ color: c.text, fontWeight: '800', fontSize: 15 }}>{l.title}</Text>
+                    <Text style={{ color: c.muted, fontSize: 13 }}>From {money(l.price, l.currency)}</Text>
+                  </View>
+                  <View style={{ paddingHorizontal: 16, height: 38, borderRadius: 19, backgroundColor: c.lime, justifyContent: 'center' }}><Text style={{ color: c.onLime, fontWeight: '800', fontSize: 14 }}>Book</Text></View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>}
 
           {bookable && <View style={{ gap: 10 }}>
             <Text style={{ color: c.text, fontSize: 17, fontWeight: '800' }}>Book an appointment</Text>
