@@ -151,7 +151,7 @@ export default function Dashboard() {
           style={({ pressed }) => ({ borderRadius: 24, overflow: 'hidden', backgroundColor: c.card, borderWidth: 1, borderColor: c.line, opacity: pressed ? 0.9 : 1 })}>
           {shop.bannerUrl
             ? <Image source={{ uri: mediaUrl(shop.bannerUrl) }} style={{ width: '100%', height: 96 }} />
-            : <LinearGradient colors={['#8B5CF6', '#3B1D7A']} style={{ height: 96 }} />}
+            : <LinearGradient colors={['#7D39EB', '#3B1D7A']} style={{ height: 96 }} />}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }}>
             <View style={{ flex: 1, gap: 2 }}>
               <Copy heading style={{ fontSize: 16 }} numberOfLines={1}>{shop.name}</Copy>
@@ -165,8 +165,8 @@ export default function Dashboard() {
       ) : data && (
         <Pressable accessibilityRole="button" onPress={() => go('/shop/create')}
           style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 24, backgroundColor: c.purpleSoft, borderWidth: 1, borderColor: c.purple + '55', opacity: pressed ? 0.85 : 1 })}>
-          <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: c.purple, alignItems: 'center', justifyContent: 'center' }}>
-            <Feather name="shopping-bag" size={20} color="#FFF" />
+          <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center' }}>
+            <Feather name="shopping-bag" size={20} color="#151A00" />
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <Copy heading style={{ fontSize: 15 }}>Open your free shop</Copy>

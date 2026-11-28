@@ -80,7 +80,7 @@ export default function Storefront({ shopId }) {
   if (!shop) return (
     <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 30 }}>
       <Text style={{ color: c.text, fontWeight: '800' }}>{error || 'Shop unavailable'}</Text>
-      <TouchableOpacity onPress={load} style={{ paddingHorizontal: 20, minHeight: 44, justifyContent: 'center', borderRadius: 22, backgroundColor: c.purple }}><Text style={{ color: '#FFF', fontWeight: '800' }}>Try again</Text></TouchableOpacity>
+      <TouchableOpacity onPress={load} style={{ paddingHorizontal: 20, minHeight: 44, justifyContent: 'center', borderRadius: 22, backgroundColor: c.lime }}><Text style={{ color: '#151A00', fontWeight: '800' }}>Try again</Text></TouchableOpacity>
     </View>
   );
 
@@ -105,7 +105,7 @@ export default function Storefront({ shopId }) {
         <View style={{ paddingHorizontal: 18, marginTop: -46, gap: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12 }}>
             <View style={{ width: 96, height: 96, borderRadius: 48, padding: 3, backgroundColor: c.bg }}>
-              <LinearGradient colors={['#CDFF00', '#8B5CF6']} style={{ flex: 1, borderRadius: 45, padding: 3 }}>
+              <LinearGradient colors={['#CDFF00', '#7D39EB']} style={{ flex: 1, borderRadius: 45, padding: 3 }}>
                 {shop.ownerAvatarUrl
                   ? <Image source={{ uri: mediaUrl(shop.ownerAvatarUrl) }} style={{ flex: 1, borderRadius: 42 }} />
                   : <View style={{ flex: 1, borderRadius: 42, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.purple, fontSize: 32, fontWeight: '900' }}>{shop.name[0]}</Text></View>}
@@ -136,8 +136,8 @@ export default function Storefront({ shopId }) {
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity onPress={() => router.push('/shop/manage')} style={{ minHeight: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: c.purple }}>
-              <Feather name="settings" size={16} color="#FFF" /><Text style={{ color: '#FFF', fontWeight: '800' }}>Manage shop</Text>
+            <TouchableOpacity onPress={() => router.push('/shop/manage')} style={{ minHeight: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: c.lime }}>
+              <Feather name="settings" size={16} color="#151A00" /><Text style={{ color: '#151A00', fontWeight: '800' }}>Manage shop</Text>
             </TouchableOpacity>
           )}
           {!!shop.tagline && <Text style={{ color: c.text, fontWeight: '700' }}>{shop.tagline}</Text>}

@@ -12,7 +12,7 @@ import { pickCroppedPhoto, uploadAsset } from '../../utils/media';
 import { usePalette } from '../native/Kit';
 
 const LIME = '#CDFF00';
-const PURPLE = '#8B5CF6';
+const PURPLE = '#7D39EB';
 const SELLER_CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'ZAR', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'CZK', 'HUF', 'JPY'];
 const blank = { title: '', description: '', price: '', currency: 'PLN', city: '', listingType: '', negotiable: false, swapEnabled: false, agentFee: false, agentFeeAmount: '' };
 
@@ -33,7 +33,7 @@ export default function CreateListingModal({ visible, onClose, onCreated }) {
     category: [baseStyles.category, { backgroundColor: colors.card, borderColor: colors.line, width: '48%', flexDirection: 'column', justifyContent: 'center', paddingVertical: 16 }],
     input: [baseStyles.input, { backgroundColor: colors.light ? '#FBFAFF' : '#111018', borderColor: colors.light ? '#DDD6FE' : '#382A4C', color: colors.text }],
     selection: [baseStyles.selection, { color: PURPLE }],
-    fieldLabel: [baseStyles.fieldLabel, { color: colors.light ? '#6D28D9' : '#C4B5FD' }],
+    fieldLabel: [baseStyles.fieldLabel, { color: colors.light ? '#7D39EB' : '#C4B5FD' }],
     currencySelect: [baseStyles.currencySelect, { backgroundColor: colors.light ? '#FBFAFF' : '#111018', borderColor: currencyOpen ? PURPLE : (colors.light ? '#DDD6FE' : '#382A4C') }],
     currencyMenu: [baseStyles.currencyMenu, { backgroundColor: colors.light ? '#FFFFFF' : '#17141F', borderColor: colors.light ? '#DDD6FE' : '#382A4C' }],
     header: [baseStyles.header, { borderColor: colors.line }],

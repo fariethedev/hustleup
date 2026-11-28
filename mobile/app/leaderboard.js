@@ -12,7 +12,7 @@ import { usePalette, fonts, BackButton } from '../src/components/native/Kit';
 import { mediaUrl } from '../src/utils/media';
 import { money } from '../src/utils/marketplace';
 
-const PURPLE = '#8B5CF6';
+const PURPLE = '#7D39EB';
 const LIME = '#CDFF00';
 const MEDALS = { 1: '#FFD54A', 2: '#D1D5DB', 3: '#E0A16B' };
 // Tier names from HustleScoreService.tierFor().

@@ -10,7 +10,7 @@ import { Feather } from '../native/Icon';
  * luggage route, delivery method) as their own form fields, and everything else inside the
  * listing's `meta` JSON, which ListingDto returns untouched for the detail screens.
  */
-const PURPLE = '#8B5CF6';
+const PURPLE = '#7D39EB';
 
 const DELIVERY = [['PICKUP', 'Pickup'], ['COURIER', 'Courier'], ['PARCEL_LOCKER', 'Parcel locker'], ['POST', 'Post'], ['SELLER_DELIVERY', 'I deliver']];
 
@@ -100,7 +100,7 @@ export function toSubmission(type, x) {
 function Choice({ label, options, value, onChange, colors }) {
   return (
     <View style={{ gap: 8 }}>
-      <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: colors.light ? '#6D28D9' : '#C4B5FD' }}>{label}</Text>
+      <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: colors.light ? '#7D39EB' : '#C4B5FD' }}>{label}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {options.map(o => {
           const [key, text] = Array.isArray(o) ? o : [o, o];

@@ -554,10 +554,10 @@ function ConversationView({ partner, me, prefsApi, onClose, onChanged }) {
                   <TouchableOpacity
                     accessibilityLabel={text.trim() ? 'Send' : 'Record voice message'}
                     onPress={text.trim() ? sendText : () => recorder.start().catch(e => Alert.alert('Can’t record', e.message))}
-                    style={[st.sendBtn, { backgroundColor: theme.accent }]}
+                    style={[st.sendBtn, { backgroundColor: theme.lime }]}
                     disabled={sendingMedia}
                   >
-                    {sendingMedia ? <ActivityIndicator color="#111" /> : <Feather name={text.trim() ? (editing ? 'check' : 'send') : 'mic'} size={20} color="#111" />}
+                    {sendingMedia ? <ActivityIndicator color="#151A00" /> : <Feather name={text.trim() ? (editing ? 'check' : 'send') : 'mic'} size={20} color="#151A00" />}
                   </TouchableOpacity>
                 </View>
               )}
@@ -641,7 +641,7 @@ const ChatRow = memo(function ChatRow({ partner, theme, pinned, muted, hasStatus
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             {muted && <Feather name="bell-off" size={14} color={theme.muted} />}
             {pinned && <Feather name="pin" size={14} color={theme.muted} />}
-            {unread > 0 && <View style={[st.unread, { backgroundColor: muted ? theme.muted : theme.purple }]}><Text style={st.unreadText}>{unread > 99 ? '99+' : unread}</Text></View>}
+            {unread > 0 && <View style={[st.unread, { backgroundColor: muted ? theme.line : theme.lime }]}><Text style={[st.unreadText, { color: muted ? theme.text : theme.onLime }]}>{unread > 99 ? '99+' : unread}</Text></View>}
           </View>
         </View>
       </View>
@@ -706,7 +706,7 @@ function StatusTab({ me, theme, onOpenPrivacy, refreshKey }) {
     <Pressable onPress={onPress} style={({ pressed }) => [st.chatRow, pressed && { backgroundColor: theme.soft }]}>
       <View>
         <Avatar uri={g?.avatar || me?.avatarUrl} name={g?.name || me?.fullName} size={54} ring={g ? (g.allViewed ? theme.line : theme.purple) : null} />
-        {onAdd && <TouchableOpacity onPress={onAdd} accessibilityLabel="Add a status update" hitSlop={10} style={[st.addStatus, { backgroundColor: theme.purple, borderColor: theme.bg }]}><Feather name="plus" size={14} color="#FFFFFF" /></TouchableOpacity>}
+        {onAdd && <TouchableOpacity onPress={onAdd} accessibilityLabel="Add a status update" hitSlop={10} style={[st.addStatus, { backgroundColor: theme.lime, borderColor: theme.bg }]}><Feather name="plus" size={14} color="#151A00" /></TouchableOpacity>}
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[st.chatName, { color: theme.text }]}>{label}</Text>
@@ -746,7 +746,7 @@ function AudienceChoice({ field, title, hint, settings, onSave, theme }) {
       {!!hint && <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 6 }}>{hint}</Text>}
       {AUDIENCES.map(([value, label]) => (
         <TouchableOpacity key={value} style={st.radioRow} onPress={() => onSave({ [field]: value })} accessibilityRole="radio" accessibilityState={{ checked: settings?.[field] === value }}>
-          <View style={[st.radio, { borderColor: settings?.[field] === value ? theme.accent : theme.muted }]}>{settings?.[field] === value && <View style={[st.radioDot, { backgroundColor: theme.accent }]} />}</View>
+          <View style={[st.radio, { borderColor: settings?.[field] === value ? theme.accent : theme.muted }]}>{settings?.[field] === value && <View style={[st.radioDot, { backgroundColor: theme.lime }]} />}</View>
           <Text style={{ color: theme.text, fontSize: 15 }}>{label}</Text>
         </TouchableOpacity>
       ))}
@@ -938,8 +938,8 @@ export default function MessagesScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="Privacy settings" onPress={() => setPrivacy(true)} style={({ pressed }) => [st.iconBtn, { backgroundColor: theme.card, borderColor: theme.line, opacity: pressed ? 0.7 : 1 }]}>
             <Feather name="lock" size={18} color={theme.text} />
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="New chat" onPress={() => setNewChat(true)} style={({ pressed }) => [st.fab, { backgroundColor: theme.purple, opacity: pressed ? 0.85 : 1 }]}>
-            <Feather name="square-pen" size={18} color="#FFFFFF" />
+          <Pressable accessibilityRole="button" accessibilityLabel="New chat" onPress={() => setNewChat(true)} style={({ pressed }) => [st.fab, { backgroundColor: theme.lime, opacity: pressed ? 0.85 : 1 }]}>
+            <Feather name="square-pen" size={18} color="#151A00" />
           </Pressable>
         </View>
         <View style={[st.segment, { backgroundColor: theme.soft }]} accessibilityRole="tablist">
@@ -949,7 +949,7 @@ export default function MessagesScreen() {
               <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={count ? `${label}, ${count} new` : label} onPress={() => setTab(key)}
                 style={[st.segmentBtn, on && { backgroundColor: theme.card, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }]}>
                 <Text style={{ color: on ? theme.text : theme.muted, fontWeight: '700', fontSize: 14 }}>{label}</Text>
-                {count > 0 && <View style={[st.segmentCount, { backgroundColor: on ? theme.purple : theme.line }]}><Text style={{ color: on ? '#FFFFFF' : theme.text, fontSize: 11, fontWeight: '800' }}>{count > 99 ? '99+' : count}</Text></View>}
+                {count > 0 && <View style={[st.segmentCount, { backgroundColor: on ? theme.lime : theme.line }]}><Text style={{ color: on ? '#151A00' : theme.text, fontSize: 11, fontWeight: '800' }}>{count > 99 ? '99+' : count}</Text></View>}
               </Pressable>
             );
           })}
@@ -1006,7 +1006,7 @@ export default function MessagesScreen() {
                     </View>
                     <Text style={{ color: theme.text, fontWeight: '800', fontSize: 17, marginTop: 14 }}>{search ? 'No chats found' : filter === 'unread' ? 'You’re all caught up' : filter === 'archived' ? 'No archived chats' : filter === 'bond' ? 'No Bond chats yet' : 'No chats yet'}</Text>
                     <Text style={{ color: theme.muted, fontSize: 14, textAlign: 'center', marginTop: 4, lineHeight: 20 }}>{search ? 'Try a different name or word.' : filter === 'all' ? 'Message a seller from any listing, or start a chat with someone you follow.' : 'Nothing here right now.'}</Text>
-                    {!search && filter === 'all' && <Pressable onPress={() => setNewChat(true)} accessibilityRole="button" style={({ pressed }) => [st.cta, { backgroundColor: theme.purple, opacity: pressed ? 0.85 : 1 }]}><Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }}>Start a chat</Text></Pressable>}
+                    {!search && filter === 'all' && <Pressable onPress={() => setNewChat(true)} accessibilityRole="button" style={({ pressed }) => [st.cta, { backgroundColor: theme.lime, opacity: pressed ? 0.85 : 1 }]}><Text style={{ color: '#151A00', fontWeight: '800', fontSize: 15 }}>Start a chat</Text></Pressable>}
                   </View>
                 }
               />

@@ -11,7 +11,7 @@ import BrandLoader from './BrandLoader';
 export { usePalette } from '../../theme/ThemeProvider';
 export const LIME = '#CDFF00';
 /** Complementary accent: lime leads, purple supports (badges, eyebrows, active states). */
-export const PURPLE = '#8B5CF6';
+export const PURPLE = '#7D39EB';
 export const fonts = { body: 'Poppins_400Regular', medium: 'Poppins_600SemiBold', heading: 'Poppins_600SemiBold' };
 export function Copy({ children, style, heading, muted, ...props }) {
   const c = usePalette();

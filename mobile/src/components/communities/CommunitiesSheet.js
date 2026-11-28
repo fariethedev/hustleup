@@ -68,7 +68,7 @@ export default function CommunitiesSheet({ visible, onClose, onChanged, onOpenCo
         <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }} numberOfLines={1}>{c.name}</Text>
         <Text style={{ color: theme.muted, fontSize: 12 }} numberOfLines={1}>{[c.category, c.city, c.memberCount != null && `${c.memberCount} members`].filter(Boolean).join(' · ') || c.description}</Text>
       </View>
-      <TouchableOpacity onPress={() => toggle(c)} disabled={busyId === c.id} style={[s.join, memberOf(c.id) ? { borderColor: theme.line } : { backgroundColor: theme.accent, borderColor: theme.accent }]}>
+      <TouchableOpacity onPress={() => toggle(c)} disabled={busyId === c.id} style={[s.join, memberOf(c.id) ? { borderColor: theme.line } : { backgroundColor: theme.lime, borderColor: theme.accent }]}>
         {busyId === c.id ? <ActivityIndicator size="small" color={theme.text} /> : <Text style={{ color: memberOf(c.id) ? theme.text : '#111', fontWeight: '800', fontSize: 12 }}>{memberOf(c.id) ? 'Joined' : 'Join'}</Text>}
       </TouchableOpacity>
     </Pressable>
@@ -83,7 +83,7 @@ export default function CommunitiesSheet({ visible, onClose, onChanged, onOpenCo
         </View>
         <View style={[s.tabs, { backgroundColor: theme.card, borderColor: theme.line }]}>
           {[['discover', 'Discover'], ['mine', `Mine${mine.length ? ` ${mine.length}` : ''}`], ['create', 'Create']].map(([k, l]) => (
-            <Pressable key={k} onPress={() => setTab(k)} style={[s.tab, tab === k && { backgroundColor: theme.accent }]}><Text style={{ color: tab === k ? '#111' : theme.muted, fontWeight: '800' }}>{l}</Text></Pressable>
+            <Pressable key={k} onPress={() => setTab(k)} style={[s.tab, tab === k && { backgroundColor: theme.lime }]}><Text style={{ color: tab === k ? '#111' : theme.muted, fontWeight: '800' }}>{l}</Text></Pressable>
           ))}
         </View>
         {tab === 'create' ? (
@@ -99,7 +99,7 @@ export default function CommunitiesSheet({ visible, onClose, onChanged, onOpenCo
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {CATEGORIES.map(c => <Pressable key={c} onPress={() => setForm(f => ({ ...f, category: f.category === c ? '' : c }))} style={[s.chip, { borderColor: form.category === c ? theme.accent : theme.line, backgroundColor: form.category === c ? `${theme.accent}22` : 'transparent' }]}><Text style={{ color: form.category === c ? theme.accent : theme.text, fontWeight: '700', fontSize: 13 }}>{c}</Text></Pressable>)}
               </View>
-              <TouchableOpacity onPress={create} disabled={creating} style={[s.cta, { backgroundColor: theme.accent }]}>{creating ? <ActivityIndicator color="#111" /> : <Text style={{ color: '#111', fontWeight: '900' }}>Create community</Text>}</TouchableOpacity>
+              <TouchableOpacity onPress={create} disabled={creating} style={[s.cta, { backgroundColor: theme.lime }]}>{creating ? <ActivityIndicator color="#151A00" /> : <Text style={{ color: '#151A00', fontWeight: '900' }}>Create community</Text>}</TouchableOpacity>
             </ScrollView>
           </KeyboardAvoidingView>
         ) : loading ? <ActivityIndicator color={theme.accent} style={{ marginTop: 30 }} /> : (
@@ -111,7 +111,7 @@ export default function CommunitiesSheet({ visible, onClose, onChanged, onOpenCo
             ListEmptyComponent={<View style={{ alignItems: 'center', padding: 30, gap: 10 }}>
               <Feather name="users" size={30} color={theme.accent} />
               <Text style={{ color: theme.text, fontWeight: '800' }}>{tab === 'mine' ? 'You haven’t joined any communities yet' : 'No communities yet'}</Text>
-              <TouchableOpacity onPress={() => setTab('create')} style={[s.cta, { backgroundColor: theme.accent, paddingHorizontal: 20 }]}><Text style={{ color: '#111', fontWeight: '900' }}>Start one</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => setTab('create')} style={[s.cta, { backgroundColor: theme.lime, paddingHorizontal: 20 }]}><Text style={{ color: '#151A00', fontWeight: '900' }}>Start one</Text></TouchableOpacity>
             </View>}
           />
         )}

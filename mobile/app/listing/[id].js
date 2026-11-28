@@ -201,7 +201,7 @@ export default function Listing() {
             const on = tierId === t.id;
             return <Pressable key={t.id} accessibilityRole="radio" accessibilityState={{ checked: on }} onPress={() => setTierId(t.id)}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, borderWidth: 1.5, borderColor: on ? colors.purple : colors.line, backgroundColor: on ? colors.purpleSoft : 'transparent' }}>
-              <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: on ? colors.purple : colors.muted, alignItems: 'center', justifyContent: 'center' }}>{on && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.purple }} />}</View>
+              <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: on ? colors.purple : colors.muted, alignItems: 'center', justifyContent: 'center' }}>{on && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.lime }} />}</View>
               <View style={{ flex: 1 }}><Text style={{ color: colors.text, fontWeight: '800' }}>{t.name}</Text>{!!t.quantity && <Text style={{ color: colors.muted, fontSize: 11 }}>{t.quantity} available</Text>}</View>
               <Text style={{ color: colors.accent, fontWeight: '900' }}>{Number(t.price) === 0 ? 'Free' : money(t.price, listing.currency)}</Text>
             </Pressable>;
@@ -265,7 +265,7 @@ export default function Listing() {
         <Text style={{ color: colors.text, fontSize: 17, fontWeight: '900' }} numberOfLines={1}>{Number(item?.price ?? listing.price) === 0 ? 'Free' : money(item?.price ?? listing.price, listing.currency)}</Text>
       </View>
       {unavailable ? <View style={{ minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: colors.soft, justifyContent: 'center' }}><Text style={{ color: colors.muted, fontWeight: '800' }}>Unavailable</Text></View> : event ? (
-        <TouchableOpacity onPress={add} disabled={!cart.ready} style={{ minHeight: 48, paddingHorizontal: 26, borderRadius: 24, backgroundColor: colors.accent, justifyContent: 'center' }}>
+        <TouchableOpacity onPress={add} disabled={!cart.ready} style={{ minHeight: 48, paddingHorizontal: 26, borderRadius: 24, backgroundColor: colors.lime, justifyContent: 'center' }}>
           <Text style={{ color: colors.light ? '#FFF' : '#111', fontWeight: '900', fontSize: 15 }}>{pending ? 'Continue checkout' : 'Get tickets'}</Text>
         </TouchableOpacity>
       ) : <>
@@ -273,7 +273,7 @@ export default function Listing() {
           style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 1.5, borderColor: colors.purple, alignItems: 'center', justifyContent: 'center', backgroundColor: inCart ? colors.purpleSoft : 'transparent' }}>
           <Feather name={inCart ? 'check' : 'shopping-bag'} size={20} color={colors.purple} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={buyNow} disabled={!cart.ready} style={{ minHeight: 48, paddingHorizontal: 26, borderRadius: 24, backgroundColor: colors.accent, justifyContent: 'center' }}>
+        <TouchableOpacity onPress={buyNow} disabled={!cart.ready} style={{ minHeight: 48, paddingHorizontal: 26, borderRadius: 24, backgroundColor: colors.lime, justifyContent: 'center' }}>
           <Text style={{ color: colors.light ? '#FFF' : '#111', fontWeight: '900', fontSize: 15 }}>{pending ? 'Continue checkout' : 'Buy now'}</Text>
         </TouchableOpacity>
       </>}
@@ -289,9 +289,9 @@ export default function Listing() {
           style={{ minHeight: 48, paddingHorizontal: 16, borderRadius: 24, borderWidth: 1.5, borderColor: colors.purple, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: colors.purple, fontWeight: '800' }}>Reserve</Text>
         </TouchableOpacity>}
-        <TouchableOpacity onPress={openViewing} style={{ minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: colors.accent, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Feather name="calendar" size={17} color="#FFF" />
-          <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 15 }}>{viewings.data?.mine ? 'Change viewing' : 'Book a viewing'}</Text>
+        <TouchableOpacity onPress={openViewing} style={{ minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: colors.lime, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Feather name="calendar" size={17} color="#151A00" />
+          <Text style={{ color: '#151A00', fontWeight: '900', fontSize: 15 }}>{viewings.data?.mine ? 'Change viewing' : 'Book a viewing'}</Text>
         </TouchableOpacity>
       </>}
     </View>}
@@ -303,9 +303,9 @@ export default function Listing() {
         <Text style={{ color: colors.text, fontSize: 17, fontWeight: '900' }} numberOfLines={1}>{money(Number(listing.price) * kg, listing.currency)}</Text>
       </View>
       {unavailable || (kgLeft != null && kgLeft <= 0) ? <View style={{ minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: colors.soft, justifyContent: 'center' }}><Text style={{ color: colors.muted, fontWeight: '800' }}>No space left</Text></View>
-        : <TouchableOpacity onPress={bookKg} disabled={kgBusy} style={{ minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: colors.accent, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: kgBusy ? 0.6 : 1 }}>
-          <Feather name="luggage" size={17} color="#FFF" />
-          <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 15 }}>{kgBusy ? 'Booking…' : `Book ${kg} kg`}</Text>
+        : <TouchableOpacity onPress={bookKg} disabled={kgBusy} style={{ minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: colors.lime, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: kgBusy ? 0.6 : 1 }}>
+          <Feather name="luggage" size={17} color="#151A00" />
+          <Text style={{ color: '#151A00', fontWeight: '900', fontSize: 15 }}>{kgBusy ? 'Booking…' : `Book ${kg} kg`}</Text>
         </TouchableOpacity>}
     </View>}
     {listing && !own && <FloatingCart bottom={purchasable || rentalBar || luggageBar ? 92 : 24} />}

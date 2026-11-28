@@ -163,9 +163,9 @@ export function ViewingSheet({ visible, listing, data, onClose, onBooked }) {
               {days.map((d, i) => {
                 const on = i === day;
                 return <Pressable key={i} onPress={() => { setDay(i); setTime(null); }} accessibilityRole="radio" accessibilityState={{ checked: on }}
-                  style={{ width: 58, paddingVertical: 10, borderRadius: 16, alignItems: 'center', backgroundColor: on ? c.accent : c.card, borderWidth: 1, borderColor: on ? c.accent : c.line }}>
-                  <Text style={{ color: on ? '#FFF' : c.muted, fontSize: 12, fontWeight: '700' }}>{i === 0 ? 'Today' : dayLabel(d)}</Text>
-                  <Text style={{ color: on ? '#FFF' : c.text, fontSize: 18, fontWeight: '900' }}>{d.getDate()}</Text>
+                  style={{ width: 58, paddingVertical: 10, borderRadius: 16, alignItems: 'center', backgroundColor: on ? c.lime : c.card, borderWidth: 1, borderColor: on ? c.lime : c.line }}>
+                  <Text style={{ color: on ? '#151A00' : c.muted, fontSize: 12, fontWeight: '700' }}>{i === 0 ? 'Today' : dayLabel(d)}</Text>
+                  <Text style={{ color: on ? '#151A00' : c.text, fontSize: 18, fontWeight: '900' }}>{d.getDate()}</Text>
                 </Pressable>;
               })}
             </ScrollView>
@@ -182,9 +182,9 @@ export function ViewingSheet({ visible, listing, data, onClose, onBooked }) {
                 const disabled = past || (full && !mine);
                 return <Pressable key={hm.join(':')} disabled={disabled} onPress={() => setTime(t)} accessibilityLabel={`${t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${s ? `, ${s.count} booked` : ''}`}
                   style={{ width: '23%', paddingVertical: 9, borderRadius: 12, alignItems: 'center', opacity: disabled ? 0.35 : 1,
-                    backgroundColor: on ? c.accent : mine ? c.purpleSoft : c.card, borderWidth: 1, borderColor: on ? c.accent : c.line }}>
-                  <Text style={{ color: on ? '#FFF' : c.text, fontWeight: '800', fontSize: 14 }}>{`${String(hm[0]).padStart(2, '0')}:${hm[1] ? '30' : '00'}`}</Text>
-                  {!!s && <Text style={{ color: on ? '#FFF' : c.muted, fontSize: 10, fontWeight: '700' }}>{full ? 'Full' : `${s.count} going`}</Text>}
+                    backgroundColor: on ? c.lime : mine ? c.purpleSoft : c.card, borderWidth: 1, borderColor: on ? c.lime : c.line }}>
+                  <Text style={{ color: on ? '#151A00' : c.text, fontWeight: '800', fontSize: 14 }}>{`${String(hm[0]).padStart(2, '0')}:${hm[1] ? '30' : '00'}`}</Text>
+                  {!!s && <Text style={{ color: on ? '#151A00' : c.muted, fontSize: 10, fontWeight: '700' }}>{full ? 'Full' : `${s.count} going`}</Text>}
                 </Pressable>;
               })}
             </View>
@@ -193,8 +193,8 @@ export function ViewingSheet({ visible, listing, data, onClose, onBooked }) {
               style={{ minHeight: 64, borderRadius: 14, borderWidth: 1, borderColor: c.line, backgroundColor: c.card, padding: 14, color: c.text, fontSize: 15, textAlignVertical: 'top' }} />
 
             <Pressable onPress={book} disabled={!time || busy} accessibilityRole="button"
-              style={{ minHeight: 54, borderRadius: 27, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, opacity: !time || busy ? 0.5 : 1 }}>
-              {busy ? <ActivityIndicator color="#FFF" /> : <><Feather name="calendar" size={18} color="#FFF" /><Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800' }}>{time ? `Book ${when(time.toISOString())}` : 'Pick a time'}</Text></>}
+              style={{ minHeight: 54, borderRadius: 27, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, opacity: !time || busy ? 0.5 : 1 }}>
+              {busy ? <ActivityIndicator color="#151A00" /> : <><Feather name="calendar" size={18} color="#151A00" /><Text style={{ color: '#151A00', fontSize: 16, fontWeight: '800' }}>{time ? `Book ${when(time.toISOString())}` : 'Pick a time'}</Text></>}
             </Pressable>
             <Text style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>Free to book. Never pay a deposit before you&apos;ve seen the place.</Text>
           </ScrollView>

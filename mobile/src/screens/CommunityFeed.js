@@ -171,8 +171,8 @@ const CreatePostModal = ({ visible, onClose, onPostSuccess, initialCommunityId =
             </TouchableOpacity>
             <Text style={{ color: palette.text, fontSize: 16, fontWeight: '800' }}>New post</Text>
             <TouchableOpacity accessibilityRole="button" accessibilityLabel="Share post" onPress={handlePost} disabled={!canPost}
-              style={[cs.postBtn, { backgroundColor: canPost ? palette.accent : palette.soft }]}>
-              {posting ? <ActivityIndicator size="small" color="#111" /> : <Text style={{ color: canPost ? (palette.light ? '#FFF' : '#111') : palette.muted, fontWeight: '900', fontSize: 14 }}>Post</Text>}
+              style={[cs.postBtn, { backgroundColor: canPost ? palette.lime : palette.soft }]}>
+              {posting ? <ActivityIndicator size="small" color="#111" /> : <Text style={{ color: canPost ? (palette.light ? '#151A00' : '#111') : palette.muted, fontWeight: '900', fontSize: 14 }}>Post</Text>}
             </TouchableOpacity>
           </View>
 
@@ -254,8 +254,8 @@ const CreatePostModal = ({ visible, onClose, onPostSuccess, initialCommunityId =
                 return (
                   <TouchableOpacity key={c.id || 'feed'} accessibilityRole="radio" accessibilityState={{ checked: on }} onPress={() => { setCommunityId(c.id || null); setAudienceOpen(false); }}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 10, borderRadius: 14, backgroundColor: on ? palette.purpleSoft : 'transparent' }}>
-                    <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: on ? palette.purple : palette.soft, alignItems: 'center', justifyContent: 'center' }}>
-                      <SocialIcon name={c.id ? 'users' : 'globe'} size={17} color={on ? '#FFF' : palette.muted} />
+                    <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: on ? palette.lime : palette.soft, alignItems: 'center', justifyContent: 'center' }}>
+                      <SocialIcon name={c.id ? 'users' : 'globe'} size={17} color={on ? '#151A00' : palette.muted} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: palette.text, fontWeight: '800' }}>{c.name}</Text>

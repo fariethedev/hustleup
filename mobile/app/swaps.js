@@ -77,11 +77,11 @@ export default function Swaps() {
         {busy === s.id ? <ActivityIndicator color={c.purple} /> : (
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
             {s.status === 'PENDING' && s.incoming && <>
-              <TouchableOpacity onPress={() => act(s.id, () => swapsApi.accept(s.id), 'Swap accepted — arrange the handover in chat.')} style={{ flex: 1, minHeight: 42, borderRadius: 21, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#111', fontWeight: '800' }}>Accept</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => act(s.id, () => swapsApi.accept(s.id), 'Swap accepted — arrange the handover in chat.')} style={{ flex: 1, minHeight: 42, borderRadius: 21, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#151A00', fontWeight: '800' }}>Accept</Text></TouchableOpacity>
               <TouchableOpacity onPress={() => act(s.id, () => swapsApi.decline(s.id))} style={{ flex: 1, minHeight: 42, borderRadius: 21, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.text, fontWeight: '700' }}>Decline</Text></TouchableOpacity>
             </>}
             {s.status === 'PENDING' && !s.incoming && <TouchableOpacity onPress={() => act(s.id, () => swapsApi.withdraw(s.id))} style={{ flex: 1, minHeight: 42, borderRadius: 21, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.text, fontWeight: '700' }}>Withdraw offer</Text></TouchableOpacity>}
-            {s.status === 'ACCEPTED' && !myReceived && <TouchableOpacity onPress={() => markReceived(s)} style={{ flex: 1, minHeight: 42, borderRadius: 21, backgroundColor: c.purple, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}><Feather name="camera" size={15} color="#FFF" /><Text style={{ color: '#FFF', fontWeight: '800' }}>I received it</Text></TouchableOpacity>}
+            {s.status === 'ACCEPTED' && !myReceived && <TouchableOpacity onPress={() => markReceived(s)} style={{ flex: 1, minHeight: 42, borderRadius: 21, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}><Feather name="camera" size={15} color="#151A00" /><Text style={{ color: '#151A00', fontWeight: '800' }}>I received it</Text></TouchableOpacity>}
             {s.status === 'ACCEPTED' && !!myReceived && <Text style={{ color: c.muted, fontSize: 12 }}>{s.handoverComplete ? 'Swap complete ✓' : 'You confirmed receipt — waiting for the other side.'}</Text>}
             {s.status !== 'DECLINED' && s.status !== 'WITHDRAWN' && <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/messages', params: { partnerId: s.incoming ? s.proposerId : s.targetOwnerId, partnerName: other || '' } })} style={{ minHeight: 42, paddingHorizontal: 14, borderRadius: 21, borderWidth: 1, borderColor: c.purple, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}><Feather name="message-circle" size={15} color={c.purple} /><Text style={{ color: c.purple, fontWeight: '700' }}>Chat</Text></TouchableOpacity>}
           </View>
@@ -94,8 +94,8 @@ export default function Swaps() {
     <Screen back title="Swaps" scroll={false}>
       <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 10 }}>
         {[['incoming', `Received ${rows.incoming.length || ''}`], ['outgoing', `Sent ${rows.outgoing.length || ''}`]].map(([key, label]) => (
-          <Pressable key={key} onPress={() => setTab(key)} style={{ flex: 1, minHeight: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: tab === key ? c.accent : c.card, borderWidth: 1, borderColor: tab === key ? c.accent : c.line }}>
-            <Text style={{ color: tab === key ? (c.light ? '#FFF' : '#111') : c.muted, fontWeight: '800', fontSize: 13 }}>{label.trim()}</Text>
+          <Pressable key={key} onPress={() => setTab(key)} style={{ flex: 1, minHeight: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: tab === key ? c.lime : c.card, borderWidth: 1, borderColor: tab === key ? c.lime : c.line }}>
+            <Text style={{ color: tab === key ? (c.light ? '#151A00' : '#111') : c.muted, fontWeight: '800', fontSize: 13 }}>{label.trim()}</Text>
           </Pressable>
         ))}
       </View>

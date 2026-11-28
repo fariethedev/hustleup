@@ -10,7 +10,7 @@ import { mediaUrl, uploadAsset } from '../../utils/media';
 import { errorMessage, money } from '../../utils/marketplace';
 import { usePalette } from './Kit';
 
-const PURPLE = '#8B5CF6';
+const PURPLE = '#7D39EB';
 const LIME = '#CDFF00';
 const SLIDE_MS = 5000;
 

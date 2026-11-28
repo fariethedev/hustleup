@@ -161,8 +161,8 @@ export default function CheckoutScreen() {
             : `Your payment covered ${placed.count} order${placed.count === 1 ? '' : 's'}. Each seller has been told. Sellers are paid only after you confirm your order arrived.`}
           {!placed.nothingCharged && placed.awaitingApproval ? ` ${placed.awaitingApproval} item${placed.awaitingApproval === 1 ? ' needs' : 's need'} the seller’s approval before you pay.` : ''}
         </Text>
-        <TouchableOpacity onPress={() => router.replace('/profile/orders')} style={{ alignSelf: 'stretch', minHeight: 54, borderRadius: 27, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: '#111', fontWeight: '900', fontSize: 16 }}>Track my orders</Text>
+        <TouchableOpacity onPress={() => router.replace('/profile/orders')} style={{ alignSelf: 'stretch', minHeight: 54, borderRadius: 27, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: '#151A00', fontWeight: '900', fontSize: 16 }}>Track my orders</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => (items.length ? setPlaced(null) : router.replace('/(tabs)/explore'))} style={{ alignSelf: 'stretch', minHeight: 50, borderRadius: 25, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: c.text, fontWeight: '700' }}>{items.length ? 'Pay for the rest of your cart' : 'Keep shopping'}</Text>
@@ -204,7 +204,7 @@ export default function CheckoutScreen() {
             <Feather name="shopping-bag" size={36} color={c.purple} />
             <Text style={{ color: c.text, fontSize: 17, fontWeight: '800' }}>Nothing to pay for</Text>
             <Text style={{ color: c.muted, textAlign: 'center' }}>Add something to your cart first.</Text>
-            <TouchableOpacity onPress={() => router.replace('/(tabs)/explore')} style={{ minHeight: 48, paddingHorizontal: 24, borderRadius: 24, backgroundColor: c.accent, justifyContent: 'center' }}><Text style={{ color: '#111', fontWeight: '900' }}>Explore</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)/explore')} style={{ minHeight: 48, paddingHorizontal: 24, borderRadius: 24, backgroundColor: c.lime, justifyContent: 'center' }}><Text style={{ color: '#151A00', fontWeight: '900' }}>Explore</Text></TouchableOpacity>
           </View>
         ) : (
           <>
@@ -285,10 +285,10 @@ export default function CheckoutScreen() {
                 <Text style={{ color: c.text, fontWeight: '900', fontSize: 17 }}>{money(subtotal + delivery, currency)}</Text>
               </View>
               <TouchableOpacity accessibilityRole="button" disabled={busy || verifying} onPress={pay}
-                style={{ marginTop: 6, minHeight: 56, borderRadius: 28, backgroundColor: c.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: busy || verifying ? 0.6 : 1 }}>
-                {busy ? <ActivityIndicator color="#111" /> : <>
-                  <Feather name="lock" size={16} color="#111" />
-                  <Text style={{ color: '#111', fontWeight: '900', fontSize: 16 }}>{inFlight ? 'Continue payment' : `Pay ${money(subtotal + delivery, currency)}`}</Text>
+                style={{ marginTop: 6, minHeight: 56, borderRadius: 28, backgroundColor: c.lime, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: busy || verifying ? 0.6 : 1 }}>
+                {busy ? <ActivityIndicator color="#151A00" /> : <>
+                  <Feather name="lock" size={16} color="#151A00" />
+                  <Text style={{ color: '#151A00', fontWeight: '900', fontSize: 16 }}>{inFlight ? 'Continue payment' : `Pay ${money(subtotal + delivery, currency)}`}</Text>
                 </>}
               </TouchableOpacity>
               <Text style={{ color: c.muted, fontSize: 10, textAlign: 'center' }}>Buyer protection: sellers are paid only after you confirm delivery.</Text>

@@ -94,8 +94,8 @@ export default function CreateShop() {
 
         <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: c.bg, borderTopWidth: 1, borderTopColor: c.line }}>
           <TouchableOpacity disabled={busy || !type} onPress={() => (step ? create() : setStep(1))}
-            style={{ minHeight: 50, borderRadius: 25, backgroundColor: type ? c.purple : c.soft, alignItems: 'center', justifyContent: 'center' }}>
-            {busy ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: type ? '#FFF' : c.muted, fontWeight: '900', fontSize: 15 }}>{step ? 'Create shop' : type ? `Continue as ${label}` : 'Choose a shop type'}</Text>}
+            style={{ minHeight: 50, borderRadius: 25, backgroundColor: type ? c.lime : c.soft, alignItems: 'center', justifyContent: 'center' }}>
+            {busy ? <ActivityIndicator color="#151A00" /> : <Text style={{ color: type ? '#151A00' : c.muted, fontWeight: '900', fontSize: 15 }}>{step ? 'Create shop' : type ? `Continue as ${label}` : 'Choose a shop type'}</Text>}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

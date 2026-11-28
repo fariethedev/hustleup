@@ -42,7 +42,7 @@ const FILTER_KEY = 'hustlespace_bond_filters_v1';
 // accentInk is the readable green for icons and spinners on white.
 const C = {
   bg: '#F5F6F3', card: '#FFFFFF', line: '#E4E4E7', text: '#18181B', muted: '#52525B',
-  accent: '#CDFF00', accentInk: '#6D28D9', like: '#16A34A', nope: '#E11D48', superLike: '#0284C7', gold: '#D97706',
+  accent: '#CDFF00', accentInk: '#7D39EB', like: '#16A34A', nope: '#E11D48', superLike: '#0284C7', gold: '#D97706',
 };
 
 const parsePhotos = (profile) => {
@@ -673,7 +673,7 @@ const s = StyleSheet.create({
   headerAvatar: { width: 42, height: 42 },
   tabs: { flex: 1, flexDirection: 'row', backgroundColor: C.card, borderRadius: 22, padding: 3, borderWidth: 1, borderColor: C.line },
   tab: { flex: 1, minHeight: 36, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  tabOn: { backgroundColor: '#8B5CF6' },
+  tabOn: { backgroundColor: '#7D39EB' },
   tabText: { color: C.muted, fontWeight: '700', fontSize: 12 },
   tabTextOn: { color: '#FFF' },
   deck: { alignItems: 'center', justifyContent: 'center', marginTop: 6 },

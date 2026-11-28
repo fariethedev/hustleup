@@ -116,8 +116,8 @@ export default function ManageShop() {
               <TextInput key={k} value={details[k]} onChangeText={v => setDetails(d => ({ ...d, [k]: v }))} placeholder={ph} placeholderTextColor={c.muted} style={input} />
             ))}
             <TextInput value={details.description} onChangeText={v => setDetails(d => ({ ...d, description: v }))} placeholder="Description" placeholderTextColor={c.muted} multiline style={[input, { minHeight: 80, textAlignVertical: 'top' }]} />
-            <TouchableOpacity onPress={() => run('details', () => shopsApi.update(shop.id, details), 'Shop updated')} style={{ minHeight: 42, borderRadius: 21, backgroundColor: c.purple, alignItems: 'center', justifyContent: 'center' }}>
-              {busy === 'details' ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '800' }}>Save details</Text>}
+            <TouchableOpacity onPress={() => run('details', () => shopsApi.update(shop.id, details), 'Shop updated')} style={{ minHeight: 42, borderRadius: 21, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center' }}>
+              {busy === 'details' ? <ActivityIndicator color="#151A00" /> : <Text style={{ color: '#151A00', fontWeight: '800' }}>Save details</Text>}
             </TouchableOpacity>
           </View>
 
@@ -142,8 +142,8 @@ export default function ManageShop() {
                 <TextInput value={service.minutes} onChangeText={v => setService(s => ({ ...s, minutes: v }))} placeholder="Minutes" keyboardType="number-pad" placeholderTextColor={c.muted} style={[input, { flex: 1 }]} />
                 <TextInput value={service.price} onChangeText={v => setService(s => ({ ...s, price: v }))} placeholder="Price (PLN)" keyboardType="decimal-pad" placeholderTextColor={c.muted} style={[input, { flex: 1 }]} />
               </View>
-              <TouchableOpacity onPress={addService} style={{ minHeight: 42, borderRadius: 21, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
-                {busy === 'service' ? <ActivityIndicator color="#111" /> : <Text style={{ color: '#111', fontWeight: '900' }}>Add service</Text>}
+              <TouchableOpacity onPress={addService} style={{ minHeight: 42, borderRadius: 21, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center' }}>
+                {busy === 'service' ? <ActivityIndicator color="#151A00" /> : <Text style={{ color: '#151A00', fontWeight: '900' }}>Add service</Text>}
               </TouchableOpacity>
             </View>
           </> : <>
@@ -177,8 +177,8 @@ export default function ManageShop() {
                 {DELIVERY.map(([k, l]) => <Pressable key={k} onPress={() => setProduct(s => ({ ...s, shippingMethod: k }))} style={{ paddingHorizontal: 12, minHeight: 32, borderRadius: 16, justifyContent: 'center', borderWidth: 1, borderColor: product.shippingMethod === k ? c.purple : c.line, backgroundColor: product.shippingMethod === k ? c.purpleSoft : 'transparent' }}><Text style={{ color: product.shippingMethod === k ? c.purple : c.text, fontSize: 12, fontWeight: '700' }}>{l}</Text></Pressable>)}
               </View>
               {!['PICKUP', 'DIGITAL'].includes(product.shippingMethod) && <TextInput value={product.shippingPrice} onChangeText={v => setProduct(s => ({ ...s, shippingPrice: v }))} placeholder="Delivery price (PLN)" keyboardType="decimal-pad" placeholderTextColor={c.muted} style={input} />}
-              <TouchableOpacity onPress={addProduct} style={{ minHeight: 42, borderRadius: 21, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
-                {busy === 'product' ? <ActivityIndicator color="#111" /> : <Text style={{ color: '#111', fontWeight: '900' }}>Add product</Text>}
+              <TouchableOpacity onPress={addProduct} style={{ minHeight: 42, borderRadius: 21, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center' }}>
+                {busy === 'product' ? <ActivityIndicator color="#151A00" /> : <Text style={{ color: '#151A00', fontWeight: '900' }}>Add product</Text>}
               </TouchableOpacity>
             </View>
           </>}

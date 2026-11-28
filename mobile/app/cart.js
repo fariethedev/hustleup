@@ -66,8 +66,8 @@ export default function CartScreen() {
           </View>
           <Text style={{ color: c.text, fontSize: 18, fontWeight: '800' }}>Your cart is empty</Text>
           <Text style={{ color: c.muted, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>Add things from any seller and pay for them all at once.</Text>
-          <Pressable onPress={() => router.push('/(tabs)/explore')} style={({ pressed }) => ({ marginTop: 10, height: 48, paddingHorizontal: 26, borderRadius: 24, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.85 : 1 })}>
-            <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 15 }}>Start shopping</Text>
+          <Pressable onPress={() => router.push('/(tabs)/explore')} style={({ pressed }) => ({ marginTop: 10, height: 48, paddingHorizontal: 26, borderRadius: 24, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.85 : 1 })}>
+            <Text style={{ color: '#151A00', fontWeight: '800', fontSize: 15 }}>Start shopping</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/profile/orders')} hitSlop={8} style={{ marginTop: 6 }}>
             <Text style={{ color: c.purple, fontWeight: '700', fontSize: 14 }}>View your orders</Text>
@@ -176,9 +176,9 @@ export default function CartScreen() {
               </Pressable>
             ) : <Text style={{ color: c.muted, fontSize: 13 }}>Prices are in {currencies.join(' and ')}, so you pay once per currency.</Text>}
             <Pressable accessibilityRole="button" onPress={() => router.push('/checkout')}
-              style={({ pressed }) => ({ height: 54, borderRadius: 27, backgroundColor: c.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: pressed ? 0.88 : 1 })}>
-              <Feather name="lock" size={16} color="#FFF" />
-              <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 16 }}>Checkout{count ? ` · ${count} item${count === 1 ? '' : 's'}` : ''}</Text>
+              style={({ pressed }) => ({ height: 54, borderRadius: 27, backgroundColor: c.lime, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: pressed ? 0.88 : 1 })}>
+              <Feather name="lock" size={16} color="#151A00" />
+              <Text style={{ color: '#151A00', fontWeight: '800', fontSize: 16 }}>Checkout{count ? ` · ${count} item${count === 1 ? '' : 's'}` : ''}</Text>
             </Pressable>
           </View>
         </>

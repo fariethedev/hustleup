@@ -66,12 +66,12 @@ function ExploreContent({ initialTab, initialCategory, appointmentsOnly }) {
             <Copy muted style={{ fontSize: 15 }}>Shops, services, events and people near you</Copy>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel={`Filters${activeFilters.length ? `, ${activeFilters.length} active` : ''}`} onPress={() => setFiltersOpen(true)}
-            style={({ pressed }) => ({ width: 48, height: 48, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: c.purple, transform: [{ scale: pressed ? 0.94 : 1 }] })}>
-            <Feather name="sliders" size={18} color="#FFF" />
-            {!!activeFilters.length && <View style={{ position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.accent, borderWidth: 2, borderColor: c.bg, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#111', fontSize: 9, fontWeight: '900' }}>{activeFilters.length}</Text></View>}
+            style={({ pressed }) => ({ width: 48, height: 48, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: c.lime, transform: [{ scale: pressed ? 0.94 : 1 }] })}>
+            <Feather name="sliders" size={18} color="#151A00" />
+            {!!activeFilters.length && <View style={{ position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.lime, borderWidth: 2, borderColor: c.bg, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#151A00', fontSize: 9, fontWeight: '900' }}>{activeFilters.length}</Text></View>}
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Add a listing" onPress={() => user ? setCreating(true) : router.push('/login')}
-            style={({ pressed }) => ({ width: 48, height: 48, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent, transform: [{ scale: pressed ? 0.94 : 1 }] })}>
+            style={({ pressed }) => ({ width: 48, height: 48, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: c.lime, transform: [{ scale: pressed ? 0.94 : 1 }] })}>
             <Feather name="plus" size={22} color={c.light ? '#FFF' : '#050505'} />
           </Pressable>
         </View>
@@ -88,8 +88,8 @@ function ExploreContent({ initialTab, initialCategory, appointmentsOnly }) {
         <View accessibilityRole="tablist" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
           {[['overview', 'All'], ['listings', 'Listings'], ['shops', 'Shops'], ['people', 'People']].map(([value, label]) => (
             <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: value === tab }} onPress={() => setTab(value)}
-              style={{ minHeight: 48, paddingHorizontal: 14, borderRadius: 16, justifyContent: 'center', backgroundColor: value === tab ? c.accent : c.card, borderWidth: 1, borderColor: value === tab ? c.accent : c.line }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: value === tab ? (c.light ? '#FFF' : '#111') : c.muted }}>{label}</Text>
+              style={{ minHeight: 48, paddingHorizontal: 14, borderRadius: 16, justifyContent: 'center', backgroundColor: value === tab ? c.lime : c.card, borderWidth: 1, borderColor: value === tab ? c.lime : c.line }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: value === tab ? (c.light ? '#151A00' : '#111') : c.muted }}>{label}</Text>
             </Pressable>
           ))}
         </View>

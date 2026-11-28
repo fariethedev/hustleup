@@ -23,7 +23,7 @@ const tabs = [
 /**
  * Floating, frosted-glass navigation pill. It sits above the content with a soft shadow and
  * translucent fill so the page shows through, keeps a short label under every icon so each
- * destination is obvious, and the current tab opens into a violet pill with its label. Screens reserve
+ * destination is obvious, and the current tab opens into a lime pill with its label. Screens reserve
  * ~150px of bottom padding so nothing hides behind it.
  */
 export default function FloatingNav() {
@@ -73,16 +73,16 @@ export default function FloatingNav() {
               accessibilityState={{ selected }} onPress={() => { if (!selected) LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity')); router.navigate(route); }} hitSlop={4}
               style={({ pressed }) => ({ flex: selected ? 2.3 : 1, height: 50, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 46, paddingHorizontal: selected ? 14 : 0, minWidth: 46, borderRadius: 23,
-                backgroundColor: selected ? c.purple : 'transparent' }}>
+                backgroundColor: selected ? c.lime : 'transparent' }}>
                 <View>
-                  <Feather name={icon} size={20} color={selected ? '#FFFFFF' : c.muted} />
+                  <Feather name={icon} size={20} color={selected ? '#151A00' : c.muted} />
                   {badge && (
                     <View style={{ position: 'absolute', top: -7, right: -10, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, backgroundColor: c.danger, borderWidth: 2, borderColor: c.card, alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}>{unread > 9 ? '9+' : unread}</Text>
                     </View>
                   )}
                 </View>
-                {selected && <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '800', color: '#FFFFFF' }}>{label}</Text>}
+                {selected && <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '800', color: c.onLime }}>{label}</Text>}
               </View>
             </Pressable>
           );

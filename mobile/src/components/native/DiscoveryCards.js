@@ -50,8 +50,8 @@ export function ListingCard({ item, onOpen, style }) {
             <Feather name={added ? 'check' : 'shopping-bag'} size={16} color={added ? c.accent : c.text} />
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={`Buy ${item.title} now`} disabled={!ready || unavailable} onPress={buyNow}
-            style={({ pressed }) => ({ flex: 1, height: 38, borderRadius: 12, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', opacity: !ready || unavailable ? 0.5 : pressed ? 0.85 : 1 })}>
-            <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 13 }}>{unavailable ? 'Sold out' : pending ? 'Checkout' : 'Buy now'}</Text>
+            style={({ pressed }) => ({ flex: 1, height: 38, borderRadius: 12, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center', opacity: !ready || unavailable ? 0.5 : pressed ? 0.85 : 1 })}>
+            <Text style={{ color: '#151A00', fontWeight: '800', fontSize: 13 }}>{unavailable ? 'Sold out' : pending ? 'Checkout' : 'Buy now'}</Text>
           </Pressable>
         </> : <Pressable accessibilityRole="button" onPress={() => onOpen(item)}
           style={{ flex: 1, height: 38, borderRadius: 12, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}>

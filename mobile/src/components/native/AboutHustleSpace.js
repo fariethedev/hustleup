@@ -80,9 +80,9 @@ export default function AboutHustleSpace({ onNavigate, onCreateListing, userId }
           </View>
         </View>
       ))}
-      <Pressable accessibilityRole="button" onPress={() => setExpanded(v => !v)} style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 18, borderRadius: 22, backgroundColor: c.purple }}>
-        <Text style={{ color: '#FFF', fontWeight: '800' }}>{expanded ? 'Show less' : `Show all ${STEPS.length} steps`}</Text>
-        <Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#FFF" />
+      <Pressable accessibilityRole="button" onPress={() => setExpanded(v => !v)} style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 18, borderRadius: 22, backgroundColor: c.lime }}>
+        <Text style={{ color: '#151A00', fontWeight: '800' }}>{expanded ? 'Show less' : `Show all ${STEPS.length} steps`}</Text>
+        <Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#151A00" />
       </Pressable>
     </View>
   );

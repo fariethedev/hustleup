@@ -153,9 +153,9 @@ function PostShiftSheet({ visible, onClose, onPosted }) {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {days.map((d, i) => {
                 const on = i === day;
-                return <Pressable key={i} onPress={() => setDay(i)} style={{ width: 54, paddingVertical: 8, borderRadius: 14, alignItems: 'center', backgroundColor: on ? c.accent : c.card, borderWidth: 1, borderColor: on ? c.accent : c.line }}>
-                  <Text style={{ color: on ? '#FFF' : c.muted, fontSize: 11, fontWeight: '700' }}>{i === 0 ? 'Today' : d.toLocaleDateString([], { weekday: 'short' })}</Text>
-                  <Text style={{ color: on ? '#FFF' : c.text, fontSize: 17, fontWeight: '900' }}>{d.getDate()}</Text>
+                return <Pressable key={i} onPress={() => setDay(i)} style={{ width: 54, paddingVertical: 8, borderRadius: 14, alignItems: 'center', backgroundColor: on ? c.lime : c.card, borderWidth: 1, borderColor: on ? c.lime : c.line }}>
+                  <Text style={{ color: on ? '#151A00' : c.muted, fontSize: 11, fontWeight: '700' }}>{i === 0 ? 'Today' : d.toLocaleDateString([], { weekday: 'short' })}</Text>
+                  <Text style={{ color: on ? '#151A00' : c.text, fontSize: 17, fontWeight: '900' }}>{d.getDate()}</Text>
                 </Pressable>;
               })}
             </ScrollView>
@@ -166,8 +166,8 @@ function PostShiftSheet({ visible, onClose, onPosted }) {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
                   {TIMES.map(([h, m], i) => {
                     const on = i === value;
-                    return <Pressable key={i} onPress={() => setter(i)} style={{ paddingHorizontal: 11, height: 34, justifyContent: 'center', borderRadius: 10, backgroundColor: on ? c.accent : c.card, borderWidth: 1, borderColor: on ? c.accent : c.line }}>
-                      <Text style={{ color: on ? '#FFF' : c.text, fontWeight: '700', fontSize: 13 }}>{pad(h)}:{pad(m)}</Text>
+                    return <Pressable key={i} onPress={() => setter(i)} style={{ paddingHorizontal: 11, height: 34, justifyContent: 'center', borderRadius: 10, backgroundColor: on ? c.lime : c.card, borderWidth: 1, borderColor: on ? c.lime : c.line }}>
+                      <Text style={{ color: on ? '#151A00' : c.text, fontWeight: '700', fontSize: 13 }}>{pad(h)}:{pad(m)}</Text>
                     </Pressable>;
                   })}
                 </ScrollView>
@@ -185,8 +185,8 @@ function PostShiftSheet({ visible, onClose, onPosted }) {
             <TextInput value={form.description} onChangeText={v => set('description', v)} placeholder="Anything to know? Dress code, experience, who to ask for…" placeholderTextColor={c.muted} multiline maxLength={1000} style={[input, { minHeight: 80, paddingTop: 10, textAlignVertical: 'top' }]} />
 
             <Pressable onPress={submit} disabled={busy || form.title.trim().length < 3} accessibilityRole="button"
-              style={{ marginTop: 8, height: 52, borderRadius: 26, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center', opacity: busy || form.title.trim().length < 3 ? 0.5 : 1 }}>
-              {busy ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '800', fontSize: 16 }}>Post shift</Text>}
+              style={{ marginTop: 8, height: 52, borderRadius: 26, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center', opacity: busy || form.title.trim().length < 3 ? 0.5 : 1 }}>
+              {busy ? <ActivityIndicator color="#151A00" /> : <Text style={{ color: '#151A00', fontWeight: '800', fontSize: 16 }}>Post shift</Text>}
             </Pressable>
           </ScrollView>
         </View>
@@ -253,8 +253,8 @@ export default function JobsBoard() {
 
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <Pressable onPress={() => (user ? setPosting(true) : router.push('/login'))} accessibilityRole="button"
-          style={({ pressed }) => ({ flex: 1, height: 44, borderRadius: 22, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent, opacity: pressed ? 0.85 : 1 })}>
-          <Feather name="plus" size={16} color="#FFF" /><Text style={{ color: '#FFF', fontWeight: '800', fontSize: 14 }}>Post a shift</Text>
+          style={({ pressed }) => ({ flex: 1, height: 44, borderRadius: 22, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: c.lime, opacity: pressed ? 0.85 : 1 })}>
+          <Feather name="plus" size={16} color="#151A00" /><Text style={{ color: '#151A00', fontWeight: '800', fontSize: 14 }}>Post a shift</Text>
         </Pressable>
         <Pressable onPress={() => router.push(user ? '/jobs/applications' : '/login')} accessibilityRole="button"
           style={({ pressed }) => ({ flex: 1, height: 44, borderRadius: 22, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.line, backgroundColor: c.card, opacity: pressed ? 0.85 : 1 })}>

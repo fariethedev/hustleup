@@ -81,8 +81,8 @@ export default function NotificationsScreen() {
           const on = filter === key;
           const count = key === 'unread' ? unread : 0;
           return <Pressable key={key} onPress={() => setFilter(key)} accessibilityRole="tab" accessibilityState={{ selected: on }}
-            style={{ minHeight: 32, paddingHorizontal: 12, borderRadius: 16, justifyContent: 'center', backgroundColor: on ? c.purple : c.card, borderWidth: 1, borderColor: on ? c.purple : c.line }}>
-            <Text style={{ color: on ? '#FFF' : c.text, fontSize: 12, fontWeight: '700' }}>{label}{count ? ` ${count}` : ''}</Text>
+            style={{ minHeight: 32, paddingHorizontal: 12, borderRadius: 16, justifyContent: 'center', backgroundColor: on ? c.lime : c.card, borderWidth: 1, borderColor: on ? c.lime : c.line }}>
+            <Text style={{ color: on ? '#151A00' : c.text, fontSize: 12, fontWeight: '700' }}>{label}{count ? ` ${count}` : ''}</Text>
           </Pressable>;
         })}
       </View>
@@ -112,7 +112,7 @@ export default function NotificationsScreen() {
                   {!!n.message && <Text style={{ color: c.muted, fontSize: 13, lineHeight: 19 }} numberOfLines={2}>{n.message}</Text>}
                   {!!t.hint && <Text style={{ color: c.purple, fontSize: 12, fontWeight: '700', marginTop: 2 }}>{t.hint}</Text>}
                 </View>
-                {on && <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: c.accent, marginTop: 4 }} />}
+                {on && <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: c.lime, marginTop: 4 }} />}
               </Pressable>
             );
           }}

@@ -90,8 +90,8 @@ export default function SwapOfferSheet({ visible, target, onClose, onSent }) {
 
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {[['listing', 'One of my listings'], ['describe', 'Describe an item']].map(([value, label]) => (
-                <Pressable key={value} onPress={() => setMode(value)} style={{ flex: 1, minHeight: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: mode === value ? c.accent : c.card, borderWidth: 1, borderColor: mode === value ? c.accent : c.line }}>
-                  <Text style={{ color: mode === value ? (c.light ? '#FFF' : '#111') : c.muted, fontWeight: '700', fontSize: 12 }}>{label}</Text>
+                <Pressable key={value} onPress={() => setMode(value)} style={{ flex: 1, minHeight: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: mode === value ? c.lime : c.card, borderWidth: 1, borderColor: mode === value ? c.lime : c.line }}>
+                  <Text style={{ color: mode === value ? (c.light ? '#151A00' : '#111') : c.muted, fontWeight: '700', fontSize: 12 }}>{label}</Text>
                 </Pressable>
               ))}
             </View>
@@ -103,7 +103,7 @@ export default function SwapOfferSheet({ visible, target, onClose, onSent }) {
                   return <Pressable key={l.id} onPress={() => setOfferedId(l.id)} style={{ width: 120, borderRadius: 14, borderWidth: 2, borderColor: on ? c.purple : c.line, overflow: 'hidden', backgroundColor: c.card }}>
                     {l.mediaUrls?.[0] ? <Image source={{ uri: mediaUrl(l.mediaUrls[0]) }} style={{ width: '100%', height: 90 }} /> : <View style={{ height: 90, backgroundColor: c.soft }} />}
                     <View style={{ padding: 8 }}><Text style={{ color: c.text, fontSize: 12, fontWeight: '700' }} numberOfLines={1}>{l.title}</Text><Text style={{ color: c.muted, fontSize: 11 }}>{money(l.price, l.currency)}</Text></View>
-                    {on && <View style={{ position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: c.purple, alignItems: 'center', justifyContent: 'center' }}><Feather name="check" size={13} color="#FFF" /></View>}
+                    {on && <View style={{ position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center' }}><Feather name="check" size={13} color="#151A00" /></View>}
                   </Pressable>;
                 })}
               </ScrollView>
@@ -134,8 +134,8 @@ export default function SwapOfferSheet({ visible, target, onClose, onSent }) {
               style={{ color: c.text, borderWidth: 1, borderColor: c.line, borderRadius: 14, padding: 12, minHeight: 70, textAlignVertical: 'top', backgroundColor: c.card }} />
           </ScrollView>
           <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
-            <TouchableOpacity onPress={send} disabled={sending} style={{ minHeight: 50, borderRadius: 25, backgroundColor: c.purple, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}>
-              {sending ? <ActivityIndicator color="#FFF" /> : <><Feather name="send" size={16} color="#FFF" /><Text style={{ color: '#FFF', fontWeight: '900', fontSize: 15 }}>Send swap offer</Text></>}
+            <TouchableOpacity onPress={send} disabled={sending} style={{ minHeight: 50, borderRadius: 25, backgroundColor: c.lime, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}>
+              {sending ? <ActivityIndicator color="#151A00" /> : <><Feather name="send" size={16} color="#151A00" /><Text style={{ color: '#151A00', fontWeight: '900', fontSize: 15 }}>Send swap offer</Text></>}
             </TouchableOpacity>
           </View>
         </View>

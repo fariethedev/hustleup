@@ -8,7 +8,7 @@ const toBooking = (n, view) => n.referenceId
   : view ? { pathname: '/profile/orders', params: { view } } : '/profile/orders';
 
 export const TYPES = {
-  DIRECT_MESSAGE: { icon: 'message-circle', color: '#8B5CF6', group: 'messages', hint: 'Open chat', go: n => ({ pathname: '/(tabs)/messages', params: { partnerId: n.referenceId } }) },
+  DIRECT_MESSAGE: { icon: 'message-circle', color: '#7D39EB', group: 'messages', hint: 'Open chat', go: n => ({ pathname: '/(tabs)/messages', params: { partnerId: n.referenceId } }) },
   DATING_MATCH: { icon: 'heart', color: '#F472B6', group: 'bond', hint: 'Say hi to your match', go: n => ({ pathname: '/(tabs)/messages', params: { partnerId: n.referenceId } }) },
   DATING_SUPER_LIKE: { icon: 'star', color: '#38BDF8', group: 'bond', hint: 'See who likes you', go: () => '/bond' },
   FOLLOW: { icon: 'user-plus', color: '#60A5FA', group: 'social', hint: 'View profile', go: n => `/profile/${n.referenceId}` },
