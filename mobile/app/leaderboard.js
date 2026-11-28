@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRemote } from '../src/hooks/useRemote';
 import { leaderboardApi } from '../src/api/client';
-import { usePalette, fonts } from '../src/components/native/Kit';
+import { usePalette, fonts, BackButton } from '../src/components/native/Kit';
 import { mediaUrl } from '../src/utils/media';
 import { money } from '../src/utils/marketplace';
 
@@ -86,7 +86,7 @@ export default function Leaderboard() {
       <LinearGradient colors={[PURPLE, '#2E1065', c.bg]} locations={[0, 0.55, 1]} style={s.hero}>
         <SafeAreaView edges={['top']}>
           <View style={s.topBar}>
-            <TouchableOpacity accessibilityLabel="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))} style={s.iconBtn}><Feather name="arrow-left" size={22} color="#FFF" /></TouchableOpacity>
+            <BackButton />
             <Text style={s.title}>Leaderboard</Text>
             <View style={s.iconBtn}><Feather name="award" size={20} color={LIME} /></View>
           </View>

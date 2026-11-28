@@ -1,4 +1,5 @@
 import { useSocialStyles } from '../../src/components/native/socialStyles';
+import { BackButton } from '../../src/components/native/Kit';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
@@ -107,9 +108,7 @@ export default function InsightsScreen() {
     <View style={s.screen}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Feather name="arrow-left" size={22} color="#FFF" />
-        </TouchableOpacity>
+        <BackButton />
         <Text style={s.headerTitle}>INSIGHTS</Text>
         <View style={{ width: 40 }} />
       </View>

@@ -12,7 +12,7 @@ import { storeListing } from '../../utils/discovery';
 import { ListingCard } from '../native/DiscoveryCards';
 import ShopHighlights from '../native/ShopHighlights';
 import FloatingCart from '../native/FloatingCart';
-import { usePalette } from '../native/Kit';
+import { usePalette, BackButton } from '../native/Kit';
 
 const appointmentTypes = ['HAIR_SALON', 'BARBERSHOP', 'NAIL_STUDIO', 'SPA_MASSAGE', 'TATTOO_PIERCING', 'FITNESS_TRAINING', 'TUTORING_LESSONS', 'REPAIR_SERVICES'];
 
@@ -91,7 +91,7 @@ export default function Storefront({ shopId }) {
         <ImageBackground source={shop.bannerUrl ? { uri: mediaUrl(shop.bannerUrl) } : undefined} style={{ width, height: bannerHeight, backgroundColor: c.purpleSoft }} resizeMode="cover">
           <LinearGradient colors={['rgba(0,0,0,0.45)', 'transparent', 'rgba(0,0,0,0.55)']} style={{ flex: 1, paddingTop: insets.top + 8, paddingHorizontal: 14 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <TouchableOpacity accessibilityLabel="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))} style={roundBtn}><Feather name="arrow-left" size={20} color="#FFF" /></TouchableOpacity>
+              <BackButton overlay />
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {owner && <TouchableOpacity accessibilityLabel="Manage shop" onPress={() => router.push('/shop/manage')} style={roundBtn}><Feather name="edit-2" size={18} color="#FFF" /></TouchableOpacity>}
                 <TouchableOpacity accessibilityLabel="Share shop" onPress={() => Share.share({ message: `${shop.name} on HustleSpace${shop.tagline ? ` — ${shop.tagline}` : ''}` })} style={roundBtn}><Feather name="share-2" size={18} color="#FFF" /></TouchableOpacity>

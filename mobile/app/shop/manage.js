@@ -4,7 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { shopsApi } from '../../src/api/client';
-import { usePalette } from '../../src/components/native/Kit';
+import { usePalette, BackButton } from '../../src/components/native/Kit';
 import { errorMessage, money } from '../../src/utils/marketplace';
 import { mediaUrl, pickCroppedPhoto, uploadAsset } from '../../src/utils/media';
 
@@ -91,9 +91,7 @@ export default function ManageShop() {
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16 }}>
-          <TouchableOpacity accessibilityLabel="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/dashboard'))} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
-            <Feather name="arrow-left" size={19} color={c.text} />
-          </TouchableOpacity>
+          <BackButton fallback="/dashboard" />
           <Text style={{ color: c.text, fontSize: 18, fontWeight: '900', flex: 1 }}>Manage shop</Text>
           <TouchableOpacity onPress={() => router.push({ pathname: '/shop/[userId]', params: { userId: shop.ownerId, shopId: shop.id } })} style={{ paddingHorizontal: 14, minHeight: 36, borderRadius: 18, justifyContent: 'center', backgroundColor: c.purpleSoft }}>
             <Text style={{ color: c.purple, fontWeight: '800', fontSize: 13 }}>View shop</Text>

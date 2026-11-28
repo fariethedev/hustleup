@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { useCart } from '../src/store/CartProvider';
 import { cartKey, money } from '../src/utils/marketplace';
 import { mediaUrl } from '../src/utils/media';
-import { usePalette } from '../src/components/native/Kit';
+import { usePalette, BackButton } from '../src/components/native/Kit';
 
 /** Who an item is bought from — one group per shop, one per marketplace seller. */
 const sellerOf = (item) => item.kind === 'product'
@@ -42,10 +42,7 @@ export default function CartScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={['top']}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
-        <TouchableOpacity accessibilityLabel="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
-          style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
-          <Feather name="arrow-left" size={19} color={c.text} />
-        </TouchableOpacity>
+        <BackButton />
         <View style={{ flex: 1 }}>
           <Text style={{ color: c.text, fontSize: 20, fontWeight: '900' }}>Your cart</Text>
           <Text style={{ color: c.muted, fontSize: 12 }}>{count ? `${count} item${count === 1 ? '' : 's'} from ${sellers.length} seller${sellers.length === 1 ? '' : 's'}` : 'Nothing added yet'}</Text>

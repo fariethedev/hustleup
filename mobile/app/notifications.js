@@ -4,7 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { notificationsApi } from '../src/api/client';
-import { usePalette } from '../src/components/native/Kit';
+import { usePalette, BackButton } from '../src/components/native/Kit';
 import { typeOf } from '../src/utils/notificationRoutes';
 
 const FILTERS = [['all', 'All'], ['unread', 'Unread'], ['orders', 'Orders'], ['messages', 'Messages'], ['social', 'Social'], ['bond', 'Bond']];
@@ -66,10 +66,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={['top']}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
-        <TouchableOpacity accessibilityLabel="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
-          style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
-          <Feather name="arrow-left" size={19} color={c.text} />
-        </TouchableOpacity>
+        <BackButton />
         <View style={{ flex: 1 }}>
           <Text style={{ color: c.text, fontSize: 20, fontWeight: '900' }}>Notifications</Text>
           <Text style={{ color: c.muted, fontSize: 12 }}>{unread ? `${unread} unread` : 'You’re all caught up'}</Text>

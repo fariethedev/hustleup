@@ -8,7 +8,7 @@ export function useSocialStyles(base) {
     const style = { ...original };
     const media = /overlay|mediaBadge|video|play|mute|viewer|scrim/i.test(name);
     if (typeof style.fontSize === 'number') {
-      style.fontSize = Math.max(14, style.fontSize);
+      style.fontSize = Math.max(12, style.fontSize);
       style.lineHeight = Math.max(style.lineHeight || 0, Math.ceil(style.fontSize * 1.45));
     }
     if (palette.light && !media) {

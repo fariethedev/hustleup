@@ -12,7 +12,7 @@ import { bookingsApi, shopsApi } from '../src/api/client';
 import { cartKey, checkoutPrompts, errorMessage, money } from '../src/utils/marketplace';
 import { stripeUrl } from '../src/utils/secureLinks';
 import { mediaUrl } from '../src/utils/media';
-import { usePalette } from '../src/components/native/Kit';
+import { usePalette, BackButton } from '../src/components/native/Kit';
 
 const PAID = ['PAID', 'FULFILLED', 'COMPLETED', 'TRANSFERRED'];
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -176,10 +176,7 @@ export default function CheckoutScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
-          <TouchableOpacity accessibilityLabel="Back to cart" onPress={() => (router.canGoBack() ? router.back() : router.replace('/cart'))}
-            style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
-            <Feather name="arrow-left" size={19} color={c.text} />
-          </TouchableOpacity>
+          <BackButton fallback="/cart" label="Back to cart" />
           <View style={{ flex: 1 }}>
             <Text style={{ color: c.text, fontSize: 20, fontWeight: '900' }}>Checkout</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>

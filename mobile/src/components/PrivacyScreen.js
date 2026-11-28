@@ -1,4 +1,5 @@
 import { usePalette } from '../theme/ThemeProvider';
+import { BackButton } from './native/Kit';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -74,9 +75,7 @@ export default function PrivacyScreen({ visible, onClose }) {
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor }}>
         <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back to settings" onPress={onClose} style={{ padding: 12 }}>
-            <Feather name="arrow-left" size={24} color={color} />
-          </TouchableOpacity>
+          <BackButton onPress={onClose} label="Back to settings" />
           <Text style={{ color, fontSize: 24, fontWeight: '800' }}>Privacy</Text>
         </View>
         <ScrollView contentContainerStyle={{ padding: 20, gap: 20 }}>

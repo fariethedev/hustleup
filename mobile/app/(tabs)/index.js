@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import { listingsApi, shopsApi } from '../../src/api/client';
 import { useRemote } from '../../src/hooks/useRemote';
 import { Button, Copy, Notice, Panel, Screen, Section, fonts, usePalette } from '../../src/components/native/Kit';
-import { ListingCard, ShopCard } from '../../src/components/native/DiscoveryCards';
+import { ListingCard, ShopCarouselCard } from '../../src/components/native/DiscoveryCards';
 import CreateListingModal from '../../src/components/listings/CreateListingModal';
 import FeaturedBanner, { buildFeatured, featuredHeight } from '../../src/components/native/FeaturedBanner';
 import { LISTING_CATEGORIES } from '../../src/utils/marketplace';
@@ -43,6 +43,7 @@ export default function Home() {
   const user = useSelector(s => s.auth.user);
   const [creating, setCreating] = useState(false);
   const { data, loading, error, reload } = useRemote(loadHome);
+  const shopCardW = Math.min(320, Math.round(width * 0.78));
   const browse = params => router.push({ pathname: '/(tabs)/explore', params });
   return <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={c.accent} />}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 8 }}>
@@ -62,6 +63,24 @@ export default function Home() {
         <Feather name="search" size={22} color={c.text} />
       </Pressable>
     </View>
+    <Panel style={{ padding: 0, gap: 0, overflow: 'hidden' }}>
+      <Image source={require('../../assets/images/marketplace-hero.webp')} accessibilityLabel="A local shop owner shows a handmade mug to a customer" resizeMode="cover" style={{ width: '100%', aspectRatio: 1.65 }} />
+      <View style={{ padding: 18, gap: 10 }}>
+        <Copy heading style={{ fontSize: 24 }}>Good things start locally.</Copy>
+        <Copy muted>Find local shops, services and people in your community.</Copy>
+        <Button onPress={() => browse({ tab: 'shops' })}>Explore local shops</Button>
+      </View>
+    </Panel>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 2 }} style={{ marginHorizontal: -20 }} contentInset={{ left: 20, right: 20 }}>
+      <View style={{ width: 14 }} />
+      {LISTING_CATEGORIES.map(cat => <CategoryChip key={cat.key} item={cat} onPress={() => browse({ tab: 'listings', category: cat.key })} />)}
+      <View style={{ width: 14 }} />
+    </ScrollView>
+    <View style={{ gap: 12 }}>
+      <Task icon="shopping-bag" title="Browse & shop" description="Find products from local sellers" onPress={() => browse({ tab: 'listings' })} />
+      <Task icon="calendar" title="Book an appointment" description="Haircuts, beauty and other services" onPress={() => browse({ tab: 'shops', appointments: 'true' })} />
+      <Task icon="package" title="My orders" description="Check your purchases" onPress={() => router.push(user ? '/profile/orders' : '/login')} />
+    </View>
     {(() => {
       // Trending now: upcoming events first, then the most popular listings with photos.
       const featured = buildFeatured(data?.events, data?.listings);
@@ -71,16 +90,6 @@ export default function Home() {
       </View>;
       return loading && !data ? <View style={{ height: featuredHeight(width), borderRadius: 28, backgroundColor: c.soft }} /> : null;
     })()}
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 2 }} style={{ marginHorizontal: -20 }} contentInset={{ left: 20, right: 20 }}>
-      <View style={{ width: 14 }} />
-      {LISTING_CATEGORIES.map(cat => <CategoryChip key={cat.key} item={cat} onPress={() => browse({ tab: 'listings', category: cat.key })} />)}
-      <View style={{ width: 14 }} />
-    </ScrollView>
-    <View style={{ gap: 12 }}>
-      <Task icon="shopping-bag" title="Browse & shop" description="Find products from local sellers" onPress={() => browse({ tab: 'listings' })} />
-      <Task icon="calendar" title="Book an appointment" description="Haircuts, beauty and other services" onPress={() => browse({ tab: 'shops', appointments: 'true' })} />
-      <Task icon="package" title="My orders & bookings" description="Check purchases and appointments" onPress={() => router.push(user ? '/profile/orders' : '/login')} />
-    </View>
     <Panel style={{ backgroundColor: c.soft }}>
       <Copy heading style={{ fontSize: 21 }}>Have something to offer?</Copy>
       <Copy muted>Sell an item or share a service with your community.</Copy>
@@ -88,7 +97,13 @@ export default function Home() {
     </Panel>
     {(error || data?.failed) && <Notice message="Some recommendations could not load. You can still use the menu above." onRetry={reload} />}
     <Section title="Local shops" action="See all" onAction={() => browse({ tab: 'shops' })} />
-    {loading && !data ? <Notice loading message="Loading shops…" /> : data?.shops.length ? data.shops.slice(0, 3).map(shop => <ShopCard key={shop.id} shop={shop} onPress={() => router.push({ pathname: '/shop/[userId]', params: { userId: shop.ownerId, shopId: shop.id } })} />) : <Copy muted>Local shops will appear here.</Copy>}
+    {loading && !data ? <Notice loading message="Loading shops…" /> : data?.shops.length ? (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} decelerationRate="fast" snapToInterval={shopCardW + 12} snapToAlignment="start"
+        style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
+        {data.shops.slice(0, 10).map(shop => <ShopCarouselCard key={shop.id} shop={shop} width={shopCardW}
+          onPress={() => router.push({ pathname: '/shop/[userId]', params: { userId: shop.ownerId, shopId: shop.id } })} />)}
+      </ScrollView>
+    ) : <Copy muted>Local shops will appear here.</Copy>}
     <Section title="Discover something new" action="See all" onAction={() => browse({ tab: 'listings' })} />
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
       {data?.listings.slice(0, 4).map(item => <ListingCard key={item.id} item={item} onOpen={item => router.push({ pathname: '/listing/[id]', params: { id: item.id } })} style={{ width: fontScale > 1.2 ? '100%' : '48%' }} />)}

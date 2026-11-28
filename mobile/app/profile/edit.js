@@ -1,4 +1,5 @@
 import { useSocialStyles } from '../../src/components/native/socialStyles';
+import { BackButton } from '../../src/components/native/Kit';
 import { usePalette } from '../../src/theme/ThemeProvider';
 import React, { useState, useEffect } from 'react';
 import {
@@ -131,9 +132,7 @@ export default function EditProfile() {
       <View style={styles.screen}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Feather name="arrow-left" size={22} color="#FFF" />
-          </TouchableOpacity>
+          <BackButton />
           <Text style={styles.headerTitle}>EDIT PROFILE</Text>
           <TouchableOpacity
             style={[styles.saveBtn, saving && { opacity: 0.5 }]}

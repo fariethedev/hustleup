@@ -10,7 +10,7 @@ export default function MoreScreen() {
   const user = useSelector(s => s.auth.user);
   const go = route => router.push(route);
   return <Screen title="More">
-    <Copy heading accessibilityRole="header" style={{ fontSize: 28 }}>More</Copy>
+    <Copy heading accessibilityRole="header" style={{ fontSize: 24 }}>More</Copy>
     <Copy muted>Everything else, in one place.</Copy>
     {!user && <Panel><Copy>Sign in to see your orders, appointments and messages.</Copy><Button onPress={() => go('/login')}>Sign in</Button></Panel>}
     <Group title="Your account">

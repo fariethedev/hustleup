@@ -1,4 +1,5 @@
 import { useSocialStyles } from '../../src/components/native/socialStyles';
+import { BackButton } from '../../src/components/native/Kit';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -11,9 +12,7 @@ export default function GenericProfileScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Feather name="arrow-left" size={24} color="#FFF" />
-        </TouchableOpacity>
+        <BackButton />
         <Text style={styles.title}>{title}</Text>
       </View>
       <View style={styles.content}>

@@ -34,7 +34,7 @@ import SocialIcon from '../../src/components/native/SocialIcon';
 import { Feather } from '@expo/vector-icons';
 import { blocksApi, directMessagesApi, storiesApi, usersApi } from '../../src/api/client';
 import { selectUser } from '../../src/store/authSlice';
-import { Screen, usePalette } from '../../src/components/native/Kit';
+import { Screen, usePalette, BackButton } from '../../src/components/native/Kit';
 import { mediaUrl, uploadAsset } from '../../src/utils/media';
 import { errorMessage, money } from '../../src/utils/marketplace';
 import { chatVisible, messageVisible, useChatPrefs } from '../../src/components/chat/chatPrefs';
@@ -464,7 +464,7 @@ function ConversationView({ partner, me, prefsApi, onClose, onChanged }) {
       <StatusBar style={theme.light ? 'dark' : 'light'} />
       <View style={{ flex: 1, backgroundColor: theme.bg }}>
         <View style={[st.convHeader, { paddingTop: insets.top + 6, backgroundColor: theme.card, borderBottomColor: theme.line }]}>
-          <TouchableOpacity accessibilityLabel="Back" onPress={onClose} style={st.iconBtn}><Feather name="arrow-left" size={22} color={theme.text} /></TouchableOpacity>
+          <BackButton onPress={onClose} />
           <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }} onPress={() => { onClose(); router.push(`/profile/${partner.id}`); }}>
             <Avatar uri={partner.avatarUrl} name={name} size={40} />
             <View style={{ flex: 1 }}>
@@ -802,7 +802,7 @@ function NewChat({ visible, onClose, onSelect, myId }) {
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} presentationStyle="fullScreen">
       <View style={{ flex: 1, backgroundColor: theme.bg, paddingTop: insets.top }}>
         <View style={[st.convHeader, { borderBottomColor: theme.line }]}>
-          <TouchableOpacity accessibilityLabel="Back" onPress={onClose} style={st.iconBtn}><Feather name="arrow-left" size={22} color={theme.text} /></TouchableOpacity>
+          <BackButton onPress={onClose} />
           <Text style={{ color: theme.text, fontSize: 18, fontWeight: '800', flex: 1 }}>New chat</Text>
         </View>
         <View style={[st.search, { backgroundColor: theme.card, borderColor: theme.line }]}>

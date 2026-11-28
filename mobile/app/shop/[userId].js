@@ -1,4 +1,5 @@
 import { useSocialStyles } from '../../src/components/native/socialStyles';
+import { BackButton } from '../../src/components/native/Kit';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
@@ -271,9 +272,7 @@ function SellerListings() {
     <SafeAreaView style={sh.screen} edges={['top']}>
       {/* App bar */}
       <View style={sh.appBar}>
-        <TouchableOpacity style={sh.backBtn} onPress={() => router.back()} activeOpacity={0.75}>
-          <Feather name="arrow-left" size={22} color="#FFF" />
-        </TouchableOpacity>
+        <BackButton />
         <Text style={sh.appBarTitle} numberOfLines={1}>{sellerName}</Text>
         <View style={{ width: 38 }} />
       </View>

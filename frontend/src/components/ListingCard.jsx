@@ -1,9 +1,9 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { MapPin, Check, ShoppingBag, Trash2, Star } from 'lucide-react';
 import { selectUser } from '../store/authSlice';
 import { LISTING_TYPES, formatPrice, displayCity } from '../utils/constants';
-import { addToCart, openCart, selectCartItems } from '../store/cartSlice';
+import { addToCart, closeCart, openCart, selectCartItems } from '../store/cartSlice';
 import { coverImage, mediaList } from '../utils/media';
 import PremiumBadge from './PremiumBadge';
 import CardCarousel from './CardCarousel';
@@ -11,6 +11,7 @@ import CardCarousel from './CardCarousel';
 export default function ListingCard({ listing, onDelete }) {
   const user = useSelector(selectUser);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const items = useSelector(selectCartItems);
   const own = user?.id === listing.sellerId;
   const detailUrl = listing.shopId ? `/shop/${listing.shopSlug}/product/${listing.productId}/checkout` : `/listing/${listing.id}`;
@@ -20,9 +21,17 @@ export default function ListingCard({ listing, onDelete }) {
   const cover = coverImage(listing);
   const available = !listing.status || listing.status === 'ACTIVE';
   const instant = ['GOODS', 'FASHION', 'FOOD'].includes(listing.listingType);
+  const line = () => ({ listingId: listing.id, shopSlug: listing.shopSlug, productId: listing.productId, stockQuantity: listing.stockQuantity, title: listing.title, price: Number(listing.price), currency: listing.currency || 'PLN', quantity: 1, image: cover, sellerId: listing.sellerId, sellerName: listing.sellerName || 'Seller', shippingMethod: listing.shippingMethod, shippingPrice: Number(listing.shippingPrice) || 0, checkoutFields: listing.checkoutFields });
   const add = () => {
     if (inCart) { dispatch(openCart()); return; }
-    dispatch(addToCart({ listingId: listing.id, shopSlug: listing.shopSlug, productId: listing.productId, stockQuantity: listing.stockQuantity, title: listing.title, price: Number(listing.price), currency: listing.currency || 'PLN', quantity: 1, image: cover, sellerId: listing.sellerId, sellerName: listing.sellerName || 'Seller', shippingMethod: listing.shippingMethod, shippingPrice: Number(listing.shippingPrice) || 0, checkoutFields: listing.checkoutFields }));
+    dispatch(addToCart(line()));
+  };
+  // One tap from the grid to paying: no detour through the product page or the cart.
+  const buyNow = () => {
+    if (!user) { navigate('/login', { state: { from: '/checkout' } }); return; }
+    if (!inCart) dispatch(addToCart(line()));
+    dispatch(closeCart());
+    navigate('/checkout');
   };
   return (
     <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111] transition-colors hover:border-white/25">
@@ -39,7 +48,10 @@ export default function ListingCard({ listing, onDelete }) {
         <p className="flex items-center gap-1 text-xs text-gray-500"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{displayCity(listing.locationCity)}</span></p>
         <div className="mt-auto pt-2">
           {own ? onDelete ? <button type="button" onClick={() => onDelete(listing.id)} aria-label={`Delete ${listing.title}`} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-500/20 text-xs text-red-300"><Trash2 className="h-4 w-4" />Delete</button> : <span className="flex min-h-11 items-center text-xs text-gray-500">Your listing</span> : instant && available ? (
-            <button type="button" onClick={add} className={`flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-xs font-semibold ${inCart ? 'border border-[#CDFF00]/40 text-[#CDFF00]' : 'bg-white text-black hover:bg-[#CDFF00]'}`} aria-label={inCart ? `View ${listing.title} in cart` : `Add ${listing.title} to cart`}>{inCart ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}{inCart ? 'In your cart' : 'Add to cart'}</button>
+            <div className="flex gap-2">
+              <button type="button" onClick={add} className={`flex min-h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${inCart ? 'border-[#CDFF00]/40 text-[#CDFF00]' : 'border-white/15 text-white hover:border-white/40'}`} aria-label={inCart ? `View ${listing.title} in cart` : `Add ${listing.title} to cart`} title={inCart ? 'In your cart' : 'Add to cart'}>{inCart ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}</button>
+              <button type="button" onClick={buyNow} className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-white text-xs font-semibold text-black hover:bg-[#CDFF00]" aria-label={`Buy ${listing.title} now`}>Buy now</button>
+            </div>
           ) : <Link to={listing.shopId ? `/shop/${listing.shopSlug}` : detailUrl} className="flex min-h-11 items-center justify-center rounded-xl border border-white/15 text-xs font-semibold text-white">{listing.listingType === 'HAIR_BEAUTY' || listing.listingType === 'SKILL' ? 'View service' : 'View details'}</Link>}
         </div>
       </div>

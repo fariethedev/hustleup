@@ -12,7 +12,7 @@ export function Group({ title, footer, children }) {
   const rows = React.Children.toArray(children).filter(Boolean);
   return (
     <View style={{ gap: 8 }}>
-      {!!title && <Copy style={{ color: c.muted, fontFamily: fonts.medium, fontSize: 18, letterSpacing: 0, marginLeft: 6 }}>{title}</Copy>}
+      {!!title && <Copy style={{ color: c.muted, fontFamily: fonts.medium, fontSize: 13, letterSpacing: 0.4, marginLeft: 6, textTransform: 'uppercase' }}>{title}</Copy>}
       <View style={{ borderRadius: 20, backgroundColor: c.card, borderWidth: StyleSheet.hairlineWidth, borderColor: c.line, overflow: 'hidden' }}>
         {rows.map((row, i) => (
           <React.Fragment key={i}>
@@ -21,7 +21,7 @@ export function Group({ title, footer, children }) {
           </React.Fragment>
         ))}
       </View>
-      {!!footer && <Copy muted style={{ fontSize: 14, marginHorizontal: 6 }}>{footer}</Copy>}
+      {!!footer && <Copy muted style={{ fontSize: 12.5, marginHorizontal: 6 }}>{footer}</Copy>}
     </View>
   );
 }
@@ -47,8 +47,8 @@ export function Row({ icon, label, subtitle, value, count, onPress, tone = 'acce
         <Feather name={icon} size={17} color={tint} />
       </View>
       <View style={{ flex: 1, gap: 1 }}>
-        <Copy style={{ fontFamily: fonts.medium, fontSize: 17, color: danger ? '#EF4444' : c.text }} >{label}</Copy>
-        {!!subtitle && <Copy muted style={{ fontSize: 15 }}>{subtitle}</Copy>}
+        <Copy style={{ fontFamily: fonts.medium, fontSize: 15, color: danger ? '#EF4444' : c.text }} >{label}</Copy>
+        {!!subtitle && <Copy muted style={{ fontSize: 13 }}>{subtitle}</Copy>}
       </View>
       {showCount && (
         <View style={{ minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, backgroundColor: tone === 'warn' ? '#F59E0B' : c.purple, alignItems: 'center', justifyContent: 'center' }}>

@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { bookingsApi, directMessagesApi, listingsApi, shopsApi, ticketsApi, followsApi } from '../../src/api/client';
 import { useRemote } from '../../src/hooks/useRemote';
-import { Notice, Copy, Button, usePalette } from '../../src/components/native/Kit';
+import { Notice, Copy, Button, usePalette, BackButton } from '../../src/components/native/Kit';
 import { storeListing, discoveryCartItem } from '../../src/utils/discovery';
 import { canPurchaseListing, cartKey, categoryLabel, errorMessage, money, ticketTiers } from '../../src/utils/marketplace';
 import { mediaUrl } from '../../src/utils/media';
@@ -147,7 +147,7 @@ export default function Listing() {
           {images.map((uri, index) => <Image key={uri + index} source={{ uri }} accessibilityLabel={'Listing photo ' + (index + 1)} resizeMode="cover" style={{ width: imageWidth, height: Math.round(imageWidth * 1.05), backgroundColor: colors.soft }} />)}
         </ScrollView> : <View style={{ width: imageWidth, height: Math.round(imageWidth * 0.7), backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' }}><Feather name="image" size={36} color={colors.muted} /></View>}
         <View style={{ position: 'absolute', top: insets.top + 8, left: 14, right: 14, flexDirection: 'row', justifyContent: 'space-between' }}>
-          <TouchableOpacity accessibilityLabel="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))} style={overlayBtn}><Feather name="arrow-left" size={20} color="#FFF" /></TouchableOpacity>
+          <BackButton overlay />
           <TouchableOpacity accessibilityLabel="Share" onPress={() => Share.share({ message: `${listing.title} — ${money(listing.price, listing.currency)} on HustleSpace` })} style={overlayBtn}><Feather name="share-2" size={18} color="#FFF" /></TouchableOpacity>
         </View>
       </View>

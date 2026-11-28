@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { shopsApi } from '../../src/api/client';
-import { usePalette } from '../../src/components/native/Kit';
+import { usePalette, BackButton } from '../../src/components/native/Kit';
 import { errorMessage } from '../../src/utils/marketplace';
 import { pickCroppedPhoto, uploadAsset } from '../../src/utils/media';
 
@@ -53,9 +53,7 @@ export default function CreateShop() {
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16 }}>
-          <TouchableOpacity accessibilityLabel="Back" onPress={() => (step ? setStep(0) : router.back())} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line }}>
-            <Feather name="arrow-left" size={19} color={c.text} />
-          </TouchableOpacity>
+          <BackButton onPress={() => (step ? setStep(0) : router.back())} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: c.text, fontSize: 18, fontWeight: '900' }}>Create your shop</Text>
             <Text style={{ color: c.muted, fontSize: 12 }}>Step {step + 1} of 2 · {step ? 'Details' : 'What kind of shop?'}</Text>

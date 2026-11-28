@@ -17,9 +17,10 @@ export function Copy({ children, style, heading, muted, ...props }) {
   // A fixed 22px line height clipped the tops of larger text (titles on listings and profiles).
   // When a caller sets a font size without a line height, scale the line height with it.
   const flat = StyleSheet.flatten(style) || {};
-  const size = Math.max(14, flat.fontSize || 17);
+  // One type scale across the app: 15px body, nothing under 12px.
+  const size = Math.max(12, flat.fontSize || 15);
   const lineHeight = flat.lineHeight && flat.lineHeight >= size * 1.15 ? flat.lineHeight : Math.round(size * (heading ? 1.3 : 1.5));
-  return <Text {...props} style={[{ color: muted ? c.muted : c.text, fontFamily: heading ? fonts.heading : fonts.body, fontSize: 17 }, style, { fontSize: size, lineHeight }]}>{children}</Text>;
+  return <Text {...props} style={[{ color: muted ? c.muted : c.text, fontFamily: heading ? fonts.heading : fonts.body, fontSize: 15 }, style, { fontSize: size, lineHeight }]}>{children}</Text>;
 }
 export function Dots() { return null; }
 export function IconButton({ icon, label, onPress, badge }) {
@@ -27,19 +28,27 @@ export function IconButton({ icon, label, onPress, badge }) {
   return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={k.icon}><Feather name={icon} size={21} color={c.text} />{badge > 0 && <View style={k.badge}><Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '700' }}>{badge > 9 ? '9+' : badge}</Text></View>}</Pressable>;
 }
 /**
+ * The one back button used across the app: a 40px circle with an arrow. `overlay` is the
+ * translucent variant for headers that sit on top of a photo.
+ */
+export function BackButton({ onPress, fallback = '/(tabs)', label = 'Go back', overlay, style }) {
+  const router = useRouter();
+  const c = usePalette();
+  const go = onPress || (() => (router.canGoBack() ? router.back() : router.replace(fallback)));
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={go} hitSlop={6}
+    style={({ pressed }) => [{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: overlay ? '#00000066' : c.card, borderWidth: overlay ? 0 : 1, borderColor: c.line, opacity: pressed ? 0.7 : 1 }, style]}>
+    <Feather name="arrow-left" size={20} color={overlay ? '#FFFFFF' : c.text} />
+  </Pressable>;
+}
+/**
  * Slim bar for inner pages: a round back button and the page title. Main screens have no top
  * bar — search lives in Explore, the bell and your avatar on Home, and the cart in the bottom bar.
  */
 export function Header({ back, title }) {
-  const router = useRouter();
-  const c = usePalette();
   if (!back) return null;
   return <View style={[k.header, { borderBottomWidth: 0, gap: 10 }]}>
-    <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}
-      style={({ pressed }) => ({ minWidth: 72, minHeight: 48, borderRadius: 16, paddingHorizontal: 8, flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: c.card, borderWidth: 1, borderColor: c.line, opacity: pressed ? 0.7 : 1 })}>
-      <Feather name="arrow-left" size={22} color={c.text} /><Copy>Back</Copy>
-    </Pressable>
-    <Copy heading style={{ flex: 1, fontSize: 18 }} accessibilityRole="header">{title}</Copy>
+    <BackButton />
+    <Copy heading numberOfLines={1} style={{ flex: 1, fontSize: 18 }} accessibilityRole="header">{title}</Copy>
   </View>;
 }
 export function Screen({ children, back, title, scroll = true, refreshControl, showHeader = true }) {
@@ -49,7 +58,7 @@ export function Screen({ children, back, title, scroll = true, refreshControl, s
 export function Button({ children, onPress, icon, secondary, purple, disabled, busy, style }) {
   const c = usePalette();
   const fg = purple ? (c.light ? '#FFFFFF' : '#211435') : secondary ? c.text : '#152005';
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!(disabled || busy), busy: !!busy }} disabled={disabled || busy} onPress={onPress} style={({ pressed }) => [k.button, { backgroundColor: purple ? c.purple : secondary ? c.card : LIME, borderColor: purple ? c.purple : secondary ? c.line : '#718E00', opacity: disabled || busy ? 0.55 : pressed ? 0.82 : 1, transform: [{ scale: pressed && !disabled && !busy ? 0.985 : 1 }] }, style]}>{busy ? <ActivityIndicator color={fg} /> : React.isValidElement(icon) ? icon : icon ? <Feather name={icon} size={18} color={fg} /> : null}<Copy style={{ color: fg, fontFamily: fonts.medium, fontSize: 17, textAlign: 'center', flexShrink: 1 }}>{children}</Copy></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!(disabled || busy), busy: !!busy }} disabled={disabled || busy} onPress={onPress} style={({ pressed }) => [k.button, { backgroundColor: purple ? c.purple : secondary ? c.card : LIME, borderColor: purple ? c.purple : secondary ? c.line : '#718E00', opacity: disabled || busy ? 0.55 : pressed ? 0.82 : 1, transform: [{ scale: pressed && !disabled && !busy ? 0.985 : 1 }] }, style]}>{busy ? <ActivityIndicator color={fg} /> : React.isValidElement(icon) ? icon : icon ? <Feather name={icon} size={18} color={fg} /> : null}<Copy style={{ color: fg, fontFamily: fonts.medium, fontSize: 15, textAlign: 'center', flexShrink: 1 }}>{children}</Copy></Pressable>;
 }
 export function Panel({ children, style }) {
   const c = usePalette();
@@ -68,7 +77,7 @@ export const k = StyleSheet.create({
   header: { minHeight: 64, paddingVertical: 8, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
   icon: { width: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   badge: { position: 'absolute', right: 0, top: 2, borderRadius: 10, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: PURPLE },
-  button: { minHeight: 56, paddingHorizontal: 20, paddingVertical: 14, borderRadius: 15, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  button: { minHeight: 48, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   panel: { padding: 18, borderRadius: 24, borderWidth: 1, gap: 10 },
-  input: { minHeight: 50, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, fontFamily: fonts.body, fontSize: 17, paddingVertical: 12 },
+  input: { minHeight: 50, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, fontFamily: fonts.body, fontSize: 15, paddingVertical: 12 },
 });

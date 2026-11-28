@@ -1,4 +1,5 @@
 import { usePalette } from '../../src/theme/ThemeProvider';
+import { BackButton } from '../../src/components/native/Kit';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -221,7 +222,7 @@ export default function OrdersScreen() {
     </View>;
   };
   return <SafeAreaView style={[s.screen, { backgroundColor: colors.bg }]}>
-    <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace('/profile')} style={s.back}><Feather name="arrow-left" size={24} color={colors.text} /></Pressable><Text style={[s.heading, { color: colors.text }]}>Your orders</Text></View>
+    <View style={s.header}><BackButton fallback="/profile" /><Text style={[s.heading, { color: colors.text }]}>Your orders</Text></View>
     <View style={s.tabs}>{['buying', 'selling', 'all'].map(value => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: tab === value }} onPress={() => setTab(value)} style={[s.button, { backgroundColor: tab === value ? '#CDFF00' : colors.card, borderColor: colors.line }]}><Text style={{ color: tab === value ? '#161A00' : colors.text, textTransform: 'capitalize', fontWeight: '700' }}>{value}</Text></Pressable>)}</View>
     {!!error && <Text accessibilityRole="alert" style={[s.error, { color: light ? '#9F2424' : '#FCA5A5' }]}>{error}</Text>}
     {loading ? <ActivityIndicator color={colors.accent} style={{ margin: 40 }} /> : <FlatList ref={listRef} onScrollToIndexFailed={({ index, averageItemLength }) => { listRef.current?.scrollToOffset({ offset: index * averageItemLength, animated: true }); setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.1 }), 300); }} data={filtered} keyExtractor={order => order.kind + order.id} renderItem={renderOrder} contentContainerStyle={s.list} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />} ListEmptyComponent={<View style={s.card}><Text style={{ color: colors.text, fontSize: 18 }}>{error ? 'Orders unavailable' : 'No orders here yet'}</Text><Button title={error ? 'Retry' : 'Explore listings'} onPress={() => error ? load() : router.push('/(tabs)/explore')} /></View>} />}
