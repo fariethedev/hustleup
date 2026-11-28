@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl, Share, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl, Share, View, useWindowDimensions } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -10,6 +10,7 @@ import { useRemote } from '../../src/hooks/useRemote';
 import { Button, Copy, Notice, Panel, Screen, Section, fonts, usePalette } from '../../src/components/native/Kit';
 import { ListingCard } from '../../src/components/native/DiscoveryCards';
 import { mediaUrl } from '../../src/utils/media';
+import { cropImage } from '../../src/components/native/ImageCropper';
 import { errorMessage } from '../../src/utils/marketplace';
 
 async function loadProfile() {
@@ -40,6 +41,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
   const storeUser = useSelector(selectUser);
+  const { width } = useWindowDimensions();
   const c = usePalette();
   const [tab, setTab] = useState('posts');
   const [followModal, setFollowModal] = useState(null);
@@ -59,7 +61,8 @@ export default function ProfileScreen() {
         Alert.alert('Photo access needed', 'Allow photo library access in your device settings to change your profile photo.');
         return;
       }
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: type === 'avatar' ? [1, 1] : [16, 9], quality: 0.85 });
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 1 });
+      if (!result.canceled && result.assets?.[0]) { const cropped = await cropImage(result.assets[0], type === 'avatar' ? [1, 1] : [16, 9]); if (!cropped) return; result.assets[0] = cropped; }
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
       const filename = asset.uri.split('/').pop()?.split('?')[0] || 'photo.jpg';
@@ -98,9 +101,9 @@ export default function ProfileScreen() {
     <View style={{ gap: 22, paddingTop: 4 }}>
       {(error || data?.partial) && <Notice message={error || 'Some profile details could not load. Pull down to try again.'} onRetry={reload} />}
 
-      <Panel style={{ padding: 0, overflow: 'hidden', gap: 0 }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Change profile cover photo" onPress={() => pickImage('banner')} style={{ height: 150, justifyContent: 'flex-end', alignItems: 'flex-end', backgroundColor: c.soft }}>
-          {user?.shopBannerUrl ? <Image source={{ uri: mediaUrl(user.shopBannerUrl) }} style={{ width: '100%', height: '100%', position: 'absolute' }} /> : <View style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center' }}><Feather name="aperture" size={42} color={c.accent} /></View>}
+      <Panel style={{ padding: 0, overflow: 'hidden', gap: 0, marginHorizontal: -20, marginTop: -24, borderRadius: 0, borderWidth: 0 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Change profile cover photo" onPress={() => pickImage('banner')} style={{ height: Math.round(width * 0.62), justifyContent: 'flex-end', alignItems: 'flex-end', backgroundColor: c.soft }}>
+          {user?.shopBannerUrl ? <Image source={{ uri: mediaUrl(user.shopBannerUrl) }} resizeMode="cover" style={{ width: '100%', height: '100%', position: 'absolute' }} /> : <View style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center' }}><Feather name="aperture" size={42} color={c.accent} /></View>}
           <View style={{ margin: 12, width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0009' }}>{uploading === 'banner' ? <ActivityIndicator color="#FFF" /> : <Feather name="camera" size={16} color="#FFF" />}</View>
         </Pressable>
         <View style={{ padding: 18, paddingTop: 0 }}>

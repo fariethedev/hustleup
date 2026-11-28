@@ -14,7 +14,7 @@ export default function MoreScreen() {
     <Copy muted>Everything else, in one place.</Copy>
     {!user && <Panel><Copy>Sign in to see your orders, appointments and messages.</Copy><Button onPress={() => go('/login')}>Sign in</Button></Panel>}
     <Group title="Your account">
-      <Row icon="user" label="My profile" onPress={() => go(user ? '/(tabs)/profile' : '/login')} />
+      <Row icon="user" label="My profile" onPress={() => go(user ? '/(tabs)/me' : '/login')} />
       <Row icon="shopping-bag" label="Shopping cart" onPress={() => go('/cart')} />
       <Row icon="calendar" label="Orders & appointments" subtitle="Purchases, bookings and their status" onPress={() => go('/profile/orders')} />
       <Row icon="tag" label="My tickets" onPress={() => go('/tickets')} />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { CropHost } from '../components/native/ImageCropper';
 import {
   View,
   Text,
@@ -269,7 +270,7 @@ const CreatePostModal = ({ visible, onClose, onPostSuccess, initialCommunityId =
           </TouchableOpacity>
         </Modal>
       </View>
-    </Modal>
+    <CropHost /></Modal>
   );
 };
 

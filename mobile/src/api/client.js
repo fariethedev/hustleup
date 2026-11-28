@@ -163,7 +163,7 @@ export const storiesApi = {
   addComment: (id, content) => api.post(`/stories/${id}/comments`, { content }),
   deleteComment: (id, commentId) => api.delete(`/stories/${id}/comments/${commentId}`),
   getAll: () => api.get('/stories'),
-  create: (formData) => api.post('/stories', formData),
+  create: (formData, onProgress) => api.post('/stories', formData, onProgress ? { onUploadProgress: e => e.total && onProgress(e.loaded / e.total) } : undefined),
   delete: (id) => api.delete(`/stories/${id}`),
   like: (id) => api.post(`/stories/${id}/likes`),
   unlike: (id) => api.delete(`/stories/${id}/likes`),

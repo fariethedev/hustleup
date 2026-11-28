@@ -46,7 +46,7 @@ export default function Home() {
   const browse = params => router.push({ pathname: '/(tabs)/explore', params });
   return <Screen refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={c.accent} />}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 8 }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Your profile" onPress={() => router.push(user?.id ? `/profile/${user.id}` : '/login')} hitSlop={6}
+      <Pressable accessibilityRole="button" accessibilityLabel="Your profile" onPress={() => router.push(user?.id ? '/(tabs)/me' : '/login')} hitSlop={6}
         style={{ width: 52, height: 52, borderRadius: 26, overflow: 'hidden', backgroundColor: c.purpleSoft, borderWidth: 2, borderColor: c.card, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
         {user?.avatarUrl
           ? <Image source={{ uri: mediaUrl(user.avatarUrl) }} style={{ width: '100%', height: '100%' }} accessibilityIgnoresInvertColors />

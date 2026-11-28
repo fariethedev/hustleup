@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Image, Modal, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
@@ -13,6 +13,7 @@ import CreateListingModal from '../../src/components/listings/CreateListingModal
 import { mediaUrl } from '../../src/utils/media';
 
 export default function UserProfileScreen() {
+  const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams();
   const router = useRouter(), colors = usePalette();
   const me = useSelector(selectUser);
@@ -82,8 +83,8 @@ export default function UserProfileScreen() {
     {loading ? <Notice loading message="Loading profile…" /> : <>
       {!!error && <Notice message={error} onRetry={load} />}
       {profile && <>
-        <Panel style={{ padding: 0, overflow: 'hidden', gap: 0 }}>
-          <View style={{ height: 130, backgroundColor: colors.soft }}>{profile.shopBannerUrl && <Image source={{ uri: mediaUrl(profile.shopBannerUrl) }} style={{ width: '100%', height: '100%' }} />}</View>
+        <Panel style={{ padding: 0, overflow: 'hidden', gap: 0, marginHorizontal: -20, borderRadius: 0, borderWidth: 0 }}>
+          <View style={{ height: Math.round(width * 0.56), backgroundColor: colors.soft }}>{profile.shopBannerUrl && <Image source={{ uri: mediaUrl(profile.shopBannerUrl) }} resizeMode="cover" style={{ width: '100%', height: '100%' }} />}</View>
           <View style={{ padding: 18, gap: 12 }}>
             <View style={{ width: 88, height: 88, marginTop: -58, borderRadius: 44, borderWidth: 4, borderColor: colors.card, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {profile.avatarUrl ? <Image source={{ uri: mediaUrl(profile.avatarUrl) }} style={{ width: '100%', height: '100%' }} /> : <CircleUser size={44} color={colors.muted} />}

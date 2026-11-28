@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { CropHost } from '../native/ImageCropper';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -214,7 +215,7 @@ export default function CreateListingModal({ visible, onClose, onCreated }) {
           </View>
         </KeyboardAvoidingView>
       </View>
-    </Modal>
+    <CropHost /></Modal>
   );
 }
 

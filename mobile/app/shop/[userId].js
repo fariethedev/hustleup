@@ -211,7 +211,7 @@ function SellerListings() {
           </View>
         )}
         {isOwnShop && (
-          <TouchableOpacity style={sh.editShopBtn} onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.85}>
+          <TouchableOpacity style={sh.editShopBtn} onPress={() => router.push('/(tabs)/me')} activeOpacity={0.85}>
             <Feather name="settings" size={14} color={LIME} />
             <Text style={sh.editShopText}>Edit Profile</Text>
           </TouchableOpacity>

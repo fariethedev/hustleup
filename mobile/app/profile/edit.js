@@ -1,4 +1,5 @@
 import { useSocialStyles } from '../../src/components/native/socialStyles';
+import { usePalette } from '../../src/theme/ThemeProvider';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
@@ -13,7 +14,11 @@ import { usersApi, authApi } from '../../src/api/client';
 const LIME = '#CDFF00';
 const BG = '#050505';
 
-const Field = ({ label, value, onChangeText, placeholder, multiline, keyboardType, autoCapitalize }) => (
+const Field = ({ label, value, onChangeText, placeholder, multiline, keyboardType, autoCapitalize }) => <FieldBody {...{ label, value, onChangeText, placeholder, multiline, keyboardType, autoCapitalize }} />;
+function FieldBody({ label, value, onChangeText, placeholder, multiline, keyboardType, autoCapitalize }) {
+  const styles = useSocialStyles(baseStyles);
+  const c = usePalette();
+  return (
   <View style={styles.field}>
     <Text style={styles.label}>{label}</Text>
     <TextInput
@@ -21,14 +26,15 @@ const Field = ({ label, value, onChangeText, placeholder, multiline, keyboardTyp
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder || label}
-      placeholderTextColor="rgba(255,255,255,0.2)"
+      placeholderTextColor={c.muted}
       multiline={multiline}
       numberOfLines={multiline ? 4 : 1}
       keyboardType={keyboardType || 'default'}
       autoCapitalize={autoCapitalize || 'sentences'}
     />
   </View>
-);
+  );
+}
 
 export default function EditProfile() {
   const styles = useSocialStyles(baseStyles);

@@ -11,7 +11,7 @@ import { notificationTarget } from './notificationRoutes';
 // in the foreground — Expo's default behavior suppresses the banner otherwise.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowBanner: true,
+    shouldShowBanner: false, // in the foreground the app's own bottom toast shows it
     shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,

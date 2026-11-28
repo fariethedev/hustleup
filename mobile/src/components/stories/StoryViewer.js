@@ -11,6 +11,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { STORY_BACKGROUNDS } from './CreateStoryModal';
 
 /** A text story's colours: picked from the story id, so each story always looks the same. */
+const HEX_PAIR = /^#[0-9a-f]{6},#[0-9a-f]{6}$/i;
+// The author's own gradient when the story saved one; older stories get a stable pick by id.
+const backgroundOf = story => (HEX_PAIR.test(story?.background || '') ? story.background.split(',') : gradientFor(story?.id));
 const gradientFor = id => STORY_BACKGROUNDS[[...String(id || '')].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) >>> 0, 7) % STORY_BACKGROUNDS.length];
 
 const LIME = '#CDFF00';
@@ -142,7 +145,7 @@ function StoryFrame({ story, index, count, onNext, onPrevious, onClose, onAddSto
       {<StoryAction Icon={X} label="Close story" onPress={onClose} />}
     </View>
     <View style={{ flex: 1, minHeight: 80, position: 'relative' }}>
-      {video && story.mediaUrl ? <VideoStory uri={mediaUrl(story.mediaUrl)} paused={paused} muted={muted} onEnd={onNext} onProgress={setProgress} /> : story.mediaUrl ? <Image source={{ uri: mediaUrl(story.mediaUrl) }} style={{ width: '100%', height: '100%' }} resizeMode="contain" /> : <LinearGradient colors={gradientFor(story.id)} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, justifyContent: 'center', padding: 28, margin: 8, borderRadius: 24 }}><Text style={{ color: '#FFF', fontSize: 30, lineHeight: 40, fontWeight: '700', textAlign: 'center' }}>{story.content}</Text></LinearGradient>}
+      {video && story.mediaUrl ? <VideoStory uri={mediaUrl(story.mediaUrl)} paused={paused} muted={muted} onEnd={onNext} onProgress={setProgress} /> : story.mediaUrl ? <Image source={{ uri: mediaUrl(story.mediaUrl) }} style={{ width: '100%', height: '100%' }} resizeMode="contain" /> : <LinearGradient colors={backgroundOf(story)} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, justifyContent: 'center', padding: 28, margin: 8, borderRadius: 24 }}><Text style={{ color: '#FFF', fontSize: 30, lineHeight: 40, fontWeight: '700', textAlign: 'center' }}>{story.content}</Text></LinearGradient>}
       {!!story.mediaUrl && !!story.content && <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingTop: 40, paddingBottom: 18 }}><LinearGradient colors={['transparent', '#000000CC']} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} /><Text style={{ color: '#FFF', fontSize: 17, lineHeight: 24 }}>{story.content}</Text></View>}
       <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, flexDirection: 'row' }}>{[onPrevious, onNext].map((action, n) => <Pressable key={n} accessibilityLabel={n ? 'Next story' : 'Previous story'} style={{ flex: n ? 2 : 1 }} onPressIn={() => { longPress.current = false; setHeld(true); }} onLongPress={() => { longPress.current = true; }} onPressOut={() => setHeld(false)} onPress={() => { if (!longPress.current) action(); }} />)}</View>
       {showFloats && !mode && <View pointerEvents="none" style={{ position: 'absolute', left: 12, right: 12, bottom: 16, gap: 6 }}>{bubbles.map(comment => <FloatingComment key={comment.id} comment={comment} />)}</View>}

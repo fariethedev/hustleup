@@ -13,6 +13,8 @@ import { Poppins_600SemiBold } from '@expo-google-fonts/poppins/600SemiBold';
 import { Montserrat_800ExtraBold } from '@expo-google-fonts/montserrat/800ExtraBold';
 import { store } from '../src/store';
 import CartProvider from '../src/store/CartProvider';
+import NotificationToaster from '../src/components/native/NotificationToaster';
+import { CropHost } from '../src/components/native/ImageCropper';
 import { setUser } from '../src/store/authSlice';
 import { registerForPushNotifications, usePushNavigation } from '../src/utils/pushNotifications';
 import BrandLoader from '../src/components/native/BrandLoader';
@@ -119,6 +121,8 @@ function AppRoot() {
           <Stack.Screen name="register" />
           <Stack.Screen name="welcome" options={{ animation: reducedMotion ? 'none' : 'fade' }} />
         </Stack>
+        <NotificationToaster />
+        <CropHost />
         <StatusBar style={palette.light ? "dark" : "light"} />
         </CartProvider>
       </AuthGate>

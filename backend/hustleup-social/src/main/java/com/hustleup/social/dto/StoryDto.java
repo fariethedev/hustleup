@@ -70,6 +70,9 @@ public class StoryDto {
      */
     private String mediaUrl;
 
+    /** Text stories: the gradient the author picked, "#RRGGBB,#RRGGBB" (null for older stories). */
+    private String background;
+
     /**
      * The story type (TEXT, IMAGE, or VIDEO).
      *
@@ -146,6 +149,7 @@ public class StoryDto {
                 .authorAvatarUrl(authorAvatarUrl)        // injected externally, not from entity
                 .content(story.getContent())
                 .mediaUrl(story.getMediaUrl())
+                .background(story.getBackground())
                 .type(story.getType())
                 .createdAt(story.getCreatedAt())
                 .expiresAt(story.getExpiresAt())

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { CropHost } from '../native/ImageCropper';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -139,6 +140,6 @@ export default function SwapOfferSheet({ visible, target, onClose, onSent }) {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    <CropHost /></Modal>
   );
 }

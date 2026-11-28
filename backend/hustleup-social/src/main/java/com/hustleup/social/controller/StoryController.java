@@ -422,7 +422,8 @@ public class StoryController {
     public ResponseEntity<?> createStory(
             @RequestParam("type") String type,
             @RequestParam(value = "content", required = false) String content,
-            @RequestParam(value = "media", required = false) MultipartFile media) {
+            @RequestParam(value = "media", required = false) MultipartFile media,
+            @RequestParam(value = "background", required = false) String background) {
         try {
             String email = SecurityContextHolder.getContext().getAuthentication().getName();
             User currentUser = userRepository.findByEmail(email)
@@ -455,6 +456,11 @@ public class StoryController {
             story.setAuthorName(currentUser.displayName());
             story.setType(storyType);
             story.setContent(content);
+            // Only a strict pair of hex colours is kept, so nothing user-typed reaches a style.
+            if (storyType == Story.StoryType.TEXT && background != null
+                    && background.matches("#[0-9A-Fa-f]{6},#[0-9A-Fa-f]{6}")) {
+                story.setBackground(background);
+            }
             story.setCreatedAt(LocalDateTime.now());
             story.setLikesCount(0);
             story.setViewsCount(0);

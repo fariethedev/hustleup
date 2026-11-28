@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { CropHost } from '../native/ImageCropper';
 import { ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -115,7 +116,7 @@ export default function CommunitiesSheet({ visible, onClose, onChanged, onOpenCo
           />
         )}
       </View>
-    </Modal>
+    <CropHost /></Modal>
   );
 }
 

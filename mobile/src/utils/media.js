@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import { cropImage } from '../components/native/ImageCropper';
 import { API_URL } from '../api/client';
 
 export const mediaUrl = (url) => {
@@ -7,7 +8,8 @@ export const mediaUrl = (url) => {
   return `${API_URL.replace(/\/api\/v1\/?$/, '')}/${url.replace(/^\//, '')}`;
 };
 
-// Native editing is incompatible with multiple selection. Add photos one at a time.
+// Picks one photo, then opens the in-app cropper (any shape, pinch and drag) starting on
+// `aspect`. Returns null when the person cancels either step.
 export async function pickCroppedPhoto(aspect = [4, 5]) {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted && permission.accessPrivileges !== 'limited') {
@@ -15,9 +17,10 @@ export async function pickCroppedPhoto(aspect = [4, 5]) {
   }
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'], allowsMultipleSelection: false,
-    allowsEditing: true, aspect, quality: 0.85,
+    allowsEditing: false, quality: 1,
   });
-  return result.canceled ? null : result.assets?.[0];
+  if (result.canceled || !result.assets?.[0]) return null;
+  return cropImage(result.assets[0], aspect);
 }
 
 export function uploadAsset(asset) {

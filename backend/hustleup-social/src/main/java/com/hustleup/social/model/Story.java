@@ -68,6 +68,10 @@ public class Story {
     @Column(name = "media_url")
     private String mediaUrl;
 
+    /** Text stories only: the two gradient colours the author picked, "#RRGGBB,#RRGGBB". */
+    @Column(name = "background", length = 32)
+    private String background;
+
     /**
      * The format of this story's content.
      *
@@ -154,6 +158,8 @@ public class Story {
     public void setContent(String content) { this.content = content; }
 
     /** Returns the media URL (null for TEXT stories). */
+    public String getBackground() { return background; }
+    public void setBackground(String background) { this.background = background; }
     public String getMediaUrl() { return mediaUrl; }
     /** Sets the media URL. */
     public void setMediaUrl(String mediaUrl) { this.mediaUrl = mediaUrl; }

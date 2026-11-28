@@ -10,6 +10,7 @@ import { passwordError, PASSWORD_RULES } from '../src/utils/password';
 import { DottedBackground, useAuthStyles } from '../src/components/native/AuthForm';
 
 function Field({ label, value, onChangeText, password, ...props }) {
+  const styles = useAuthStyles();
   const [visible, setVisible] = useState(false);
   return <View style={styles.fieldGroup}><Text style={styles.label}>{label}</Text><View style={styles.passwordWrap}>
     <TextInput accessibilityLabel={label} style={[styles.input, password && styles.passwordInput]} value={value} onChangeText={onChangeText} secureTextEntry={password && !visible} autoCapitalize="none" autoCorrect={false} placeholderTextColor="#737373" {...props} />
