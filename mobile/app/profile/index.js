@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl, Share, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl, Share, Text, View, useWindowDimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Feather } from '../../src/components/native/Icon';
 import * as ImagePicker from 'expo-image-picker';
@@ -31,10 +31,18 @@ async function loadProfile() {
   };
 }
 
-function ActionTile({ icon, label, onPress }) {
+/** One of the four shortcuts under the profile header: tinted icon, name and what is inside. */
+function ActionTile({ icon, label, hint, tint, onPress }) {
   const c = usePalette();
-  return <Pressable accessibilityRole="button" onPress={onPress} style={{ flex: 1, minWidth: '21%', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 5, borderRadius: 18, borderColor: c.line, borderWidth: 1, backgroundColor: c.card }}>
-    <Feather name={icon} size={19} color={c.accent} /><Copy style={{ fontSize: 10, textAlign: 'center' }}>{label}</Copy>
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${label}. ${hint}`} onPress={onPress}
+    style={({ pressed }) => ({ flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: c.line, backgroundColor: pressed ? c.soft : c.card })}>
+    <View style={{ width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: tint + '1F' }}>
+      <Feather name={icon} size={20} color={tint} />
+    </View>
+    <View style={{ flex: 1 }}>
+      <Text numberOfLines={1} style={{ color: c.text, fontSize: 15, fontWeight: '800' }}>{label}</Text>
+      <Text numberOfLines={1} style={{ color: c.muted, fontSize: 12 }}>{hint}</Text>
+    </View>
   </Pressable>;
 }
 
@@ -136,11 +144,11 @@ export default function ProfileScreen() {
         ].map((stat, index) => <React.Fragment key={stat.label}>{index > 0 && <View style={{ width: 1, height: 32, backgroundColor: c.line }} />}<Pressable accessibilityRole="button" onPress={stat.onPress} style={{ flex: 1, alignItems: 'center', gap: 2, minHeight: 44, justifyContent: 'center' }}><Copy heading style={{ fontSize: 19 }}>{stat.value}</Copy><Copy muted style={{ fontSize: 10 }}>{stat.label}</Copy></Pressable></React.Fragment>)}
       </Panel>
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
-        <ActionTile icon="shopping-bag" label="My shop" onPress={() => user?.id && router.push({ pathname: '/shop/[userId]', params: { userId: user.id } })} />
-        <ActionTile icon="package" label="Orders" onPress={() => router.push('/profile/orders')} />
-        <ActionTile icon="star" label="Reviews" onPress={() => router.push('/profile/reviews')} />
-        <ActionTile icon="bar-chart-2" label="Dashboard" onPress={() => router.push('/dashboard')} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        <ActionTile icon="store" label="My shop" hint="Products & services" tint="#7C3AED" onPress={() => router.push(user?.id ? '/shop/manage' : '/login')} />
+        <ActionTile icon="package" label="Orders" hint="Purchases & sales" tint="#0284C7" onPress={() => router.push(user?.id ? '/profile/orders' : '/login')} />
+        <ActionTile icon="star" label="Reviews" hint="Given & received" tint="#D97706" onPress={() => router.push(user?.id ? '/profile/reviews' : '/login')} />
+        <ActionTile icon="chart-column" label="Dashboard" hint="Sales & earnings" tint="#16A34A" onPress={() => router.push(user?.id ? '/dashboard' : '/login')} />
       </View>
 
       <View>
