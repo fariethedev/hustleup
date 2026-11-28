@@ -97,7 +97,10 @@ public class BookingController {
         // joinRequest (optional) — forces an EVENT booking through the INQUIRED (request/approve)
         // flow instead of the default instant ticket purchase.
         boolean joinRequest = Boolean.TRUE.equals(body.get("joinRequest"));
-        return ResponseEntity.ok(bookingService.create(listingId, offeredPrice, scheduledAt, availabilitySlotId, quantity, joinRequest));
+        // service (optional) — which item on a service listing's menu is being booked
+        // ("Skin fade"). Named only; the price is looked up from the listing server-side.
+        String service = body.get("service") instanceof String s && !s.isBlank() ? s : null;
+        return ResponseEntity.ok(bookingService.create(listingId, offeredPrice, scheduledAt, availabilitySlotId, quantity, joinRequest, service));
     }
 
     /**

@@ -1,7 +1,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion as Motion } from "framer-motion";
 import { LISTING_TYPES, formatPrice } from '../utils/constants';
-import { Navigation, ShieldCheck, MessagesSquare, ShieldPlus, BaggageClaim, MoveLeft, Sparkle, ThumbsUp, Forward, Box, CircleCheck, BadgeDollarSign, CirclePlus, CalendarRange, TicketCheck, CircleMinus, Images as ImageIcon, SendHorizontal, Recycle, QrCode, Luggage, Banknote, MessageCircle } from 'lucide-react';
+import { Navigation, ShieldCheck, MessagesSquare, ShieldPlus, BaggageClaim, MoveLeft, Sparkle, ThumbsUp, Forward, Box, CircleCheck, BadgeDollarSign, CirclePlus, CalendarRange, TicketCheck, CircleMinus, Images as ImageIcon, SendHorizontal, Recycle, QrCode, Luggage, Banknote, MessageCircle, Clock3, ChevronRight, CalendarClock } from 'lucide-react';
 import SwapOfferModal from '../components/SwapOfferModal';
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -17,8 +17,7 @@ import SmartImage from '../components/SmartImage';
 import { coverImage, mediaList } from '../utils/media';
 import { describeMethod } from '../utils/shipping';
 import { uploadUrl } from '../config';
-
-const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
+import { SERVICE_TYPES, readServices, formatDuration } from '../utils/services';
 
 export default function ListingDetail() {
   const { id } = useParams();
@@ -43,6 +42,12 @@ export default function ListingDetail() {
   const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [slotBooking, setSlotBooking] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
+  // Which item on a service listing's menu the buyer is booking, by name — the server prices
+  // the booking from the listing's own menu, never from a number the page sends.
+  const [selectedService, setSelectedService] = useState(null);
+  // No open slots: the buyer asks for a time instead, and the seller confirms.
+  const [preferredTime, setPreferredTime] = useState('');
+  const [requesting, setRequesting] = useState(false);
 
   // EVENT: ticket purchase + event update posts
   const [ticketQty, setTicketQty] = useState(1);
@@ -72,6 +77,7 @@ export default function ListingDetail() {
       .then((r) => {
         const data = r.data;
         setListing(data);
+        setSelectedService(readServices(data.meta)[0]?.name || null);
         if (data.sellerId) {
           usersApi.getProfile(data.sellerId).then((u) => setSeller(u.data)).catch(() => {});
         }
@@ -158,6 +164,7 @@ export default function ListingDetail() {
       const booking = await bookingsApi.create({
         listingId: listing.id,
         availabilitySlotId: selectedSlotId,
+        ...(selectedService ? { service: selectedService } : {}),
       });
       setSlots((prev) => prev.map((s) => (s.id === selectedSlotId ? { ...s, booked: true } : s)));
       setSelectedSlotId(null);
@@ -178,6 +185,31 @@ export default function ListingDetail() {
       showToast(e.response?.data?.error || 'Could not book that slot', 'error');
     } finally {
       setSlotBooking(false);
+    }
+  };
+
+  /**
+   * A service with no open slots: send the seller a booking request for the chosen service
+   * and, if given, a preferred time. Nothing is charged until they accept — a haircut is not
+   * a parcel, and putting it through a cart and "Buy now" is what made a barber's listing
+   * read like a product.
+   */
+  const handleRequestAppointment = async () => {
+    if (!listing) return;
+    if (!currentUser) { navigate('/login'); return; }
+    setRequesting(true);
+    try {
+      await bookingsApi.create({
+        listingId: listing.id,
+        ...(selectedService ? { service: selectedService } : {}),
+        ...(preferredTime ? { scheduledAt: preferredTime } : {}),
+      });
+      setPreferredTime('');
+      showToast('Request sent — the seller will confirm your time. Nothing is charged until then.');
+    } catch (e) {
+      showToast(e.response?.data?.error || e.response?.data?.message || 'Could not send the request', 'error');
+    } finally {
+      setRequesting(false);
     }
   };
 
@@ -374,7 +406,17 @@ export default function ListingDetail() {
   const isLuggageType = listing.listingType === 'LUGGAGE';
   const isRentalType = listing.listingType === 'RENTAL';
   const openSlots = slots.filter((s) => !s.booked);
-  const showSlotPicker = SERVICE_TYPES.includes(listing.listingType) && openSlots.length > 0;
+  const isServiceType = SERVICE_TYPES.includes(listing.listingType);
+  const showSlotPicker = isServiceType && openSlots.length > 0;
+  const services = isServiceType ? readServices(listing.meta) : [];
+  const chosenService = services.find((s) => s.name === selectedService) || null;
+  // What the buyer pays for what they've picked: the chosen service, else the listing price.
+  const servicePrice = chosenService ? chosenService.price : Number(listing.price);
+  const sellerName = listing.sellerName || seller?.fullName || 'Seller';
+  const sellerAvatar = listing.sellerAvatarUrl || seller?.avatarUrl;
+  const sellerRating = Number(listing.avgRating) || 0;
+  // "Now", as a datetime-local value, so the preferred-time picker can't offer the past.
+  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   // Cancelled tickets stay in the API response so the wallet can show them, but they're not
   // a way into this event — only valid and already-admitted ones count as "you're going".
   const liveTickets = myTickets.filter((t) => t.status !== 'CANCELLED');
@@ -437,11 +479,72 @@ export default function ListingDetail() {
         <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-8 items-start">
           {/* Left: Media — images and video clips in one gallery, with a resilient
               placeholder for anything that fails to load. */}
-          <ListingGallery
-            media={mediaList(listing)}
-            title={listing.title}
-            typeLabel={typeInfo.label}
-          />
+          <div className="flex flex-col gap-3 min-w-0">
+            <ListingGallery
+              media={mediaList(listing)}
+              title={listing.title}
+              typeLabel={typeInfo.label}
+            />
+
+            {/* Seller — directly under the photos, so on a phone the buyer sees who they're
+                dealing with without scrolling past everything, and the column below is left
+                to the listing itself. It used to sit at the very bottom of the details
+                column as a small row of 8px text. */}
+            <div
+              role="link"
+              tabIndex={0}
+              onClick={() => listing.sellerId && navigate(`/profile/${listing.sellerId}`)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && listing.sellerId) navigate(`/profile/${listing.sellerId}`); }}
+              className="flex items-center gap-3 p-3 rounded-2xl glass-strong border border-white/10 hover:border-[#CDFF00]/30 transition-colors cursor-pointer group"
+            >
+              <div className="relative shrink-0">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-800 ring-2 ring-[#CDFF00]/40">
+                  {sellerAvatar ? (
+                    <img src={uploadUrl(sellerAvatar)} alt={sellerName} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-lg font-black text-[#CDFF00]">
+                      {sellerName[0].toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                {listing.sellerVerified && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#CDFF00] flex items-center justify-center ring-2 ring-black">
+                    <ShieldCheck className="w-3 h-3 text-black" />
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold tracking-widest text-gray-500">
+                  {isServiceType ? 'Offered by' : 'Sold by'}
+                </p>
+                <h2 className="text-sm font-black text-white tracking-tight truncate group-hover:text-[#CDFF00] transition-colors">
+                  {sellerName}
+                </h2>
+                <div className="flex items-center gap-x-2 gap-y-0.5 flex-wrap text-[11px] text-gray-400 font-semibold">
+                  {sellerRating > 0 && (
+                    <span className="flex items-center gap-1 text-white">
+                      <Sparkle className="w-3 h-3 text-[#CDFF00] fill-[#CDFF00]" /> {sellerRating.toFixed(1)}
+                    </span>
+                  )}
+                  <span>{listing.reviewCount > 0 ? `${listing.reviewCount} review${listing.reviewCount > 1 ? 's' : ''}` : 'New on HustleSpace'}</span>
+                  <DistanceBadge lat={seller?.latitude} lng={seller?.longitude} />
+                </div>
+              </div>
+              {!isSeller && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (listing.sellerId) navigate(`/dm/${listing.sellerId}`);
+                  }}
+                  aria-label={`Message ${sellerName}`}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 text-[#CDFF00] text-[11px] font-black tracking-wide hover:bg-[#CDFF00]/20 transition-colors"
+                >
+                  <MessagesSquare className="w-3.5 h-3.5" /> <span className="hidden min-[360px]:inline">Message</span>
+                </button>
+              )}
+              <ChevronRight className="w-4 h-4 text-gray-600 shrink-0 group-hover:text-[#CDFF00] transition-colors" />
+            </div>
+          </div>
 
           {/* Right: Info & Actions */}
           <div className="flex flex-col gap-4">
@@ -506,6 +609,9 @@ export default function ListingDetail() {
               <div className="absolute top-0 right-0 w-40 h-40 bg-violet-600/10 blur-[80px]" />
               <div className="relative z-10">
                 <div className="flex items-baseline gap-2 mb-3">
+                  {services.length > 1 && (
+                    <span className="text-xs font-bold text-gray-400">From</span>
+                  )}
                   <span className="text-2xl sm:text-3xl font-black text-white tracking-wider">
                     {formatPrice(listing.price, listing.currency)}
                   </span>
@@ -544,15 +650,52 @@ export default function ListingDetail() {
                   );
                 })()}
 
-                {listing.description && (
-                  <div className="mb-4 border-t border-white/10 pt-3">
-                    <h4 className="text-[10px] font-black tracking-widest text-[#CDFF00] mb-1.5">About this listing</h4>
-                    <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{listing.description}</p>
+                {/* The menu. Each service has its own price and length; picking one is what
+                    the booking (and its price) is for. Shown to the seller too, so they see
+                    their listing as buyers do. */}
+                {services.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-[10px] font-black tracking-widest text-gray-400 mb-2">
+                      {isSeller ? 'Your services' : 'Choose a service'}
+                    </h4>
+                    <div className="space-y-1.5" role="radiogroup" aria-label="Services">
+                      {services.map((svc) => {
+                        const active = svc.name === selectedService;
+                        return (
+                          <button
+                            key={svc.name}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            onClick={() => setSelectedService(svc.name)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                              active ? 'bg-[#CDFF00]/10 border-[#CDFF00]' : 'bg-white/[0.03] border-white/10 hover:border-white/25'
+                            }`}
+                          >
+                            <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${active ? 'border-[#CDFF00]' : 'border-gray-600'}`}>
+                              {active && <span className="w-2 h-2 rounded-full bg-[#CDFF00]" />}
+                            </span>
+                            <span className="flex-1 min-w-0">
+                              <span className="block text-sm font-bold text-white truncate">{svc.name}</span>
+                              {svc.durationMins && (
+                                <span className="flex items-center gap-1 text-[11px] text-gray-500 font-semibold">
+                                  <Clock3 className="w-3 h-3" /> {formatDuration(svc.durationMins)}
+                                </span>
+                              )}
+                            </span>
+                            <span className={`text-sm font-black shrink-0 ${active ? 'text-[#CDFF00]' : 'text-white'}`}>
+                              {formatPrice(svc.price, listing.currency)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
                 {!isSeller && showSlotPicker && (
                   <div className="space-y-3">
+                    <h4 className="text-[10px] font-black tracking-widest text-gray-400">Pick a time</h4>
                     <div className="flex flex-wrap gap-2">
                       {openSlots.map((s) => {
                         const active = selectedSlotId === s.id;
@@ -584,8 +727,52 @@ export default function ListingDetail() {
                       ) : (
                         <CalendarRange className="w-4 h-4" />
                       )}
-                      Book this slot
+                      {selectedSlotId
+                        ? `Book${chosenService ? ` ${chosenService.name}` : ''} — ${formatPrice(servicePrice, listing.currency)}`
+                        : 'Pick a time to book'}
                     </button>
+                  </div>
+                )}
+
+                {/* A service with no open slots: ask for a time. The old fallback here was the
+                    goods block — Add to cart, Buy now, item swaps — for a haircut. */}
+                {!isSeller && isServiceType && !showSlotPicker && (
+                  <div className="space-y-2.5">
+                    <label className="block">
+                      <span className="flex items-center gap-1.5 text-[10px] font-black tracking-widest text-gray-400 mb-1.5">
+                        <CalendarClock className="w-3.5 h-3.5" /> Preferred time <span className="text-gray-600 font-bold">(optional)</span>
+                      </span>
+                      <input
+                        type="datetime-local"
+                        value={preferredTime}
+                        min={nowLocal}
+                        onChange={(e) => setPreferredTime(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white text-sm outline-none focus:border-[#CDFF00] [color-scheme:dark]"
+                      />
+                    </label>
+                    <button
+                      onClick={handleRequestAppointment}
+                      disabled={requesting}
+                      className="w-full py-3 rounded-xl bg-[#CDFF00] text-black font-black text-[11px] tracking-[0.2em] shadow-[0_10px_25px_rgba(205,255,0,0.25)] hover:scale-[1.01] transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {requesting ? (
+                        <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      ) : (
+                        <CalendarRange className="w-4 h-4" />
+                      )}
+                      Request{chosenService ? ` ${chosenService.name}` : ' appointment'} — {formatPrice(servicePrice, listing.currency)}
+                    </button>
+                    {listing.negotiable && (
+                      <button
+                        onClick={handleNegotiate}
+                        className="w-full py-2.5 rounded-xl border border-[#CDFF00]/40 text-[#CDFF00] font-black text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-[#CDFF00]/10 transition-all"
+                      >
+                        <BadgeDollarSign className="w-4 h-4" /> Negotiate via DM
+                      </button>
+                    )}
+                    <p className="text-[10px] text-gray-500 text-center leading-relaxed">
+                      Nothing is charged yet. The seller confirms the time, then you pay to lock it in.
+                    </p>
                   </div>
                 )}
 
@@ -787,7 +974,7 @@ export default function ListingDetail() {
                   </div>
                 )}
 
-                {!isSeller && !showSlotPicker && !isEventType && !isLuggageType && !isRentalType && (
+                {!isSeller && !isServiceType && !isEventType && !isLuggageType && !isRentalType && (
                   <div className="space-y-2">
                     {/* Add to Cart */}
                     <button
@@ -855,6 +1042,17 @@ export default function ListingDetail() {
               </div>
             </div>
 
+            {/* Description — its own section, full width and readable, instead of small grey
+                text squeezed between the price and the buy buttons. */}
+            {listing.description && (
+              <section className="p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/[0.07]">
+                <h2 className="text-[11px] font-black tracking-widest text-[#CDFF00] mb-2">
+                  {isServiceType ? 'About this service' : 'About this listing'}
+                </h2>
+                <p className="text-[15px] text-gray-200 leading-relaxed whitespace-pre-wrap break-words">{listing.description}</p>
+              </section>
+            )}
+
             {/* Event Updates */}
             {isEventType && (
               <div>
@@ -909,47 +1107,6 @@ export default function ListingDetail() {
               </div>
             )}
 
-            {/* Seller Card */}
-            <div className="pt-3 border-t border-white/5">
-              <div
-                onClick={() => listing.sellerId && navigate(`/profile/${listing.sellerId}`)}
-                className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.025] border border-white/5 hover:border-white/15 transition-all cursor-pointer group"
-              >
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-800 border border-white/10 shrink-0">
-                  {(listing.sellerAvatarUrl || seller?.avatarUrl) ? (
-                    <img src={uploadUrl(listing.sellerAvatarUrl || seller.avatarUrl)} alt={listing.sellerName} className="w-full h-full object-cover" />
-                  ) : (
-                      <div className="w-full h-full flex items-center justify-center text-sm font-black text-[#CDFF00]">
-                      {(listing.sellerName || 'S')[0].toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <h5 className="text-xs font-bold text-white tracking-tight group-hover:text-[#CDFF00] transition-colors truncate">
-                      {listing.sellerName || seller?.fullName || 'Seller'}
-                    </h5>
-                    {listing.sellerVerified && <ShieldCheck className="w-3.5 h-3.5 text-[#CDFF00] shrink-0" />}
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[8px] font-bold tracking-wide text-gray-500">
-                      {listing.reviewCount > 0 ? `${listing.reviewCount} reviews` : 'Seller on HustleSpace'}
-                    </span>
-                    <DistanceBadge lat={seller?.latitude} lng={seller?.longitude} />
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (listing.sellerId) navigate(`/dm/${listing.sellerId}`);
-                  }}
-                  aria-label="Message seller"
-                  className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center group-hover:bg-[#CDFF00]/10 transition-colors shrink-0"
-                >
-                  <MessagesSquare className="w-3.5 h-3.5 text-white group-hover:text-[#CDFF00]" />
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>

@@ -309,9 +309,23 @@ public class BookingService {
      *                           for free events where the organiser vets attendees before confirming
      * @return the newly created booking as an enriched DTO
      */
-    @Transactional // wraps the entire method in a database transaction
+    @Transactional
     public BookingDto create(UUID listingId, BigDecimal offeredPrice, LocalDateTime scheduledAt,
                               UUID availabilitySlotId, Integer quantity, boolean joinRequest) {
+        return create(listingId, offeredPrice, scheduledAt, availabilitySlotId, quantity, joinRequest, null);
+    }
+
+    /**
+     * As above, for one item on a service listing's menu.
+     *
+     * @param serviceName which service on the listing's menu is being booked (see
+     *                    {@link com.hustleup.marketplace.listing.model.ServiceMenu}), or
+     *                    {@code null}. Its price comes from the listing, never the client.
+     */
+    @Transactional // wraps the entire method in a database transaction
+    public BookingDto create(UUID listingId, BigDecimal offeredPrice, LocalDateTime scheduledAt,
+                              UUID availabilitySlotId, Integer quantity, boolean joinRequest,
+                              String serviceName) {
         User buyer = getCurrentUser(); // resolve authenticated buyer from Spring Security context
         // A booking is a real charge (or a request that becomes one), so it is the actual
         // moment buying needs a reachable address, not the moment of registering. Checked
@@ -334,6 +348,18 @@ public class BookingService {
 
         int qty = quantity != null && quantity > 0 ? quantity : 1;
 
+        // A barber's "Beard trim" is not priced like their "Cut + beard". When the buyer names
+        // a service from the menu, that service's price is what the booking is for; without
+        // one, the listing price (the menu's cheapest) stands, as it always did.
+        com.hustleup.marketplace.listing.model.ServiceMenu.Item service = null;
+        if (serviceName != null && com.hustleup.marketplace.listing.model.ServiceMenu.SERVICE_TYPES.contains(listing.getListingType())) {
+            service = com.hustleup.marketplace.listing.model.ServiceMenu.find(listing.getMeta(), serviceName)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "That service is no longer offered"));
+        }
+        BigDecimal basePrice = service != null ? service.price() : listing.getPrice();
+        String serviceLabel = service != null ? service.name() : null;
+        String bookedWhat = serviceLabel != null ? listing.getTitle() + " — " + serviceLabel : listing.getTitle();
+
         // ── Slot-based booking (e.g. a hair salon appointment) ──────────────────────────
         // Reserving a specific seller-defined time slot doesn't fit the negotiate/counter/
         // accept dance — the buyer is claiming an exact appointment time, so the booking is
@@ -354,13 +380,16 @@ public class BookingService {
                     .buyerId(buyer.getId())
                     .sellerId(listing.getSellerId())
                     .listingId(listingId)
-                    .offeredPrice(listing.getPrice())
-                    .agreedPrice(listing.getPrice())
+                    .offeredPrice(basePrice)
+                    .agreedPrice(basePrice)
                     .currency(listing.getCurrency())
                     .fulfilment(deliveryFor(listing, sellerRisk.buyerConfirmationRequired()))
                     .scheduledAt(slot.getStartTime())
                     .availabilitySlotId(slot.getId())
                     .quantity(1)
+                    // ticketTier is the booking's "which option" column: the ticket type on
+                    // an event, the service on a service listing.
+                    .ticketTier(serviceLabel)
                     .status(BookingStatus.BOOKED)
                     .build();
             return enrichDto(bookingRepository.save(booking));
@@ -486,7 +515,7 @@ public class BookingService {
         // ── Standard negotiated booking ──────────────────────────────────────────────────
         // Construct the booking entity. @Builder.Default on the entity sets the initial status
         // to POSTED, but we explicitly override it to INQUIRED here to indicate a real request.
-        BigDecimal offer = offeredPrice != null ? offeredPrice : listing.getPrice();
+        BigDecimal offer = offeredPrice != null ? offeredPrice : basePrice;
         if (offeredPrice != null) NegotiationRules.price(offeredPrice);
         Booking booking = Booking.builder()
                 .buyerId(buyer.getId())
@@ -498,6 +527,7 @@ public class BookingService {
                 .fulfilment(deliveryFor(listing, sellerRisk.buyerConfirmationRequired()))
                 .scheduledAt(scheduledAt)
                 .quantity(qty)
+                .ticketTier(serviceLabel)
                 .status(BookingStatus.INQUIRED) // explicitly start at INQUIRED (formal request sent)
                 .build();
 
@@ -508,8 +538,8 @@ public class BookingService {
         // gets a dedicated notification type the frontend's real-time popup polls for.
         String buyerName = buyer.displayName();
         notifyEverywhere(listing.getSellerId(),
-                buyerName + " wants to book " + listing.getTitle(),
-                buyerName + " offered " + Money.format(offer, listing.getCurrency()) + " for \"" + listing.getTitle() + "\".",
+                buyerName + " wants to book " + bookedWhat,
+                buyerName + " offered " + Money.format(offer, listing.getCurrency()) + " for \"" + bookedWhat + "\".",
                 "BOOKING_REQUEST", saved.getId());
 
         return enrichDto(saved);

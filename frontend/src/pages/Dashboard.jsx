@@ -22,6 +22,8 @@ import TrackingUpdateModal from '../components/TrackingUpdateModal';
 import ClaimModal from '../components/ClaimModal';
 import SmartImage from '../components/SmartImage';
 import { isComplete } from '../utils/shipping';
+import ServiceMenuEditor from '../components/ServiceMenuEditor';
+import { isServiceType, toEditorRows, writeServices, lowestPrice, completeRows } from '../utils/services';
 
 // Listing categories with bespoke dashboard functionality beyond the standard buy/negotiate flow.
 const SERVICE_TYPES = ['HAIR_BEAUTY', 'SKILL'];
@@ -1208,6 +1210,8 @@ export default function Dashboard() {
  * description, city and status alongside price, and ignores any key it is not sent. The form
  * had simply never offered them.
  */
+const EDITABLE_CATEGORIES = ['GOODS', 'FASHION', 'FOOD', 'HAIR_BEAUTY', 'SKILL'];
+
 function EditListingModal({ listing, onClose, onSaved }) {
   const [title, setTitle] = useState(listing.title || '');
   const [description, setDescription] = useState(listing.description || '');
@@ -1215,6 +1219,17 @@ function EditListingModal({ listing, onClose, onSaved }) {
   const [city, setCity] = useState(listing.locationCity || '');
   const [negotiable, setNegotiable] = useState(listing.negotiable);
   const [saving, setSaving] = useState(false);
+  // Category can be corrected between the simple ones — a haircut posted under Goods was sold
+  // with a cart and delivery. Events, luggage and rentals carry fields this form doesn't, so
+  // they stay where they are (the server enforces the same rule).
+  const switchable = EDITABLE_CATEGORIES.includes(listing.listingType);
+  const [listingType, setListingType] = useState(listing.listingType);
+  const [serviceRows, setServiceRows] = useState(() => {
+    const rows = toEditorRows(listing.meta);
+    return rows.length ? rows : [{ name: '', price: '', durationMins: '' }];
+  });
+  const isService = isServiceType(listingType);
+  const hasMenu = isService && completeRows(serviceRows).length > 0;
 
   const save = async () => {
     if (!title.trim()) { dispatchToast('A listing needs a title', 'error'); return; }
@@ -1227,6 +1242,10 @@ function EditListingModal({ listing, onClose, onSaved }) {
         price: Number(price),
         city: city.trim(),
         negotiable,
+        ...(listingType !== listing.listingType ? { listingType } : {}),
+        // Always sent for a service so removing every row really clears the menu; the
+        // server sets the headline price from the cheapest one.
+        ...(isService ? { meta: writeServices(listing.meta, serviceRows) } : {}),
       });
       dispatchToast('Listing updated', 'success');
       onSaved(res.data);
@@ -1242,7 +1261,7 @@ function EditListingModal({ listing, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
       <div onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-      <div className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-2xl p-5">
+      <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto bg-[#0a0a0a] border border-white/10 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-white truncate pr-2">{listing.title}</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-500 shrink-0"><CircleX className="w-4 h-4" /></button>
@@ -1259,10 +1278,45 @@ function EditListingModal({ listing, onClose, onSaved }) {
           className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] mb-3 resize-y"
         />
 
-        <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1.5 block">Price ({listing.currency})</label>
+        {switchable && (
+          <>
+            <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1.5 block">Category</label>
+            <select
+              value={listingType} onChange={(e) => setListingType(e.target.value)}
+              className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] mb-3"
+            >
+              {LISTING_TYPES.filter((t) => EDITABLE_CATEGORIES.includes(t.value)).map((t) => (
+                <option key={t.value} value={t.value} className="bg-black">{t.label}</option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {isService && (
+          <>
+            <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1 block">Services &amp; prices</label>
+            <p className="text-[10px] text-gray-500 mb-2">Name · price · minutes. Buyers pick one when they book.</p>
+            <div className="mb-3">
+              <ServiceMenuEditor
+                compact
+                rows={serviceRows}
+                currency={listing.currency}
+                onChange={(rows) => {
+                  setServiceRows(rows);
+                  const lowest = lowestPrice(rows);
+                  if (lowest != null) setPrice(lowest);
+                }}
+              />
+            </div>
+          </>
+        )}
+
+        <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1.5 block">
+          {hasMenu ? `Starting price (${listing.currency}) — your cheapest service` : `Price (${listing.currency})`}
+        </label>
         <input
-          type="number" value={price} onChange={(e) => setPrice(e.target.value)}
-          className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] mb-3"
+          type="number" value={price} onChange={(e) => setPrice(e.target.value)} readOnly={hasMenu}
+          className={`w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-[#CDFF00] mb-3 ${hasMenu ? 'opacity-60' : ''}`}
         />
 
         <label className="text-[10px] font-bold text-gray-400 tracking-widest mb-1.5 block">City</label>

@@ -13,6 +13,8 @@ import { isVideoUrl } from '../utils/media';
 import ImageCropper from '../components/ImageCropper';
 import UploadPreview from '../components/UploadPreview';
 import { LISTING_GUIDANCE } from '../utils/listingCategories';
+import ServiceMenuEditor from '../components/ServiceMenuEditor';
+import { isServiceType, writeServices, lowestPrice, completeRows } from '../utils/services';
 
 /**
  * How many photos/clips a listing should carry. Listings with a full gallery convert better,
@@ -76,6 +78,8 @@ export default function CreateListing() {
     shippingMethod: '', shippingPrice: '',
   });
   const [images, setImages] = useState([]);
+  // HAIR_BEAUTY / SKILL only: the menu of services, each with its own price.
+  const [serviceRows, setServiceRows] = useState([{ name: '', price: '', durationMins: '' }]);
   const [cropIndex, setCropIndex] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -165,7 +169,10 @@ export default function CreateListing() {
         formData.append('payOnPlatform', form.payOnPlatform);
       }
       formData.append('checkoutFields', form.checkoutFields || '');
-      if (form.meta) formData.append('meta', form.meta);
+      // A service menu rides in meta, the same JSON blob the server already stores; the
+      // server re-derives the headline price from it, so the two can never disagree.
+      const meta = isServiceType(form.listingType) ? writeServices(form.meta, serviceRows) : form.meta;
+      if (meta) formData.append('meta', meta);
       images.forEach((img) => formData.append('images', img));
       
       const res = await listingsApi.create(formData);
@@ -211,6 +218,7 @@ export default function CreateListing() {
   // Collection, digital delivery and services have nothing to charge postage for, so the
   // price field is hidden rather than shown at zero for the seller to wonder about.
   const shippingMeta = getMethod(form.shippingMethod);
+  const hasMenu = isServiceType(form.listingType) && completeRows(serviceRows).length > 0;
   const chargesPostage = !!shippingMeta && !['PICKUP', 'DIGITAL', 'NONE'].includes(form.shippingMethod);
 
   // Which way the next step should come in from. Sliding both directions the same way makes
@@ -486,12 +494,33 @@ export default function CreateListing() {
               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
               className="space-y-6"
             >
+              {/* Services: a barber has a menu, not a price. Each service is priced on its
+                  own and the buyer picks one; the listing headlines the cheapest. */}
+              {isServiceType(form.listingType) && (
+                <div>
+                  <label className="block text-xs font-black text-gray-500 tracking-widest mb-1">Your services</label>
+                  <p className="text-[11px] text-gray-500 mb-3">
+                    Add each service with its price and how long it takes. Buyers choose one when they book.
+                  </p>
+                  <ServiceMenuEditor
+                    rows={serviceRows}
+                    currency={form.currency}
+                    onChange={(rows) => {
+                      setServiceRows(rows);
+                      const lowest = lowestPrice(rows);
+                      if (lowest != null) set('price', String(lowest));
+                    }}
+                  />
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-2">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-black text-gray-500 tracking-widest">
                       {form.listingType === 'LUGGAGE' ? 'Price per kg *'
                         : form.listingType === 'RENTAL' ? 'Monthly rent *'
+                        : hasMenu ? 'Starting price'
                         : 'Price *'}
                     </label>
                     {/* What the buyer actually sees, spelled out as you type — the field
@@ -517,7 +546,10 @@ export default function CreateListing() {
                     min="0"
                     value={form.price}
                     onChange={(e) => set('price', e.target.value)}
-                    className="w-full px-5 py-4 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-black text-xl"
+                    // Set by the menu when there is one: the cheapest service is the price.
+                    readOnly={hasMenu}
+                    title={hasMenu ? 'Set from your cheapest service' : undefined}
+                    className={`w-full px-5 py-4 rounded-xl bg-black border border-white/10 text-white focus:border-[#CDFF00] focus:ring-1 focus:ring-[#CDFF00] outline-none transition-all font-black text-xl ${hasMenu ? 'opacity-70 cursor-not-allowed' : ''}`}
                     placeholder="0.00"
                   />
                 </div>

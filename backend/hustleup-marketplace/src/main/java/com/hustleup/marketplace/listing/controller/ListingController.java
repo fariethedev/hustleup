@@ -175,6 +175,11 @@ public class ListingController {
                 ? new BigDecimal(body.get("billsAmount").toString()) : null;
         Boolean payOnPlatform = body.get("payOnPlatform") != null
                 ? Boolean.valueOf(Boolean.TRUE.equals(body.get("payOnPlatform"))) : null;
+        // Category first, so the menu/price rules in update() apply to the category the
+        // listing is moving into rather than the one it is leaving.
+        if (body.get("listingType") instanceof String listingType && !listingType.isBlank()) {
+            listingService.changeCategory(id, listingType);
+        }
         return ResponseEntity.ok(listingService.update(id, title, description, price, negotiable, city,
                 meta, status, swapEnabled, shippingMethod, shippingPrice,
                 eventCapacity, salesOpenAt, salesCloseAt, (String) body.get("checkoutFields"),

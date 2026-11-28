@@ -5,6 +5,7 @@ package com.hustleup.marketplace.listing.service;
 
 import com.hustleup.marketplace.listing.dto.ListingDto;
 import com.hustleup.marketplace.listing.model.Listing;
+import com.hustleup.marketplace.listing.model.ServiceMenu;
 import com.hustleup.marketplace.listing.model.ListingStatus;
 import com.hustleup.marketplace.listing.model.ListingType;
 import com.hustleup.marketplace.listing.repository.ListingRepository;
@@ -233,6 +234,11 @@ public class ListingService {
                 .meta(meta)
                 .mediaUrls(mediaUrlsCsv)
                 .build();
+        // A service listing with a menu headlines its cheapest service ("from 30 PLN"), so the
+        // price on cards and in search is one a buyer can actually book.
+        if (ServiceMenu.SERVICE_TYPES.contains(type)) {
+            ServiceMenu.lowestPrice(meta).ifPresent(listing::setPrice);
+        }
 
         // Fraud screening: counterfeit wording, high-risk items from new sellers, or prices far
         // below the market are held for a moderator instead of going live.
@@ -367,6 +373,10 @@ public class ListingService {
         listing.setNegotiable(negotiable);
         if (city != null) listing.setLocationCity(city);
         if (meta != null) listing.setMeta(meta);
+        // Same rule as at creation: a menu sets the headline price, whatever the form sent.
+        if (ServiceMenu.SERVICE_TYPES.contains(listing.getListingType())) {
+            ServiceMenu.lowestPrice(listing.getMeta()).ifPresent(listing::setPrice);
+        }
         if (status != null) {
             // Review and removal belong to moderators: a seller can neither publish a held
             // listing nor resurrect a removed one, and can only move between their own states.
@@ -424,6 +434,44 @@ public class ListingService {
         algoliaIndexService.indexListing(saved);
         return enrichDto(saved);
     }
+
+    /**
+     * Moves a listing to another category — the fix for a barber whose haircut went up under
+     * Goods and so was sold with a cart, a Buy Now button and delivery terms.
+     *
+     * <p>Only between the simple categories. Events, luggage and rentals each need fields of
+     * their own that this edit never collected, so switching into or out of them would leave
+     * a listing half-formed. Delivery is reset to the new category's honest default: a
+     * haircut is never posted, and a product moved out of services can always be collected.
+     */
+    public void changeCategory(UUID id, String listingType) {
+        ListingType wanted;
+        try { wanted = ListingType.valueOf(listingType); }
+        catch (IllegalArgumentException e) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Unknown category");
+        }
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User seller = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Listing listing = listingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Listing not found"));
+        if (!listing.getSellerId().equals(seller.getId())) {
+            throw new RuntimeException("You don't own this listing");
+        }
+        if (listing.getListingType() == wanted) return;
+        if (!SWITCHABLE_TYPES.contains(wanted) || !SWITCHABLE_TYPES.contains(listing.getListingType())) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Events, luggage and rentals can't be moved to another category. Post a new listing instead.");
+        }
+        sellerSafety.requireActive(listing.getSellerId());
+        listing.setListingType(wanted);
+        listing.setShippingMethod(resolveShipping(null, wanted));
+        listing.setShippingPrice(BigDecimal.ZERO);
+        listingRepository.save(listing);
+    }
+
+    private static final java.util.Set<ListingType> SWITCHABLE_TYPES = java.util.Set.of(
+            ListingType.GOODS, ListingType.FASHION, ListingType.FOOD, ListingType.HAIR_BEAUTY, ListingType.SKILL);
 
     public List<ListingDto> getMyListings() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
