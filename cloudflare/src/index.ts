@@ -30,6 +30,17 @@ interface Env {
 
 const SERVICES: ServiceName[] = ["AUTH", "SOCIAL", "MARKETPLACE", "SUBSCRIPTION", "NOTIFICATION"];
 
+/**
+ * One controlling Durable Object per service, created in Western Europe next to the
+ * database (Aiven, Frankfurt). A location hint only applies when an object is first
+ * created, so the name carries the region: the old "main" objects had been created
+ * wherever the first request came from, which put the JVMs an ocean away from MySQL and
+ * turned every query into a ~100 ms round trip.
+ */
+const INSTANCE = "main-weur";
+const stubFor = (env: Env, s: ServiceName) =>
+  (env[s] as DurableObjectNamespace<SpringService>).getByName(INSTANCE, { locationHint: "weur" });
+
 // ── Routing (order matters: first match wins, exactly like the gateway) ───────────────
 
 /** Matches `prefix` itself or anything below it, never `prefix-something`. */
@@ -130,7 +141,7 @@ export default {
     forwarded.headers.set("X-Forwarded-Proto", "https");
     forwarded.headers.set("X-Forwarded-Host", url.host);
 
-    const stub = (env[target.service] as DurableObjectNamespace<SpringService>).getByName("main");
+    const stub = stubFor(env, target.service);
     let response: Response;
     try {
       response = await stub.fetch(forwarded);
@@ -162,7 +173,7 @@ export default {
   // Keep every JVM warm (see triggers in wrangler.jsonc).
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(Promise.allSettled(SERVICES.map((s) =>
-      (env[s] as DurableObjectNamespace<SpringService>).getByName("main").keepWarm())));
+      stubFor(env, s).keepWarm())));
   },
 } satisfies ExportedHandler<Env>;
 

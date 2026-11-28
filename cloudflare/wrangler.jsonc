@@ -26,11 +26,11 @@
   // sweep, so a second copy of either would split chat or double-run payouts.
   // Build context is the repo root, as the Dockerfiles expect.
   "containers": [
-    { "class_name": "AuthService", "image": "../backend/hustleup-auth/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": "basic" },
-    { "class_name": "SocialService", "image": "../backend/hustleup-social/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": "standard-1" },
-    { "class_name": "MarketplaceService", "image": "../backend/hustleup-marketplace/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": "basic" },
-    { "class_name": "SubscriptionService", "image": "../backend/hustleup-subscription/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": "basic" },
-    { "class_name": "NotificationService", "image": "../backend/hustleup-notification/Dockerfile", "image_build_context": "..", "max_instances": 1, "instance_type": "basic" }
+    { "class_name": "AuthService", "image": "../backend/hustleup-auth/Dockerfile", "image_build_context": "..", "max_instances": 1, "constraints": { "regions": ["WEUR"] }, "instance_type": "basic" },
+    { "class_name": "SocialService", "image": "../backend/hustleup-social/Dockerfile", "image_build_context": "..", "max_instances": 1, "constraints": { "regions": ["WEUR"] }, "instance_type": "standard-1" },
+    { "class_name": "MarketplaceService", "image": "../backend/hustleup-marketplace/Dockerfile", "image_build_context": "..", "max_instances": 1, "constraints": { "regions": ["WEUR"] }, "instance_type": "basic" },
+    { "class_name": "SubscriptionService", "image": "../backend/hustleup-subscription/Dockerfile", "image_build_context": "..", "max_instances": 1, "constraints": { "regions": ["WEUR"] }, "instance_type": "basic" },
+    { "class_name": "NotificationService", "image": "../backend/hustleup-notification/Dockerfile", "image_build_context": "..", "max_instances": 1, "constraints": { "regions": ["WEUR"] }, "instance_type": "basic" }
   ],
   "durable_objects": {
     "bindings": [
