@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from './Icon';
 import { useRouter } from 'expo-router';
 import { usePalette } from '../../theme/ThemeProvider';
 import FloatingNav from './FloatingNav';
@@ -66,7 +66,7 @@ export function Panel({ children, style }) {
 }
 export function Section({ eyebrow, title, subtitle, action, onAction }) {
   const c = usePalette();
-  return <View style={{ gap: 4, marginTop: 14, marginBottom: 12 }}>{eyebrow && <Copy style={{ color: c.purple, fontFamily: fonts.medium, fontSize: 12, letterSpacing: 0.4 }}>{eyebrow}</Copy>}<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Copy heading style={{ fontSize: 22, flex: 1 }}>{title}</Copy>{action && <Pressable accessibilityRole="button" accessibilityLabel={`${action}: ${title}`} onPress={onAction} style={{ minHeight: 48, paddingHorizontal: 8, justifyContent: 'center' }}><Copy style={{ color: c.purple, fontSize: 15, fontFamily: fonts.medium }}>{action} →</Copy></Pressable>}</View>{subtitle && <Copy muted>{subtitle}</Copy>}</View>;
+  return <View style={{ gap: 4, marginTop: 14, marginBottom: 12 }}>{eyebrow && <Copy style={{ color: c.purple, fontFamily: fonts.medium, fontSize: 12, letterSpacing: 0.4 }}>{eyebrow}</Copy>}<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Copy heading style={{ fontSize: 22, flex: 1 }}>{title}</Copy>{action && <Pressable accessibilityRole="button" accessibilityLabel={`${action}: ${title}`} onPress={onAction} style={{ minHeight: 48, paddingHorizontal: 8, justifyContent: 'center' }}><Copy style={{ color: c.purple, fontSize: 15, fontFamily: fonts.medium }}>{action}</Copy></Pressable>}</View>{subtitle && <Copy muted>{subtitle}</Copy>}</View>;
 }
 export function Notice({ message, onRetry, loading }) {
   const c = usePalette();

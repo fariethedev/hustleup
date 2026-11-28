@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Pressable, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../src/components/native/Icon';
 import { swapsApi } from '../src/api/client';
 import { Screen, usePalette } from '../src/components/native/Kit';
 import { errorMessage, money } from '../src/utils/marketplace';

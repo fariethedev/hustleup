@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl, Share, View, useWindowDimensions } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -169,7 +170,7 @@ export default function ProfileScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 14, borderBottomWidth: 1, borderColor: c.line }}><Copy heading style={{ fontSize: 19 }}>{followModal === 'followers' ? 'Followers' : 'Following'}</Copy><Pressable accessibilityLabel="Close" onPress={() => setFollowModal(null)} hitSlop={10}><Feather name="x" size={21} color={c.text} /></Pressable></View>
           {followLoading ? <ActivityIndicator color={c.accent} style={{ marginTop: 30 }} /> : <FlatList data={followList} keyExtractor={item => String(item.id)} ListEmptyComponent={<View style={{ padding: 30 }}><Notice message={followModal === 'followers' ? 'No followers to show yet.' : 'You are not following anyone yet.'} /></View>} renderItem={({ item }) => <Pressable onPress={() => { setFollowModal(null); router.push(`/profile/${item.id}`); }} style={{ minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, borderBottomWidth: 1, borderColor: c.line }}>
             {item.avatarUrl ? <Image source={{ uri: mediaUrl(item.avatarUrl) }} style={{ width: 42, height: 42, borderRadius: 16 }} /> : <View style={{ width: 42, height: 42, borderRadius: 16, backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center' }}><Feather name="user" size={18} color={c.muted} /></View>}
-            <View style={{ flex: 1 }}><Copy style={{ fontFamily: fonts.medium }}>{item.fullName || 'Community member'}</Copy><Copy muted style={{ fontSize: 11 }}>@{item.username || item.email?.split('@')[0] || 'member'}</Copy></View><Feather name="chevron-right" size={18} color={c.muted} />
+            <View style={{ flex: 1 }}><Copy style={{ fontFamily: fonts.medium }}>{item.fullName || 'Community member'}</Copy><Copy muted style={{ fontSize: 11 }}>@{item.username || item.email?.split('@')[0] || 'member'}</Copy></View>
           </Pressable>} />}
         </View>
       </View>

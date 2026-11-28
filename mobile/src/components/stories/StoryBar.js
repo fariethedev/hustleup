@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Dimensions } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../native/Icon';
 import { usePalette } from '../native/Kit';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/authSlice';

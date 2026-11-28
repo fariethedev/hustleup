@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableWithoutFeedback, View, useWindowDimensions } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../native/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
@@ -245,7 +245,7 @@ export default function CreateStoryModal({ visible, onClose, onCreated }) {
                 {avatar ? <Image source={{ uri: avatar }} style={{ width: '100%', height: '100%' }} /> : <Feather name="user" size={16} color={LIME} />}
               </View>
               <Text style={{ color: '#111', fontWeight: '900', fontSize: 14 }}>Your story</Text>
-              <Feather name="chevron-right" size={16} color="#111" />
+              
             </Pressable>
           </View>
           <Text style={{ color: '#FFFFFF70', fontSize: 11, marginTop: 6 }}>Disappears after 24 hours</Text>

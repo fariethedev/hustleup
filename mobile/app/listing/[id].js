@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Alert, Image, Modal, Pressable, ScrollView, Share, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 import FloatingCart from '../../src/components/native/FloatingCart';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
@@ -15,6 +15,7 @@ import { useCart } from '../../src/store/CartProvider';
 import SwapOfferSheet from '../../src/components/listings/SwapOfferSheet';
 import { ReportButton, TraderNotice } from '../../src/components/trust/TrustWidgets';
 import { RentalCosts, ViewingSheet, ViewingSummary, confirmCancelViewing, useViewings } from '../../src/components/listings/RentalViewing';
+import * as WebBrowser from 'expo-web-browser';
 
 export default function Listing() {
   const { id } = useLocalSearchParams();
@@ -75,6 +76,27 @@ export default function Listing() {
   const viewings = useViewings(listing?.id, rental && !String(id).startsWith('shop:'));
   const [viewingOpen, setViewingOpen] = useState(false);
   const openViewing = () => (user ? setViewingOpen(true) : router.push('/login'));
+  // Luggage space is bought by the kilogram, like tickets by the seat: pick a weight, book
+  // it, pay on Stripe, then track it in Orders. Mirrors the website's kg stepper.
+  const luggage = listing?.listingType === 'LUGGAGE';
+  const [kg, setKg] = useState(1);
+  const [kgBusy, setKgBusy] = useState(false);
+  const kgLeft = listing?.luggageKgRemaining ?? null;
+  const maxKg = kgLeft != null ? Math.max(1, kgLeft) : 99;
+  const bookKg = async () => {
+    if (!user) { router.push('/login'); return; }
+    setKgBusy(true);
+    try {
+      const { data: booking } = await bookingsApi.create({ listingId: listing.id, quantity: kg });
+      if (booking?.id) {
+        const { data: session } = await bookingsApi.checkoutSession(booking.id);
+        const url = session?.checkoutUrl || session?.url;
+        if (url) await WebBrowser.openBrowserAsync(url);
+      }
+      router.push({ pathname: '/profile/orders', params: booking?.id ? { bookingId: String(booking.id) } : {} });
+    } catch (e) { Alert.alert('Could not book that space', errorMessage(e, 'Please try again.')); }
+    finally { setKgBusy(false); }
+  };
   // Full-bleed gallery: the photos lead the page, the details below stay compact.
   const imageWidth = width;
   const relationship = followOverride?.id === id ? followOverride.value : data?.relationship;
@@ -121,8 +143,9 @@ export default function Listing() {
     } catch (e) { Alert.alert('Offer not sent', errorMessage(e, 'Please try again.')); }
     finally { setOfferBusy(false); }
   };
-  const purchasable = listing && !own && !rental && canPurchaseListing(listing);
+  const purchasable = listing && !own && !rental && !luggage && canPurchaseListing(listing);
   const rentalBar = rental && !own;
+  const luggageBar = luggage && !own;
   const sellerCard = listing?.sellerId && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }}>
     <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.purple, fontWeight: '900', fontSize: 18 }}>{(listing.sellerName || '?')[0]}</Text></View>
     <View style={{ flex: 1 }}>
@@ -139,7 +162,7 @@ export default function Listing() {
   return <View style={{ flex: 1, backgroundColor: colors.bg }}>
     {loading ? <View style={{ flex: 1, paddingTop: insets.top + 60, padding: 20 }}><Notice loading message="Loading listing…" /></View>
       : error ? <View style={{ flex: 1, paddingTop: insets.top + 60, padding: 20 }}><Notice message={error} onRetry={reload} /></View>
-      : listing && <ScrollView contentContainerStyle={{ paddingBottom: purchasable || rentalBar ? 120 : 40 }} showsVerticalScrollIndicator={false}>
+      : listing && <ScrollView contentContainerStyle={{ paddingBottom: purchasable || rentalBar || luggageBar ? 120 : 40 }} showsVerticalScrollIndicator={false}>
       {/* Main photo, swipeable; thumbnails underneath show which one you're viewing */}
       <View>
         {images.length ? <ScrollView ref={gallery} horizontal pagingEnabled showsHorizontalScrollIndicator={false} scrollEventThrottle={16}
@@ -189,12 +212,34 @@ export default function Listing() {
           <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }}>{event ? 'About this event' : 'Description'}</Text>
           <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 21 }}>{listing.description}</Text>
         </View>}
+        {luggage && <View style={{ gap: 10, padding: 14, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Feather name="luggage" size={18} color={colors.purple} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.muted, fontSize: 12 }}>Route</Text>
+              <Text style={{ color: colors.text, fontWeight: '800', fontSize: 15 }} numberOfLines={2}>{listing.locationCity || 'Collection point'} to {listing.destinationCity || 'destination'}</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 1, padding: 10, borderRadius: 12, backgroundColor: colors.soft }}><Text style={{ color: colors.muted, fontSize: 12 }}>Price</Text><Text style={{ color: colors.text, fontWeight: '800' }}>{money(listing.price, listing.currency)} / kg</Text></View>
+            <View style={{ flex: 1, padding: 10, borderRadius: 12, backgroundColor: colors.soft }}><Text style={{ color: colors.muted, fontSize: 12 }}>Space left</Text><Text style={{ color: kgLeft != null && kgLeft <= 10 ? colors.purple : colors.text, fontWeight: '800' }}>{kgLeft == null ? (listing.luggageCapacityKg ? `${listing.luggageCapacityKg} kg` : 'No limit') : kgLeft <= 0 ? 'Full' : `${kgLeft} kg`}</Text></View>
+          </View>
+          {!own && !(kgLeft != null && kgLeft <= 0) && <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>How many kilograms?</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Pressable accessibilityLabel="Less" onPress={() => setKg(v => Math.max(1, v - 1))} style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }}><Feather name="minus" size={16} color={colors.text} /></Pressable>
+              <Text style={{ color: colors.text, fontWeight: '900', fontSize: 17, minWidth: 44, textAlign: 'center' }}>{kg} kg</Text>
+              <Pressable accessibilityLabel="More" disabled={kg >= maxKg} onPress={() => setKg(v => Math.min(maxKg, v + 1))} style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', opacity: kg >= maxKg ? 0.4 : 1 }}><Feather name="plus" size={16} color={colors.text} /></Pressable>
+            </View>
+          </View>}
+          <Text style={{ color: colors.muted, fontSize: 12 }}>Payment is held until you confirm your items arrived.</Text>
+        </View>}
         {rental && <RentalCosts listing={listing} />}
         {rental && <ViewingSummary data={viewings.data} own={own} onBook={openViewing} onCancel={() => confirmCancelViewing(listing.id, viewings.reload)} />}
         {!!listing.sellerId && <TraderNotice sellerId={listing.sellerId} />}
         {!own && !!user && <ReportButton targetType="LISTING" targetId={listing.id} />}
 
-        {event && !!data.tickets?.length && <TouchableOpacity onPress={() => router.push('/tickets')} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 16, backgroundColor: colors.purpleSoft }}><Feather name="credit-card" size={18} color={colors.purple} /><Text style={{ color: colors.purple, fontWeight: '800', flex: 1 }}>You have {data.tickets.length} ticket(s) — open wallet</Text><Feather name="chevron-right" size={18} color={colors.purple} /></TouchableOpacity>}
+        {event && !!data.tickets?.length && <TouchableOpacity onPress={() => router.push('/tickets')} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 16, backgroundColor: colors.purpleSoft }}><Feather name="credit-card" size={18} color={colors.purple} /><Text style={{ color: colors.purple, fontWeight: '800', flex: 1 }}>You have {data.tickets.length} ticket(s) — open wallet</Text></TouchableOpacity>}
         {data.ticketError && <Notice message="Could not check your existing tickets." onRetry={reload} />}
 
         {!own && !unavailable && !event && !rental && (listing.negotiable || listing.swapEnabled) && <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -252,7 +297,18 @@ export default function Listing() {
     </View>}
     {listing && rental && <ViewingSheet visible={viewingOpen} listing={listing} data={viewings.data} onClose={() => setViewingOpen(false)}
       onBooked={t => { setViewingOpen(false); viewings.reload(); Alert.alert('Viewing booked', `See you ${t.toLocaleString([], { weekday: 'long', hour: '2-digit', minute: '2-digit' })}. The agent has been told.`); }} />}
-    {listing && !own && <FloatingCart bottom={purchasable || rentalBar ? 92 : 24} />}
+    {luggageBar && <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 12), backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.line }}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: colors.muted, fontSize: 12 }}>{kg} kg</Text>
+        <Text style={{ color: colors.text, fontSize: 17, fontWeight: '900' }} numberOfLines={1}>{money(Number(listing.price) * kg, listing.currency)}</Text>
+      </View>
+      {unavailable || (kgLeft != null && kgLeft <= 0) ? <View style={{ minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: colors.soft, justifyContent: 'center' }}><Text style={{ color: colors.muted, fontWeight: '800' }}>No space left</Text></View>
+        : <TouchableOpacity onPress={bookKg} disabled={kgBusy} style={{ minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: colors.accent, flexDirection: 'row', alignItems: 'center', gap: 8, opacity: kgBusy ? 0.6 : 1 }}>
+          <Feather name="luggage" size={17} color="#FFF" />
+          <Text style={{ color: '#FFF', fontWeight: '900', fontSize: 15 }}>{kgBusy ? 'Booking…' : `Book ${kg} kg`}</Text>
+        </TouchableOpacity>}
+    </View>}
+    {listing && !own && <FloatingCart bottom={purchasable || rentalBar || luggageBar ? 92 : 24} />}
 
     <SwapOfferSheet visible={swapOpen} target={listing} onClose={() => setSwapOpen(false)} />
     <Modal visible={offerOpen} transparent animationType="slide" onRequestClose={() => setOfferOpen(false)}>

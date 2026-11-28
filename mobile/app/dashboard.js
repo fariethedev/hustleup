@@ -3,7 +3,7 @@ import { Image, Pressable, RefreshControl, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../src/components/native/Icon';
 import { bookingsApi, listingsApi, notificationsApi, payoutsApi, shopsApi, swapsApi, ticketsApi } from '../src/api/client';
 import { useRemote } from '../src/hooks/useRemote';
 import { Copy, fonts, LIME, Notice, Screen, usePalette } from '../src/components/native/Kit';
@@ -44,7 +44,7 @@ function Stat({ label, value, icon, onPress, warn }) {
         <View style={{ width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: warn ? '#F59E0B1F' : c.purpleSoft }}>
           <Feather name={icon} size={15} color={warn ? '#F59E0B' : c.purple} />
         </View>
-        <Feather name="arrow-up-right" size={15} color={c.muted} style={{ opacity: 0.6 }} />
+        
       </View>
       <View>
         <Copy heading style={{ fontSize: 22 }} numberOfLines={1} adjustsFontSizeToFit>{value}</Copy>
@@ -172,7 +172,7 @@ export default function Dashboard() {
             <Copy heading style={{ fontSize: 15 }}>Open your free shop</Copy>
             <Copy muted style={{ fontSize: 12 }}>A storefront for products or bookable services, paid straight to your bank.</Copy>
           </View>
-          <Feather name="chevron-right" size={18} color={c.purple} />
+          
         </Pressable>
       )}
 

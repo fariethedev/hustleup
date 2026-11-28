@@ -3,7 +3,7 @@ import { BackButton } from './native/Kit';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from './native/Icon';
 import { authApi, usersApi, followsApi } from '../api/client';
 
 export default function PrivacyScreen({ visible, onClose }) {

@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 import { shopsApi } from '../../src/api/client';
 import { usePalette, BackButton } from '../../src/components/native/Kit';
 import { errorMessage, money } from '../../src/utils/marketplace';

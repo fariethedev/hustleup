@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, SectionList, Text, TouchableOpacity, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../src/components/native/Icon';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { notificationsApi } from '../src/api/client';
@@ -110,7 +110,7 @@ export default function NotificationsScreen() {
                     <Text style={{ color: c.muted, fontSize: 11 }}>{ago(n.createdAt || n.time)}</Text>
                   </View>
                   {!!n.message && <Text style={{ color: c.muted, fontSize: 13, lineHeight: 19 }} numberOfLines={2}>{n.message}</Text>}
-                  {!!t.hint && <Text style={{ color: c.purple, fontSize: 12, fontWeight: '700', marginTop: 2 }}>{t.hint} →</Text>}
+                  {!!t.hint && <Text style={{ color: c.purple, fontSize: 12, fontWeight: '700', marginTop: 2 }}>{t.hint}</Text>}
                 </View>
                 {on && <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: c.accent, marginTop: 4 }} />}
               </Pressable>

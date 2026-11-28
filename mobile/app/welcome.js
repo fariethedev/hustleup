@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../src/components/native/Icon';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Button, Copy, Panel, Screen, usePalette } from '../src/components/native/Kit';

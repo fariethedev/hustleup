@@ -2,7 +2,8 @@ import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ImageBackground, ScrollView, Share, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '../native/Icon';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { followsApi, shopsApi } from '../../api/client';
@@ -151,7 +152,7 @@ export default function Storefront({ shopId }) {
               <TouchableOpacity key={service.id} disabled={busy} onPress={() => chooseService(service)} style={{ padding: 14, backgroundColor: c.card, borderWidth: 1.5, borderColor: selected?.id === service.id ? c.purple : c.line, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <View style={{ flex: 1 }}><Text style={{ color: c.text, fontWeight: '800' }}>{service.name}</Text><Text style={{ color: c.muted, fontSize: 12 }}>{service.durationMinutes} min</Text></View>
                 <Text style={{ color: c.accent, fontWeight: '900' }}>{money(service.price, service.currency)}</Text>
-                <Feather name="chevron-right" size={18} color={c.muted} />
+                
               </TouchableOpacity>
             ))}
             {busy && <ActivityIndicator color={c.purple} />}

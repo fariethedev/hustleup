@@ -10,7 +10,7 @@ import { Copy, Notice, Screen, fonts, k, usePalette } from '../../src/components
 import { ListingCard, PersonCard, ShopCard } from '../../src/components/native/DiscoveryCards';
 import CreateListingModal from '../../src/components/listings/CreateListingModal';
 import ExploreFilters, { SORT_OPTIONS } from '../../src/components/native/ExploreFilters';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 
 async function loadExplore() {
   const results = await Promise.allSettled([listingsApi.browse({ sort: 'latest' }), shopsApi.browse(), usersApi.getAll()]);
@@ -112,7 +112,7 @@ function ExploreContent({ initialTab, initialCategory, appointmentsOnly }) {
       </View>}
       renderItem={({ item: row }) => row.type === 'heading' ? <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, marginTop: 14, marginBottom: 2 }}>
           <View style={{ flex: 1 }}><Copy heading style={{ fontSize: 18, lineHeight: 24 }}>{row.title}</Copy><Copy muted style={{ fontSize: 15 }}>{row.subtitle}</Copy></View>
-          {tab === 'overview' && <Pressable onPress={() => setTab(row.tab)} hitSlop={8}><Text style={{ color: c.purple, fontSize: 15, fontWeight: '700' }}>See all →</Text></Pressable>}
+          {tab === 'overview' && <Pressable onPress={() => setTab(row.tab)} hitSlop={8}><Text style={{ color: c.purple, fontSize: 15, fontWeight: '700' }}>See all</Text></Pressable>}
         </View> : row.type === 'empty' ? <Notice message="Nothing matches yet. Try another category, city or search." /> : row.type === 'listings' ? <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 12 }}>{row.items.map(item => <ListingCard key={item.id} item={item} onOpen={item => router.push({ pathname: '/listing/[id]', params: { id: item.id } })} style={{ flex: 1 }} />)}{row.items.length === 1 && <View style={{ flex: 1 }} />}</View> : row.type === 'shops' ? <ShopCard shop={row.item} onPress={() => router.push({ pathname: '/shop/[userId]', params: { userId: row.item.ownerId, shopId: row.item.id } })} /> : row.type === 'people' ? <PersonCard person={row.item} onPress={() => router.push('/profile/' + row.item.id)} /> : null} />
     {filtersOpen && <ExploreFilters category={category} city={city} sort={sort} listingFilters={listingFilters} onClose={() => setFiltersOpen(false)} onApply={draft => { setCategory(draft.category); setCity(draft.city); setSort(draft.sort); setFiltersOpen(false); }} />}
     <CreateListingModal visible={creating} onClose={() => setCreating(false)} onCreated={reload} />

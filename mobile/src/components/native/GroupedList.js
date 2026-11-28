@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from './Icon';
 import { Copy, fonts, usePalette } from './Kit';
 
 /**
@@ -56,7 +56,7 @@ export function Row({ icon, label, subtitle, value, count, onPress, tone = 'acce
         </View>
       )}
       {!showCount && !!value && <Copy muted style={{ fontSize: 12.5 }} numberOfLines={1}>{value}</Copy>}
-      {chevron && !!onPress && <Feather name="chevron-right" size={18} color={c.muted} style={{ opacity: 0.6 }} />}
+      
     </Pressable>
   );
 }

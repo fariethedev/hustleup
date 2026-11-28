@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TouchableOpacity, View 
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../src/components/native/Icon';
 import * as Haptics from 'expo-haptics';
 import { useCart } from '../src/store/CartProvider';
 import { cartKey, money } from '../src/utils/marketplace';
@@ -82,7 +82,7 @@ export default function CartScreen() {
                 <Pressable disabled={!group.route} onPress={() => router.push(group.route)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.line }}>
                   <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Feather name={group.icon} size={14} color={c.purple} /></View>
                   <Text style={{ color: c.text, fontWeight: '800', flex: 1 }} numberOfLines={1}>{group.name}</Text>
-                  {group.route && <Feather name="chevron-right" size={16} color={c.muted} />}
+                  
                 </Pressable>
                 {group.rows.map((item, i) => {
                   const locked = isPending(item);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, Image, Linking, Modal, Pressable, ScrollView, Share, TextInput, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';

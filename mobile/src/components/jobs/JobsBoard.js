@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../native/Icon';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -95,7 +95,7 @@ function JobCard({ job, onPress }) {
           {!!job.sourceName && <Text style={{ color: c.muted, fontSize: 12 }} numberOfLines={1}>via {job.sourceName}</Text>}
         </View>
       </View>
-      <Feather name="chevron-right" size={18} color={c.muted} style={{ alignSelf: 'center' }} />
+      
     </Pressable>
   );
 }

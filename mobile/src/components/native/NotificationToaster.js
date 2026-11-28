@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, AppState, PanResponder, Pressable, Text, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from './Icon';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

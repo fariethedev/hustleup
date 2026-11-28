@@ -4,7 +4,7 @@ import {
   Dimensions, Alert, SafeAreaView, KeyboardAvoidingView, Platform,
   Animated, Image,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../src/components/native/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';

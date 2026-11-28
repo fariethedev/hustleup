@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { Alert, Image, Pressable, RefreshControl, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';

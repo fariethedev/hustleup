@@ -7,7 +7,7 @@ export const LISTING_CATEGORIES = [
   { key: 'EVENT', label: 'Events', icon: 'calendar' },
   { key: 'JOB', label: 'Jobs', icon: 'briefcase' },
   { key: 'RENTAL', label: 'Rentals', icon: 'home' },
-  { key: 'LUGGAGE', label: 'Luggage', icon: 'truck' },
+  { key: 'LUGGAGE', label: 'Luggage space', icon: 'luggage' },
 ];
 
 export const categoryLabel = (type) => LISTING_CATEGORIES.find(c => c.key === type)?.label || type || 'Listing';

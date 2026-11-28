@@ -16,6 +16,7 @@ import CartProvider from '../src/store/CartProvider';
 import NotificationToaster from '../src/components/native/NotificationToaster';
 import { CropHost } from '../src/components/native/ImageCropper';
 import { setUser } from '../src/store/authSlice';
+import { authApi } from '../src/api/client';
 import { registerForPushNotifications, usePushNavigation } from '../src/utils/pushNotifications';
 import BrandLoader from '../src/components/native/BrandLoader';
 
@@ -82,6 +83,18 @@ function AuthGate({ children }) {
 
   // Tapping a push opens what it is about, once the session is restored and signed in.
   usePushNavigation(router, hydrated && isAuthenticated);
+
+  // Keep the signed-in profile fresh and saved. Without this a new profile photo (or any
+  // change made on the web) showed until the next launch, then the stale copy saved at
+  // sign-in came back: refresh from the server once per launch, and persist every change.
+  const user = useSelector(s => s.auth.user);
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated) return;
+    authApi.me().then(({ data }) => { if (data?.id) dispatch(setUser(data)); }).catch(() => {});
+  }, [hydrated, isAuthenticated, dispatch]);
+  useEffect(() => {
+    if (hydrated && user) AsyncStorage.setItem('hustleup_user', JSON.stringify(user)).catch(() => {});
+  }, [hydrated, user]);
 
   // Render children always so the Stack mounts and navState.key becomes available.
   // Show a lime spinner overlay while we haven't finished reading AsyncStorage.

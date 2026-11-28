@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Alert, Platform, Text, TextInput, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 import { useLocalSearchParams } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { jobsApi } from '../../src/api/client';
@@ -61,7 +61,7 @@ export default function Job() {
       <Text style={{ color: c.text, fontSize: 15, fontWeight: '800' }}>{shift ? 'About the shift' : 'About the role'}</Text>
       <Text selectable style={{ color: c.text, fontSize: 14.5, lineHeight: 22 }}>{data.description}</Text>
     </View>
-    {data.sourceUrl ? <Button onPress={() => openSource(data.sourceUrl)}>Apply on {data.sourceName || 'source website'} →</Button>
+    {data.sourceUrl ? <Button onPress={() => openSource(data.sourceUrl)}>Apply on {data.sourceName || 'source website'}</Button>
       : applied || data.appliedByCurrentUser ? <Panel><Text style={{ color: c.text, fontWeight: '800', fontSize: 15 }}>{shift ? 'Offer sent' : 'Application sent'}</Text><Text style={{ color: c.muted, fontSize: 13 }}>Track it in My applications.</Text></Panel>
       : data.ownedByCurrentUser ? <Notice message={shift ? 'This is your shift. Offers to take it appear in Applications.' : 'This is your job advert.'} />
       : <Panel>

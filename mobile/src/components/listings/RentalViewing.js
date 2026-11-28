@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../native/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { listingsApi } from '../../api/client';
 import { usePalette } from '../native/Kit';

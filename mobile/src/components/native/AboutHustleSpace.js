@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from './Icon';
 import { LinearGradient } from 'expo-linear-gradient';
 import BrandLogo from './BrandLogo';
 import { LIME, PURPLE, fonts, usePalette } from './Kit';
@@ -75,7 +75,7 @@ export default function AboutHustleSpace({ onNavigate, onCreateListing, userId }
             <Text style={{ color: c.muted, fontSize: 13, lineHeight: 20 }}>{step.body}</Text>
             <Pressable accessibilityRole="button" onPress={() => go(step)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 36, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: c.purple }}>
               <Text style={{ color: c.purple, fontWeight: '800', fontSize: 13 }}>{step.cta}</Text>
-              <Feather name="arrow-right" size={14} color={c.purple} />
+              
             </Pressable>
           </View>
         </View>

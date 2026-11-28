@@ -31,7 +31,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import SocialIcon from '../../src/components/native/SocialIcon';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 import { blocksApi, directMessagesApi, storiesApi, usersApi } from '../../src/api/client';
 import { selectUser } from '../../src/store/authSlice';
 import { Screen, usePalette, BackButton } from '../../src/components/native/Kit';

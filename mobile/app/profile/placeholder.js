@@ -2,7 +2,7 @@ import { useSocialStyles } from '../../src/components/native/socialStyles';
 import { BackButton } from '../../src/components/native/Kit';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 export default function GenericProfileScreen() {

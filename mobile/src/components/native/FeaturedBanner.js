@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FlatList, ImageBackground, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from './Icon';
 import { mediaUrl } from '../../utils/media';
 import { money } from '../../utils/marketplace';
 import { PURPLE, usePalette } from './Kit';
@@ -85,7 +85,7 @@ export default function FeaturedBanner({ featured, onOpen }) {
                     <Text style={{ flex: 1, color: '#E9E4FFCC', fontSize: 11.5 }} numberOfLines={1}>{event ? (l.eventVenue || l.locationCity || '') : `${l.sellerName || ''}${l.locationCity ? ' · ' + l.locationCity : ''}`}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#CDFF00', paddingHorizontal: 11, height: 30, borderRadius: 15 }}>
                       <Text style={{ color: '#111', fontWeight: '800', fontSize: 11.5 }}>{Number(l.price) === 0 ? 'Free' : `${event ? 'From ' : ''}${money(l.price, l.currency)}`}</Text>
-                      <Feather name="arrow-right" size={12} color="#111" />
+                      
                     </View>
                   </View>
                 </LinearGradient>

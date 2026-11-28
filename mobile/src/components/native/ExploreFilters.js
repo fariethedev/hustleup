@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from './Icon';
 import { LISTING_CATEGORIES } from '../../utils/marketplace';
 import { Button, Copy, fonts, k, usePalette } from './Kit';
 

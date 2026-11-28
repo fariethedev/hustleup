@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CropHost } from '../native/ImageCropper';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../native/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { listingsApi, swapsApi } from '../../api/client';
 import { errorMessage, money } from '../../utils/marketplace';

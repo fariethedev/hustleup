@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, PanResponder, Pressable, Text, View, useWindowDimensions } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from './Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 

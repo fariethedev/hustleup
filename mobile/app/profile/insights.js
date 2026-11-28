@@ -5,7 +5,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 import { useRouter } from 'expo-router';
 import { authApi, listingsApi, feedApi, followsApi, bookingsApi } from '../../src/api/client';
 
@@ -120,7 +120,7 @@ export default function InsightsScreen() {
           <TouchableOpacity style={s.alertBanner} onPress={() => router.push('/profile/orders')} activeOpacity={0.8}>
             <View style={s.alertDot} />
             <Text style={s.alertText}>{pendingOrders.length} order{pendingOrders.length > 1 ? 's' : ''} waiting for your response</Text>
-            <Feather name="arrow-right" size={14} color={LIME} />
+            
           </TouchableOpacity>
         )}
 
@@ -151,7 +151,7 @@ export default function InsightsScreen() {
           </View>
           <TouchableOpacity style={s.revenueBtn} onPress={() => router.push('/profile/orders')}>
             <Text style={s.revenueBtnText}>View Orders</Text>
-            <Feather name="arrow-right" size={13} color={BG} />
+            
           </TouchableOpacity>
         </View>
 

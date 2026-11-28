@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, UIManager, View } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) UIManager.setLayoutAnimationEnabledExperimental(true);
 import { usePathname, useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from './Icon';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
@@ -19,7 +21,7 @@ const tabs = [
 /**
  * Floating, frosted-glass navigation pill. It sits above the content with a soft shadow and
  * translucent fill so the page shows through, keeps a short label under every icon so each
- * destination is obvious, and marks the current tab with a lime chip. Screens reserve
+ * destination is obvious, and the current tab opens into a violet pill with its label. Screens reserve
  * ~150px of bottom padding so nothing hides behind it.
  */
 export default function FloatingNav() {
@@ -55,8 +57,8 @@ export default function FloatingNav() {
   return (
     <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom: Math.max(insets.bottom, 10) + 8, alignItems: 'center' }}>
       <View accessibilityRole="tablist" style={{
-        width: '100%', maxWidth: 420, height: 70, borderRadius: 35, overflow: 'hidden',
-        flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8,
+        width: '100%', maxWidth: 420, height: 62, borderRadius: 31, overflow: 'hidden',
+        flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, gap: 2,
         backgroundColor: c.light ? '#FFFFFFB3' : '#1B1B1FB3', borderWidth: 1, borderColor: c.light ? '#FFFFFFE6' : '#FFFFFF1F',
         shadowColor: '#1F2A12', shadowOpacity: 0.16, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 14,
       }}>
@@ -66,17 +68,20 @@ export default function FloatingNav() {
           const badge = icon === 'message-circle' && authenticated && unread > 0;
           return (
             <Pressable key={route} accessibilityRole="tab" accessibilityLabel={badge ? `${label}, ${unread} unread` : label}
-              accessibilityState={{ selected }} onPress={() => router.navigate(route)} hitSlop={4}
-              style={({ pressed }) => ({ flex: 1, height: 56, alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: 28, opacity: pressed ? 0.7 : 1 })}>
-              <View style={{ width: 46, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? '#CDFF00' : 'transparent' }}>
-                <Feather name={icon} size={20} color={selected ? '#111111' : c.muted} />
-                {badge && (
-                  <View style={{ position: 'absolute', top: -3, right: 2, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: c.purple, borderWidth: 2, borderColor: c.card, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: '#FFFFFF', fontSize: 9.5, fontWeight: '800' }}>{unread > 9 ? '9+' : unread}</Text>
-                  </View>
-                )}
+              accessibilityState={{ selected }} onPress={() => { if (!selected) LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity')); router.navigate(route); }} hitSlop={4}
+              style={({ pressed }) => ({ flex: selected ? 2.3 : 1, height: 50, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 46, paddingHorizontal: selected ? 14 : 0, minWidth: 46, borderRadius: 23,
+                backgroundColor: selected ? c.purple : 'transparent' }}>
+                <View>
+                  <Feather name={icon} size={20} color={selected ? '#FFFFFF' : c.muted} />
+                  {badge && (
+                    <View style={{ position: 'absolute', top: -7, right: -10, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, backgroundColor: c.danger, borderWidth: 2, borderColor: c.card, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}>{unread > 9 ? '9+' : unread}</Text>
+                    </View>
+                  )}
+                </View>
+                {selected && <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '800', color: '#FFFFFF' }}>{label}</Text>}
               </View>
-              <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: selected ? '700' : '500', color: selected ? c.text : c.muted }}>{label}</Text>
             </Pressable>
           );
         })}

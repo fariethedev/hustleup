@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, View, useWindowDimensions } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 import { useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { listingsApi, shopsApi } from '../../src/api/client';
@@ -33,7 +33,7 @@ function Task({ icon, title, description, onPress }) {
   return <Pressable accessibilityRole="button" accessibilityLabel={`${title}. ${description}`} onPress={onPress} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, minHeight: 88, borderRadius: 20, borderWidth: 1, borderColor: c.line, backgroundColor: pressed ? c.soft : c.card })}>
     <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: c.soft, alignItems: 'center', justifyContent: 'center' }}><Feather name={icon} size={24} color={c.accent} /></View>
     <View style={{ flex: 1, gap: 3 }}><Copy style={{ fontFamily: fonts.medium, fontSize: 18 }}>{title}</Copy><Copy muted style={{ fontSize: 15 }}>{description}</Copy></View>
-    <Feather name="chevron-right" size={22} color={c.muted} />
+    
   </Pressable>;
 }
 export default function Home() {
@@ -56,30 +56,12 @@ export default function Home() {
       </Pressable>
       <View style={{ flex: 1 }}>
         <Copy heading accessibilityRole="header" numberOfLines={1} style={{ fontSize: 24 }}>{user?.fullName ? `Hello, ${user.fullName.split(' ')[0]}` : 'Welcome'}</Copy>
-        <Copy muted numberOfLines={1} style={{ fontSize: 14 }}>What would you like to do today?</Copy>
+        <Copy muted numberOfLines={1} style={{ fontSize: 14 }}>What's on today?</Copy>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel="Search products, services and shops" onPress={() => browse({ tab: 'listings' })} hitSlop={6}
         style={({ pressed }) => ({ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.line, backgroundColor: pressed ? c.soft : c.card })}>
         <Feather name="search" size={22} color={c.text} />
       </Pressable>
-    </View>
-    <Panel style={{ padding: 0, gap: 0, overflow: 'hidden' }}>
-      <Image source={require('../../assets/images/marketplace-hero.webp')} accessibilityLabel="A local shop owner shows a handmade mug to a customer" resizeMode="cover" style={{ width: '100%', aspectRatio: 1.65 }} />
-      <View style={{ padding: 18, gap: 10 }}>
-        <Copy heading style={{ fontSize: 24 }}>Good things start locally.</Copy>
-        <Copy muted>Find local shops, services and people in your community.</Copy>
-        <Button onPress={() => browse({ tab: 'shops' })}>Explore local shops</Button>
-      </View>
-    </Panel>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 2 }} style={{ marginHorizontal: -20 }} contentInset={{ left: 20, right: 20 }}>
-      <View style={{ width: 14 }} />
-      {LISTING_CATEGORIES.map(cat => <CategoryChip key={cat.key} item={cat} onPress={() => browse({ tab: 'listings', category: cat.key })} />)}
-      <View style={{ width: 14 }} />
-    </ScrollView>
-    <View style={{ gap: 12 }}>
-      <Task icon="shopping-bag" title="Browse & shop" description="Find products from local sellers" onPress={() => browse({ tab: 'listings' })} />
-      <Task icon="calendar" title="Book an appointment" description="Haircuts, beauty and other services" onPress={() => browse({ tab: 'shops', appointments: 'true' })} />
-      <Task icon="package" title="My orders" description="Check your purchases" onPress={() => router.push(user ? '/profile/orders' : '/login')} />
     </View>
     {(() => {
       // Trending now: upcoming events first, then the most popular listings with photos.
@@ -90,6 +72,16 @@ export default function Home() {
       </View>;
       return loading && !data ? <View style={{ height: featuredHeight(width), borderRadius: 28, backgroundColor: c.soft }} /> : null;
     })()}
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 2 }} style={{ marginHorizontal: -20 }} contentInset={{ left: 20, right: 20 }}>
+      <View style={{ width: 14 }} />
+      {LISTING_CATEGORIES.map(cat => <CategoryChip key={cat.key} item={cat} onPress={() => browse({ tab: 'listings', category: cat.key })} />)}
+      <View style={{ width: 14 }} />
+    </ScrollView>
+    <View style={{ gap: 12 }}>
+      <Task icon="shopping-bag" title="Browse & shop" description="Find products from local sellers" onPress={() => browse({ tab: 'listings' })} />
+      <Task icon="calendar" title="Book an appointment" description="Haircuts, beauty and other services" onPress={() => browse({ tab: 'shops', appointments: 'true' })} />
+      <Task icon="package" title="My orders & bookings" description="Check purchases and appointments" onPress={() => router.push(user ? '/profile/orders' : '/login')} />
+    </View>
     <Panel style={{ backgroundColor: c.soft }}>
       <Copy heading style={{ fontSize: 21 }}>Have something to offer?</Copy>
       <Copy muted>Sell an item or share a service with your community.</Copy>

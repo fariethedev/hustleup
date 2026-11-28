@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Pressable, RefreshControl, TextInput, View } from 'react-native';
 import { useSelector } from 'react-redux';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '../../src/components/native/Icon';
 import { bookingsApi, reviewsApi, shopsApi } from '../../src/api/client';
 import { useRemote } from '../../src/hooks/useRemote';
 import { Button, Copy, Notice, Panel, Screen, Section, k, usePalette } from '../../src/components/native/Kit';
