@@ -1,23 +1,18 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronDown, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, MapPin, SlidersHorizontal } from 'lucide-react';
 import ExploreNav from './ExploreNav';
 import '../styles/discover.css';
 
-export function ExploreShell({ title, description, query, onQueryChange, searchLabel, filters, children }) {
+export function ExploreShell({ title, description, filters, children }) {
   return (
     <div className="discover-page">
       <div className="discover-container">
         <header className="discover-heading">
-          <div><span className="discover-eyebrow">The student marketplace</span><h1>{title}</h1><p>{description}</p></div>
+          <div><h1>{title}</h1><p>{description}</p></div>
           <Link to="/create" className="discover-button discover-sell">Add a listing <ArrowRight size={16} /></Link>
         </header>
         <div className="discover-toolbar">
-          <div className="discover-search" role="search">
-            <Search size={19} aria-hidden="true" />
-            <input type="search" aria-label={searchLabel} placeholder={searchLabel} value={query} onChange={(e) => onQueryChange(e.target.value)} />
-            {query && <button type="button" className="discover-icon-button" aria-label="Clear search" onClick={() => onQueryChange('')}><X size={17} /></button>}
-          </div>
           <ExploreNav />
         </div>
         {filters && <div className="discover-filters">{filters}</div>}

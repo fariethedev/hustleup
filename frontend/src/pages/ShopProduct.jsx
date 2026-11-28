@@ -64,7 +64,7 @@ export default function ShopProduct() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-24 pb-24">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-24">
       <Link to={`/shop/${shop.slug || shop.id}`} className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-5">
         <MoveLeft className="w-4 h-4" /> {shop.name}
       </Link>

@@ -450,14 +450,14 @@ export default function ListingDetail() {
         <div className="flex items-center justify-between mb-4">
           <Link
             to="/explore"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest hover:text-[#CDFF00] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-xs font-semibold hover:text-[#CDFF00] transition-colors"
           >
             <MoveLeft className="w-3.5 h-3.5" /> Explore
           </Link>
           <div className="flex gap-2">
             <button
               onClick={toggleSave}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest transition-all hover:bg-white/5 active:scale-95 ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/15 text-xs font-semibold transition-all hover:border-white/40 active:scale-95 ${
                 saved ? 'text-[#FF00FF]' : 'text-[#CDFF00]'
               }`}
             >
@@ -465,7 +465,7 @@ export default function ListingDetail() {
             </button>
             <button
               onClick={() => setShareOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-strong text-[9px] font-black tracking-widest text-white hover:bg-white/5 active:scale-95 transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/15 text-xs font-semibold text-white hover:border-white/40 active:scale-95 transition-all"
             >
               <Forward className="w-3.5 h-3.5" /> Share
             </button>
@@ -476,7 +476,7 @@ export default function ListingDetail() {
         {listing?.sellerId && <div className="mb-6"><TraderNotice sellerId={listing.sellerId} /></div>}
 
         {/* 2-Column Layout */}
-        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-8 items-start">
+        <div className="grid md:grid-cols-2 gap-6 md:gap-10 items-start">
           {/* Left: Media — images and video clips in one gallery, with a resilient
               placeholder for anything that fails to load. */}
           <div className="flex flex-col gap-3 min-w-0">
@@ -564,12 +564,12 @@ export default function ListingDetail() {
                   </div>
                 )}
                 {listing.locationCity && (
-                  <div className="flex items-center gap-1.5 text-gray-500 text-[9px] font-black tracking-widest">
+                  <div className="flex items-center gap-1.5 text-gray-500 text-xs font-semibold">
                     <Navigation className="w-3 h-3 text-[#CDFF00]" /> {listing.locationCity}
                   </div>
                 )}
                 {listing.sellerVerified && (
-                  <div className="flex items-center gap-1.5 text-[#A855F7] text-[9px] font-black tracking-widest">
+                  <div className="flex items-center gap-1.5 text-[#A855F7] text-xs font-semibold">
                     <ShieldPlus className="w-3 h-3" /> Trusted Merchant
                   </div>
                 )}
@@ -580,7 +580,7 @@ export default function ListingDetail() {
               {isEventType && (eventStart || listing.eventVenue) && (
                 <div className="flex flex-wrap items-center gap-3 mt-2.5">
                   {eventStart && (
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#CDFF00]/10 border border-[#CDFF00]/25 text-[#CDFF00] text-[10px] font-black tracking-widest">
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#CDFF00]/10 border border-[#CDFF00]/25 text-[#CDFF00] text-xs font-semibold">
                       <CalendarRange className="w-3 h-3" />
                       {eventStart.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
                       {' · '}
@@ -598,7 +598,7 @@ export default function ListingDetail() {
               {/* Route — a luggage listing is worthless without knowing where it's going,
                   same reasoning as the event date/venue above. */}
               {isLuggageType && listing.destinationCity && (
-                <div className="flex items-center gap-1.5 mt-2.5 px-2.5 py-1 rounded-lg bg-[#CDFF00]/10 border border-[#CDFF00]/25 text-[#CDFF00] text-[10px] font-black tracking-widest w-fit">
+                <div className="flex items-center gap-1.5 mt-2.5 px-2.5 py-1 rounded-lg bg-[#CDFF00]/10 border border-[#CDFF00]/25 text-[#CDFF00] text-xs font-semibold w-fit">
                   <Luggage className="w-3 h-3" /> {listing.locationCity || 'Collecting'} → {listing.destinationCity}
                 </div>
               )}
@@ -612,7 +612,7 @@ export default function ListingDetail() {
                   {services.length > 1 && (
                     <span className="text-xs font-bold text-gray-400">From</span>
                   )}
-                  <span className="text-2xl sm:text-3xl font-black text-white tracking-wider">
+                  <span className="text-2xl sm:text-3xl font-bold text-white">
                     {formatPrice(listing.price, listing.currency)}
                   </span>
                   {isLuggageType && (
@@ -622,7 +622,7 @@ export default function ListingDetail() {
                     <span className="text-xs font-bold text-gray-400">/ mo</span>
                   )}
                   {listing.negotiable && (
-                    <span className="text-[9px] font-black tracking-widest px-2 py-0.5 bg-white/5 border border-white/10 text-[#CDFF00] rounded-md">
+                    <span className="text-xs font-semibold px-2 py-0.5 bg-white/5 border border-white/10 text-[#CDFF00] rounded-md">
                       Negotiable
                     </span>
                   )}
@@ -640,7 +640,7 @@ export default function ListingDetail() {
                   const postage = Number(listing.shippingPrice) || 0;
                   const Icon = method.icon;
                   return (
-                    <div className="flex items-center gap-2 mb-3 text-[10px] font-black tracking-widest text-gray-400">
+                    <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-gray-400">
                       <Icon className="w-3.5 h-3.5 text-[#CDFF00]" />
                       <span>{method.label}</span>
                       <span className={postage > 0 ? 'text-white' : 'text-[#CDFF00]'}>
@@ -655,7 +655,7 @@ export default function ListingDetail() {
                     their listing as buyers do. */}
                 {services.length > 0 && (
                   <div className="mb-4">
-                    <h4 className="text-[10px] font-black tracking-widest text-gray-400 mb-2">
+                    <h4 className="text-xs font-semibold text-gray-400 mb-2">
                       {isSeller ? 'Your services' : 'Choose a service'}
                     </h4>
                     <div className="space-y-1.5" role="radiogroup" aria-label="Services">
@@ -695,7 +695,7 @@ export default function ListingDetail() {
 
                 {!isSeller && showSlotPicker && (
                   <div className="space-y-3">
-                    <h4 className="text-[10px] font-black tracking-widest text-gray-400">Pick a time</h4>
+                    <h4 className="text-xs font-semibold text-gray-400">Pick a time</h4>
                     <div className="flex flex-wrap gap-2">
                       {openSlots.map((s) => {
                         const active = selectedSlotId === s.id;
@@ -709,7 +709,7 @@ export default function ListingDetail() {
                               active ? 'bg-[#CDFF00] border-[#CDFF00] text-black' : 'bg-white/5 border-white/10 text-white hover:border-white/25'
                             }`}
                           >
-                            <span className="block text-[10px] font-black tracking-widest">{start.toLocaleDateString()}</span>
+                            <span className="block text-xs font-semibold">{start.toLocaleDateString()}</span>
                             <span className="block text-xs font-bold">
                               {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–{end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
@@ -739,7 +739,7 @@ export default function ListingDetail() {
                 {!isSeller && isServiceType && !showSlotPicker && (
                   <div className="space-y-2.5">
                     <label className="block">
-                      <span className="flex items-center gap-1.5 text-[10px] font-black tracking-widest text-gray-400 mb-1.5">
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 mb-1.5">
                         <CalendarClock className="w-3.5 h-3.5" /> Preferred time <span className="text-gray-600 font-bold">(optional)</span>
                       </span>
                       <input
@@ -780,7 +780,7 @@ export default function ListingDetail() {
                   // Already holding tickets for this event: lead with the way in, not another
                   // sale. Buying more is still possible from the block underneath.
                   <div className="mb-3 p-3 rounded-xl bg-[#CDFF00]/10 border border-[#CDFF00]/30 space-y-2">
-                    <p className="text-[10px] font-black tracking-widest text-[#CDFF00] flex items-center gap-1.5">
+                    <p className="text-xs font-semibold text-[#CDFF00] flex items-center gap-1.5">
                       <CircleCheck className="w-3.5 h-3.5" /> You're going
                     </p>
                     <p className="text-xs text-gray-300">
@@ -804,7 +804,7 @@ export default function ListingDetail() {
                         and a single generic refusal loses the only useful part. */}
                     {!onSale ? (
                       <div className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-center">
-                        <p className="text-[11px] font-black tracking-widest text-gray-300">
+                        <p className="text-[11px] font-semibold text-gray-300">
                           {salesState === 'SOLD_OUT' ? 'Sold out'
                             : salesState === 'SALES_CLOSED' ? 'Sales closed'
                             : salesState === 'NOT_YET_ON_SALE' ? 'Not on sale yet'
@@ -821,7 +821,7 @@ export default function ListingDetail() {
                             report, and inventing "plenty left" would be a claim about a door
                             limit the organiser never set. */}
                         {ticketsLeft != null && (
-                          <p className={`text-[10px] font-black tracking-widest text-center ${
+                          <p className={`text-xs font-semibold text-center ${
                             lastFew ? 'text-[#CDFF00]' : 'text-gray-500'
                           }`}>
                             {ticketsLeft === 1 ? '1 ticket left' : `${ticketsLeft} tickets left`}
@@ -829,7 +829,7 @@ export default function ListingDetail() {
                         )}
 
                         <div className="flex items-center justify-between px-1">
-                          <span className="text-[10px] font-black tracking-widest text-gray-500">
+                          <span className="text-xs font-semibold text-gray-500">
                             {liveTickets.length > 0 ? 'Buy more' : 'Tickets'}
                           </span>
                           <div className="flex items-center gap-3">
@@ -872,14 +872,14 @@ export default function ListingDetail() {
                 {!isSeller && isLuggageType && (
                   <div className="space-y-3">
                     {kgLeft != null && (
-                      <p className={`text-[10px] font-black tracking-widest text-center ${
+                      <p className={`text-xs font-semibold text-center ${
                         kgLastFew ? 'text-[#CDFF00]' : 'text-gray-500'
                       }`}>
                         {kgLeft <= 0 ? 'No space left' : `${kgLeft}kg left`}
                       </p>
                     )}
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-[10px] font-black tracking-widest text-gray-500">Kilograms</span>
+                      <span className="text-xs font-semibold text-gray-500">Kilograms</span>
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => setKgQty((q) => Math.max(1, q - 1))}
@@ -1046,7 +1046,7 @@ export default function ListingDetail() {
                 text squeezed between the price and the buy buttons. */}
             {listing.description && (
               <section className="p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/[0.07]">
-                <h2 className="text-[11px] font-black tracking-widest text-[#CDFF00] mb-2">
+                <h2 className="text-[11px] font-semibold text-[#CDFF00] mb-2">
                   {isServiceType ? 'About this service' : 'About this listing'}
                 </h2>
                 <p className="text-[15px] text-gray-200 leading-relaxed whitespace-pre-wrap break-words">{listing.description}</p>
@@ -1056,7 +1056,7 @@ export default function ListingDetail() {
             {/* Event Updates */}
             {isEventType && (
               <div>
-                <h4 className="text-[9px] font-black tracking-widest text-[#CDFF00] mb-2.5 opacity-40">Event Updates</h4>
+                <h4 className="text-xs font-semibold text-[#CDFF00] mb-2.5 opacity-40">Event Updates</h4>
 
                 {isSeller && (
                   <div className="mb-3 p-3 rounded-2xl border border-white/10 bg-white/[0.03]">
@@ -1078,7 +1078,7 @@ export default function ListingDetail() {
                       <button
                         onClick={handlePostUpdate}
                         disabled={postingUpdate || (!updateText.trim() && !updateImage)}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#CDFF00] text-black text-[10px] font-black tracking-widest hover:bg-[#d9ff33] transition-all disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#CDFF00] text-black text-xs font-semibold hover:bg-[#d9ff33] transition-all disabled:opacity-50"
                       >
                         <SendHorizontal className="w-3 h-3" /> Post
                       </button>
