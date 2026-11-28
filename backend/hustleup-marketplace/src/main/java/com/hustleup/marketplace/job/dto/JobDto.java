@@ -38,6 +38,8 @@ public class JobDto {
     private int viewsCount;
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;
+    private LocalDateTime shiftStartsAt;
+    private LocalDateTime shiftEndsAt;
 
     /**
      * Whether the signed-in caller has already applied.
@@ -89,6 +91,8 @@ public class JobDto {
                 .viewsCount(j.getViewsCount())
                 .createdAt(j.getCreatedAt())
                 .expiresAt(j.getExpiresAt())
+                .shiftStartsAt(j.getShiftStartsAt())
+                .shiftEndsAt(j.getShiftEndsAt())
                 .appliedByCurrentUser(applied)
                 .ownedByCurrentUser(owned)
                 .sourceName(j.getSourceName())

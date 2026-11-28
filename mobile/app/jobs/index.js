@@ -1,3 +1,3 @@
 import React from 'react';
-import Editorial from '../../src/components/native/Editorial';
-export default function Jobs() { return <Editorial kind="jobs" />; }
+import JobsBoard from '../../src/components/jobs/JobsBoard';
+export default function Jobs() { return <JobsBoard />; }

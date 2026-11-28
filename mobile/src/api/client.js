@@ -385,6 +385,7 @@ export const jobsApi = {
   one: id => api.get(`/jobs/${id}`),
   myApplications: () => api.get('/jobs/applications/mine'),
   apply: (id, data) => api.post(`/jobs/${id}/apply`, data),
+  postShift: body => api.post('/jobs/shifts', body),
 };
 export const newsApi = {
   feed: params => api.get('/news', { params }),

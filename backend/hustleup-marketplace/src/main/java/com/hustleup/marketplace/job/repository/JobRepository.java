@@ -29,12 +29,13 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
            WHERE j.status = com.hustleup.marketplace.job.model.Job$JobStatus.OPEN
              AND (j.expiresAt IS NULL OR j.expiresAt > :now)
              AND (:category IS NULL OR j.category = :category)
+             AND (:shifts = false OR j.shiftStartsAt IS NOT NULL)
              AND (:q IS NULL OR LOWER(j.title) LIKE CONCAT('%', LOWER(:q), '%')
                              OR LOWER(j.companyName) LIKE CONCAT('%', LOWER(:q), '%')
                              OR LOWER(j.description) LIKE CONCAT('%', LOWER(:q), '%'))
            ORDER BY j.createdAt DESC
            """)
-    Page<Job> findBoard(LocalDateTime now, String category, String q, Pageable pageable);
+    Page<Job> findBoard(LocalDateTime now, String category, String q, boolean shifts, Pageable pageable);
 
     /** Everything one company has posted, any state — their "manage adverts" view. */
     List<Job> findByPublisherUserIdOrderByCreatedAtDesc(UUID publisherUserId);

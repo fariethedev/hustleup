@@ -60,12 +60,13 @@ public class JobController {
     public ResponseEntity<?> board(@RequestParam(required = false) String category,
                                    @RequestParam(required = false) String q,
                                    @RequestParam(defaultValue = "0") int page,
-                                   @RequestParam(defaultValue = "30") int size) {
+                                   @RequestParam(defaultValue = "30") int size,
+                                   @RequestParam(defaultValue = "false") boolean shifts) {
         String search = (q == null || q.isBlank()) ? null : q.toLowerCase();
         String cat = (category == null || category.isBlank() || "all".equalsIgnoreCase(category))
                 ? null : category;
 
-        var results = jobRepository.findBoard(LocalDateTime.now(), cat, search,
+        var results = jobRepository.findBoard(LocalDateTime.now(), cat, search, shifts,
                 PageRequest.of(Math.max(0, page), Math.min(100, Math.max(1, size))));
 
         User me = publisherGuard.currentUser().orElse(null);
@@ -193,6 +194,77 @@ public class JobController {
         log.info("Job posted: id={} publisher={} company={}",
                 saved.getId(), publisher.getUserId(), publisher.getCompanyName());
         return ResponseEntity.status(HttpStatus.CREATED).body(JobDto.from(saved, false, true));
+    }
+
+    /**
+     * Post a single shift you need covered: anyone signed in, no hiring-company profile
+     * needed. People pass on restaurant and warehouse shifts all the time; this puts them
+     * on the board with the date, time and pay, and "apply" becomes "I can take it".
+     *
+     * <p><b>POST /api/v1/jobs/shifts</b> (JSON): title, workplace, category, location,
+     * startsAt, endsAt (ISO with offset), pay, payPeriod (HOUR|SHIFT), currency, description.
+     */
+    @PostMapping(value = "/shifts", consumes = "application/json")
+    public ResponseEntity<?> postShift(@RequestBody Map<String, Object> body) {
+        User me = publisherGuard.currentUser().orElse(null);
+        if (me == null) return ResponseEntity.status(401).build();
+        String title = str(body.get("title"));
+        String workplace = str(body.get("workplace"));
+        if (title == null || title.length() < 3) return badRequest("Say what the shift is, e.g. Waiter, Friday evening");
+        if (title.length() > 120) title = title.substring(0, 120);
+        LocalDateTime starts;
+        LocalDateTime ends;
+        try {
+            starts = java.time.OffsetDateTime.parse(String.valueOf(body.get("startsAt")))
+                    .withOffsetSameInstant(java.time.ZoneOffset.UTC).toLocalDateTime();
+            ends = java.time.OffsetDateTime.parse(String.valueOf(body.get("endsAt")))
+                    .withOffsetSameInstant(java.time.ZoneOffset.UTC).toLocalDateTime();
+        } catch (Exception e) {
+            return badRequest("Pick when the shift starts and ends");
+        }
+        LocalDateTime nowUtc = LocalDateTime.now(java.time.ZoneOffset.UTC);
+        if (!ends.isAfter(starts)) return badRequest("The shift must end after it starts");
+        if (starts.isBefore(nowUtc)) return badRequest("That shift has already started");
+        if (starts.isAfter(nowUtc.plusDays(60))) return badRequest("Shifts can be posted up to 60 days ahead");
+        if (java.time.Duration.between(starts, ends).toHours() > 16) return badRequest("A shift can be at most 16 hours");
+        BigDecimal pay = null;
+        try {
+            String raw = str(body.get("pay"));
+            if (raw != null) pay = new BigDecimal(raw.replace(',', '.'));
+        } catch (NumberFormatException e) {
+            return badRequest("Pay must be a number");
+        }
+        if (pay != null && pay.signum() < 0) return badRequest("Pay cannot be negative");
+        String period = "SHIFT".equalsIgnoreCase(str(body.get("payPeriod"))) ? "SHIFT" : "HOUR";
+        String description = str(body.get("description"));
+        String category = str(body.get("category"));
+        String location = str(body.get("location"));
+        String currency = str(body.get("currency"));
+        Job job = Job.builder()
+                .publisherUserId(me.getId())
+                .companyName(workplace != null ? workplace : me.displayName())
+                .title(title)
+                .description(description != null ? description : "Shift cover needed.")
+                .category(category != null ? category : "hospitality")
+                .location(location != null ? location : me.getCity())
+                .remote(false)
+                .jobType(Job.JobType.GIG)
+                .salaryMin(pay)
+                .salaryCurrency(currency != null ? currency : "PLN")
+                .salaryPeriod(period)
+                .tags(new ArrayList<>(List.of("shift")))
+                .shiftStartsAt(starts)
+                .shiftEndsAt(ends)
+                .expiresAt(starts) // nobody can take a shift that has already begun
+                .build();
+        Job saved = jobRepository.save(job);
+        return ResponseEntity.status(HttpStatus.CREATED).body(JobDto.from(saved, false, true));
+    }
+
+    private static String str(Object o) {
+        if (o == null) return null;
+        String s = String.valueOf(o).trim();
+        return s.isEmpty() ? null : s;
     }
 
     /** Adverts posted by the caller. <b>GET /api/v1/jobs/mine</b> */

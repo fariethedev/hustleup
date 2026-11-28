@@ -188,6 +188,17 @@ public class Job {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /**
+     * Set when this is a single shift someone needs covered (a restaurant evening, a
+     * warehouse night) rather than a vacancy. The board lists these as "shifts up for
+     * grabs", and the advert stops showing once the shift has started.
+     */
+    @Column(name = "shift_starts_at")
+    private LocalDateTime shiftStartsAt;
+
+    @Column(name = "shift_ends_at")
+    private LocalDateTime shiftEndsAt;
+
     /** When the advert stops showing. Null means it runs until the poster closes it. */
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
