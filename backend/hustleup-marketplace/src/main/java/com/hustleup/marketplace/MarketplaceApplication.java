@@ -70,6 +70,10 @@ import java.util.UUID;
     "com.hustleup.marketplace.job.repository",
     "com.hustleup.marketplace.feedback.repository",
     "com.hustleup.marketplace.protection.repository",
+    // Packages that keep entity and repository side by side.
+    "com.hustleup.marketplace.safety",
+    "com.hustleup.marketplace.trust",
+    "com.hustleup.marketplace.shipping",
     "com.hustleup.common.repository"
 })
 // Tell Hibernate which packages contain @Entity classes so it can map them to
@@ -86,6 +90,9 @@ import java.util.UUID;
     "com.hustleup.marketplace.job.model",
     "com.hustleup.marketplace.feedback.model",
     "com.hustleup.marketplace.protection.model",
+    "com.hustleup.marketplace.safety",
+    "com.hustleup.marketplace.trust",
+    "com.hustleup.marketplace.shipping",
     "com.hustleup.common.model"
 })
 // Explicit component scan so that @Service, @RestController, @Repository beans
